@@ -1,4 +1,3 @@
-
 #include "Controls.h"
 #include "imgui.h"
 
@@ -6,9 +5,22 @@ void drawControls(Camera& camera)
 {
     ImGui::Begin("Controls");
 
-    ImGui::SliderFloat("RotX",&camera.rotX,-180,180);
-    ImGui::SliderFloat("RotY",&camera.rotY,-180,180);
-    ImGui::SliderFloat("Zoom",&camera.zoom,-10,-1);
+    ImGui::SliderFloat("Yaw",   &camera.yaw,   -180.0f, 180.0f);
+    ImGui::SliderFloat("Pitch", &camera.pitch, -89.0f,  89.0f);
+    ImGui::SliderFloat("Distance", &camera.distance, 1.0f, 50.0f);
+
+    ImGui::Separator();
+
+    if(ImGui::Button("Reset Camera"))
+    {
+        camera.yaw = 0.0f;
+        camera.pitch = 20.0f;
+        camera.distance = 10.0f;
+    }
+
+    ImGui::Text("Mouse:");
+    ImGui::Text("Left Drag : Rotate");
+    ImGui::Text("Scroll    : Zoom");
 
     ImGui::End();
 }

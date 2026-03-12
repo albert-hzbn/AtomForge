@@ -2,7 +2,7 @@
 # Cross Platform Makefile
 #
 
-EXE = imgui_demo
+EXE = atoms_editor
 
 IMGUI_DIR = ../
 
@@ -16,6 +16,7 @@ SOURCES = main.cpp \
           camera/Camera.cpp \
           graphics/SphereMesh.cpp \
           graphics/Shader.cpp \
+          graphics/ShadowMap.cpp \
           math/MathUtils.cpp \
           ui/Controls.cpp
 
