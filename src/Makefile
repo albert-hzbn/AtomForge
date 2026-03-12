@@ -6,7 +6,7 @@ EXE = atoms_editor
 
 IMGUI_DIR = ../
 
-SRC_DIRS = . camera graphics math ui
+SRC_DIRS = . camera graphics math ui io
 
 # --------------------------------------------------
 # SOURCES
@@ -18,7 +18,8 @@ SOURCES = main.cpp \
           graphics/Shader.cpp \
           graphics/ShadowMap.cpp \
           math/MathUtils.cpp \
-          ui/Controls.cpp
+          ui/Controls.cpp \
+          io/StructureLoader.cpp
 
 SOURCES += $(IMGUI_DIR)/imgui/imgui.cpp \
            $(IMGUI_DIR)/imgui/imgui_draw.cpp \
@@ -39,10 +40,9 @@ CXXFLAGS = -std=c++11 -O2
 CXXFLAGS += -I. 
 CXXFLAGS += -I$(IMGUI_DIR)/imgui
 CXXFLAGS += -I$(IMGUI_DIR)/backends
-CXXFLAGS += -Icamera -Igraphics -Imath -Iui
+CXXFLAGS += -Icamera -Igraphics -Imath -Iui -Iio
 CXXFLAGS += -g -Wall -Wformat
 
-LIBS =
 
 # --------------------------------------------------
 # PLATFORM FLAGS
@@ -53,7 +53,9 @@ ifeq ($(UNAME_S), Linux)
 ECHO_MESSAGE = "Linux"
 
 CXXFLAGS += `pkg-config --cflags glfw3`
+CXXFLAGS += `pkg-config --cflags openbabel-3`
 
+LIBS += `pkg-config --libs openbabel-3`
 LIBS += -lGLEW
 LIBS += `pkg-config --libs glfw3`
 LIBS += -lGL -ldl -lpthread

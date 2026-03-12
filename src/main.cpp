@@ -10,6 +10,7 @@
 #include "Shader.h"
 #include "Controls.h"
 #include "ShadowMap.h"
+#include "StructureLoader.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -206,6 +207,9 @@ int main()
 
     ShadowMap shadow = createShadowMap(1024,1024);
 
+    std::string filename = "../data/Cu6Sn5.cif";
+    Structure structure = loadStructure(filename);
+
     // ------------------------------------------------------------
     // MAIN LOOP
     // ------------------------------------------------------------
@@ -313,7 +317,23 @@ int main()
 
         // draw sphere
         glBindVertexArray(sphere.vao);
-        sphere.draw();
+
+        for(const auto& atom : structure.atoms)
+        {
+            // move sphere to atom position
+            glm::mat4 model =
+                glm::translate(glm::mat4(1.0f),
+                            glm::vec3(atom.x, atom.y, atom.z));
+
+            glm::mat4 MVP = projection * view * model;
+
+            glUniformMatrix4fv(mvpLoc,
+                            1,
+                            GL_FALSE,
+                            glm::value_ptr(MVP));
+
+            sphere.draw();
+        }
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
