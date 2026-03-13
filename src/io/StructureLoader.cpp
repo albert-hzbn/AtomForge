@@ -9,7 +9,7 @@
 #include <array>
 
 
-static void elementColor(int Z,float& r,float& g,float& b)
+void getDefaultElementColor(int Z,float& r,float& g,float& b)
 {
     // CPK coloring scheme for all elements (1..118).
     // Values taken from common molecular visualization defaults.
@@ -118,30 +118,29 @@ static void elementColor(int Z,float& r,float& g,float& b)
         std::array<float,3>{0.20f, 0.20f, 0.88f}, // 101 Md
         std::array<float,3>{0.20f, 0.20f, 0.87f}, // 102 No
         std::array<float,3>{0.20f, 0.20f, 0.86f}, // 103 Lr
-        std::array<float,3>{0.18f, 0.20f, 0.83f}, // 104 Rf
-        std::array<float,3>{0.16f, 0.19f, 0.80f}, // 105 Db
-        std::array<float,3>{0.14f, 0.18f, 0.78f}, // 106 Sg
-        std::array<float,3>{0.13f, 0.17f, 0.75f}, // 107 Bh
-        std::array<float,3>{0.12f, 0.16f, 0.72f}, // 108 Hs
-        std::array<float,3>{0.10f, 0.15f, 0.70f}, // 109 Mt
-        std::array<float,3>{0.09f, 0.14f, 0.68f}, // 110 Ds
-        std::array<float,3>{0.09f, 0.13f, 0.65f}, // 111 Rg
-        std::array<float,3>{0.09f, 0.13f, 0.62f}, // 112 Cn
-        std::array<float,3>{0.08f, 0.12f, 0.60f}, // 113 Nh
-        std::array<float,3>{0.08f, 0.12f, 0.58f}, // 114 Fl
-        std::array<float,3>{0.07f, 0.10f, 0.55f}, // 115 Mc
-        std::array<float,3>{0.07f, 0.10f, 0.53f}, // 116 Lv
-        std::array<float,3>{0.06f, 0.09f, 0.50f}, // 117 Ts
-        std::array<float,3>{0.05f, 0.08f, 0.47f}  // 118 Og
+        std::array<float,3>{0.39f, 0.13f, 0.67f}, // 104 Rf
+        std::array<float,3>{0.46f, 0.13f, 0.64f}, // 105 Db
+        std::array<float,3>{0.54f, 0.16f, 0.59f}, // 106 Sg
+        std::array<float,3>{0.61f, 0.18f, 0.55f}, // 107 Bh
+        std::array<float,3>{0.68f, 0.20f, 0.50f}, // 108 Hs
+        std::array<float,3>{0.74f, 0.20f, 0.46f}, // 109 Mt
+        std::array<float,3>{0.78f, 0.21f, 0.42f}, // 110 Ds
+        std::array<float,3>{0.82f, 0.22f, 0.38f}, // 111 Rg
+        std::array<float,3>{0.86f, 0.23f, 0.34f}, // 112 Cn
+        std::array<float,3>{0.90f, 0.24f, 0.30f}, // 113 Nh
+        std::array<float,3>{0.94f, 0.26f, 0.26f}, // 114 Fl
+        std::array<float,3>{0.98f, 0.28f, 0.22f}, // 115 Mc
+        std::array<float,3>{1.00f, 0.30f, 0.18f}, // 116 Lv
+        std::array<float,3>{1.00f, 0.32f, 0.14f}, // 117 Ts
+        std::array<float,3>{1.00f, 0.34f, 0.10f}, // 118 Og
     };
 
-    if (Z >= 1 && Z < (int)colors.size()) {
-        r = colors[Z][0];
-        g = colors[Z][1];
-        b = colors[Z][2];
-    } else {
-        r = g = b = 0.7f;
-    }
+    if (Z < 1) Z = 1;
+    if (Z >= (int)colors.size()) Z = (int)colors.size() - 1;
+
+    r = colors[Z][0];
+    g = colors[Z][1];
+    b = colors[Z][2];
 }
 
 Structure loadStructure(const std::string& filename)
@@ -169,7 +168,7 @@ Structure loadStructure(const std::string& filename)
         site.y = atom->GetY();
         site.z = atom->GetZ();
 
-        elementColor(site.atomicNumber, site.r, site.g, site.b);
+        getDefaultElementColor(site.atomicNumber, site.r, site.g, site.b);
 
         structure.atoms.push_back(site);
     }

@@ -2,8 +2,10 @@
 
 #include "StructureLoader.h"
 
+#include <array>
 #include <functional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 struct FileBrowser
@@ -23,11 +25,17 @@ private:
     bool isAllowedFile(const std::string& name) const;
 
     bool showAbout;
+    bool showEditColors;
     bool openStructurePopup;
 
     std::string openDir;
     std::vector<std::string> dirHistory;
     int historyIndex;
+
+    int selectedAtomicNumber;
+
+    // Map of atomic number to user-adjusted color
+    std::unordered_map<int, std::array<float, 3>> elementColorOverrides;
 
     std::vector<std::string> driveRoots;
     std::vector<std::string> allowedExtensions;

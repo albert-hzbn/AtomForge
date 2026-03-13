@@ -1,16 +1,27 @@
 #include "Camera.h"
+#include "imgui.h"
 #include <cmath>
 
 Camera* Camera::instance = nullptr;
 
 void Camera::mouseButton(GLFWwindow*,int button,int action,int)
 {
+    if (ImGui::GetIO().WantCaptureMouse)
+        return;
+
     if(button == GLFW_MOUSE_BUTTON_LEFT)
         instance->mouseDown = action == GLFW_PRESS;
 }
 
 void Camera::cursor(GLFWwindow*,double x,double y)
 {
+    if (ImGui::GetIO().WantCaptureMouse)
+    {
+        instance->lastX = x;
+        instance->lastY = y;
+        return;
+    }
+
     if(instance->mouseDown)
     {
         float dx = x - instance->lastX;
@@ -30,6 +41,9 @@ void Camera::cursor(GLFWwindow*,double x,double y)
 
 void Camera::scroll(GLFWwindow*, double, double y)
 {
+    if (ImGui::GetIO().WantCaptureMouse)
+        return;
+
     instance->distance -= y * instance->zoomSpeed;
 
     if(instance->distance < 2.0f)

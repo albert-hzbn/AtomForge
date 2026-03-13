@@ -58,6 +58,34 @@ int main()
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
+    // Improve default appearance and readability
+    ImGui::StyleColorsDark();
+    ImGuiIO& io = ImGui::GetIO();
+
+    // Use ImGui's default font but scale it up for better readability
+    io.FontGlobalScale = 1.0f;
+
+    // Better UX when dragging windows (only from title bar)
+    io.ConfigWindowsMoveFromTitleBarOnly = true;
+
+    // Slightly round corners and increase padding for a cleaner look
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowRounding = 6.0f;
+    style.FrameRounding = 4.0f;
+    style.WindowPadding = ImVec2(10, 10);
+    style.FramePadding = ImVec2(6, 4);
+    style.ItemSpacing = ImVec2(8, 6);
+    style.ScrollbarSize = 18.0f;
+    style.GrabMinSize = 10.0f;
+
+    // Subtle color tweaks
+    style.Colors[ImGuiCol_Header] = ImVec4(0.12f, 0.55f, 0.76f, 0.52f);
+    style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.26f, 0.59f, 0.98f, 0.8f);
+    style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.26f, 0.59f, 0.98f, 1.0f);
+    style.Colors[ImGuiCol_Button] = ImVec4(0.20f, 0.50f, 0.80f, 0.40f);
+    style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.24f, 0.60f, 0.90f, 0.60f);
+    style.Colors[ImGuiCol_ButtonActive] = ImVec4(0.06f, 0.53f, 0.83f, 0.80f);
+
     ImGui_ImplGlfw_InitForOpenGL(window,true);
     ImGui_ImplOpenGL3_Init("#version 130");
 

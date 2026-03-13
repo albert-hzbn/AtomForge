@@ -21,4 +21,6 @@ struct Structure
     std::vector<AtomSite> atoms;
 };
 
+void getDefaultElementColor(int atomicNumber, float& r, float& g, float& b);
+
 Structure loadStructure(const std::string& filename);
