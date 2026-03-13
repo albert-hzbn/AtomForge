@@ -5,7 +5,15 @@
 struct AtomSite
 {
     std::string symbol;
-    double x,y,z;
+    int atomicNumber;
+
+    double x;
+    double y;
+    double z;
+
+    float r;
+    float g;
+    float b;
 };
 
 struct Structure

@@ -16,50 +16,32 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <vector>
 #include <iostream>
 
 int main()
 {
-    // ------------------------------------------------------------
-    // GLFW INITIALIZATION
-    // ------------------------------------------------------------
-
     if(!glfwInit())
-    {
-        std::cerr<<"GLFW init failed\n";
         return -1;
-    }
 
     GLFWwindow* window =
-        glfwCreateWindow(1280,800,"Shadow Mapping Demo",nullptr,nullptr);
+        glfwCreateWindow(1280,800,"Atoms Editor",nullptr,nullptr);
 
     if(!window)
-    {
-        glfwTerminate();
         return -1;
-    }
 
     glfwMakeContextCurrent(window);
-
-    // ------------------------------------------------------------
-    // GLEW INITIALIZATION
-    // ------------------------------------------------------------
 
     glewExperimental = GL_TRUE;
 
     if(glewInit()!=GLEW_OK)
-    {
-        std::cerr<<"GLEW init failed\n";
         return -1;
-    }
-
-    std::cout<<"OpenGL "<<glGetString(GL_VERSION)<<std::endl;
 
     glEnable(GL_DEPTH_TEST);
 
-    // ------------------------------------------------------------
-    // CAMERA
-    // ------------------------------------------------------------
+    // ------------------------------------------------
+    // Camera
+    // ------------------------------------------------
 
     Camera camera;
     Camera::instance=&camera;
@@ -68,9 +50,9 @@ int main()
     glfwSetCursorPosCallback(window,Camera::cursor);
     glfwSetScrollCallback(window,Camera::scroll);
 
-    // ------------------------------------------------------------
-    // IMGUI
-    // ------------------------------------------------------------
+    // ------------------------------------------------
+    // ImGui
+    // ------------------------------------------------
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -78,56 +60,89 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(window,true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    // ------------------------------------------------------------
-    // GEOMETRY
-    // ------------------------------------------------------------
+    // ------------------------------------------------
+    // Geometry
+    // ------------------------------------------------
 
-    SphereMesh sphere(50,50); // sphere mesh
+    SphereMesh sphere(40,40);
 
-    // simple ground plane
-    float planeVertices[] =
+    // ------------------------------------------------
+    // Load structure
+    // ------------------------------------------------
+
+    std::string filename="../data/Cu6Sn5.cif";
+
+    Structure structure = loadStructure(filename);
+
+    // ------------------------------------------------
+    // Instance buffers
+    // ------------------------------------------------
+
+    std::vector<glm::vec3> positions;
+    std::vector<glm::vec3> colors;
+
+    for(const auto& atom : structure.atoms)
     {
-        -10,-1,-10,
-         10,-1,-10,
-         10,-1, 10,
-        -10,-1,-10,
-         10,-1, 10,
-        -10,-1, 10
-    };
+        positions.emplace_back(atom.x,atom.y,atom.z);
+        colors.emplace_back(atom.r,atom.g,atom.b);
+    }
 
-    GLuint planeVAO,planeVBO;
+    GLuint instanceVBO,colorVBO;
 
-    glGenVertexArrays(1,&planeVAO);
-    glGenBuffers(1,&planeVBO);
+    glBindVertexArray(sphere.vao);
 
-    glBindVertexArray(planeVAO);
+    glGenBuffers(1,&instanceVBO);
+    glBindBuffer(GL_ARRAY_BUFFER,instanceVBO);
 
-    glBindBuffer(GL_ARRAY_BUFFER,planeVBO);
-    glBufferData(GL_ARRAY_BUFFER,sizeof(planeVertices),
-                 planeVertices,GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER,
+                 positions.size()*sizeof(glm::vec3),
+                 positions.data(),
+                 GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,(void*)0);
-    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,sizeof(glm::vec3),(void*)0);
+    glVertexAttribDivisor(1,1);
 
-    // ------------------------------------------------------------
-    // MAIN SHADER (with shadow support)
-    // ------------------------------------------------------------
+    glGenBuffers(1,&colorVBO);
+    glBindBuffer(GL_ARRAY_BUFFER,colorVBO);
+
+    glBufferData(GL_ARRAY_BUFFER,
+                 colors.size()*sizeof(glm::vec3),
+                 colors.data(),
+                 GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,sizeof(glm::vec3),(void*)0);
+    glVertexAttribDivisor(2,1);
+
+    // ------------------------------------------------
+    // Shader
+    // ------------------------------------------------
 
     const char* vs = R"(
 
     #version 130
 
     in vec3 position;
+    in vec3 instancePos;
+    in vec3 instanceColor;
 
-    uniform mat4 MVP;
+    uniform mat4 projection;
+    uniform mat4 view;
     uniform mat4 lightMVP;
 
+    out vec3 fragColor;
     out vec4 FragPosLight;
 
     void main()
     {
-        gl_Position = MVP * vec4(position,1.0);
-        FragPosLight = lightMVP * vec4(position,1.0);
+        vec3 worldPos = position + instancePos;
+
+        gl_Position = projection * view * vec4(worldPos,1.0);
+
+        FragPosLight = lightMVP * vec4(worldPos,1.0);
+
+        fragColor = instanceColor;
     }
 
     )";
@@ -136,6 +151,7 @@ int main()
 
     #version 130
 
+    in vec3 fragColor;
     in vec4 FragPosLight;
 
     uniform sampler2D shadowMap;
@@ -150,7 +166,7 @@ int main()
         float closest = texture(shadowMap,proj.xy).r;
         float current = proj.z;
 
-        float bias = 0.005;
+        float bias = 0.003;
 
         if(current - bias > closest)
             return 1.0;
@@ -162,9 +178,7 @@ int main()
     {
         float shadow = computeShadow(FragPosLight);
 
-        vec3 base = vec3(0.8,0.3,0.3);
-
-        vec3 lighting = (1.0-shadow)*base;
+        vec3 lighting = (1.0-shadow) * fragColor;
 
         color = vec4(lighting,1.0);
     }
@@ -173,14 +187,13 @@ int main()
 
     GLuint program = createProgram(vs,fs);
 
-    // ------------------------------------------------------------
-    // SHADOW SHADER (depth only)
-    // ------------------------------------------------------------
+    // ------------------------------------------------
+    // Shadow shader
+    // ------------------------------------------------
 
     const char* shadowVS = R"(
 
     #version 130
-
     in vec3 position;
 
     uniform mat4 lightMVP;
@@ -201,26 +214,19 @@ int main()
 
     GLuint shadowProgram = createProgram(shadowVS,shadowFS);
 
-    // ------------------------------------------------------------
-    // SHADOW MAP
-    // ------------------------------------------------------------
+    // ------------------------------------------------
+    // Shadow map
+    // ------------------------------------------------
 
     ShadowMap shadow = createShadowMap(1024,1024);
 
-    std::string filename = "../data/Cu6Sn5.cif";
-    Structure structure = loadStructure(filename);
-
-    // ------------------------------------------------------------
-    // MAIN LOOP
-    // ------------------------------------------------------------
+    // ------------------------------------------------
+    // Render loop
+    // ------------------------------------------------
 
     while(!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
-
-        // ----------------------------------------------------
-        // IMGUI
-        // ----------------------------------------------------
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -233,9 +239,9 @@ int main()
         int w,h;
         glfwGetFramebufferSize(window,&w,&h);
 
-        // ----------------------------------------------------
-        // LIGHT MATRICES
-        // ----------------------------------------------------
+        // --------------------------------------------
+        // Light matrices
+        // --------------------------------------------
 
         glm::mat4 lightProj =
             glm::perspective(glm::radians(45.0f),1.0f,0.1f,100.0f);
@@ -247,34 +253,39 @@ int main()
 
         glm::mat4 lightMVP = lightProj * lightView;
 
-        // ----------------------------------------------------
-        // SHADOW PASS
-        // ----------------------------------------------------
+        // --------------------------------------------
+        // Shadow pass
+        // --------------------------------------------
 
         beginShadowPass(shadow);
 
         glUseProgram(shadowProgram);
 
-        GLuint loc = glGetUniformLocation(shadowProgram,"lightMVP");
+        GLuint lightLoc =
+            glGetUniformLocation(shadowProgram,"lightMVP");
 
-        glUniformMatrix4fv(loc,1,GL_FALSE,glm::value_ptr(lightMVP));
+        glUniformMatrix4fv(lightLoc,1,GL_FALSE,
+                           glm::value_ptr(lightMVP));
 
         glBindVertexArray(sphere.vao);
-        sphere.draw();
 
-        glBindVertexArray(planeVAO);
-        glDrawArrays(GL_TRIANGLES,0,6);
+        glDrawArraysInstanced(
+            GL_TRIANGLES,
+            0,
+            sphere.vertexCount,
+            structure.atoms.size()
+        );
 
         endShadowPass();
 
-        // ----------------------------------------------------
-        // NORMAL PASS
-        // ----------------------------------------------------
+        // --------------------------------------------
+        // Normal pass
+        // --------------------------------------------
 
         glViewport(0,0,w,h);
 
         glClearColor(0.2f,0.2f,0.2f,1.0f);
-        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glm::mat4 projection =
             glm::perspective(glm::radians(45.0f),
@@ -296,59 +307,42 @@ int main()
                         glm::vec3(0,0,0),
                         glm::vec3(0,1,0));
 
-        glm::mat4 model = glm::mat4(1.0f);
-
-        glm::mat4 MVP = projection * view * model;
-
         glUseProgram(program);
 
-        GLuint mvpLoc = glGetUniformLocation(program,"MVP");
-        GLuint lightLoc = glGetUniformLocation(program,"lightMVP");
+        GLuint projLoc = glGetUniformLocation(program,"projection");
+        GLuint viewLoc = glGetUniformLocation(program,"view");
+        GLuint lightLoc2 = glGetUniformLocation(program,"lightMVP");
 
-        glUniformMatrix4fv(mvpLoc,1,GL_FALSE,glm::value_ptr(MVP));
-        glUniformMatrix4fv(lightLoc,1,GL_FALSE,glm::value_ptr(lightMVP));
+        glUniformMatrix4fv(projLoc,1,GL_FALSE,
+                           glm::value_ptr(projection));
 
-        // bind shadow map texture
+        glUniformMatrix4fv(viewLoc,1,GL_FALSE,
+                           glm::value_ptr(view));
+
+        glUniformMatrix4fv(lightLoc2,1,GL_FALSE,
+                           glm::value_ptr(lightMVP));
+
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D,shadow.depthTexture);
 
-        GLuint shadowLoc = glGetUniformLocation(program,"shadowMap");
+        GLuint shadowLoc =
+            glGetUniformLocation(program,"shadowMap");
+
         glUniform1i(shadowLoc,0);
 
-        // draw sphere
         glBindVertexArray(sphere.vao);
 
-        for(const auto& atom : structure.atoms)
-        {
-            // move sphere to atom position
-            glm::mat4 model =
-                glm::translate(glm::mat4(1.0f),
-                            glm::vec3(atom.x, atom.y, atom.z));
-
-            glm::mat4 MVP = projection * view * model;
-
-            glUniformMatrix4fv(mvpLoc,
-                            1,
-                            GL_FALSE,
-                            glm::value_ptr(MVP));
-
-            sphere.draw();
-        }
+        glDrawArraysInstanced(
+            GL_TRIANGLES,
+            0,
+            sphere.vertexCount,
+            structure.atoms.size()
+        );
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
     }
 
-    // ------------------------------------------------------------
-    // CLEANUP
-    // ------------------------------------------------------------
-
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-
     glfwTerminate();
-
-    return 0;
 }

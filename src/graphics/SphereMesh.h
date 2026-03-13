@@ -1,14 +1,19 @@
 #pragma once
-#include <vector>
 #include <GL/glew.h>
 
 class SphereMesh
 {
 public:
-    GLuint vao,vbo;
-    int slices;
+
+    GLuint vao;
+    GLuint vbo;
+
     int stacks;
+    int slices;
+
+    int vertexCount;
 
     SphereMesh(int stacks,int slices);
+
     void draw();
 };
