@@ -67,6 +67,13 @@ static int pickAtom(const glm::vec3& origin, const glm::vec3& dir,
     return best;
 }
 
+enum class PeriodicAction
+{
+    None,
+    Substitute,
+    InsertMidpoint,
+};
+
 // ---------------------------------------------------------------------------
 int main()
 {
@@ -114,7 +121,7 @@ int main()
 
     SphereMesh sphere(40, 40);
 
-    std::string filename = "../data/Cu6Sn5.cif";
+    std::string filename = "";
     Structure structure = loadStructure(filename);
 
     FileBrowser fileBrowser;
@@ -138,6 +145,7 @@ int main()
 
     std::vector<int> selectedInstanceIndices;  // Multiple selected atoms
     bool openContextMenu     = false;
+    PeriodicAction pendingPeriodicAction = PeriodicAction::None;
 
     // ----------------------------------------------------------------
     // Buffer update helper
@@ -274,8 +282,8 @@ int main()
         ImGui::NewFrame();
 
         // ------------------------------------------------------------
-        bool doOpenPeriodicTable = false;
         bool doDeleteSelected = false;
+        bool doOpenPeriodicTable = false;
         // Keyboard shortcuts
         // ------------------------------------------------------------
 
@@ -327,7 +335,22 @@ int main()
         if (ImGui::BeginPopup("##atomCtx"))
         {
             if (ImGui::MenuItem("Substitute Atom..."))
-                doOpenPeriodicTable = true;   // open AFTER EndPopup
+            {
+                pendingPeriodicAction = PeriodicAction::Substitute;
+                doOpenPeriodicTable = true;
+            }
+
+            bool canInsertAtMidpoint = selectedInstanceIndices.size() >= 2;
+            if (!canInsertAtMidpoint)
+                ImGui::BeginDisabled();
+            if (ImGui::MenuItem("Insert Atom at Midpoint..."))
+            {
+                pendingPeriodicAction = PeriodicAction::InsertMidpoint;
+                doOpenPeriodicTable = true;
+            }
+            if (!canInsertAtMidpoint)
+                ImGui::EndDisabled();
+
             if (ImGui::MenuItem("Delete"))
                 doDeleteSelected = true;
             if (ImGui::MenuItem("Deselect"))
@@ -342,36 +365,84 @@ int main()
         if (doOpenPeriodicTable)
             openPeriodicTable();
 
-        // Periodic table picker + apply substitution to all selected atoms
+        // Periodic table picker + apply selected action
         {
             std::vector<ElementSelection> selections;
             if (drawPeriodicTable(selections))
             {
-                // Apply selected element to all selected atoms
-                if (!selections.empty() && !selectedInstanceIndices.empty())
+                if (!selections.empty())
                 {
                     const auto& sel = selections[0];
-                    
-                    for (int selectedIdx : selectedInstanceIndices)
+
+                    if (pendingPeriodicAction == PeriodicAction::Substitute && !selectedInstanceIndices.empty())
                     {
-                        if (selectedIdx >= 0 && selectedIdx < (int)sceneBuffers.atomIndices.size())
+                        // Apply selected element to all selected atoms
+                        for (int selectedIdx : selectedInstanceIndices)
                         {
-                            int baseIdx = sceneBuffers.atomIndices[selectedIdx];
-                            if (baseIdx >= 0 && baseIdx < (int)structure.atoms.size())
+                            if (selectedIdx >= 0 && selectedIdx < (int)sceneBuffers.atomIndices.size())
                             {
-                                structure.atoms[baseIdx].symbol      = sel.symbol;
-                                structure.atoms[baseIdx].atomicNumber = sel.atomicNumber;
-                                float r, g, b;
-                                getDefaultElementColor(sel.atomicNumber, r, g, b);
-                                structure.atoms[baseIdx].r = r;
-                                structure.atoms[baseIdx].g = g;
-                                structure.atoms[baseIdx].b = b;
+                                int baseIdx = sceneBuffers.atomIndices[selectedIdx];
+                                if (baseIdx >= 0 && baseIdx < (int)structure.atoms.size())
+                                {
+                                    structure.atoms[baseIdx].symbol      = sel.symbol;
+                                    structure.atoms[baseIdx].atomicNumber = sel.atomicNumber;
+                                    float r, g, b;
+                                    getDefaultElementColor(sel.atomicNumber, r, g, b);
+                                    structure.atoms[baseIdx].r = r;
+                                    structure.atoms[baseIdx].g = g;
+                                    structure.atoms[baseIdx].b = b;
+                                }
                             }
                         }
+                        updateBuffers(structure);
                     }
-                    updateBuffers(structure);
+
+                    if (pendingPeriodicAction == PeriodicAction::InsertMidpoint && selectedInstanceIndices.size() >= 2)
+                    {
+                        // Insert one new atom at the centroid of all selected atoms.
+                        double sumX = 0.0;
+                        double sumY = 0.0;
+                        double sumZ = 0.0;
+                        int validCount = 0;
+
+                        for (int selectedIdx : selectedInstanceIndices)
+                        {
+                            if (selectedIdx >= 0 && selectedIdx < (int)sceneBuffers.atomIndices.size())
+                            {
+                                int baseIdx = sceneBuffers.atomIndices[selectedIdx];
+                                if (baseIdx >= 0 && baseIdx < (int)structure.atoms.size())
+                                {
+                                    sumX += structure.atoms[baseIdx].x;
+                                    sumY += structure.atoms[baseIdx].y;
+                                    sumZ += structure.atoms[baseIdx].z;
+                                    ++validCount;
+                                }
+                            }
+                        }
+
+                        if (validCount >= 2)
+                        {
+                            AtomSite newAtom;
+                            newAtom.symbol = sel.symbol;
+                            newAtom.atomicNumber = sel.atomicNumber;
+                            newAtom.x = sumX / (double)validCount;
+                            newAtom.y = sumY / (double)validCount;
+                            newAtom.z = sumZ / (double)validCount;
+                            getDefaultElementColor(sel.atomicNumber, newAtom.r, newAtom.g, newAtom.b);
+                            structure.atoms.push_back(newAtom);
+                            updateBuffers(structure);
+                        }
+                    }
                 }
+
+                pendingPeriodicAction = PeriodicAction::None;
             }
+        }
+
+        if (pendingPeriodicAction != PeriodicAction::None &&
+            !ImGui::IsPopupOpen("Periodic Table##picker"))
+        {
+            pendingPeriodicAction = PeriodicAction::None;
         }
 
         // Handle deletion of selected atoms
@@ -399,7 +470,7 @@ int main()
                 std::unique(baseIndicesToDelete.begin(), baseIndicesToDelete.end()),
                 baseIndicesToDelete.end()
             );
-            
+
             // Delete atoms in reverse order
             for (int baseIdx : baseIndicesToDelete)
             {
@@ -408,7 +479,7 @@ int main()
                     structure.atoms.erase(structure.atoms.begin() + baseIdx);
                 }
             }
-            
+
             // Rebuild the scene with updated atom list
             updateBuffers(structure);
         }
@@ -437,7 +508,6 @@ int main()
         // ------------------------------------------------------------
         // Draw
         // ------------------------------------------------------------
-
         renderer.drawShadowPass(shadow, sphere, lightMVP, sceneBuffers.atomCount);
 
         glViewport(0, 0, w, h);

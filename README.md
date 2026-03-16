@@ -43,4 +43,3 @@ Then run:
 - `src/io/`: structure loading code (Open Babel)
 - `imgui/`: bundled ImGui sources
 - `backends/`: ImGui GLFW/OpenGL backends
-- `data/`: example data files
