@@ -1,7 +1,7 @@
 #include "Controls.h"
 #include "imgui.h"
 
-void drawControls(Camera& camera)
+void drawControls(Camera& camera, std::function<void()> onDeleteSelected)
 {
     ImGui::Begin("Controls");
 
@@ -18,9 +18,23 @@ void drawControls(Camera& camera)
         camera.distance = 10.0f;
     }
 
+    ImGui::Separator();
+
+    // Delete button for selected atoms
+    if (onDeleteSelected)
+    {
+        if (ImGui::Button("Delete Selected", ImVec2(-1, 0)))
+        {
+            onDeleteSelected();
+        }
+    }
+
+    ImGui::Separator();
+
     ImGui::Text("Mouse:");
     ImGui::Text("Left Drag : Rotate");
     ImGui::Text("Scroll    : Zoom");
+    ImGui::Text("Ctrl+Click: Multi-select");
 
     ImGui::End();
 }

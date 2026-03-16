@@ -277,6 +277,7 @@ int main()
 
         // Context menu (must be outside any Begin/End window block)
         bool doOpenPeriodicTable = false;
+        bool doDeleteSelected = false;
         if (openContextMenu)
         {
             ImGui::OpenPopup("##atomCtx");
@@ -286,6 +287,8 @@ int main()
         {
             if (ImGui::MenuItem("Substitute Atom..."))
                 doOpenPeriodicTable = true;   // open AFTER EndPopup
+            if (ImGui::MenuItem("Delete"))
+                doDeleteSelected = true;
             if (ImGui::MenuItem("Deselect"))
             {
                 for (int idx : selectedInstanceIndices)
@@ -328,6 +331,45 @@ int main()
                     updateBuffers(structure);
                 }
             }
+        }
+
+        // Handle deletion of selected atoms
+        if (doDeleteSelected && !selectedInstanceIndices.empty())
+        {
+            // Collect base indices and sort in reverse order for safe deletion
+            std::vector<int> baseIndicesToDelete;
+            for (int selectedIdx : selectedInstanceIndices)
+            {
+                if (selectedIdx >= 0 && selectedIdx < (int)sceneBuffers.atomIndices.size())
+                {
+                    int baseIdx = sceneBuffers.atomIndices[selectedIdx];
+                    if (baseIdx >= 0 && baseIdx < (int)structure.atoms.size())
+                    {
+                        baseIndicesToDelete.push_back(baseIdx);
+                    }
+                }
+            }
+            
+            // Sort in reverse order to delete from end to start (avoid index shifting)
+            std::sort(baseIndicesToDelete.begin(), baseIndicesToDelete.end(), std::greater<int>());
+            
+            // Remove duplicates
+            baseIndicesToDelete.erase(
+                std::unique(baseIndicesToDelete.begin(), baseIndicesToDelete.end()),
+                baseIndicesToDelete.end()
+            );
+            
+            // Delete atoms in reverse order
+            for (int baseIdx : baseIndicesToDelete)
+            {
+                if (baseIdx >= 0 && baseIdx < (int)structure.atoms.size())
+                {
+                    structure.atoms.erase(structure.atoms.begin() + baseIdx);
+                }
+            }
+            
+            // Rebuild the scene with updated atom list
+            updateBuffers(structure);
         }
 
         ImGui::Render();
