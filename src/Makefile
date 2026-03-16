@@ -1,98 +1,92 @@
-#
-# Cross Platform Makefile
-#
+# ==============================================================================
+# Configuration — edit these sections to add/remove files or change flags
+# ==============================================================================
 
-EXE = atoms_editor
+EXE   = atoms_editor
+CXX   = g++
+IMGUI = ../
 
-IMGUI_DIR = ../
+# ------------------------------------------------------------------------------
+# Project sources — one file per line for easy diff / addition
+# ------------------------------------------------------------------------------
 
-SRC_DIRS = . camera graphics math ui io
+APP_SOURCES = \
+    main.cpp                              \
+    ElementData.cpp
 
-# --------------------------------------------------
-# SOURCES
-# --------------------------------------------------
+CAMERA_SOURCES = \
+    camera/Camera.cpp
 
-SOURCES = main.cpp \
-          ElementData.cpp \
-          camera/Camera.cpp \
-          graphics/SphereMesh.cpp \
-          graphics/Shader.cpp \
-          graphics/ShadowMap.cpp \
-          graphics/Picking.cpp \
-          graphics/StructureInstanceBuilder.cpp \
-          graphics/SceneBuffers.cpp \
-          graphics/Renderer.cpp \
-          math/MathUtils.cpp \
-          ui/FileBrowser.cpp \
-          ui/TransformAtomsDialog.cpp \
-          ui/ImGuiSetup.cpp \
-          ui/PeriodicTableDialog.cpp \
-          ui/EditMenuDialogs.cpp \
-          ui/AtomContextMenu.cpp \
-          io/StructureLoader.cpp
+GRAPHICS_SOURCES = \
+    graphics/Renderer.cpp                 \
+    graphics/Picking.cpp                  \
+    graphics/SceneBuffers.cpp             \
+    graphics/Shader.cpp                   \
+    graphics/ShadowMap.cpp                \
+    graphics/SphereMesh.cpp               \
+    graphics/StructureInstanceBuilder.cpp
 
-SOURCES += $(IMGUI_DIR)/imgui/imgui.cpp \
-           $(IMGUI_DIR)/imgui/imgui_draw.cpp \
-           $(IMGUI_DIR)/imgui/imgui_tables.cpp \
-           $(IMGUI_DIR)/imgui/imgui_widgets.cpp
+MATH_SOURCES = \
+    math/MathUtils.cpp
 
-SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp \
-           $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
+UI_SOURCES = \
+    ui/AtomContextMenu.cpp                \
+    ui/EditMenuDialogs.cpp                \
+    ui/FileBrowser.cpp                    \
+    ui/ImGuiSetup.cpp                     \
+    ui/PeriodicTableDialog.cpp            \
+    ui/TransformAtomsDialog.cpp
 
-OBJS = $(SOURCES:.cpp=.o)
+IO_SOURCES = \
+    io/StructureLoader.cpp
+
+IMGUI_SOURCES = \
+    $(IMGUI)/imgui/imgui.cpp              \
+    $(IMGUI)/imgui/imgui_draw.cpp         \
+    $(IMGUI)/imgui/imgui_tables.cpp       \
+    $(IMGUI)/imgui/imgui_widgets.cpp      \
+    $(IMGUI)/backends/imgui_impl_glfw.cpp \
+    $(IMGUI)/backends/imgui_impl_opengl3.cpp
+
+SOURCES = $(APP_SOURCES) $(CAMERA_SOURCES) $(GRAPHICS_SOURCES) \
+          $(MATH_SOURCES) $(UI_SOURCES) $(IO_SOURCES) $(IMGUI_SOURCES)
+
+# ------------------------------------------------------------------------------
+# Compiler flags
+# ------------------------------------------------------------------------------
+
+CXXFLAGS = \
+    -std=c++11 -O2 -g -Wall -Wformat \
+    -I. -I$(IMGUI)/imgui -I$(IMGUI)/backends \
+    -Icamera -Igraphics -Imath -Iui -Iio
+
+# ------------------------------------------------------------------------------
+# Platform-specific flags
+# ------------------------------------------------------------------------------
 
 UNAME_S := $(shell uname -s)
 
-# --------------------------------------------------
-# COMPILER FLAGS
-# --------------------------------------------------
-CXXFLAGS = -std=c++11 -O2
-CXXFLAGS += -I. 
-CXXFLAGS += -I$(IMGUI_DIR)/imgui
-CXXFLAGS += -I$(IMGUI_DIR)/backends
-CXXFLAGS += -Icamera -Igraphics -Imath -Iui -Iio
-CXXFLAGS += -g -Wall -Wformat
-
-
-# --------------------------------------------------
-# PLATFORM FLAGS
-# --------------------------------------------------
-
 ifeq ($(UNAME_S), Linux)
-
-ECHO_MESSAGE = "Linux"
-
-CXXFLAGS += `pkg-config --cflags glfw3`
-CXXFLAGS += `pkg-config --cflags openbabel-3`
-
-LIBS += `pkg-config --libs openbabel-3`
-LIBS += -lGLEW
-LIBS += `pkg-config --libs glfw3`
-LIBS += -lGL -ldl -lpthread
-
+  ECHO_MESSAGE = Linux
+  CXXFLAGS    += $(shell pkg-config --cflags glfw3 openbabel-3)
+  LIBS         = $(shell pkg-config --libs   glfw3 openbabel-3) -lGLEW -lGL -ldl -lpthread
 endif
 
-# --------------------------------------------------
-# BUILD RULES
-# --------------------------------------------------
+# ==============================================================================
+# Build rules — no need to edit below this line
+# ==============================================================================
+
+OBJS = $(SOURCES:.cpp=.o)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-
-$(IMGUI_DIR)/imgui/%.o: $(IMGUI_DIR)/imgui/%.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-$(IMGUI_DIR)/backends/%.o: $(IMGUI_DIR)/backends/%.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-    
 all: $(EXE)
 	@echo Build complete for $(ECHO_MESSAGE)
 
 $(EXE): $(OBJS)
 	$(CXX) -o $@ $^ $(LIBS)
 
-
-
 clean:
-	rm -f $(EXE) $(OBJS) *.o
+	rm -f $(EXE) $(OBJS)
+
