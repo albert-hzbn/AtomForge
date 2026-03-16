@@ -88,8 +88,6 @@ void FileBrowser::draw(Structure& structure, const std::function<void(const Stru
             if (ImGui::MenuItem("Atom Colors..."))
                 showEditColors = true;
 
-            ImGui::MenuItem("Supercell (3×3×3)", NULL, &showSupercell);
-
             if (ImGui::MenuItem("Transform Atoms..."))
                 showTransformDialog = true;
 
@@ -106,9 +104,9 @@ void FileBrowser::draw(Structure& structure, const std::function<void(const Stru
     {
         ImGui::Text("Enter 3x3 integer transformation matrix:");
         static int matrix[3][3] = {
-            {3,0,0},
-            {0,3,0},
-            {0,0,3}
+            {1,0,0},
+            {0,1,0},
+            {0,0,1}
         };
         for (int i = 0; i < 3; ++i)
         {

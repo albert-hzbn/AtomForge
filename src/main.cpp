@@ -155,39 +155,83 @@ int main()
 
         if (transform)
         {
+            constexpr float eps = 1e-5f;
+
+            glm::vec3 origin((float)s.cellOffset[0], (float)s.cellOffset[1], (float)s.cellOffset[2]);
             glm::vec3 a((float)s.cellVectors[0][0], (float)s.cellVectors[0][1], (float)s.cellVectors[0][2]);
             glm::vec3 b((float)s.cellVectors[1][0], (float)s.cellVectors[1][1], (float)s.cellVectors[1][2]);
             glm::vec3 c((float)s.cellVectors[2][0], (float)s.cellVectors[2][1], (float)s.cellVectors[2][2]);
 
             const int (&matrix)[3][3] = fileBrowser.getTransformMatrix();
 
-            // Get supercell size from matrix diagonal
-            int Nx = std::max(1, matrix[0][0]);
-            int Ny = std::max(1, matrix[1][1]);
-            int Nz = std::max(1, matrix[2][2]);
-
             glm::mat3 cellMat(a, b, c);
             glm::mat3 invCellMat = glm::inverse(cellMat);
 
-            for (size_t ai = 0; ai < basePositions.size(); ++ai)
+            // GLM matrices are column-major; fill M so rows match matrix[i][j].
+            glm::mat3 M(1.0f);
+            for (int i = 0; i < 3; ++i)
+                for (int j = 0; j < 3; ++j)
+                    M[j][i] = (float)matrix[i][j];
+
+            float detM = glm::determinant(M);
+            if (std::abs(detM) <= eps)
             {
-                glm::vec3 cart = basePositions[ai];
-                glm::vec3 frac = invCellMat * cart;
-                for (int ix = 0; ix < Nx; ++ix)
+                // Degenerate matrix: keep original atoms instead of producing invalid output.
+                positions = basePositions;
+                colors = baseColors;
+            }
+            else
+            {
+                glm::mat3 invM = glm::inverse(M);
+
+                int expectedCopies = std::max(1, (int)std::round(std::abs(detM)));
+                positions.reserve(basePositions.size() * (size_t)expectedCopies);
+                colors.reserve(baseColors.size() * (size_t)expectedCopies);
+
+                int nMin[3] = {0, 0, 0};
+                int nMax[3] = {0, 0, 0};
+                for (int i = 0; i < 3; ++i)
                 {
-                    for (int iy = 0; iy < Ny; ++iy)
+                    int rowMin = 0;
+                    int rowMax = 0;
+                    for (int j = 0; j < 3; ++j)
                     {
-                        for (int iz = 0; iz < Nz; ++iz)
+                        if (matrix[i][j] < 0) rowMin += matrix[i][j];
+                        if (matrix[i][j] > 0) rowMax += matrix[i][j];
+                    }
+                    // Pad by one to be robust around boundaries and negative entries.
+                    nMin[i] = rowMin - 1;
+                    nMax[i] = rowMax + 1;
+                }
+
+                for (size_t ai = 0; ai < basePositions.size(); ++ai)
+                {
+                    glm::vec3 cart = basePositions[ai];
+                    glm::vec3 frac = invCellMat * (cart - origin);
+
+                    // Fold into [0,1) so boundary filtering yields one unique image.
+                    frac.x -= std::floor(frac.x);
+                    frac.y -= std::floor(frac.y);
+                    frac.z -= std::floor(frac.z);
+
+                    for (int ix = nMin[0]; ix <= nMax[0]; ++ix)
+                    {
+                        for (int iy = nMin[1]; iy <= nMax[1]; ++iy)
                         {
-                            glm::vec3 n(ix, iy, iz);
-                            glm::vec3 fplusn = frac + n;
-                            glm::vec3 newFrac = glm::vec3(0.0f);
-                            for (int i = 0; i < 3; ++i)
-                                for (int j = 0; j < 3; ++j)
-                                    newFrac[i] += (float)matrix[i][j] * fplusn[j];
-                            glm::vec3 newCart = newFrac.x * a + newFrac.y * b + newFrac.z * c;
-                            positions.push_back(newCart);
-                            colors.push_back(baseColors[ai]);
+                            for (int iz = nMin[2]; iz <= nMax[2]; ++iz)
+                            {
+                                glm::vec3 shiftedFrac = frac + glm::vec3((float)ix, (float)iy, (float)iz);
+                                glm::vec3 newFrac = invM * shiftedFrac;
+
+                                if (newFrac.x < -eps || newFrac.y < -eps || newFrac.z < -eps)
+                                    continue;
+                                if (newFrac.x >= 1.0f - eps || newFrac.y >= 1.0f - eps || newFrac.z >= 1.0f - eps)
+                                    continue;
+
+                                glm::vec3 newCart = origin + shiftedFrac.x * a + shiftedFrac.y * b + shiftedFrac.z * c;
+                                positions.push_back(newCart);
+                                colors.push_back(baseColors[ai]);
+                            }
                         }
                     }
                 }
@@ -412,6 +456,12 @@ int main()
         vec3 proj = pos.xyz / pos.w;
         proj = proj * 0.5 + 0.5;
 
+        // Outside the shadow map frustum should not be treated as shadowed.
+        if (proj.x < 0.0 || proj.x > 1.0 ||
+            proj.y < 0.0 || proj.y > 1.0 ||
+            proj.z < 0.0 || proj.z > 1.0)
+            return 0.0;
+
         float closest = texture(shadowMap,proj.xy).r;
         float current = proj.z;
 
@@ -427,7 +477,8 @@ int main()
     {
         float shadow = computeShadow(FragPosLight);
 
-        vec3 lighting = (1.0-shadow) * fragColor;
+        float ambient = 0.25;
+        vec3 lighting = (ambient + (1.0 - ambient) * (1.0 - shadow)) * fragColor;
 
         color = vec4(lighting,1.0);
     }
@@ -444,12 +495,14 @@ int main()
 
     #version 130
     in vec3 position;
+    in vec3 instancePos;
 
     uniform mat4 lightMVP;
 
     void main()
     {
-        gl_Position = lightMVP * vec4(position,1.0);
+        vec3 worldPos = position + instancePos;
+        gl_Position = lightMVP * vec4(worldPos,1.0);
     }
 
     )";
@@ -528,11 +581,12 @@ int main()
         // --------------------------------------------
 
         glm::mat4 lightProj =
-            glm::perspective(glm::radians(45.0f),1.0f,0.1f,100.0f);
+            glm::perspective(glm::radians(45.0f),1.0f,0.1f,1000.0f);
 
+        glm::vec3 lightPos = orbitCenter + glm::vec3(40.0f, 40.0f, 40.0f);
         glm::mat4 lightView =
-            glm::lookAt(glm::vec3(10,10,10),
-                        glm::vec3(0,0,0),
+            glm::lookAt(lightPos,
+                        orbitCenter,
                         glm::vec3(0,1,0));
 
         glm::mat4 lightMVP = lightProj * lightView;
@@ -557,7 +611,7 @@ int main()
             GL_TRIANGLES,
             0,
             sphere.vertexCount,
-            structure.atoms.size()
+            atomCount
         );
 
         endShadowPass();
@@ -622,7 +676,7 @@ int main()
             GL_TRIANGLES,
             0,
             sphere.vertexCount,
-            structure.atoms.size()
+            atomCount
         );
 
         // Render bounding box / lattice lines
