@@ -9,9 +9,19 @@
 #include <algorithm>
 #include <cmath>
 
+namespace
+{
+std::vector<float> makeDefaultElementShininess()
+{
+    // Moderate baseline specular exponent for all elements.
+    return std::vector<float>(119, 32.0f);
+}
+}
+
 EditMenuDialogs::EditMenuDialogs()
     : elementRadii(makeLiteratureCovalentRadii())
     , elementColors(makeDefaultElementColors())
+    , elementShininess(makeDefaultElementShininess())
 {}
 
 void EditMenuDialogs::drawMenuItems()
@@ -117,11 +127,25 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                 updateBuffers(structure);
             }
 
+            float shininess = elementShininess[m_selectedColorElement];
+            if (ImGui::SliderFloat("Material Shininess", &shininess, 4.0f, 128.0f, "%.1f"))
+            {
+                elementShininess[m_selectedColorElement] = shininess;
+                updateBuffers(structure);
+            }
+
             if (ImGui::Button("Reset Selected Element Color"))
             {
                 float r, g, b;
                 getDefaultElementColor(m_selectedColorElement, r, g, b);
                 elementColors[m_selectedColorElement] = glm::vec3(r, g, b);
+                updateBuffers(structure);
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Reset Selected Shininess"))
+            {
+                elementShininess[m_selectedColorElement] = 32.0f;
                 updateBuffers(structure);
             }
         }
@@ -134,6 +158,13 @@ void EditMenuDialogs::drawPopups(Structure& structure,
         if (ImGui::Button("Reset All Colors"))
         {
             elementColors = makeDefaultElementColors();
+            updateBuffers(structure);
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Reset All Shininess"))
+        {
+            elementShininess = makeDefaultElementShininess();
             updateBuffers(structure);
         }
 

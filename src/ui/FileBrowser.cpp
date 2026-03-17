@@ -521,7 +521,7 @@ void FileBrowser::draw(Structure& structure,
         ImGui::BulletText("Element Colors: override CPK colours per element");
         ImGui::BulletText("Edit Structure: add/edit/delete atoms and modify lattice vectors");
         ImGui::BulletText("  Element selection in Edit Structure opens periodic table popup");
-        ImGui::BulletText("Transform Atoms: apply a 3x3 matrix to all atom positions");
+        ImGui::BulletText("Transform Structure: apply a 3x3 matrix to all atom positions");
 
         ImGui::Spacing();
         ImGui::Text("File → Open  (Ctrl+O)");

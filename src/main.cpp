@@ -116,11 +116,12 @@ int main()
         snapshot.structure = structure;
         snapshot.elementRadii = editMenuDialogs.elementRadii;
         snapshot.elementColors = editMenuDialogs.elementColors;
+        snapshot.elementShininess = editMenuDialogs.elementShininess;
         return snapshot;
     };
 
     auto updateBuffers = [&](Structure& s) {
-        // Treat Transform Atoms as an explicit supercell build step.
+        // Treat Transform Structure as an explicit supercell build step.
         // This prevents subsequent atom edits (insert/substitute/delete)
         // from being echoed to symmetry-equivalent render replicas.
         if (fileBrowser.isTransformMatrixEnabled() && s.hasUnitCell)
@@ -144,7 +145,8 @@ int main()
             s,
             fileBrowser.isTransformMatrixEnabled(),
             fileBrowser.getTransformMatrix(),
-            editMenuDialogs.elementRadii);
+            editMenuDialogs.elementRadii,
+            editMenuDialogs.elementShininess);
 
         sceneBuffers.upload(data);
         selectedInstanceIndices.clear();
@@ -385,6 +387,7 @@ int main()
             structure = snapshot.structure;
             editMenuDialogs.elementRadii = snapshot.elementRadii;
             editMenuDialogs.elementColors = snapshot.elementColors;
+            editMenuDialogs.elementShininess = snapshot.elementShininess;
             suppressHistoryCommit = true;
             updateBuffers(structure);
             suppressHistoryCommit = false;
@@ -505,8 +508,6 @@ int main()
         // ------------------------------------------------------------
         // Draw
         // ------------------------------------------------------------
-        renderer.drawShadowPass(shadow, sphere, lightMVP, sceneBuffers.atomCount);
-
         glViewport(0, 0, w, h);
         glClearColor(0.09f, 0.11f, 0.15f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -518,6 +519,7 @@ int main()
         }
 
         renderer.drawAtoms(projection, view, lightMVP,
+                           lightPos, camPos,
                            shadow, sphere, sceneBuffers.atomCount);
 
         renderer.drawBoxLines(projection, view,

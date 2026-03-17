@@ -13,6 +13,7 @@ struct EditorSnapshot
     Structure structure;
     std::vector<float> elementRadii;
     std::vector<glm::vec3> elementColors;
+    std::vector<float> elementShininess;
 };
 
 inline bool operator==(const EditorSnapshot& lhs, const EditorSnapshot& rhs)
@@ -49,6 +50,9 @@ inline bool operator==(const EditorSnapshot& lhs, const EditorSnapshot& rhs)
         if (a.x != b.x || a.y != b.y || a.z != b.z)
             return false;
     }
+
+    if (lhs.elementShininess != rhs.elementShininess)
+        return false;
 
     return true;
 }

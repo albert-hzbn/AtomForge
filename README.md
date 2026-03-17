@@ -79,7 +79,7 @@ Default camera behavior:
 
 - **Atomic Sizes…** — adjust per-element covalent radii (literature defaults: Cordero et al., *Dalton Trans.* 2008)
 - **Element Colors…** — override CPK colours per element
-- **Transform Atoms…** — apply a 3×3 matrix transformation to all atom positions (only available when the structure has a unit cell)
+- **Transform Structure…** — apply a 3×3 matrix transformation to all atom positions (only available when the structure has a unit cell)
 
 ### Measurements and overlays
 

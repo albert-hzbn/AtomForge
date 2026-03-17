@@ -22,6 +22,7 @@ void SceneBuffers::init(GLuint sphereVAO, GLuint cylinderVAO)
     glGenBuffers(1, &instanceVBO);
     glGenBuffers(1, &colorVBO);
     glGenBuffers(1, &scaleVBO);
+    glGenBuffers(1, &shininessVBO);
     glGenBuffers(1, &bondStartVBO);
     glGenBuffers(1, &bondEndVBO);
     glGenBuffers(1, &bondColorAVBO);
@@ -48,6 +49,11 @@ void SceneBuffers::init(GLuint sphereVAO, GLuint cylinderVAO)
     glEnableVertexAttribArray(3);
     glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
     glVertexAttribDivisor(3, 1);
+
+    glBindBuffer(GL_ARRAY_BUFFER, shininessVBO);
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
+    glVertexAttribDivisor(4, 1);
 
     glBindVertexArray(0);
 
@@ -97,6 +103,7 @@ void SceneBuffers::upload(const StructureInstanceData& data)
     atomPositions = data.positions;
     atomColors    = data.colors;
     atomRadii     = data.scales;
+    atomShininess = data.shininess;
     atomIndices   = data.atomIndices;
 
     glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
@@ -115,6 +122,12 @@ void SceneBuffers::upload(const StructureInstanceData& data)
     glBufferData(GL_ARRAY_BUFFER,
                  data.scales.size() * sizeof(float),
                  data.scales.empty() ? nullptr : data.scales.data(),
+                 GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, shininessVBO);
+    glBufferData(GL_ARRAY_BUFFER,
+                 data.shininess.size() * sizeof(float),
+                 data.shininess.empty() ? nullptr : data.shininess.data(),
                  GL_STATIC_DRAW);
 
     std::vector<glm::vec3> bondStarts;

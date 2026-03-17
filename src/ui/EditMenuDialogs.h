@@ -13,6 +13,7 @@ struct EditMenuDialogs
     // Public state so the updateBuffers lambda in main can read these.
     std::vector<float>     elementRadii;
     std::vector<glm::vec3> elementColors;
+    std::vector<float>     elementShininess;
 
     // Initialise radii and colours to literature / CPK defaults.
     EditMenuDialogs();

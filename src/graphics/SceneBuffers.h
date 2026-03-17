@@ -13,6 +13,7 @@ struct SceneBuffers
     GLuint instanceVBO = 0;
     GLuint colorVBO    = 0;
     GLuint scaleVBO    = 0;
+    GLuint shininessVBO = 0;
     GLuint bondStartVBO = 0;
     GLuint bondEndVBO = 0;
     GLuint bondColorAVBO = 0;
@@ -30,6 +31,7 @@ struct SceneBuffers
     std::vector<glm::vec3> atomPositions;
     std::vector<glm::vec3> atomColors;   // base colours (no highlight)
     std::vector<float>     atomRadii;
+    std::vector<float>     atomShininess;
     std::vector<int>       atomIndices;
 
     // Allocate GPU objects and wire instance attributes into sphereVAO.

@@ -19,7 +19,7 @@ void TransformAtomsDialog::clearTransform()
 
 void TransformAtomsDialog::drawMenuItem(bool hasUnitCell)
 {
-    if (ImGui::MenuItem("Transform Atoms...", NULL, false, hasUnitCell))
+    if (ImGui::MenuItem("Transform Structure...", NULL, false, hasUnitCell))
         showDialog = true;
 }
 
@@ -27,12 +27,12 @@ void TransformAtomsDialog::drawDialog(const std::function<void()>& onApply)
 {
     if (showDialog)
     {
-        ImGui::OpenPopup("Transform Atoms");
+        ImGui::OpenPopup("Transform Structure");
         showDialog = false;
     }
 
     bool transformAtomsOpen = true;
-    if (ImGui::BeginPopupModal("Transform Atoms", &transformAtomsOpen, ImGuiWindowFlags_AlwaysAutoResize))
+    if (ImGui::BeginPopupModal("Transform Structure", &transformAtomsOpen, ImGuiWindowFlags_AlwaysAutoResize))
     {
         ImGui::Text("Enter 3x3 integer transformation matrix:");
 

@@ -14,12 +14,16 @@ static const char* kAtomVS = R"(
     in vec3 instancePos;
     in vec3 instanceColor;
     in float instanceScale;
+    in float instanceShininess;
 
     uniform mat4 projection;
     uniform mat4 view;
     uniform mat4 lightMVP;
 
     out vec3 fragColor;
+    out vec3 fragWorldPos;
+    out vec3 fragNormal;
+    out float fragShininess;
     out vec4 FragPosLight;
 
     void main()
@@ -28,6 +32,9 @@ static const char* kAtomVS = R"(
         gl_Position   = projection * view * vec4(worldPos, 1.0);
         FragPosLight  = lightMVP * vec4(worldPos, 1.0);
         fragColor     = instanceColor;
+        fragWorldPos  = worldPos;
+        fragNormal    = normalize(position);
+        fragShininess = instanceShininess;
     }
 )";
 
@@ -35,9 +42,14 @@ static const char* kAtomFS = R"(
     #version 130
 
     in vec3 fragColor;
+    in vec3 fragWorldPos;
+    in vec3 fragNormal;
+    in float fragShininess;
     in vec4 FragPosLight;
 
     uniform sampler2D shadowMap;
+    uniform vec3 lightPos;
+    uniform vec3 viewPos;
 
     out vec4 color;
 
@@ -60,10 +72,35 @@ static const char* kAtomFS = R"(
 
     void main()
     {
-        float shadow  = computeShadow(FragPosLight);
-        float ambient = 0.25;
-        vec3 lighting = (ambient + (1.0 - ambient) * (1.0 - shadow)) * fragColor;
-        color = vec4(lighting, 1.0);
+        float shadow  = 0.0;
+        vec3 norm = normalize(fragNormal);
+        vec3 lightPosFillA = vec3(-lightPos.x, lightPos.y, lightPos.z);
+        vec3 lightPosFillB = vec3(lightPos.x, -lightPos.y, lightPos.z);
+
+        vec3 lightDir0 = normalize(lightPos - fragWorldPos);
+        vec3 lightDir1 = normalize(lightPosFillA - fragWorldPos);
+        vec3 lightDir2 = normalize(lightPosFillB - fragWorldPos);
+
+        vec3 viewDir = normalize(viewPos - fragWorldPos);
+        vec3 reflectDir0 = reflect(-lightDir0, norm);
+        vec3 reflectDir1 = reflect(-lightDir1, norm);
+
+        float diff0 = max(dot(norm, lightDir0), 0.0);
+        float diff1 = max(dot(norm, lightDir1), 0.0);
+        float diff2 = max(dot(norm, lightDir2), 0.0);
+        float diff = 0.55 * diff0 + 0.30 * diff1 + 0.15 * diff2;
+        diff = max(diff, 0.30);
+
+        float spec0 = pow(max(dot(viewDir, reflectDir0), 0.0), max(fragShininess, 1.0));
+        float spec1 = pow(max(dot(viewDir, reflectDir1), 0.0), max(fragShininess, 1.0));
+        float spec = 0.75 * spec0 + 0.25 * spec1;
+
+        float ambient = 0.45;
+        float litFactor = ambient + (1.0 - ambient) * diff * (1.0 - shadow);
+        vec3 diffuse = fragColor * litFactor;
+        vec3 specular = vec3(0.40 * spec * (1.0 - shadow));
+
+        color = vec4(diffuse + specular, 1.0);
     }
 )";
 
@@ -159,7 +196,7 @@ static const char* kBondFS = R"(
     void main()
     {
         vec3 baseColor = (fragAxis < 0.0) ? fragColorA : fragColorB;
-        float shadow = computeShadow(FragPosLight);
+        float shadow = 0.0;
         float ambient = 0.30;
         vec3 lighting = (ambient + (1.0 - ambient) * (1.0 - shadow)) * baseColor;
         color = vec4(lighting, 1.0);
@@ -272,6 +309,8 @@ void Renderer::drawBondShadowPass(const ShadowMap& shadow,
 void Renderer::drawAtoms(const glm::mat4& projection,
                           const glm::mat4& view,
                           const glm::mat4& lightMVP,
+                          const glm::vec3& lightPos,
+                          const glm::vec3& viewPos,
                           const ShadowMap& shadow,
                           const SphereMesh& sphere,
                           size_t atomCount)
@@ -284,6 +323,10 @@ void Renderer::drawAtoms(const glm::mat4& projection,
                        1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(atomProgram, "lightMVP"),
                        1, GL_FALSE, glm::value_ptr(lightMVP));
+    glUniform3fv(glGetUniformLocation(atomProgram, "lightPos"),
+                 1, glm::value_ptr(lightPos));
+    glUniform3fv(glGetUniformLocation(atomProgram, "viewPos"),
+                 1, glm::value_ptr(viewPos));
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);

@@ -382,6 +382,14 @@ void drawElementLabelsOverlay(ImDrawList* drawList,
                               const SceneBuffers& sceneBuffers,
                               const Structure& structure)
 {
+    if (!drawList || structure.atoms.empty() || sceneBuffers.atomPositions.empty())
+        return;
+
+    // Guard against excessive text allocations when many periodic instances
+    // are visible.
+    const size_t kMaxLabelsPerFrame = 5000;
+
+    size_t labelCount = 0;
     for (size_t i = 0; i < sceneBuffers.atomPositions.size(); ++i)
     {
         int baseIdx = (i < sceneBuffers.atomIndices.size()) ? sceneBuffers.atomIndices[i] : -1;
@@ -397,5 +405,9 @@ void drawElementLabelsOverlay(ImDrawList* drawList,
         drawList->AddText(ImVec2(sx - textSize.x * 0.5f, sy - textSize.y * 0.5f),
                           IM_COL32(255, 255, 255, 255),
                           label.c_str());
+
+        ++labelCount;
+        if (labelCount >= kMaxLabelsPerFrame)
+            break;
     }
 }

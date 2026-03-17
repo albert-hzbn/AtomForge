@@ -30,6 +30,7 @@ void appendPbcBoundaryImages(const Structure& structure,
                              std::vector<glm::vec3>& positions,
                              std::vector<glm::vec3>& colors,
                              std::vector<float>& scales,
+                             std::vector<float>& shininess,
                              std::vector<int>& atomIndices)
 {
     if (!structure.hasUnitCell || positions.empty())
@@ -83,6 +84,7 @@ void appendPbcBoundaryImages(const Structure& structure,
                     positions.push_back(imagePos);
                     colors.push_back(colors[i]);
                     scales.push_back(scales[i]);
+                    shininess.push_back(shininess[i]);
                     atomIndices.push_back(atomIndices[i]);
                 }
             }
@@ -95,13 +97,15 @@ StructureInstanceData buildStructureInstanceData(
     const Structure& structure,
     bool useTransformMatrix,
     const int (&transformMatrix)[3][3],
-    const std::vector<float>& elementRadii)
+    const std::vector<float>& elementRadii,
+    const std::vector<float>& elementShininess)
 {
     StructureInstanceData data;
 
     data.positions.reserve(structure.atoms.size());
     data.colors.reserve(structure.atoms.size());
     data.scales.reserve(structure.atoms.size());
+    data.shininess.reserve(structure.atoms.size());
 
     for (int i = 0; i < (int)structure.atoms.size(); ++i)
     {
@@ -112,6 +116,10 @@ StructureInstanceData buildStructureInstanceData(
         if (atom.atomicNumber >= 0 && atom.atomicNumber < (int)elementRadii.size() && elementRadii[atom.atomicNumber] > 0.0f)
             radius = elementRadii[atom.atomicNumber];
         data.scales.push_back(radius * kAtomVisualScale);
+        float atomShine = 32.0f;
+        if (atom.atomicNumber >= 0 && atom.atomicNumber < (int)elementShininess.size())
+            atomShine = elementShininess[atom.atomicNumber];
+        data.shininess.push_back(atomShine);
         data.atomIndices.push_back(i);
     }
 
@@ -120,11 +128,13 @@ StructureInstanceData buildStructureInstanceData(
         std::vector<glm::vec3> basePositions = data.positions;
         std::vector<glm::vec3> baseColors    = data.colors;
         std::vector<float>     baseScales    = data.scales;
+        std::vector<float>     baseShininess = data.shininess;
         std::vector<int>       baseIndices   = data.atomIndices;
 
         data.positions.clear();
         data.colors.clear();
         data.scales.clear();
+        data.shininess.clear();
         data.atomIndices.clear();
 
         glm::vec3 origin((float)structure.cellOffset[0],
@@ -148,6 +158,8 @@ StructureInstanceData buildStructureInstanceData(
         {
             data.positions   = std::move(basePositions);
             data.colors      = std::move(baseColors);
+            data.scales      = std::move(baseScales);
+            data.shininess   = std::move(baseShininess);
             data.atomIndices = std::move(baseIndices);
         }
         else
@@ -158,6 +170,7 @@ StructureInstanceData buildStructureInstanceData(
             data.positions.reserve(basePositions.size() * (size_t)expectedCopies);
             data.colors.reserve(baseColors.size() * (size_t)expectedCopies);
             data.scales.reserve(baseScales.size() * (size_t)expectedCopies);
+            data.shininess.reserve(baseShininess.size() * (size_t)expectedCopies);
 
             int nMin[3] = {0, 0, 0};
             int nMax[3] = {0, 0, 0};
@@ -203,6 +216,7 @@ StructureInstanceData buildStructureInstanceData(
                             data.positions.push_back(worldPos);
                             data.colors.push_back(baseColors[atomIndex]);
                             data.scales.push_back(baseScales[atomIndex]);
+                            data.shininess.push_back(baseShininess[atomIndex]);
                             data.atomIndices.push_back(baseIndices[atomIndex]);
                         }
                     }
@@ -214,7 +228,7 @@ StructureInstanceData buildStructureInstanceData(
     // For periodic display, duplicate boundary atoms across neighboring cells
     // so atoms are visible on opposite faces/edges/vertices of the unit cell.
     if (!useTransformMatrix && structure.hasUnitCell)
-        appendPbcBoundaryImages(structure, data.positions, data.colors, data.scales, data.atomIndices);
+        appendPbcBoundaryImages(structure, data.positions, data.colors, data.scales, data.shininess, data.atomIndices);
 
     if (data.positions.empty())
         return data;

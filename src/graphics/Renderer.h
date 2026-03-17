@@ -36,6 +36,8 @@ struct Renderer
     void drawAtoms(const glm::mat4& projection,
                    const glm::mat4& view,
                    const glm::mat4& lightMVP,
+                   const glm::vec3& lightPos,
+                   const glm::vec3& viewPos,
                    const ShadowMap& shadow,
                    const SphereMesh& sphere,
                    size_t atomCount);
