@@ -38,7 +38,7 @@ FileBrowser::FileBrowser()
     : showAbout(false),
       showEditColors(false),
     showElementLabels(false),
-    requestMeasureDistance(false),      requestMeasureAngle(false),      openStructurePopup(false),
+    requestMeasureDistance(false),      requestMeasureAngle(false),      requestAtomInfo(false),      openStructurePopup(false),
       saveStructurePopup(false),
       openDir("."),
       historyIndex(-1),
@@ -123,6 +123,8 @@ void FileBrowser::draw(Structure& structure,
                 requestMeasureDistance = true;
             if (ImGui::MenuItem("Measure Angle (3 selected)"))
                 requestMeasureAngle = true;
+            if (ImGui::MenuItem("Atom Info (1 selected)"))
+                requestAtomInfo = true;
             ImGui::EndMenu();
         }
 

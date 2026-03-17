@@ -25,6 +25,7 @@ struct AtomContextMenu
               bool& doDelete,
               bool& requestMeasureAngle,
               bool& requestMeasureDistance,
+              bool& requestAtomInfo,
               const std::function<void(Structure&)>& updateBuffers);
 
 private:

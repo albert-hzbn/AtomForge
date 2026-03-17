@@ -110,6 +110,8 @@ int main()
     int              angleLineIdx0     = -1;  // first atom
     int              angleLineIdx1     = -1;  // vertex atom
     int              angleLineIdx2     = -1;  // third atom
+    bool             showAtomInfoPopup = false;
+    char             atomInfoMessage[512] = {0};
 
     // ----------------------------------------------------------------
     // Buffer update helper
@@ -277,6 +279,7 @@ int main()
         bool doDeleteSelected = false;
         bool requestMeasureDistance = false;
         bool requestMeasureAngle = false;
+        bool requestAtomInfo = false;
 
         if (ImGui::IsKeyPressed(ImGuiKey_Delete) && !selectedInstanceIndices.empty())
             doDeleteSelected = true;
@@ -321,6 +324,7 @@ int main()
         fileBrowser.draw(structure, editMenuDialogs, updateBuffers);
         requestMeasureDistance = requestMeasureDistance || fileBrowser.consumeMeasureDistanceRequest();
         requestMeasureAngle    = requestMeasureAngle    || fileBrowser.consumeMeasureAngleRequest();
+        requestAtomInfo        = requestAtomInfo        || fileBrowser.consumeAtomInfoRequest();
 
         contextMenu.draw(structure, sceneBuffers,
                          editMenuDialogs.elementColors,
@@ -328,6 +332,7 @@ int main()
                          doDeleteSelected,
                          requestMeasureDistance,
                          requestMeasureAngle,
+                         requestAtomInfo,
                          updateBuffers);
 
         if (requestMeasureDistance)
@@ -458,6 +463,84 @@ int main()
                 ImGui::CloseCurrentPopup();
                 showDistanceLine = false;
             }
+            ImGui::EndPopup();
+        }
+
+        // ---- Atom Info ----
+        if (requestAtomInfo)
+        {
+            if (selectedInstanceIndices.size() != 1)
+            {
+                std::snprintf(atomInfoMessage, sizeof(atomInfoMessage),
+                              "Select exactly 1 atom to view info.");
+            }
+            else
+            {
+                int idx = selectedInstanceIndices[0];
+                bool valid = idx >= 0 && idx < (int)sceneBuffers.atomPositions.size()
+                          && idx < (int)sceneBuffers.atomIndices.size();
+                if (!valid)
+                {
+                    std::snprintf(atomInfoMessage, sizeof(atomInfoMessage),
+                                  "Unable to retrieve atom info.");
+                }
+                else
+                {
+                    int baseIdx = sceneBuffers.atomIndices[idx];
+                    glm::vec3 pos = sceneBuffers.atomPositions[idx];
+                    int len = 0;
+
+                    if (baseIdx >= 0 && baseIdx < (int)structure.atoms.size())
+                    {
+                        const AtomSite& atom = structure.atoms[baseIdx];
+                        len += std::snprintf(atomInfoMessage + len, sizeof(atomInfoMessage) - len,
+                                            "Element:  %s (%s)\n",
+                                            elementName(atom.atomicNumber), atom.symbol.c_str());
+                        len += std::snprintf(atomInfoMessage + len, sizeof(atomInfoMessage) - len,
+                                            "Atomic number:  %d\n", atom.atomicNumber);
+                    }
+
+                    len += std::snprintf(atomInfoMessage + len, sizeof(atomInfoMessage) - len,
+                                        "Cartesian:  (%.6f, %.6f, %.6f) \xc3\x85\n",
+                                        pos.x, pos.y, pos.z);
+
+                    if (structure.hasUnitCell)
+                    {
+                        glm::mat3 cellMat(
+                            glm::vec3((float)structure.cellVectors[0][0],
+                                      (float)structure.cellVectors[0][1],
+                                      (float)structure.cellVectors[0][2]),
+                            glm::vec3((float)structure.cellVectors[1][0],
+                                      (float)structure.cellVectors[1][1],
+                                      (float)structure.cellVectors[1][2]),
+                            glm::vec3((float)structure.cellVectors[2][0],
+                                      (float)structure.cellVectors[2][1],
+                                      (float)structure.cellVectors[2][2]));
+                        glm::vec3 origin((float)structure.cellOffset[0],
+                                         (float)structure.cellOffset[1],
+                                         (float)structure.cellOffset[2]);
+                        glm::vec3 frac = glm::inverse(cellMat) * (pos - origin);
+                        std::snprintf(atomInfoMessage + len, sizeof(atomInfoMessage) - len,
+                                      "Direct:  (%.6f, %.6f, %.6f)",
+                                      frac.x, frac.y, frac.z);
+                    }
+                }
+            }
+            showAtomInfoPopup = true;
+        }
+
+        if (showAtomInfoPopup)
+        {
+            ImGui::OpenPopup("Atom Info");
+            showAtomInfoPopup = false;
+        }
+
+        ImGui::SetNextWindowSize(ImVec2(480.0f, 0.0f), ImGuiCond_Appearing);
+        if (ImGui::BeginPopupModal("Atom Info", nullptr))
+        {
+            ImGui::TextWrapped("%s", atomInfoMessage);
+            if (ImGui::Button("OK"))
+                ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }
 

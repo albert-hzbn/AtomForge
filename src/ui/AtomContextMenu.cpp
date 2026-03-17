@@ -17,6 +17,7 @@ void AtomContextMenu::draw(Structure& structure,
                            bool& doDelete,
                            bool& requestMeasureDistance,
                            bool& requestMeasureAngle,
+                           bool& requestAtomInfo,
                            const std::function<void(Structure&)>& updateBuffers)
 {
     bool doOpenPeriodicTable = false;
@@ -55,6 +56,12 @@ void AtomContextMenu::draw(Structure& structure,
         if (ImGui::MenuItem("Measure Angle"))
             requestMeasureAngle = true;
         if (!canMeasureAngle) ImGui::EndDisabled();
+
+        bool canShowInfo = selectedInstanceIndices.size() == 1;
+        if (!canShowInfo) ImGui::BeginDisabled();
+        if (ImGui::MenuItem("Atom Info"))
+            requestAtomInfo = true;
+        if (!canShowInfo) ImGui::EndDisabled();
 
         if (ImGui::MenuItem("Delete"))
             doDelete = true;
