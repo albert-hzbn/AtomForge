@@ -28,6 +28,14 @@ struct EditMenuDialogs
 private:
     bool m_openAtomicSize   = false;
     bool m_openElementColor = false;
+    bool m_openEditStructure = false;
+    bool m_showEditStructureElementPicker = false;
+    bool m_restoreEditStructureAfterElementPicker = false;
+    bool m_useDirectCoords = false;
     int  m_selectedRadiusElement = 6;
     int  m_selectedColorElement  = 6;
+    int  m_selectedEditAtom = 0;
+    int  m_selectedEditElement = 6;
+    int  m_editStructureElementTargetAtom = -1;
+    bool m_scrollEditRowsToBottom = false;
 };

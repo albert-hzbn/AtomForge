@@ -37,5 +37,6 @@ struct AtomContextMenu
 
 private:
     bool           m_openRequested = false;
+    bool           m_ownsPeriodicPopup = false;
     PeriodicAction m_pendingAction = PeriodicAction::None;
 };

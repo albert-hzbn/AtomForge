@@ -74,14 +74,17 @@ void AtomContextMenu::draw(Structure& structure,
     }
 
     if (doOpenPeriodicTable)
+    {
         openPeriodicTable();
+        m_ownsPeriodicPopup = true;
+    }
 
     // ------------------------------------------------------------------
     // Periodic table picker – process confirmed selection
     // ------------------------------------------------------------------
 
     std::vector<ElementSelection> selections;
-    if (drawPeriodicTable(selections))
+    if (m_ownsPeriodicPopup && drawPeriodicTable(selections))
     {
         if (!selections.empty())
         {
@@ -158,12 +161,13 @@ void AtomContextMenu::draw(Structure& structure,
         }
 
         m_pendingAction = PeriodicAction::None;
+        m_ownsPeriodicPopup = false;
     }
 
     // If the picker was dismissed without a selection, clear the pending action.
-    if (m_pendingAction != PeriodicAction::None &&
-        !ImGui::IsPopupOpen("Periodic Table##picker"))
+    if (m_ownsPeriodicPopup && !ImGui::IsPopupOpen("Periodic Table##picker"))
     {
         m_pendingAction = PeriodicAction::None;
+        m_ownsPeriodicPopup = false;
     }
 }
