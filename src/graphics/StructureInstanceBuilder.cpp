@@ -8,6 +8,8 @@
 namespace
 {
 constexpr float kEpsilon = 1e-5f;
+constexpr float kPbcBoundaryTol = 1e-4f;
+constexpr float kAtomVisualScale = 0.90f;
 
 void appendBoxEdges(const glm::vec3 (&corners)[8], std::vector<glm::vec3>& boxLines)
 {
@@ -21,6 +23,70 @@ void appendBoxEdges(const glm::vec3 (&corners)[8], std::vector<glm::vec3>& boxLi
     {
         boxLines.push_back(corners[edge[0]]);
         boxLines.push_back(corners[edge[1]]);
+    }
+}
+
+void appendPbcBoundaryImages(const Structure& structure,
+                             std::vector<glm::vec3>& positions,
+                             std::vector<glm::vec3>& colors,
+                             std::vector<float>& scales,
+                             std::vector<int>& atomIndices)
+{
+    if (!structure.hasUnitCell || positions.empty())
+        return;
+
+    glm::vec3 origin((float)structure.cellOffset[0],
+                     (float)structure.cellOffset[1],
+                     (float)structure.cellOffset[2]);
+
+    glm::vec3 a((float)structure.cellVectors[0][0], (float)structure.cellVectors[0][1], (float)structure.cellVectors[0][2]);
+    glm::vec3 b((float)structure.cellVectors[1][0], (float)structure.cellVectors[1][1], (float)structure.cellVectors[1][2]);
+    glm::vec3 c((float)structure.cellVectors[2][0], (float)structure.cellVectors[2][1], (float)structure.cellVectors[2][2]);
+
+    glm::mat3 cellMat(a, b, c);
+    float det = glm::determinant(cellMat);
+    if (std::abs(det) <= kEpsilon)
+        return;
+
+    glm::mat3 invCellMat = glm::inverse(cellMat);
+
+    const size_t baseCount = positions.size();
+    for (size_t i = 0; i < baseCount; ++i)
+    {
+        const glm::vec3 pos = positions[i];
+        glm::vec3 frac = invCellMat * (pos - origin);
+        frac.x -= std::floor(frac.x);
+        frac.y -= std::floor(frac.y);
+        frac.z -= std::floor(frac.z);
+
+        std::vector<int> shiftsX = {0};
+        std::vector<int> shiftsY = {0};
+        std::vector<int> shiftsZ = {0};
+
+        // Only mirror atoms on the low boundary to the high boundary.
+        // This keeps periodic images on visible cell faces/edges/vertices
+        // without creating copies outside the displayed box.
+        if (std::abs(frac.x) <= kPbcBoundaryTol) shiftsX.push_back(1);
+        if (std::abs(frac.y) <= kPbcBoundaryTol) shiftsY.push_back(1);
+        if (std::abs(frac.z) <= kPbcBoundaryTol) shiftsZ.push_back(1);
+
+        for (int sx : shiftsX)
+        {
+            for (int sy : shiftsY)
+            {
+                for (int sz : shiftsZ)
+                {
+                    if (sx == 0 && sy == 0 && sz == 0)
+                        continue;
+
+                    glm::vec3 imagePos = pos + (float)sx * a + (float)sy * b + (float)sz * c;
+                    positions.push_back(imagePos);
+                    colors.push_back(colors[i]);
+                    scales.push_back(scales[i]);
+                    atomIndices.push_back(atomIndices[i]);
+                }
+            }
+        }
     }
 }
 }
@@ -45,7 +111,7 @@ StructureInstanceData buildStructureInstanceData(
         float radius = 1.0f;
         if (atom.atomicNumber >= 0 && atom.atomicNumber < (int)elementRadii.size() && elementRadii[atom.atomicNumber] > 0.0f)
             radius = elementRadii[atom.atomicNumber];
-        data.scales.push_back(radius);
+        data.scales.push_back(radius * kAtomVisualScale);
         data.atomIndices.push_back(i);
     }
 
@@ -144,6 +210,11 @@ StructureInstanceData buildStructureInstanceData(
             }
         }
     }
+
+    // For periodic display, duplicate boundary atoms across neighboring cells
+    // so atoms are visible on opposite faces/edges/vertices of the unit cell.
+    if (!useTransformMatrix && structure.hasUnitCell)
+        appendPbcBoundaryImages(structure, data.positions, data.colors, data.scales, data.atomIndices);
 
     if (data.positions.empty())
         return data;
