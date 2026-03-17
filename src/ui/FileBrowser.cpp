@@ -34,6 +34,7 @@ static constexpr int kNumSaveFormats = (int)(sizeof(kSaveFormats) / sizeof(kSave
 
 FileBrowser::FileBrowser()
         : showAbout(false),
+            showManual(false),
             showEditColors(false),
             showElementLabels(false),
             showBonds(false),
@@ -146,9 +147,14 @@ void FileBrowser::draw(Structure& structure,
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("About"))
+        if (ImGui::BeginMenu("Help"))
         {
-            showAbout = true;
+            if (ImGui::MenuItem("Manual"))
+                showManual = true;
+
+            if (ImGui::MenuItem("About"))
+                showAbout = true;
+
             ImGui::EndMenu();
         }
 
@@ -476,6 +482,87 @@ void FileBrowser::draw(Structure& structure,
         ImGui::CloseCurrentPopup();
     // ---- end Save As dialog --------------------------------------------
 
+    if (showManual)
+    {
+        ImGui::OpenPopup("Manual");
+        showManual = false;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(800.0f, 700.0f), ImGuiCond_Appearing);
+    bool manualOpen = true;
+    if (ImGui::BeginPopupModal("Manual", &manualOpen, ImGuiWindowFlags_NoResize))
+    {
+        ImGui::Text("Atoms Editor Manual");
+        ImGui::TextDisabled("Complete reference for all features and operations");
+        ImGui::Separator();
+
+        if (ImGui::BeginChild("##manual-scroll", ImVec2(0.0f, 640.0f), false))
+        {
+            ImGui::Text("Mouse Controls");
+            ImGui::BulletText("Rotate: left-click drag");
+            ImGui::BulletText("Pan: middle-click drag or Shift+left-click drag");
+            ImGui::BulletText("Zoom: scroll wheel or right-click drag vertical");
+            ImGui::BulletText("Select atom: left-click on atom");
+            ImGui::BulletText("Multi-select: Ctrl+left-click to add/remove atoms");
+            ImGui::BulletText("Right-click selected atom: open context menu for atom editing");
+
+            ImGui::Spacing();
+            ImGui::Text("Keyboard Shortcuts");
+            ImGui::BulletText("Ctrl+A: select all atoms");
+            ImGui::BulletText("Ctrl+D or Esc: clear selection");
+            ImGui::BulletText("Delete: remove selected atoms from structure");
+            ImGui::BulletText("Ctrl+Z: undo last change");
+            ImGui::BulletText("Ctrl+Y or Ctrl+Shift+Z: redo");
+            ImGui::BulletText("Ctrl+O: open structure file");
+            ImGui::BulletText("Ctrl+S: save structure as");
+
+            ImGui::Spacing();
+            ImGui::Text("File Menu");
+            ImGui::BulletText("New: clear current structure");
+            ImGui::BulletText("Open: load from .cif, .mol, .pdb, .xyz, .sdf");
+            ImGui::BulletText("Save As: export to .xyz, .cif, .vasp, .pdb, .sdf, .mol2, .pwi, .gjf");
+            ImGui::BulletText("Quit: exit application");
+
+            ImGui::Spacing();
+            ImGui::Text("Edit Menu");
+            ImGui::BulletText("Edit Structure: modify lattice vectors and atomic positions/elements");
+            ImGui::BulletText("Substitute Element: replace selected atoms with periodic table choice");
+            ImGui::BulletText("Transform Structure: apply 3x3 supercell transformation matrix");
+            ImGui::BulletText("Atomic Sizes: adjust Van der Waals radii for all elements");
+            ImGui::BulletText("Element Colors: customize atom colors for any element");
+            ImGui::BulletText("Material Shininess: control reflectivity of atoms (0=matte, 128=glossy)");
+            ImGui::BulletText("Undo/Redo access from File>Edit menu");
+
+            ImGui::Spacing();
+            ImGui::Text("View Menu");
+            ImGui::BulletText("Toggle Element Labels: show/hide atom symbols on structure");
+            ImGui::BulletText("Toggle Bonds: display/hide bonds between atoms");
+            ImGui::BulletText("Toggle Measurement Overlay: enable distance/angle tools");
+            ImGui::BulletText("Measure Distance: click two atoms to show distance");
+            ImGui::BulletText("Measure Angle: click three atoms to show angle");
+            ImGui::BulletText("Structure Info: view composition, lattice, atomic coordinates, spacegroup");
+            ImGui::BulletText("Toggle Periodic Boundary: visualize atoms replicated across cell boundaries");
+            ImGui::BulletText("Reset to Default View: isometric camera zoom fitted to structure");
+
+            ImGui::Spacing();
+            ImGui::Text("Display Features");
+            ImGui::BulletText("Element labels with periodic-image notation");
+            ImGui::BulletText("Two-color bonds (gray within cell, white across boundaries)");
+            ImGui::BulletText("Yellow highlighting for selected atoms");
+            ImGui::BulletText("Real-time transparency and shading");
+            ImGui::BulletText("Automatic supercell visualization when transform is applied");
+
+            ImGui::EndChild();
+        }
+
+        if (ImGui::Button("Close", ImVec2(120, 0)))
+            ImGui::CloseCurrentPopup();
+
+        ImGui::EndPopup();
+    }
+    if (!manualOpen)
+        ImGui::CloseCurrentPopup();
+
     if (showAbout)
     {
         ImGui::OpenPopup("About");
@@ -487,39 +574,43 @@ void FileBrowser::draw(Structure& structure,
     if (ImGui::BeginPopupModal("About", &aboutOpen, ImGuiWindowFlags_NoResize))
     {
         ImGui::Text("Atoms Editor");
-        ImGui::Text("Open-source molecular structure viewer and editor with periodic-cell tools.");
+        ImGui::TextDisabled("Molecular structure viewer and editor with periodic-cell tools");
         ImGui::Separator();
 
         if (ImGui::BeginChild("##about-scroll", ImVec2(0.0f, 440.0f), false))
         {
-            ImGui::Text("Core Interaction");
-            ImGui::BulletText("Rotate / pan / zoom camera with mouse");
-            ImGui::BulletText("Auto-fit isometric view for loaded structures");
-            ImGui::BulletText("Single and multi-selection (Ctrl+click, Ctrl+A, Ctrl+D)");
-            ImGui::BulletText("Undo / Redo (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z)");
+            ImGui::Text("Creator");
+            ImGui::BulletText("Albert Linda");
 
             ImGui::Spacing();
-            ImGui::Text("Structure Editing");
-            ImGui::BulletText("Edit Structure: lattice vectors and per-atom add/edit/delete");
-            ImGui::BulletText("Substitute element from periodic table picker");
-            ImGui::BulletText("Transform Structure with 3x3 matrix (unit-cell structures)");
-            ImGui::BulletText("Atomic Sizes editor (Cordero et al., Dalton Trans. 2008)");
-            ImGui::BulletText("Element Colors + material shininess controls");
+            ImGui::Text("Core Libraries");
+            ImGui::BulletText("ImGui: immediate-mode GUI framework (by Omar Cornut)");
+            ImGui::BulletText("OpenGL 3.3+: GPU rendering and visualization");
+            ImGui::BulletText("GLFW 3: window and input management");
+            ImGui::BulletText("GLEW: OpenGL extension loader");
+            ImGui::BulletText("GLM: mathematics library for transformations");
 
             ImGui::Spacing();
-            ImGui::Text("Analysis and View");
-            ImGui::BulletText("Show Element labels (including periodic images)");
-            ImGui::BulletText("Show Bonds with two-color cylinders");
-            ImGui::BulletText("Distance, angle, and atom info tools");
-            ImGui::BulletText("Structure Info dialog with composition, lattice metrics,");
-            ImGui::BulletText("atomic positions, and space-group lookup via spglib");
-            ImGui::BulletText("Periodic boundary display of boundary atoms");
+            ImGui::Text("Chemistry Libraries");
+            ImGui::BulletText("Open Babel: molecular file I/O (.cif, .mol, .pdb, .xyz, .sdf, .mol2, etc.)");
+            ImGui::BulletText("spglib: crystallographic space group and symmetry operations");
 
             ImGui::Spacing();
-            ImGui::Text("File I/O");
-            ImGui::BulletText("Open: .cif .mol .pdb .xyz .sdf");
-            ImGui::BulletText("Save As: .xyz .cif .vasp .pdb .sdf .mol2 .pwi .gjf");
-            ImGui::BulletText("Supercell-aware save when transform is active");
+            ImGui::Text("Data & References");
+            ImGui::BulletText("Periodic table element data (atomic numbers, masses, default colors)");
+            ImGui::BulletText("Cordero et al. (Dalton Trans. 2008): Van der Waals radii");
+            ImGui::BulletText("Standard crystallographic conventions for cell vectors and positions");
+
+            ImGui::Spacing();
+            ImGui::Text("Features");
+            ImGui::BulletText("Interactive 3D visualization with real-time rendering");
+            ImGui::BulletText("Full undo/redo support for all editing operations");
+            ImGui::BulletText("Multi-format structure loading and exporting");
+            ImGui::BulletText("Crystallographic analysis: space groups, symmetry, cell metrics");
+            ImGui::BulletText("Customizable atom colors, sizes, and materials");
+            ImGui::BulletText("Distance and angle measurement tools");
+            ImGui::BulletText("Supercell transformation with periodic boundary visualization");
+
             ImGui::EndChild();
         }
 

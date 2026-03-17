@@ -84,6 +84,7 @@ private:
     bool isAllowedFile(const std::string& name) const;
 
     bool showAbout;
+    bool showManual;
     bool showEditColors;
     bool showElementLabels;
     bool showBonds;
