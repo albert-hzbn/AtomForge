@@ -104,6 +104,12 @@ int main()
     bool             showDistanceLine  = false;
     int              distanceLineIdx0  = -1;
     int              distanceLineIdx1  = -1;
+    bool             showAnglePopup    = false;
+    char             angleMessage[256] = {0};
+    bool             showAngleLines    = false;
+    int              angleLineIdx0     = -1;  // first atom
+    int              angleLineIdx1     = -1;  // vertex atom
+    int              angleLineIdx2     = -1;  // third atom
 
     // ----------------------------------------------------------------
     // Buffer update helper
@@ -242,6 +248,7 @@ int main()
                 selectedInstanceIndices.clear();
             }
             showDistanceLine = false;
+            showAngleLines = false;
         }
 
         // ------------------------------------------------------------
@@ -269,6 +276,7 @@ int main()
 
         bool doDeleteSelected = false;
         bool requestMeasureDistance = false;
+        bool requestMeasureAngle = false;
 
         if (ImGui::IsKeyPressed(ImGuiKey_Delete) && !selectedInstanceIndices.empty())
             doDeleteSelected = true;
@@ -280,6 +288,7 @@ int main()
                 sceneBuffers.restoreAtomColor(idx);
             selectedInstanceIndices.clear();
             showDistanceLine = false;
+            showAngleLines = false;
         }
 
         if (ImGui::IsKeyPressed(ImGuiKey_Escape) && !selectedInstanceIndices.empty())
@@ -288,6 +297,7 @@ int main()
                 sceneBuffers.restoreAtomColor(idx);
             selectedInstanceIndices.clear();
             showDistanceLine = false;
+            showAngleLines = false;
         }
 
         if (ImGui::IsKeyPressed(ImGuiKey_A) && ImGui::GetIO().KeyCtrl &&
@@ -310,12 +320,14 @@ int main()
 
         fileBrowser.draw(structure, editMenuDialogs, updateBuffers);
         requestMeasureDistance = requestMeasureDistance || fileBrowser.consumeMeasureDistanceRequest();
+        requestMeasureAngle    = requestMeasureAngle    || fileBrowser.consumeMeasureAngleRequest();
 
         contextMenu.draw(structure, sceneBuffers,
                          editMenuDialogs.elementColors,
                          selectedInstanceIndices,
                          doDeleteSelected,
                          requestMeasureDistance,
+                         requestMeasureAngle,
                          updateBuffers);
 
         if (requestMeasureDistance)
@@ -358,6 +370,77 @@ int main()
                 }
             }
             showDistancePopup = true;
+        }
+
+        // ---- Measure Angle ----
+        if (requestMeasureAngle)
+        {
+            if (selectedInstanceIndices.size() != 3)
+            {
+                std::snprintf(angleMessage, sizeof(angleMessage),
+                              "Select exactly 3 atoms to measure angle.");
+                showAngleLines = false;
+            }
+            else
+            {
+                int idx0 = selectedInstanceIndices[0];
+                int idx1 = selectedInstanceIndices[1]; // vertex
+                int idx2 = selectedInstanceIndices[2];
+
+                bool ok = idx0 >= 0 && idx0 < (int)sceneBuffers.atomPositions.size() &&
+                          idx1 >= 0 && idx1 < (int)sceneBuffers.atomPositions.size() &&
+                          idx2 >= 0 && idx2 < (int)sceneBuffers.atomPositions.size();
+                if (!ok)
+                {
+                    std::snprintf(angleMessage, sizeof(angleMessage),
+                                  "Unable to measure angle for current selection.");
+                    showAngleLines = false;
+                }
+                else
+                {
+                    glm::vec3 p0 = sceneBuffers.atomPositions[idx0];
+                    glm::vec3 p1 = sceneBuffers.atomPositions[idx1]; // vertex
+                    glm::vec3 p2 = sceneBuffers.atomPositions[idx2];
+
+                    glm::vec3 v0 = glm::normalize(p0 - p1);
+                    glm::vec3 v2 = glm::normalize(p2 - p1);
+                    float cosA = glm::clamp(glm::dot(v0, v2), -1.0f, 1.0f);
+                    float angleDeg = glm::degrees(std::acos(cosA));
+
+                    int b0 = (idx0 < (int)sceneBuffers.atomIndices.size()) ? sceneBuffers.atomIndices[idx0] : -1;
+                    int b1 = (idx1 < (int)sceneBuffers.atomIndices.size()) ? sceneBuffers.atomIndices[idx1] : -1;
+                    int b2 = (idx2 < (int)sceneBuffers.atomIndices.size()) ? sceneBuffers.atomIndices[idx2] : -1;
+                    const char* s0 = (b0 >= 0 && b0 < (int)structure.atoms.size()) ? structure.atoms[b0].symbol.c_str() : "A";
+                    const char* s1 = (b1 >= 0 && b1 < (int)structure.atoms.size()) ? structure.atoms[b1].symbol.c_str() : "B";
+                    const char* s2 = (b2 >= 0 && b2 < (int)structure.atoms.size()) ? structure.atoms[b2].symbol.c_str() : "C";
+
+                    std::snprintf(angleMessage, sizeof(angleMessage),
+                                  "Angle %s-%s-%s: %.2f deg", s0, s1, s2, angleDeg);
+                    showAngleLines = true;
+                    angleLineIdx0  = idx0;
+                    angleLineIdx1  = idx1;
+                    angleLineIdx2  = idx2;
+                }
+            }
+            showAnglePopup = true;
+        }
+
+        if (showAnglePopup)
+        {
+            ImGui::OpenPopup("Measure Angle");
+            showAnglePopup = false;
+        }
+
+        ImGui::SetNextWindowSize(ImVec2(540.0f, 0.0f), ImGuiCond_Appearing);
+        if (ImGui::BeginPopupModal("Measure Angle", nullptr))
+        {
+            ImGui::TextWrapped("%s", angleMessage);
+            if (ImGui::Button("OK"))
+            {
+                ImGui::CloseCurrentPopup();
+                showAngleLines = false;
+            }
+            ImGui::EndPopup();
         }
 
         if (showDistancePopup)
@@ -485,6 +568,78 @@ int main()
                             ImVec2 p0(ax + ux * t,  ay + uy * t);
                             ImVec2 p1(ax + ux * t2, ay + uy * t2);
                             drawList->AddLine(p0, p1, IM_COL32(255, 255, 80, 230), 2.0f);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Draw dotted angle legs (atom0-vertex and atom2-vertex) when active.
+        if (showAngleLines)
+        {
+            bool ok = angleLineIdx0 >= 0 && angleLineIdx0 < (int)sceneBuffers.atomPositions.size() &&
+                      angleLineIdx1 >= 0 && angleLineIdx1 < (int)sceneBuffers.atomPositions.size() &&
+                      angleLineIdx2 >= 0 && angleLineIdx2 < (int)sceneBuffers.atomPositions.size();
+            if (ok)
+            {
+                auto projectPt = [&](const glm::vec3& p, float& sx, float& sy) -> bool {
+                    glm::vec4 clip = projection * view * glm::vec4(p, 1.0f);
+                    if (clip.w <= 0.0f) return false;
+                    float invW = 1.0f / clip.w;
+                    float nx = clip.x * invW, ny = clip.y * invW, nz = clip.z * invW;
+                    if (nx < -1.0f || nx > 1.0f || ny < -1.0f || ny > 1.0f || nz < -1.0f || nz > 1.0f) return false;
+                    sx = (nx * 0.5f + 0.5f) * (float)w;
+                    sy = (1.0f - (ny * 0.5f + 0.5f)) * (float)h;
+                    return true;
+                };
+
+                auto drawDashedLine = [&](ImVec2 a, ImVec2 b, ImU32 col) {
+                    float dx = b.x - a.x, dy = b.y - a.y;
+                    float len = std::sqrt(dx*dx + dy*dy);
+                    if (len < 1.0f) return;
+                    float ux = dx/len, uy = dy/len;
+                    for (float t = 0.0f; t < len; t += 12.0f)
+                    {
+                        float t2 = std::min(t + 7.0f, len);
+                        drawList->AddLine(ImVec2(a.x+ux*t, a.y+uy*t),
+                                          ImVec2(a.x+ux*t2, a.y+uy*t2), col, 2.0f);
+                    }
+                };
+
+                float x0,y0, x1,y1, x2,y2;
+                bool v0ok = projectPt(sceneBuffers.atomPositions[angleLineIdx0], x0, y0);
+                bool v1ok = projectPt(sceneBuffers.atomPositions[angleLineIdx1], x1, y1);
+                bool v2ok = projectPt(sceneBuffers.atomPositions[angleLineIdx2], x2, y2);
+
+                ImU32 col = IM_COL32(80, 220, 255, 230);
+                if (v0ok && v1ok) drawDashedLine({x0,y0}, {x1,y1}, col);
+                if (v2ok && v1ok) drawDashedLine({x2,y2}, {x1,y1}, col);
+
+                // Draw short arc at the vertex in screen space.
+                if (v0ok && v1ok && v2ok)
+                {
+                    float d0x = x0-x1, d0y = y0-y1;
+                    float d2x = x2-x1, d2y = y2-y1;
+                    float len0 = std::sqrt(d0x*d0x + d0y*d0y);
+                    float len2 = std::sqrt(d2x*d2x + d2y*d2y);
+                    float r = std::min({len0, len2, 30.0f}) * 0.35f;
+                    if (r > 4.0f)
+                    {
+                        float a0 = std::atan2(d0y, d0x);
+                        float a2 = std::atan2(d2y, d2x);
+                        // Normalise so we sweep the short way.
+                        float da = a2 - a0;
+                        while (da >  (float)M_PI) da -= 2.0f*(float)M_PI;
+                        while (da < -(float)M_PI) da += 2.0f*(float)M_PI;
+                        const int segs = 20;
+                        for (int s = 0; s < segs; ++s)
+                        {
+                            float t0 = a0 + da * ((float)s       / segs);
+                            float t1a = a0 + da * ((float)(s + 1) / segs);
+                            drawList->AddLine(
+                                ImVec2(x1 + r*std::cos(t0),  y1 + r*std::sin(t0)),
+                                ImVec2(x1 + r*std::cos(t1a), y1 + r*std::sin(t1a)),
+                                col, 1.5f);
                         }
                     }
                 }

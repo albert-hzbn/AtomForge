@@ -33,6 +33,12 @@ struct FileBrowser
         requestMeasureDistance = false;
         return requested;
     }
+    bool consumeMeasureAngleRequest()
+    {
+        bool requested = requestMeasureAngle;
+        requestMeasureAngle = false;
+        return requested;
+    }
 
     // Programmatically trigger file open dialog (for keyboard shortcuts)
     void openFileDialog() { openStructurePopup = true; }
@@ -48,6 +54,7 @@ private:
     bool showEditColors;
     bool showElementLabels;
     bool requestMeasureDistance;
+    bool requestMeasureAngle;
     bool openStructurePopup;
     bool saveStructurePopup;
 

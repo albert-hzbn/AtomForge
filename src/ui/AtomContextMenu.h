@@ -23,6 +23,7 @@ struct AtomContextMenu
               const std::vector<glm::vec3>& elementColors,
               std::vector<int>& selectedInstanceIndices,
               bool& doDelete,
+              bool& requestMeasureAngle,
               bool& requestMeasureDistance,
               const std::function<void(Structure&)>& updateBuffers);
 

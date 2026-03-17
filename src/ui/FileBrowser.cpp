@@ -38,8 +38,7 @@ FileBrowser::FileBrowser()
     : showAbout(false),
       showEditColors(false),
     showElementLabels(false),
-    requestMeasureDistance(false),
-      openStructurePopup(false),
+    requestMeasureDistance(false),      requestMeasureAngle(false),      openStructurePopup(false),
       saveStructurePopup(false),
       openDir("."),
       historyIndex(-1),
@@ -122,6 +121,8 @@ void FileBrowser::draw(Structure& structure,
             ImGui::MenuItem("Show Element", nullptr, &showElementLabels);
             if (ImGui::MenuItem("Measure Distance (2 selected)"))
                 requestMeasureDistance = true;
+            if (ImGui::MenuItem("Measure Angle (3 selected)"))
+                requestMeasureAngle = true;
             ImGui::EndMenu();
         }
 
