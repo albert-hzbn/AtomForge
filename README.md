@@ -9,7 +9,7 @@ On Debian/Ubuntu (or derivatives):
 ```bash
 sudo apt update
 sudo apt install build-essential cmake libglfw3-dev libglew-dev libglm-dev \
-                 libopenbabel-dev libopenbabel3
+                 libopenbabel-dev libopenbabel3 libsymspg-dev
 ```
 
 > **Note:** This project uses OpenGL 3.0+ (GLSL 130) and GLFW.
@@ -70,6 +70,8 @@ Default camera behavior:
 ### View menu
 
 - **Show Element** — toggle on-screen element symbol labels
+- **Show Bonds** — display bond cylinders split by atom colours
+- **Structure Info** — show composition, lattice metrics, positions, and symmetry summary
 - **Measure Distance (2 selected)**
 - **Measure Angle (3 selected)**
 - **Atom Info (1 selected)**
@@ -77,8 +79,10 @@ Default camera behavior:
 
 ### Edit menu
 
+- **Undo / Redo** — full edit-history snapshots (`Ctrl+Z`, `Ctrl+Y`, `Ctrl+Shift+Z`)
+- **Edit Structure...** — modify lattice vectors and atom list (add/edit/delete)
 - **Atomic Sizes…** — adjust per-element covalent radii (literature defaults: Cordero et al., *Dalton Trans.* 2008)
-- **Element Colors…** — override CPK colours per element
+- **Element Colors…** — override CPK colours per element and tune material shininess
 - **Transform Structure…** — apply a 3×3 matrix transformation to all atom positions (only available when the structure has a unit cell)
 
 ### Measurements and overlays
@@ -86,6 +90,25 @@ Default camera behavior:
 - Distance and angle tools open result dialogs and draw dashed helper lines.
 - **Atom Info** shows element name, atomic number, Cartesian coordinates, and direct coordinates (when a unit cell exists).
 - Dashed helper lines are cleared when selection changes or when the dialog is confirmed.
+- **Show Element** labels are rendered for periodic image atoms as well.
+
+### Periodic and bonding display
+
+- Boundary atoms are duplicated across unit-cell faces/edges/vertices for periodic visualization.
+- Bonds are inferred from covalent radii and rendered as thicker cylinders with half-colour per bonded atom.
+
+### Structure information
+
+- **View → Structure Info** includes:
+  - Total atoms, element counts, and formula
+  - Lattice lengths, angles, and volume
+  - Atomic positions in Cartesian and fractional coordinates
+  - Space group and point group using spglib when available
+
+### Save/export formats
+
+- **File → Save As** supports: `.xyz`, `.cif`, `.vasp`, `.pdb`, `.sdf`, `.mol2`, `.pwi`, `.gjf`
+- When transform mode is active, save uses the expanded supercell representation.
 
 ## Project layout
 
