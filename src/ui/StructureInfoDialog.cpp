@@ -276,56 +276,54 @@ void drawStructureInfoDialog(StructureInfoDialogState& state,
         bool hasValidLattice = buildLatticeMatrix(structure, lattice, origin);
         glm::mat3 invLattice = hasValidLattice ? glm::inverse(lattice) : glm::mat3(1.0f);
 
-        if (ImGui::BeginChild("##positions", ImVec2(940.0f, 250.0f), true))
+        ImGui::BeginChild("##positions", ImVec2(940.0f, 250.0f), true);
+        if (ImGui::BeginTable("##position-table", 8,
+                              ImGuiTableFlags_Borders |
+                              ImGuiTableFlags_RowBg |
+                              ImGuiTableFlags_ScrollY))
         {
-            if (ImGui::BeginTable("##position-table", 8,
-                                  ImGuiTableFlags_Borders |
-                                  ImGuiTableFlags_RowBg |
-                                  ImGuiTableFlags_ScrollY))
+            ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 55.0f);
+            ImGui::TableSetupColumn("El", ImGuiTableColumnFlags_WidthFixed, 55.0f);
+            ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+            ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+            ImGui::TableSetupColumn("Z", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+            ImGui::TableSetupColumn("u", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+            ImGui::TableSetupColumn("v", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+            ImGui::TableSetupColumn("w", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+            ImGui::TableHeadersRow();
+
+            for (int i = 0; i < (int)structure.atoms.size(); ++i)
             {
-                ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 55.0f);
-                ImGui::TableSetupColumn("El", ImGuiTableColumnFlags_WidthFixed, 55.0f);
-                ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-                ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-                ImGui::TableSetupColumn("Z", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-                ImGui::TableSetupColumn("u", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-                ImGui::TableSetupColumn("v", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-                ImGui::TableSetupColumn("w", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-                ImGui::TableHeadersRow();
-
-                for (int i = 0; i < (int)structure.atoms.size(); ++i)
+                const AtomSite& atom = structure.atoms[i];
+                glm::vec3 cart((float)atom.x, (float)atom.y, (float)atom.z);
+                glm::vec3 frac(0.0f);
+                if (hasValidLattice)
                 {
-                    const AtomSite& atom = structure.atoms[i];
-                    glm::vec3 cart((float)atom.x, (float)atom.y, (float)atom.z);
-                    glm::vec3 frac(0.0f);
-                    if (hasValidLattice)
-                    {
-                        frac = invLattice * (cart - origin);
-                    }
-
-                    ImGui::TableNextRow();
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::Text("%d", i);
-                    ImGui::TableSetColumnIndex(1);
-                    ImGui::Text("%s", atom.symbol.c_str());
-                    ImGui::TableSetColumnIndex(2);
-                    ImGui::Text("%.6f", atom.x);
-                    ImGui::TableSetColumnIndex(3);
-                    ImGui::Text("%.6f", atom.y);
-                    ImGui::TableSetColumnIndex(4);
-                    ImGui::Text("%.6f", atom.z);
-                    ImGui::TableSetColumnIndex(5);
-                    ImGui::Text("%.6f", frac.x);
-                    ImGui::TableSetColumnIndex(6);
-                    ImGui::Text("%.6f", frac.y);
-                    ImGui::TableSetColumnIndex(7);
-                    ImGui::Text("%.6f", frac.z);
+                    frac = invLattice * (cart - origin);
                 }
 
-                ImGui::EndTable();
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%d", i);
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%s", atom.symbol.c_str());
+                ImGui::TableSetColumnIndex(2);
+                ImGui::Text("%.6f", atom.x);
+                ImGui::TableSetColumnIndex(3);
+                ImGui::Text("%.6f", atom.y);
+                ImGui::TableSetColumnIndex(4);
+                ImGui::Text("%.6f", atom.z);
+                ImGui::TableSetColumnIndex(5);
+                ImGui::Text("%.6f", frac.x);
+                ImGui::TableSetColumnIndex(6);
+                ImGui::Text("%.6f", frac.y);
+                ImGui::TableSetColumnIndex(7);
+                ImGui::Text("%.6f", frac.z);
             }
-            ImGui::EndChild();
+
+            ImGui::EndTable();
         }
+        ImGui::EndChild();
 
         ImGui::EndPopup();
     }
