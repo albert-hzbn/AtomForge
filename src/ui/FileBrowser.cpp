@@ -37,6 +37,7 @@ static const std::array<const char*, 119> elementSymbols = {
 FileBrowser::FileBrowser()
     : showAbout(false),
       showEditColors(false),
+    showElementLabels(false),
       openStructurePopup(false),
       saveStructurePopup(false),
       openDir("."),
@@ -112,6 +113,12 @@ void FileBrowser::draw(Structure& structure,
             ImGui::Separator();
             transformDialog.drawMenuItem(structure.hasUnitCell);
 
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("View"))
+        {
+            ImGui::MenuItem("Show Element", nullptr, &showElementLabels);
             ImGui::EndMenu();
         }
 

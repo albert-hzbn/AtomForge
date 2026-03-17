@@ -345,8 +345,6 @@ int main()
             updateBuffers(structure);
         }
 
-        ImGui::Render();
-
         // Apply / maintain highlight for all selected atoms
         for (int& idx : selectedInstanceIndices)
         {
@@ -365,6 +363,40 @@ int main()
             std::remove(selectedInstanceIndices.begin(), selectedInstanceIndices.end(), -1),
             selectedInstanceIndices.end()
         );
+
+        if (fileBrowser.isShowElementEnabled())
+        {
+            ImDrawList* drawList = ImGui::GetForegroundDrawList();
+            for (size_t i = 0; i < sceneBuffers.atomPositions.size(); ++i)
+            {
+                int baseIdx = (i < sceneBuffers.atomIndices.size()) ? sceneBuffers.atomIndices[i] : -1;
+                if (baseIdx < 0 || baseIdx >= (int)structure.atoms.size())
+                    continue;
+
+                const glm::vec3& p = sceneBuffers.atomPositions[i];
+                glm::vec4 clip = projection * view * glm::vec4(p, 1.0f);
+                if (clip.w <= 0.0f)
+                    continue;
+
+                float invW = 1.0f / clip.w;
+                float ndcX = clip.x * invW;
+                float ndcY = clip.y * invW;
+                float ndcZ = clip.z * invW;
+                if (ndcX < -1.0f || ndcX > 1.0f || ndcY < -1.0f || ndcY > 1.0f || ndcZ < -1.0f || ndcZ > 1.0f)
+                    continue;
+
+                float sx = (ndcX * 0.5f + 0.5f) * (float)w;
+                float sy = (1.0f - (ndcY * 0.5f + 0.5f)) * (float)h;
+
+                const std::string& label = structure.atoms[baseIdx].symbol;
+                ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
+                drawList->AddText(ImVec2(sx - textSize.x * 0.5f, sy - textSize.y * 0.5f),
+                                  IM_COL32(255, 255, 255, 255),
+                                  label.c_str());
+            }
+        }
+
+        ImGui::Render();
 
         // ------------------------------------------------------------
         // Draw

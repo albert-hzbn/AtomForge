@@ -26,6 +26,7 @@ struct FileBrowser
     bool isTransformMatrixEnabled() const { return transformDialog.isEnabled(); }
     const int (&getTransformMatrix() const)[3][3] { return transformDialog.getMatrix(); }
     void clearTransformMatrix() { transformDialog.clearTransform(); }
+    bool isShowElementEnabled() const { return showElementLabels; }
 
     // Programmatically trigger file open dialog (for keyboard shortcuts)
     void openFileDialog() { openStructurePopup = true; }
@@ -39,6 +40,7 @@ private:
 
     bool showAbout;
     bool showEditColors;
+    bool showElementLabels;
     bool openStructurePopup;
     bool saveStructurePopup;
 
