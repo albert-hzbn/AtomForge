@@ -4,15 +4,17 @@
 
 static void createSphere(std::vector<float>& v,int stacks,int slices)
 {
+    constexpr float kPi = 3.14159265358979323846f;
+
     for(int i=0;i<stacks;i++)
     {
-        float lat0 = M_PI*(-0.5f + i/(float)stacks);
-        float lat1 = M_PI*(-0.5f + (i+1)/(float)stacks);
+        float lat0 = kPi*(-0.5f + i/(float)stacks);
+        float lat1 = kPi*(-0.5f + (i+1)/(float)stacks);
 
         for(int j=0;j<slices;j++)
         {
-            float lng0 = 2*M_PI*j/(float)slices;
-            float lng1 = 2*M_PI*(j+1)/(float)slices;
+            float lng0 = 2*kPi*j/(float)slices;
+            float lng1 = 2*kPi*(j+1)/(float)slices;
 
             float x0 = cos(lng0);
             float y0 = sin(lng0);

@@ -6,9 +6,143 @@
 #include <openbabel3/openbabel/elements.h>
 #include <openbabel3/openbabel/generic.h>
 #include <openbabel3/openbabel/math/vector3.h>
+#include <openbabel3/openbabel/dlhandler.h>
+#include <openbabel3/openbabel/plugin.h>
 
 #include <iostream>
 #include <array>
+#include <algorithm>
+#include <cstdlib>
+#include <vector>
+#include <sys/stat.h>
+
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
+namespace
+{
+std::string normalizeSeparators(const std::string& path)
+{
+    std::string out = path;
+    std::replace(out.begin(), out.end(), '\\', '/');
+    return out;
+}
+
+std::string ensureTrailingSlash(const std::string& path)
+{
+    if (path.empty())
+        return path;
+    if (path.back() == '/' || path.back() == '\\')
+        return path;
+    return path + "/";
+}
+
+std::string parentDirectory(const std::string& path)
+{
+    if (path.empty())
+        return std::string();
+
+    std::string out = normalizeSeparators(path);
+    while (out.size() > 1 && out.back() == '/')
+        out.pop_back();
+
+    std::size_t pos = out.find_last_of('/');
+    if (pos == std::string::npos)
+        return std::string();
+    if (pos == 0)
+        return out.substr(0, 1);
+    return out.substr(0, pos);
+}
+
+std::string joinPath(const std::string& base, const std::string& name)
+{
+    if (base.empty())
+        return name;
+    if (base.back() == '/' || base.back() == '\\')
+        return base + name;
+    return base + "/" + name;
+}
+
+bool directoryExists(const std::string& path)
+{
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0)
+        return false;
+#ifdef _WIN32
+    return (st.st_mode & _S_IFDIR) != 0;
+#else
+    return S_ISDIR(st.st_mode);
+#endif
+}
+
+void setBabelLibDir(const std::string& path)
+{
+    const std::string normalized = ensureTrailingSlash(normalizeSeparators(path));
+#ifdef _WIN32
+    _putenv_s("BABEL_LIBDIR", normalized.c_str());
+#else
+    setenv("BABEL_LIBDIR", normalized.c_str(), 1);
+#endif
+}
+
+void ensureOpenBabelPlugins()
+{
+    static bool initialized = false;
+    if (initialized)
+        return;
+    initialized = true;
+
+    const char* currentLibDir = std::getenv("BABEL_LIBDIR");
+    if (currentLibDir && *currentLibDir)
+    {
+        OpenBabel::OBPlugin::LoadAllPlugins();
+        return;
+    }
+
+    std::vector<std::string> candidates;
+
+    std::string convPath;
+    if (DLHandler::getConvDirectory(convPath) && !convPath.empty())
+        candidates.push_back(convPath);
+
+#ifdef _WIN32
+    HMODULE obModule = nullptr;
+    if (GetModuleHandleExA(
+            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            reinterpret_cast<LPCSTR>(&OpenBabel::OBPlugin::LoadAllPlugins),
+            &obModule))
+    {
+        char modulePath[MAX_PATH] = {0};
+        DWORD len = GetModuleFileNameA(obModule, modulePath, MAX_PATH);
+        if (len > 0 && len < MAX_PATH)
+        {
+            const std::string binDir = parentDirectory(modulePath);
+            const std::string prefixDir = parentDirectory(binDir);
+            if (!prefixDir.empty())
+                candidates.push_back(joinPath(joinPath(prefixDir, "lib"), "openbabel/3.1.0"));
+        }
+    }
+
+    candidates.push_back("C:/msys64/ucrt64/lib/openbabel/3.1.0");
+    candidates.push_back("C:/msys64/mingw64/lib/openbabel/3.1.0");
+#endif
+
+    for (std::size_t i = 0; i < candidates.size(); ++i)
+    {
+        if (directoryExists(candidates[i]))
+        {
+            setBabelLibDir(candidates[i]);
+            break;
+        }
+    }
+
+    OpenBabel::OBPlugin::LoadAllPlugins();
+}
+}
 
 
 void getDefaultElementColor(int Z,float& r,float& g,float& b)
@@ -147,6 +281,8 @@ void getDefaultElementColor(int Z,float& r,float& g,float& b)
 
 Structure loadStructure(const std::string& filename)
 {
+    ensureOpenBabelPlugins();
+
     Structure structure;
 
     OpenBabel::OBMol mol;
@@ -229,6 +365,8 @@ Structure loadStructure(const std::string& filename)
 
 bool saveStructure(const Structure& structure, const std::string& filename, const std::string& format)
 {
+    ensureOpenBabelPlugins();
+
     OpenBabel::OBMol mol;
     mol.BeginModify();
 

@@ -4,7 +4,6 @@
 #include "imgui.h"
 
 #include <glm/glm.hpp>
-#include <glm/gtx/norm.hpp>
 
 #include <algorithm>
 #include <array>
@@ -506,7 +505,7 @@ BuildResult buildCslBoundary(Structure& structure,
                     continue;
 
                 glm::vec3 d = generated[i].pos - generated[j].pos;
-                if (glm::length2(d) < overlapSq)
+                if (glm::dot(d, d) < overlapSq)
                 {
                     generated[j].keep = false;
                     ++removedOverlap;

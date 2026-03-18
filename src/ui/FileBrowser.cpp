@@ -13,18 +13,143 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
 #include <dirent.h>
 #include <sys/stat.h>
+#endif
 
 namespace
 {
 using DirectoryEntry = std::pair<std::string, bool>;
+
+std::string normalizePathSeparators(const std::string& path)
+{
+    std::string out = path;
+    std::replace(out.begin(), out.end(), '\\', '/');
+    return out;
+}
+
+std::string joinPath(const std::string& base, const std::string& name)
+{
+    if (base.empty() || base == ".")
+        return name;
+    if (base.back() == '/' || base.back() == '\\')
+        return base + name;
+    return base + "/" + name;
+}
+
+bool isDriveRootPath(const std::string& path)
+{
+    if (path.size() < 2)
+        return false;
+    if (!std::isalpha((unsigned char)path[0]) || path[1] != ':')
+        return false;
+    return (path.size() == 2) || (path.size() == 3 && (path[2] == '/' || path[2] == '\\'));
+}
+
+std::string parentPath(const std::string& path)
+{
+    if (path.empty() || path == ".")
+        return ".";
+
+    std::string out = path;
+    while (out.size() > 1 && (out.back() == '/' || out.back() == '\\'))
+    {
+        if (isDriveRootPath(out))
+            return normalizePathSeparators(out);
+        out.pop_back();
+    }
+
+    if (out == "/" || out == "\\" || isDriveRootPath(out))
+        return normalizePathSeparators(out);
+
+    std::size_t pos = out.find_last_of("/\\");
+    if (pos == std::string::npos)
+        return ".";
+    if (pos == 0)
+        return out.substr(0, 1);
+    if (pos == 2 && std::isalpha((unsigned char)out[0]) && out[1] == ':')
+        return normalizePathSeparators(out.substr(0, 3));
+    return out.substr(0, pos);
+}
+
+std::string detectHomePath()
+{
+#ifdef _WIN32
+    if (const char* userProfile = std::getenv("USERPROFILE"))
+        return normalizePathSeparators(userProfile);
+
+    const char* homeDrive = std::getenv("HOMEDRIVE");
+    const char* homePath = std::getenv("HOMEPATH");
+    if (homeDrive && homePath)
+        return normalizePathSeparators(std::string(homeDrive) + homePath);
+#endif
+
+    if (const char* home = std::getenv("HOME"))
+        return normalizePathSeparators(home);
+
+    return ".";
+}
+
+void appendUniquePath(std::vector<std::string>& paths, const std::string& value)
+{
+    if (value.empty())
+        return;
+
+    std::string normalized = normalizePathSeparators(value);
+    if (isDriveRootPath(normalized) && normalized.size() == 2)
+        normalized += "/";
+
+    if (std::find(paths.begin(), paths.end(), normalized) == paths.end())
+        paths.push_back(normalized);
+}
+
+#ifdef _WIN32
+std::string toNativePath(const std::string& path)
+{
+    std::string native = path;
+    std::replace(native.begin(), native.end(), '/', '\\');
+    return native;
+}
+#endif
 
 bool loadDirectoryEntries(const std::string& directory,
                           bool filterFiles,
                           const std::function<bool(const std::string&)>& includeFile,
                           std::vector<DirectoryEntry>& entries)
 {
+#ifdef _WIN32
+    std::string nativeDir = toNativePath(directory.empty() ? "." : directory);
+    if (!nativeDir.empty() && nativeDir.back() != '\\' && nativeDir.back() != '/')
+        nativeDir.push_back('\\');
+    std::string searchPattern = nativeDir + "*";
+
+    WIN32_FIND_DATAA findData;
+    HANDLE handle = FindFirstFileA(searchPattern.c_str(), &findData);
+    if (handle == INVALID_HANDLE_VALUE)
+        return false;
+
+    do
+    {
+        std::string name(findData.cFileName);
+        if (name == "." || name == "..")
+            continue;
+
+        bool isDir = (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+
+        if (!isDir && filterFiles && !includeFile(name))
+            continue;
+
+        entries.emplace_back(name, isDir);
+    } while (FindNextFileA(handle, &findData) != 0);
+
+    FindClose(handle);
+#else
     DIR* dir = opendir(directory.c_str());
     if (!dir)
         return false;
@@ -36,7 +161,7 @@ bool loadDirectoryEntries(const std::string& directory,
         if (name == "." || name == "..")
             continue;
 
-        std::string fullPath = directory + "/" + name;
+        std::string fullPath = joinPath(directory, name);
         struct stat st;
         bool isDir = (stat(fullPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode));
 
@@ -46,6 +171,7 @@ bool loadDirectoryEntries(const std::string& directory,
         entries.emplace_back(name, isDir);
     }
     closedir(dir);
+#endif
 
     std::sort(entries.begin(), entries.end(),
               [](const DirectoryEntry& a, const DirectoryEntry& b) {
@@ -128,11 +254,36 @@ FileBrowser::FileBrowser()
 {
     allowedExtensions = {".cif", ".mol", ".pdb", ".xyz", ".sdf"};
 
-    driveRoots.push_back("/");
-    if (const char* home = std::getenv("HOME"))
-        driveRoots.push_back(home);
-    driveRoots.push_back("/mnt");
-    driveRoots.push_back("/media");
+    const std::string homePath = detectHomePath();
+
+#ifdef _WIN32
+    const char* systemDrive = std::getenv("SystemDrive");
+    appendUniquePath(driveRoots, systemDrive ? std::string(systemDrive) + "/" : "C:/");
+    appendUniquePath(driveRoots, homePath);
+
+    DWORD driveMask = GetLogicalDrives();
+    if (driveMask != 0)
+    {
+        for (int i = 0; i < 26; ++i)
+        {
+            if ((driveMask & (1u << i)) == 0)
+                continue;
+
+            std::string drive;
+            drive.push_back((char)('A' + i));
+            drive += ":/";
+            appendUniquePath(driveRoots, drive);
+        }
+    }
+#else
+    appendUniquePath(driveRoots, "/");
+    appendUniquePath(driveRoots, homePath);
+    appendUniquePath(driveRoots, "/mnt");
+    appendUniquePath(driveRoots, "/media");
+#endif
+
+    if (driveRoots.empty())
+        appendUniquePath(driveRoots, ".");
 
     openFilename[0] = '\0';
     saveFilename[0] = '\0';
@@ -144,7 +295,10 @@ void FileBrowser::initFromPath(const std::string& initialPath)
     openDir = ".";
     auto pos = initialPath.find_last_of("/\\");
     if (pos != std::string::npos)
-        openDir = initialPath.substr(0, pos);
+        openDir = normalizePathSeparators(initialPath.substr(0, pos));
+
+    if (isDriveRootPath(openDir) && openDir.size() == 2)
+        openDir += "/";
 
     if (openDir.empty())
         openDir = ".";
@@ -287,11 +441,7 @@ void FileBrowser::draw(Structure& structure,
         ImGui::SameLine();
         if (ImGui::Button(".."))
         {
-            auto pos = openDir.find_last_of("/\\");
-            if (pos != std::string::npos)
-                openDir = openDir.substr(0, pos);
-            else
-                openDir = ".";
+            openDir = parentPath(openDir);
             pushHistory(openDir);
         }
 
@@ -311,13 +461,13 @@ void FileBrowser::draw(Structure& structure,
         ImGui::SameLine();
         if (ImGui::Button("Root"))
         {
-            openDir = "/";
+            openDir = !driveRoots.empty() ? driveRoots.front() : "/";
             pushHistory(openDir);
         }
         ImGui::SameLine();
-        if (ImGui::Button("Home") && !driveRoots.empty())
+        if (ImGui::Button("Home"))
         {
-            openDir = driveRoots[1];
+            openDir = detectHomePath();
             pushHistory(openDir);
         }
 
@@ -340,10 +490,7 @@ void FileBrowser::draw(Structure& structure,
             {
                 drawDirectoryEntries(entries, openFilename, 0,
                     [&](const std::string& name) {
-                        if (openDir == ".")
-                            openDir = name;
-                        else
-                            openDir = openDir + "/" + name;
+                        openDir = joinPath(openDir, name);
                         pushHistory(openDir);
                     });
             }
@@ -355,7 +502,7 @@ void FileBrowser::draw(Structure& structure,
 
         if (ImGui::Button("Load"))
         {
-            std::string fullPath = openDir + "/" + openFilename;
+            std::string fullPath = joinPath(openDir, openFilename);
             Structure newStructure = loadStructure(fullPath);
             if (!newStructure.atoms.empty())
             {
@@ -408,8 +555,7 @@ void FileBrowser::draw(Structure& structure,
         ImGui::SameLine();
         if (ImGui::Button("..##save"))
         {
-            auto pos = saveDir.find_last_of("/\\");
-            pushSaveDir(pos != std::string::npos ? saveDir.substr(0, pos) : ".");
+            pushSaveDir(parentPath(saveDir));
         }
         ImGui::SameLine();
         if (ImGui::Button("Back##save") && saveHistoryIndex > 0)
@@ -425,20 +571,29 @@ void FileBrowser::draw(Structure& structure,
         }
         ImGui::SameLine();
         if (ImGui::Button("Root##save"))
-            pushSaveDir("/");
+            pushSaveDir(!driveRoots.empty() ? driveRoots.front() : "/");
         ImGui::SameLine();
-        if (ImGui::Button("Home##save") && !driveRoots.empty())
-            pushSaveDir(driveRoots[1]);
+        if (ImGui::Button("Home##save"))
+            pushSaveDir(detectHomePath());
 
         ImGui::Separator();
 
         if (ImGui::BeginChild("##savefilebrowser", ImVec2(500, 200), true))
         {
+            const std::string saveExtFilter = toLower(kSaveFormats[selectedSaveFormat].ext);
+
             std::vector<DirectoryEntry> entries;
             bool listed = loadDirectoryEntries(
                 saveDir,
-                false,
-                [](const std::string&) { return true; },
+                true,
+                [&](const std::string& name) {
+                    const std::string lowerName = toLower(name);
+                    if (saveExtFilter.empty())
+                        return true;
+                    if (lowerName.size() < saveExtFilter.size())
+                        return false;
+                    return lowerName.compare(lowerName.size() - saveExtFilter.size(), saveExtFilter.size(), saveExtFilter) == 0;
+                },
                 entries);
 
             if (!listed)
@@ -449,7 +604,7 @@ void FileBrowser::draw(Structure& structure,
             {
                 drawDirectoryEntries(entries, saveFilename, 10000,
                     [&](const std::string& name) {
-                        pushSaveDir(saveDir == "." ? name : saveDir + "/" + name);
+                        pushSaveDir(joinPath(saveDir, name));
                     });
             }
             ImGui::EndChild();
@@ -490,7 +645,7 @@ void FileBrowser::draw(Structure& structure,
             }
             else
             {
-                std::string fullPath = saveDir + "/" + saveFilename;
+                std::string fullPath = joinPath(saveDir, saveFilename);
                     // When a supercell transform is active, expand to the full
                     // supercell so the saved file contains all visible atoms.
                     Structure structureToSave = (isTransformMatrixEnabled() && structure.hasUnitCell)

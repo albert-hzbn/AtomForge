@@ -2,9 +2,14 @@
 
 An OpenGL-based molecular structure viewer and editor using Dear ImGui and Open Babel.
 
+## Platform support
+
+- Linux
+- Windows (MSYS2 UCRT64 / MinGW-w64)
+
 ## Prerequisites
 
-On Debian/Ubuntu (or derivatives):
+### Linux (Debian/Ubuntu or derivatives)
 
 ```bash
 sudo apt update
@@ -12,9 +17,34 @@ sudo apt install build-essential cmake libglfw3-dev libglew-dev libglm-dev \
                  libopenbabel-dev libopenbabel3 libsymspg-dev
 ```
 
+### Windows (MSYS2 UCRT64)
+
+Install MSYS2, open the **UCRT64** shell, then install dependencies:
+
+```bash
+pacman -Syu
+# close and reopen UCRT64 shell, then run
+pacman -Su
+
+pacman -S --needed mingw-w64-ucrt-x86_64-toolchain \
+                  mingw-w64-ucrt-x86_64-glfw \
+                  mingw-w64-ucrt-x86_64-glew \
+                  mingw-w64-ucrt-x86_64-glm \
+                  mingw-w64-ucrt-x86_64-openbabel \
+                  mingw-w64-ucrt-x86_64-pkgconf
+```
+
+Optional (enables symmetry features via spglib):
+
+```bash
+pacman -S --needed mingw-w64-ucrt-x86_64-spglib
+```
+
 > **Note:** This project uses OpenGL 3.0+ (GLSL 130) and GLFW.
 
 ## Build
+
+### Linux
 
 From the `src/` directory:
 
@@ -27,6 +57,35 @@ Then run:
 ```bash
 ./AtomForge
 ```
+
+### Windows (MSYS2 UCRT64)
+
+From the `src/` directory in the UCRT64 shell:
+
+```bash
+mingw32-make
+```
+
+Then run:
+
+```bash
+./AtomForge.exe
+```
+
+## Windows troubleshooting
+
+- **Open Babel plugin error** (`Unable to find OpenBabel plugins`):
+  set the plugin path before launching.
+
+```bash
+export BABEL_LIBDIR=/ucrt64/lib/openbabel/3.1.0/
+```
+
+- **Application does not start due to missing DLLs**:
+  run from the UCRT64 shell, or add `C:/msys64/ucrt64/bin` to `PATH`.
+
+- **`make: command not found` in UCRT64**:
+  use `mingw32-make` instead of `make`.
 
 ## Usage
 

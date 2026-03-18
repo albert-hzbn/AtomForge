@@ -5,6 +5,7 @@
 EXE   = AtomForge
 CXX   = g++
 IMGUI = ../
+PKG_CONFIG ?= pkg-config
 LINK_MODE ?= shared
 STATIC_LIB_DIRS ?= /usr/lib /usr/lib/x86_64-linux-gnu /usr/local/lib /usr/local/lib/x86_64-linux-gnu
 PORTABLE_DIR ?= dist/$(EXE)
@@ -88,20 +89,73 @@ endif
 # Platform-specific flags
 # ------------------------------------------------------------------------------
 
-UNAME_S := $(shell uname -s)
+# Detect Windows when running GNU Make under cmd.exe, MSYS2, MinGW, or Cygwin.
+UNAME_S := $(shell uname -s 2>/dev/null)
+IS_WINDOWS := 0
 
-ifeq ($(UNAME_S), Linux)
+ifeq ($(OS),Windows_NT)
+    IS_WINDOWS := 1
+endif
+ifneq (,$(findstring MINGW,$(UNAME_S)))
+    IS_WINDOWS := 1
+endif
+ifneq (,$(findstring MSYS,$(UNAME_S)))
+    IS_WINDOWS := 1
+endif
+ifneq (,$(findstring CYGWIN,$(UNAME_S)))
+    IS_WINDOWS := 1
+endif
+
+ifeq ($(IS_WINDOWS),1)
+    ECHO_MESSAGE = Windows
+
+    # Keep the default target name executable on Windows.
+    ifneq ($(suffix $(EXE)),.exe)
+        EXE := $(EXE).exe
+    endif
+
+    # Prefer pkg-config in MSYS2/MinGW; fallback to common library names when .pc files are absent.
+    HAVE_PKG_CONFIG := $(shell command -v $(PKG_CONFIG) >/dev/null 2>&1 && echo yes)
+    ifeq ($(HAVE_PKG_CONFIG),yes)
+        HAVE_WINDOWS_PKGS := $(shell $(PKG_CONFIG) --exists glfw3 glew openbabel-3 && echo yes)
+    endif
+
+    ifeq ($(HAVE_WINDOWS_PKGS),yes)
+        CXXFLAGS += $(shell $(PKG_CONFIG) --cflags glfw3 glew openbabel-3)
+        LIBS      = $(shell $(PKG_CONFIG) $(PKG_CONFIG_LIBS_MODE) glfw3 glew openbabel-3)
+    else
+        CXXFLAGS += -I/mingw64/include -I/mingw64/include/openbabel3
+        LIBS      = -lglfw3 -lglew32 -lopenbabel
+    endif
+
+    LIBS += -lopengl32 -lgdi32 -luser32 -lkernel32 -lshell32 -lcomdlg32 -lole32 -luuid
+
+    ifeq ($(HAVE_PKG_CONFIG),yes)
+        # spglib package naming may differ across environments.
+        SPGLIB_CFLAGS := $(shell $(PKG_CONFIG) --cflags spglib 2>/dev/null)
+        SPGLIB_LIBS   := $(shell $(PKG_CONFIG) $(PKG_CONFIG_LIBS_MODE) spglib 2>/dev/null)
+        ifeq ($(strip $(SPGLIB_LIBS)),)
+            SPGLIB_CFLAGS := $(shell $(PKG_CONFIG) --cflags symspg 2>/dev/null)
+            SPGLIB_LIBS   := $(shell $(PKG_CONFIG) $(PKG_CONFIG_LIBS_MODE) symspg 2>/dev/null)
+        endif
+
+        ifneq ($(strip $(SPGLIB_LIBS)),)
+            CXXFLAGS += -DATOMS_ENABLE_SPGLIB $(SPGLIB_CFLAGS)
+            LIBS += $(SPGLIB_LIBS)
+        endif
+    endif
+else ifeq ($(UNAME_S), Linux)
   ECHO_MESSAGE = Linux
-  CXXFLAGS    += $(shell pkg-config --cflags glfw3 openbabel-3)
-  LIBS         = $(shell pkg-config $(PKG_CONFIG_LIBS_MODE) glfw3 openbabel-3) -lGLEW -lGL -ldl -lpthread
+    CXXFLAGS    += $(shell $(PKG_CONFIG) --cflags glfw3 openbabel-3)
+    LIBS         = $(shell $(PKG_CONFIG) $(PKG_CONFIG_LIBS_MODE) glfw3 openbabel-3) -lGLEW -lGL -ldl -lpthread
 
     # spglib package naming differs across distros:
     # some expose pkg-config as "spglib", others as "symspg".
-    SPGLIB_CFLAGS := $(shell pkg-config --cflags spglib 2>/dev/null)
-    SPGLIB_LIBS   := $(shell pkg-config $(PKG_CONFIG_LIBS_MODE) spglib 2>/dev/null)
+        SPGLIB_CFLAGS := $(shell $(PKG_CONFIG) --cflags spglib 2>/dev/null)
+        SPGLIB_LIBS   := $(shell $(PKG_CONFIG) $(PKG_CONFIG_LIBS_MODE) spglib 2>/dev/null)
     ifeq ($(strip $(SPGLIB_LIBS)),)
-        SPGLIB_CFLAGS := $(shell pkg-config --cflags symspg 2>/dev/null)
-        SPGLIB_LIBS   := $(shell pkg-config $(PKG_CONFIG_LIBS_MODE) symspg 2>/dev/null)
+                SPGLIB_CFLAGS := $(shell $(PKG_CONFIG) --cflags symspg 2>/dev/null)
+                SPGLIB_LIBS   := $(shell $(PKG_CONFIG) $(PKG_CONFIG_LIBS_MODE) symspg 2>/dev/null)
     endif
 
     # Fallback when pkg-config metadata is missing but libraries are present.
@@ -141,8 +195,14 @@ endif
 all: $(EXE)
 > @echo Build complete for $(ECHO_MESSAGE)
 
+ifeq ($(IS_WINDOWS),1)
+portable:
+> @echo "LINK_MODE=portable is Linux-only in this Makefile."
+> @exit 1
+else
 portable:
 > $(MAKE) LINK_MODE=portable portable-bundle
+endif
 
 portable-bundle: $(EXE)
 > mkdir -p $(PORTABLE_LIB_DIR)
