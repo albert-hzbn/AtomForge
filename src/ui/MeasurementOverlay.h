@@ -55,3 +55,8 @@ void drawElementLabelsOverlay(ImDrawList* drawList,
                               int viewportHeight,
                               const SceneBuffers& sceneBuffers,
                               const Structure& structure);
+
+void drawOrientationAxesOverlay(ImDrawList* drawList,
+                                const glm::mat4& view,
+                                int viewportWidth,
+                                int viewportHeight);

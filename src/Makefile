@@ -109,6 +109,21 @@ endif
 ifeq ($(IS_WINDOWS),1)
     ECHO_MESSAGE = Windows
 
+    WINDOWS_PREFIX := C:/msys64/mingw64
+    ifneq ($(wildcard /ucrt64/include),)
+        WINDOWS_PREFIX := /ucrt64
+    else ifneq ($(wildcard C:/msys64/ucrt64/include),)
+        WINDOWS_PREFIX := C:/msys64/ucrt64
+    else ifneq ($(wildcard /clang64/include),)
+        WINDOWS_PREFIX := /clang64
+    else ifneq ($(wildcard C:/msys64/clang64/include),)
+        WINDOWS_PREFIX := C:/msys64/clang64
+    else ifneq ($(wildcard /mingw64/include),)
+        WINDOWS_PREFIX := /mingw64
+    else ifneq ($(wildcard C:/msys64/mingw64/include),)
+        WINDOWS_PREFIX := C:/msys64/mingw64
+    endif
+
     # Keep the default target name executable on Windows.
     ifneq ($(suffix $(EXE)),.exe)
         EXE := $(EXE).exe
@@ -124,7 +139,7 @@ ifeq ($(IS_WINDOWS),1)
         CXXFLAGS += $(shell $(PKG_CONFIG) --cflags glfw3 glew openbabel-3)
         LIBS      = $(shell $(PKG_CONFIG) $(PKG_CONFIG_LIBS_MODE) glfw3 glew openbabel-3)
     else
-        CXXFLAGS += -I/mingw64/include -I/mingw64/include/openbabel3
+        CXXFLAGS += -I$(WINDOWS_PREFIX)/include -I$(WINDOWS_PREFIX)/include/openbabel3
         LIBS      = -lglfw3 -lglew32 -lopenbabel
     endif
 

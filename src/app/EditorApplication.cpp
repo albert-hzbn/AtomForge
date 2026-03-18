@@ -295,6 +295,12 @@ int runAtomsEditor()
                 state.structure);
         }
 
+        drawOrientationAxesOverlay(
+            drawList,
+            frame.view,
+            frame.framebufferWidth,
+            frame.framebufferHeight);
+
         ImGui::Render();
 
         glViewport(0, 0, frame.framebufferWidth, frame.framebufferHeight);

@@ -5,6 +5,7 @@
 #include "imgui.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <cstdio>
@@ -168,6 +169,48 @@ void drawDashedLine(ImDrawList* drawList, ImVec2 a, ImVec2 b, ImU32 col)
                           ImVec2(a.x + ux * t2, a.y + uy * t2),
                           col, 2.0f);
     }
+}
+
+struct AxisOverlayEntry
+{
+    glm::vec3 dir;
+    const char* label;
+    ImU32 color;
+};
+
+void drawAxisArrow(ImDrawList* drawList,
+                   ImVec2 origin,
+                   const AxisOverlayEntry& axis,
+                   float baseLength)
+{
+    glm::vec2 screenDir(axis.dir.x, -axis.dir.y);
+    float screenLen = glm::length(screenDir);
+    if (screenLen < 1e-4f)
+        screenDir = glm::vec2(0.0f, -1.0f);
+    else
+        screenDir /= screenLen;
+
+    const float towardViewer = std::max(0.0f, -axis.dir.z);
+    const float axisLength = baseLength + 7.0f * towardViewer;
+    const float headLength = 8.0f;
+    const float headWidth = 4.0f;
+
+    ImVec2 end(origin.x + screenDir.x * axisLength,
+               origin.y + screenDir.y * axisLength);
+    ImVec2 headBase(end.x - screenDir.x * headLength,
+                    end.y - screenDir.y * headLength);
+    ImVec2 perp(-screenDir.y, screenDir.x);
+
+    drawList->AddLine(origin, headBase, axis.color, 2.5f);
+    drawList->AddTriangleFilled(
+        end,
+        ImVec2(headBase.x + perp.x * headWidth, headBase.y + perp.y * headWidth),
+        ImVec2(headBase.x - perp.x * headWidth, headBase.y - perp.y * headWidth),
+        axis.color);
+
+    ImVec2 labelOffset(screenDir.x * 8.0f + perp.x * 3.0f,
+                       screenDir.y * 8.0f + perp.y * 3.0f);
+    drawList->AddText(ImVec2(end.x + labelOffset.x, end.y + labelOffset.y), axis.color, axis.label);
 }
 } // namespace
 
@@ -560,4 +603,36 @@ void drawElementLabelsOverlay(ImDrawList* drawList,
         if (labelCount >= kMaxLabelsPerFrame)
             break;
     }
+}
+
+void drawOrientationAxesOverlay(ImDrawList* drawList,
+                                const glm::mat4& view,
+                                int viewportWidth,
+                                int viewportHeight)
+{
+    if (!drawList || viewportWidth < 120 || viewportHeight < 120)
+        return;
+
+    const ImVec2 origin(58.0f, (float)viewportHeight - 58.0f);
+    const float backgroundRadius = 34.0f;
+    const float baseAxisLength = 24.0f;
+
+    drawList->AddCircleFilled(origin, backgroundRadius, IM_COL32(20, 24, 30, 170), 32);
+    drawList->AddCircle(origin, backgroundRadius, IM_COL32(255, 255, 255, 45), 32, 1.0f);
+
+    const glm::mat3 viewRotation(view);
+    std::array<AxisOverlayEntry, 3> axes = {{
+        { glm::normalize(viewRotation * glm::vec3(1.0f, 0.0f, 0.0f)), "X", IM_COL32(235, 92, 92, 255) },
+        { glm::normalize(viewRotation * glm::vec3(0.0f, 1.0f, 0.0f)), "Y", IM_COL32(110, 220, 120, 255) },
+        { glm::normalize(viewRotation * glm::vec3(0.0f, 0.0f, 1.0f)), "Z", IM_COL32(110, 175, 255, 255) }
+    }};
+
+    std::sort(axes.begin(), axes.end(), [](const AxisOverlayEntry& a, const AxisOverlayEntry& b) {
+        return a.dir.z > b.dir.z;
+    });
+
+    for (std::size_t i = 0; i < axes.size(); ++i)
+        drawAxisArrow(drawList, origin, axes[i], baseAxisLength);
+
+    drawList->AddCircleFilled(origin, 3.5f, IM_COL32(240, 240, 245, 240), 16);
 }
