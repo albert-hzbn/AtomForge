@@ -35,12 +35,13 @@ Then run:
 Use **File → Open…** (`Ctrl+O`) to browse and load a structure file.  
 Supported formats: `.cif`, `.mol`, `.pdb`, `.xyz`, `.sdf`.
 
+Use **File → Save As…** (`Ctrl+S`) to export the current structure.
+
 ### Camera
 
 | Action | Input |
 |---|---|
 | Rotate | Left drag |
-| Pan | Right drag |
 | Zoom | Scroll wheel |
 
 Default camera behavior:
@@ -57,6 +58,10 @@ Default camera behavior:
 | Select all | Ctrl+A |
 | Deselect all | Ctrl+D or Escape |
 | Delete selected | Delete |
+
+Box selection:
+- Enable **Edit → Box Select Mode**, then right-drag to select atoms in a screen rectangle.
+- Hold `Ctrl` while box-selecting to add to the current selection.
 
 ### Right-click context menu
 
@@ -80,10 +85,16 @@ Default camera behavior:
 ### Edit menu
 
 - **Undo / Redo** — full edit-history snapshots (`Ctrl+Z`, `Ctrl+Y`, `Ctrl+Shift+Z`)
+- **Box Select Mode** — switch right mouse drag to rectangle selection mode
 - **Edit Structure...** — modify lattice vectors and atom list (add/edit/delete)
 - **Atomic Sizes…** — adjust per-element covalent radii (literature defaults: Cordero et al., *Dalton Trans.* 2008)
 - **Element Colors…** — override CPK colours per element and tune material shininess
 - **Transform Structure…** — apply a 3×3 matrix transformation to all atom positions (only available when the structure has a unit cell)
+
+### Help menu
+
+- **Manual** — complete in-app reference for controls and menu actions
+- **About** — project overview, libraries, and references
 
 ### Measurements and overlays
 

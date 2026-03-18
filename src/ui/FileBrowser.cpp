@@ -503,11 +503,11 @@ void FileBrowser::draw(Structure& structure,
         {
             ImGui::Text("Mouse Controls");
             ImGui::BulletText("Rotate: left-click drag");
-            ImGui::BulletText("Pan: middle-click drag or Shift+left-click drag");
-            ImGui::BulletText("Zoom: scroll wheel or right-click drag vertical");
+            ImGui::BulletText("Zoom: scroll wheel");
             ImGui::BulletText("Select atom: left-click on atom");
             ImGui::BulletText("Multi-select: Ctrl+left-click to add/remove atoms");
-            ImGui::BulletText("Right-click selected atom: open context menu for atom editing");
+            ImGui::BulletText("Right-click: open context menu (when atoms are selected)");
+            ImGui::BulletText("Box Select Mode: right-drag rectangle to select atoms");
 
             ImGui::Spacing();
             ImGui::Text("Keyboard Shortcuts");
@@ -521,39 +521,43 @@ void FileBrowser::draw(Structure& structure,
 
             ImGui::Spacing();
             ImGui::Text("File Menu");
-            ImGui::BulletText("New: clear current structure");
-            ImGui::BulletText("Open: load from .cif, .mol, .pdb, .xyz, .sdf");
-            ImGui::BulletText("Save As: export to .xyz, .cif, .vasp, .pdb, .sdf, .mol2, .pwi, .gjf");
+            ImGui::BulletText("Open...: load from .cif, .mol, .pdb, .xyz, .sdf");
+            ImGui::BulletText("Save As...: export to .xyz, .cif, .vasp, .pdb, .sdf, .mol2, .pwi, .gjf");
             ImGui::BulletText("Quit: exit application");
 
             ImGui::Spacing();
             ImGui::Text("Edit Menu");
-            ImGui::BulletText("Edit Structure: modify lattice vectors and atomic positions/elements");
-            ImGui::BulletText("Substitute Element: replace selected atoms with periodic table choice");
-            ImGui::BulletText("Transform Structure: apply 3x3 supercell transformation matrix");
-            ImGui::BulletText("Atomic Sizes: adjust Van der Waals radii for all elements");
-            ImGui::BulletText("Element Colors: customize atom colors for any element");
-            ImGui::BulletText("Material Shininess: control reflectivity of atoms (0=matte, 128=glossy)");
-            ImGui::BulletText("Undo/Redo access from File>Edit menu");
+            ImGui::BulletText("Undo / Redo: history navigation for structure and style edits");
+            ImGui::BulletText("Box Select Mode: enable right-drag rectangular atom selection");
+            ImGui::BulletText("Edit Structure...: modify lattice vectors and atom list");
+            ImGui::BulletText("Atomic Sizes...: adjust per-element covalent radii");
+            ImGui::BulletText("Element Colors...: adjust per-element colors and material shininess");
+            ImGui::BulletText("Transform Structure...: apply a 3x3 integer transformation matrix");
 
             ImGui::Spacing();
             ImGui::Text("View Menu");
-            ImGui::BulletText("Toggle Element Labels: show/hide atom symbols on structure");
-            ImGui::BulletText("Toggle Bonds: display/hide bonds between atoms");
-            ImGui::BulletText("Toggle Measurement Overlay: enable distance/angle tools");
-            ImGui::BulletText("Measure Distance: click two atoms to show distance");
-            ImGui::BulletText("Measure Angle: click three atoms to show angle");
-            ImGui::BulletText("Structure Info: view composition, lattice, atomic coordinates, spacegroup");
-            ImGui::BulletText("Toggle Periodic Boundary: visualize atoms replicated across cell boundaries");
-            ImGui::BulletText("Reset to Default View: isometric camera zoom fitted to structure");
+            ImGui::BulletText("Show Element: toggle element labels");
+            ImGui::BulletText("Show Bonds: toggle bond rendering");
+            ImGui::BulletText("Structure Info: composition, lattice metrics, positions, and symmetry");
+            ImGui::BulletText("Measure Distance (2 selected): open distance dialog and overlay");
+            ImGui::BulletText("Measure Angle (3 selected): open angle dialog and overlay");
+            ImGui::BulletText("Atom Info (1 selected): show atom metadata and coordinates");
+            ImGui::BulletText("Reset Default View: restore fitted isometric camera view");
+
+            ImGui::Spacing();
+            ImGui::Text("Context Menu (Selection)");
+            ImGui::BulletText("Substitute Atom...: replace selected atoms with a chosen element");
+            ImGui::BulletText("Insert Atom at Midpoint...: add atom at centroid of selected atoms");
+            ImGui::BulletText("Measure Distance / Angle / Atom Info shortcuts for selected atoms");
+            ImGui::BulletText("Delete / Deselect selected atoms");
 
             ImGui::Spacing();
             ImGui::Text("Display Features");
             ImGui::BulletText("Element labels with periodic-image notation");
-            ImGui::BulletText("Two-color bonds (gray within cell, white across boundaries)");
+            ImGui::BulletText("Split-color bonds based on bonded element colors");
             ImGui::BulletText("Yellow highlighting for selected atoms");
-            ImGui::BulletText("Real-time transparency and shading");
-            ImGui::BulletText("Automatic supercell visualization when transform is applied");
+            ImGui::BulletText("Distance/angle helper overlays in the 3D scene");
+            ImGui::BulletText("Periodic boundary visualization and supercell transforms");
 
             ImGui::EndChild();
         }
