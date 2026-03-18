@@ -92,7 +92,7 @@ export BABEL_LIBDIR=/ucrt64/lib/openbabel/3.1.0/
 ### Opening files
 
 Use **File → Open…** (`Ctrl+O`) to browse and load a structure file.  
-Supported formats: `.cif`, `.mol`, `.pdb`, `.xyz`, `.sdf`.
+Supported formats: `.xyz`, `.cif`, `.pdb`, `.sdf`, `.mol`, `.vasp`, `.mol2`, `.pwi`, `.gjf`.
 
 Use **File → Save As…** (`Ctrl+S`) to export the current structure.
 

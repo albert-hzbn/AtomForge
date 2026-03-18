@@ -170,7 +170,11 @@ bool isSupportedExtension(const std::string& extLower)
         ".mol",
         ".pdb",
         ".xyz",
-        ".sdf"
+        ".sdf",
+        ".vasp",
+        ".mol2",
+        ".pwi",
+        ".gjf"
     };
 
     for (std::size_t i = 0; i < sizeof(kSupportedExtensions) / sizeof(kSupportedExtensions[0]); ++i)
@@ -183,7 +187,7 @@ bool isSupportedExtension(const std::string& extLower)
 
 std::string supportedExtensionsSummary()
 {
-    return ".cif, .mol, .pdb, .xyz, .sdf";
+    return ".cif, .mol, .pdb, .xyz, .sdf, .vasp, .mol2, .pwi, .gjf";
 }
 }
 

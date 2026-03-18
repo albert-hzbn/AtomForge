@@ -253,7 +253,7 @@ FileBrowser::FileBrowser()
       selectedSaveFormat(0),
       selectedAtomicNumber(1)
 {
-    allowedExtensions = {".cif", ".mol", ".pdb", ".xyz", ".sdf"};
+    allowedExtensions = {".cif", ".mol", ".pdb", ".xyz", ".sdf", ".vasp", ".mol2", ".pwi", ".gjf"};
 
     const std::string homePath = detectHomePath();
 
@@ -500,6 +500,20 @@ void FileBrowser::draw(Structure& structure,
         }
 
         ImGui::Separator();
+
+        if (ImGui::TreeNodeEx("Supported Formats", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::BulletText("XYZ (.xyz) - XYZ structure format");
+            ImGui::BulletText("CIF (.cif) - Crystallographic Information File");
+            ImGui::BulletText("PDB (.pdb) - Protein Data Bank format");
+            ImGui::BulletText("SDF (.sdf) - Structure Data File");
+            ImGui::BulletText("MOL (.mol) - MDL MOL format");
+            ImGui::BulletText("VASP (.vasp) - VASP POSCAR format");
+            ImGui::BulletText("Mol2 (.mol2) - Sybyl Mol2 format");
+            ImGui::BulletText("Quantum ESPRESSO (.pwi) - PWscf input");
+            ImGui::BulletText("Gaussian (.gjf) - Gaussian input");
+            ImGui::TreePop();
+        }
 
         if (ImGui::BeginChild("##filebrowser", ImVec2(500, 300), true))
         {
