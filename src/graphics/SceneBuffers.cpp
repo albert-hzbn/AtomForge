@@ -1,4 +1,5 @@
 #include "SceneBuffers.h"
+#include "math/StructureMath.h"
 
 #include <algorithm>
 #include <cmath>
@@ -7,8 +8,6 @@
 
 namespace
 {
-constexpr float kBondToleranceFactor = 1.18f;
-constexpr float kMinBondDistance = 0.10f;
 constexpr float kMinBondRadius = 0.10f;
 constexpr float kMaxBondRadius = 0.24f;
 constexpr float kBondInsetFactor = 0.55f;

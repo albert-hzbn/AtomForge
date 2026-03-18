@@ -1,6 +1,7 @@
 #include "ui/MeasurementOverlay.h"
 
 #include "ElementData.h"
+#include "math/StructureMath.h"
 #include "imgui.h"
 
 #include <algorithm>
@@ -12,8 +13,6 @@
 namespace
 {
 constexpr float kPi = 3.14159265358979323846f;
-constexpr float kBondToleranceFactor = 1.18f;
-constexpr float kMinBondDistance = 0.10f;
 
 struct BondStats
 {
@@ -22,19 +21,6 @@ struct BondStats
     float minDistance = 0.0f;
     float maxDistance = 0.0f;
 };
-
-glm::vec3 minimumImageDelta(const glm::vec3& deltaCartesian,
-                            bool usePbc,
-                            const glm::mat3& cell,
-                            const glm::mat3& invCell)
-{
-    if (!usePbc)
-        return deltaCartesian;
-
-    glm::vec3 frac = invCell * deltaCartesian;
-    frac -= glm::round(frac);
-    return cell * frac;
-}
 
 BondStats computeBondStatsForAtom(int centerInstanceIdx,
                                   int centerBaseIdx,
@@ -71,20 +57,7 @@ BondStats computeBondStatsForAtom(int centerInstanceIdx,
     bool usePbc = false;
     glm::mat3 cell(1.0f);
     glm::mat3 invCell(1.0f);
-    if (structure.hasUnitCell)
-    {
-        cell = glm::mat3(
-            glm::vec3((float)structure.cellVectors[0][0], (float)structure.cellVectors[0][1], (float)structure.cellVectors[0][2]),
-            glm::vec3((float)structure.cellVectors[1][0], (float)structure.cellVectors[1][1], (float)structure.cellVectors[1][2]),
-            glm::vec3((float)structure.cellVectors[2][0], (float)structure.cellVectors[2][1], (float)structure.cellVectors[2][2]));
-
-        float det = glm::determinant(cell);
-        if (std::abs(det) > 1e-8f)
-        {
-            invCell = glm::inverse(cell);
-            usePbc = true;
-        }
-    }
+    usePbc = tryMakeCellMatrices(structure, cell, invCell);
 
     float minDistance = std::numeric_limits<float>::max();
     float maxDistance = 0.0f;
@@ -356,24 +329,19 @@ void processMeasurementRequests(MeasurementOverlayState& state,
 
                 if (structure.hasUnitCell)
                 {
-                    glm::mat3 cellMat(
-                        glm::vec3((float)structure.cellVectors[0][0],
-                                  (float)structure.cellVectors[0][1],
-                                  (float)structure.cellVectors[0][2]),
-                        glm::vec3((float)structure.cellVectors[1][0],
-                                  (float)structure.cellVectors[1][1],
-                                  (float)structure.cellVectors[1][2]),
-                        glm::vec3((float)structure.cellVectors[2][0],
-                                  (float)structure.cellVectors[2][1],
-                                  (float)structure.cellVectors[2][2]));
-                    glm::vec3 origin((float)structure.cellOffset[0],
-                                     (float)structure.cellOffset[1],
-                                     (float)structure.cellOffset[2]);
-                    glm::vec3 frac = glm::inverse(cellMat) * (pos - origin);
-                    std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
-                                  "Direct:  (%.6f, %.6f, %.6f)",
-                                  frac.x, frac.y, frac.z);
-                    len = (int)std::strlen(state.atomInfoMessage);
+                    glm::mat3 cellMat(1.0f);
+                    glm::mat3 invCellMat(1.0f);
+                    if (tryMakeCellMatrices(structure, cellMat, invCellMat))
+                    {
+                        glm::vec3 origin((float)structure.cellOffset[0],
+                                         (float)structure.cellOffset[1],
+                                         (float)structure.cellOffset[2]);
+                        glm::vec3 frac = invCellMat * (pos - origin);
+                        std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                                      "Direct:  (%.6f, %.6f, %.6f)",
+                                      frac.x, frac.y, frac.z);
+                        len = (int)std::strlen(state.atomInfoMessage);
+                    }
                 }
 
                 BondStats stats = computeBondStatsForAtom(idx, baseIdx, sceneBuffers, structure);

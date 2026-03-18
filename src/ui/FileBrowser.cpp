@@ -16,6 +16,76 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
+namespace
+{
+using DirectoryEntry = std::pair<std::string, bool>;
+
+bool loadDirectoryEntries(const std::string& directory,
+                          bool filterFiles,
+                          const std::function<bool(const std::string&)>& includeFile,
+                          std::vector<DirectoryEntry>& entries)
+{
+    DIR* dir = opendir(directory.c_str());
+    if (!dir)
+        return false;
+
+    struct dirent* de;
+    while ((de = readdir(dir)) != nullptr)
+    {
+        std::string name(de->d_name);
+        if (name == "." || name == "..")
+            continue;
+
+        std::string fullPath = directory + "/" + name;
+        struct stat st;
+        bool isDir = (stat(fullPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode));
+
+        if (!isDir && filterFiles && !includeFile(name))
+            continue;
+
+        entries.emplace_back(name, isDir);
+    }
+    closedir(dir);
+
+    std::sort(entries.begin(), entries.end(),
+              [](const DirectoryEntry& a, const DirectoryEntry& b) {
+        if (a.second != b.second)
+            return a.second > b.second;
+        return a.first < b.first;
+    });
+
+    return true;
+}
+
+void drawDirectoryEntries(const std::vector<DirectoryEntry>& entries,
+                          char* selectedFilename,
+                          int idBase,
+                          const std::function<void(const std::string&)>& onEnterDirectory)
+{
+    for (size_t i = 0; i < entries.size(); ++i)
+    {
+        const std::string& name = entries[i].first;
+        bool isDir = entries[i].second;
+
+        ImGui::PushID((int)i + idBase);
+        if (isDir)
+        {
+            std::string label = std::string("[DIR] ") + name + "##" + name;
+            if (ImGui::Selectable(label.c_str()))
+                onEnterDirectory(name);
+        }
+        else
+        {
+            std::string label = name + "##" + name;
+            bool selected = (std::string(selectedFilename) == name);
+            if (ImGui::Selectable(label.c_str(), selected))
+                std::snprintf(selectedFilename, 1024, "%s", name.c_str());
+        }
+        ImGui::PopID();
+    }
+}
+}
+
 // ---------------------------------------------------------------------------
 // Save-format table (used by the Save As dialog)
 // ---------------------------------------------------------------------------
@@ -237,71 +307,27 @@ void FileBrowser::draw(Structure& structure,
 
         if (ImGui::BeginChild("##filebrowser", ImVec2(500, 300), true))
         {
-            DIR* dir = opendir(openDir.c_str());
-            if (dir)
+            std::vector<DirectoryEntry> entries;
+            bool listed = loadDirectoryEntries(
+                openDir,
+                true,
+                [&](const std::string& name) { return isAllowedFile(name); },
+                entries);
+
+            if (!listed)
             {
-                struct dirent* de;
-                std::vector<std::pair<std::string, bool>> entries;
-
-                while ((de = readdir(dir)) != nullptr)
-                {
-                    std::string name(de->d_name);
-                    if (name == "." || name == "..")
-                        continue;
-
-                    std::string fullPath = openDir + "/" + name;
-                    struct stat st;
-                    bool isDir = (stat(fullPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode));
-
-                    if (!isDir && !isAllowedFile(name))
-                        continue;
-
-                    entries.emplace_back(name, isDir);
-                }
-                closedir(dir);
-
-                // directories first
-                std::sort(entries.begin(), entries.end(),
-                          [](const std::pair<std::string, bool>& a,
-                             const std::pair<std::string, bool>& b) {
-                    if (a.second != b.second)
-                        return a.second > b.second;
-                    return a.first < b.first;
-                });
-
-                for (size_t i = 0; i < entries.size(); ++i)
-                {
-                    const std::string& name = entries[i].first;
-                    bool isDir = entries[i].second;
-
-                    ImGui::PushID((int)i);
-                    if (isDir)
-                    {
-                        std::string label = std::string("[DIR] ") + name + "##" + name;
-                        if (ImGui::Selectable(label.c_str()))
-                        {
-                            if (openDir == ".")
-                                openDir = name;
-                            else
-                                openDir = openDir + "/" + name;
-                            pushHistory(openDir);
-                        }
-                    }
-                    else
-                    {
-                        std::string label = name + "##" + name;
-                        bool selected = (std::string(openFilename) == name);
-                        if (ImGui::Selectable(label.c_str(), selected))
-                        {
-                            std::snprintf(openFilename, sizeof(openFilename), "%s", name.c_str());
-                        }
-                    }
-                    ImGui::PopID();
-                }
+                ImGui::TextDisabled("Unable to open folder");
             }
             else
             {
-                ImGui::TextDisabled("Unable to open folder");
+                drawDirectoryEntries(entries, openFilename, 0,
+                    [&](const std::string& name) {
+                        if (openDir == ".")
+                            openDir = name;
+                        else
+                            openDir = openDir + "/" + name;
+                        pushHistory(openDir);
+                    });
             }
 
             ImGui::EndChild();
@@ -390,56 +416,23 @@ void FileBrowser::draw(Structure& structure,
 
         if (ImGui::BeginChild("##savefilebrowser", ImVec2(500, 200), true))
         {
-            DIR* dir = opendir(saveDir.c_str());
-            if (dir)
+            std::vector<DirectoryEntry> entries;
+            bool listed = loadDirectoryEntries(
+                saveDir,
+                false,
+                [](const std::string&) { return true; },
+                entries);
+
+            if (!listed)
             {
-                struct dirent* de;
-                std::vector<std::pair<std::string, bool>> entries;
-                while ((de = readdir(dir)) != nullptr)
-                {
-                    std::string name(de->d_name);
-                    if (name == "." || name == "..")
-                        continue;
-                    std::string fullPath = saveDir + "/" + name;
-                    struct stat st;
-                    bool isDir = (stat(fullPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode));
-                    entries.emplace_back(name, isDir);
-                }
-                closedir(dir);
-
-                std::sort(entries.begin(), entries.end(),
-                          [](const std::pair<std::string, bool>& a,
-                             const std::pair<std::string, bool>& b) {
-                    if (a.second != b.second) return a.second > b.second;
-                    return a.first < b.first;
-                });
-
-                for (size_t i = 0; i < entries.size(); ++i)
-                {
-                    const std::string& name = entries[i].first;
-                    bool isDir = entries[i].second;
-                    ImGui::PushID((int)(i + 10000));
-                    if (isDir)
-                    {
-                        std::string lbl = std::string("[DIR] ") + name + "##" + name;
-                        if (ImGui::Selectable(lbl.c_str()))
-                        {
-                            pushSaveDir(saveDir == "." ? name : saveDir + "/" + name);
-                        }
-                    }
-                    else
-                    {
-                        std::string lbl = name + "##" + name;
-                        bool sel = (std::string(saveFilename) == name);
-                        if (ImGui::Selectable(lbl.c_str(), sel))
-                            std::snprintf(saveFilename, sizeof(saveFilename), "%s", name.c_str());
-                    }
-                    ImGui::PopID();
-                }
+                ImGui::TextDisabled("Unable to open folder");
             }
             else
             {
-                ImGui::TextDisabled("Unable to open folder");
+                drawDirectoryEntries(entries, saveFilename, 10000,
+                    [&](const std::string& name) {
+                        pushSaveDir(saveDir == "." ? name : saveDir + "/" + name);
+                    });
             }
             ImGui::EndChild();
         }

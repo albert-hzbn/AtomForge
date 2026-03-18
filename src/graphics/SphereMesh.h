@@ -14,6 +14,4 @@ public:
     int vertexCount;
 
     SphereMesh(int stacks,int slices);
-
-    void draw();
 };

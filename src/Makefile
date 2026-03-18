@@ -35,9 +35,6 @@ GRAPHICS_SOURCES = \
     graphics/SphereMesh.cpp               \
     graphics/StructureInstanceBuilder.cpp
 
-MATH_SOURCES = \
-    math/MathUtils.cpp
-
 UI_SOURCES = \
     ui/AtomContextMenu.cpp                \
     ui/BulkCrystalBuilderDialog.cpp       \
@@ -64,7 +61,7 @@ IMGUI_SOURCES = \
     $(IMGUI)/backends/imgui_impl_opengl3.cpp
 
 SOURCES = $(APP_SOURCES) $(CAMERA_SOURCES) $(GRAPHICS_SOURCES) \
-          $(MATH_SOURCES) $(UI_SOURCES) $(IO_SOURCES) $(IMGUI_SOURCES)
+          $(UI_SOURCES) $(IO_SOURCES) $(IMGUI_SOURCES)
 
 # ------------------------------------------------------------------------------
 # Compiler flags

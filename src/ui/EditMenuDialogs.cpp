@@ -3,6 +3,7 @@
 #include "ElementData.h"
 #include "PeriodicTableDialog.h"
 #include "io/StructureLoader.h"
+#include "math/StructureMath.h"
 
 #include "imgui.h"
 
@@ -301,15 +302,9 @@ void EditMenuDialogs::drawPopups(Structure& structure,
 
                     if (m_useDirectCoords && structure.hasUnitCell)
                     {
-                        glm::mat3 cellMat(
-                            glm::vec3((float)structure.cellVectors[0][0], (float)structure.cellVectors[0][1], (float)structure.cellVectors[0][2]),
-                            glm::vec3((float)structure.cellVectors[1][0], (float)structure.cellVectors[1][1], (float)structure.cellVectors[1][2]),
-                            glm::vec3((float)structure.cellVectors[2][0], (float)structure.cellVectors[2][1], (float)structure.cellVectors[2][2]));
-                        float det = glm::determinant(cellMat);
-                        if (std::abs(det) > 1e-8f)
+                        glm::vec3 frac(0.0f);
+                        if (tryCartesianToFractional(structure, cart, frac))
                         {
-                            glm::vec3 origin((float)structure.cellOffset[0], (float)structure.cellOffset[1], (float)structure.cellOffset[2]);
-                            glm::vec3 frac = glm::inverse(cellMat) * (cart - origin);
                             editPos[0] = frac.x;
                             editPos[1] = frac.y;
                             editPos[2] = frac.z;
@@ -325,16 +320,14 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                     {
                         if (m_useDirectCoords && structure.hasUnitCell)
                         {
-                            glm::mat3 cellMat(
-                                glm::vec3((float)structure.cellVectors[0][0], (float)structure.cellVectors[0][1], (float)structure.cellVectors[0][2]),
-                                glm::vec3((float)structure.cellVectors[1][0], (float)structure.cellVectors[1][1], (float)structure.cellVectors[1][2]),
-                                glm::vec3((float)structure.cellVectors[2][0], (float)structure.cellVectors[2][1], (float)structure.cellVectors[2][2]));
-                            glm::vec3 origin((float)structure.cellOffset[0], (float)structure.cellOffset[1], (float)structure.cellOffset[2]);
                             glm::vec3 frac(editPos[0], editPos[1], editPos[2]);
-                            glm::vec3 newCart = origin + cellMat * frac;
-                            atom.x = newCart.x;
-                            atom.y = newCart.y;
-                            atom.z = newCart.z;
+                            glm::vec3 newCart(0.0f);
+                            if (tryFractionalToCartesian(structure, frac, newCart))
+                            {
+                                atom.x = newCart.x;
+                                atom.y = newCart.y;
+                                atom.z = newCart.z;
+                            }
                         }
                         else
                         {

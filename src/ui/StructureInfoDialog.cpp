@@ -1,6 +1,7 @@
 #include "StructureInfoDialog.h"
 
 #include "ElementData.h"
+#include "math/StructureMath.h"
 #include "imgui.h"
 
 #include <glm/glm.hpp>
@@ -61,17 +62,7 @@ bool buildLatticeMatrix(const Structure& structure,
     if (!structure.hasUnitCell)
         return false;
 
-    glm::vec3 a((float)structure.cellVectors[0][0],
-                (float)structure.cellVectors[0][1],
-                (float)structure.cellVectors[0][2]);
-    glm::vec3 b((float)structure.cellVectors[1][0],
-                (float)structure.cellVectors[1][1],
-                (float)structure.cellVectors[1][2]);
-    glm::vec3 c((float)structure.cellVectors[2][0],
-                (float)structure.cellVectors[2][1],
-                (float)structure.cellVectors[2][2]);
-
-    lattice = glm::mat3(a, b, c);
+    lattice = makeCellMatrix(structure);
     origin = glm::vec3((float)structure.cellOffset[0],
                        (float)structure.cellOffset[1],
                        (float)structure.cellOffset[2]);
@@ -274,7 +265,6 @@ void drawStructureInfoDialog(StructureInfoDialogState& state,
         glm::mat3 lattice(1.0f);
         glm::vec3 origin(0.0f);
         bool hasValidLattice = buildLatticeMatrix(structure, lattice, origin);
-        glm::mat3 invLattice = hasValidLattice ? glm::inverse(lattice) : glm::mat3(1.0f);
 
         ImGui::BeginChild("##positions", ImVec2(940.0f, 250.0f), true);
         if (ImGui::BeginTable("##position-table", 8,
@@ -298,9 +288,7 @@ void drawStructureInfoDialog(StructureInfoDialogState& state,
                 glm::vec3 cart((float)atom.x, (float)atom.y, (float)atom.z);
                 glm::vec3 frac(0.0f);
                 if (hasValidLattice)
-                {
-                    frac = invLattice * (cart - origin);
-                }
+                    tryCartesianToFractional(structure, cart, frac);
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);

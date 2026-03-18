@@ -71,9 +71,9 @@ void Camera::scroll(GLFWwindow*, double, double y)
 
     instance->distance -= y * instance->zoomSpeed;
 
-    if(instance->distance < 2.0f)
-        instance->distance = 2.0f;
+    if(instance->distance < Camera::kMinDistance)
+        instance->distance = Camera::kMinDistance;
 
-    if(instance->distance > 50.0f)
-        instance->distance = 50.0f;
+    if(instance->distance > Camera::kMaxDistance)
+        instance->distance = Camera::kMaxDistance;
 }

@@ -4,9 +4,15 @@
 #include <functional>
 #include <glm/glm.hpp>
 
-#include "ElementData.h"
 #include "io/StructureLoader.h"
 #include "graphics/SceneBuffers.h"
+
+enum class PeriodicAction
+{
+    None,
+    Substitute,
+    InsertMidpoint,
+};
 
 // Manages the right-click context menu and the periodic-table picker that
 // drives Substitute and Insert-at-Midpoint actions.

@@ -189,12 +189,10 @@ static const char* kBondVS = R"(
 
     uniform mat4 projection;
     uniform mat4 view;
-    uniform mat4 lightMVP;
 
     out vec3 fragColorA;
     out vec3 fragColorB;
     out float fragAxis;
-    out vec4 FragPosLight;
 
     void main()
     {
@@ -210,7 +208,6 @@ static const char* kBondVS = R"(
         vec3 worldPos = center + tangent * local.x + bitangent * local.y + dir * local.z;
 
         gl_Position = projection * view * vec4(worldPos, 1.0);
-        FragPosLight = lightMVP * vec4(worldPos, 1.0);
         fragColorA = bondColorA;
         fragColorB = bondColorB;
         fragAxis = position.z;
@@ -223,35 +220,13 @@ static const char* kBondFS = R"(
     in vec3 fragColorA;
     in vec3 fragColorB;
     in float fragAxis;
-    in vec4 FragPosLight;
-
-    uniform sampler2D shadowMap;
 
     out vec4 color;
-
-    float computeShadow(vec4 pos)
-    {
-        vec3 proj = pos.xyz / pos.w;
-        proj = proj * 0.5 + 0.5;
-
-        if (proj.x < 0.0 || proj.x > 1.0 ||
-            proj.y < 0.0 || proj.y > 1.0 ||
-            proj.z < 0.0 || proj.z > 1.0)
-            return 0.0;
-
-        float closest = texture(shadowMap, proj.xy).r;
-        float current = proj.z;
-        float bias = 0.003;
-        return (current - bias > closest) ? 1.0 : 0.0;
-    }
 
     void main()
     {
         vec3 baseColor = (fragAxis < 0.0) ? fragColorA : fragColorB;
-        float shadow = 0.0;
-        float ambient = 0.30;
-        vec3 lighting = (ambient + (1.0 - ambient) * (1.0 - shadow)) * baseColor;
-        color = vec4(lighting, 1.0);
+        color = vec4(baseColor, 1.0);
     }
 )";
 
@@ -397,8 +372,6 @@ void Renderer::drawAtoms(const glm::mat4& projection,
 
 void Renderer::drawBonds(const glm::mat4& projection,
                          const glm::mat4& view,
-                         const glm::mat4& lightMVP,
-                         const ShadowMap& shadow,
                          const CylinderMesh& cylinder,
                          size_t bondCount)
 {
@@ -411,12 +384,6 @@ void Renderer::drawBonds(const glm::mat4& projection,
                        1, GL_FALSE, glm::value_ptr(projection));
     glUniformMatrix4fv(glGetUniformLocation(bondProgram, "view"),
                        1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(glGetUniformLocation(bondProgram, "lightMVP"),
-                       1, GL_FALSE, glm::value_ptr(lightMVP));
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
-    glUniform1i(glGetUniformLocation(bondProgram, "shadowMap"), 0);
 
     glBindVertexArray(cylinder.vao);
     glDrawArraysInstanced(GL_TRIANGLES, 0, cylinder.vertexCount, (GLsizei)bondCount);

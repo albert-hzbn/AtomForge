@@ -1,6 +1,7 @@
 #include "ui/RadialDistributionAnalysis.h"
 
 #include "ElementData.h"
+#include "math/StructureMath.h"
 #include "imgui.h"
 
 #include <glm/glm.hpp>
@@ -53,19 +54,6 @@ struct RdfResult
 
     std::vector<RdfBin> bins;
 };
-
-glm::vec3 minimumImageDelta(const glm::vec3& deltaCartesian,
-                            bool usePbc,
-                            const glm::mat3& cell,
-                            const glm::mat3& invCell)
-{
-    if (!usePbc)
-        return deltaCartesian;
-
-    glm::vec3 frac = invCell * deltaCartesian;
-    frac -= glm::round(frac);
-    return cell * frac;
-}
 
 float computeBoundingVolume(const Structure& structure)
 {
@@ -229,15 +217,9 @@ RdfResult runRdf(const Structure& structure,
     float volume = 0.0f;
     if (usePbcRequest && structure.hasUnitCell)
     {
-        cell = glm::mat3(
-            glm::vec3((float)structure.cellVectors[0][0], (float)structure.cellVectors[0][1], (float)structure.cellVectors[0][2]),
-            glm::vec3((float)structure.cellVectors[1][0], (float)structure.cellVectors[1][1], (float)structure.cellVectors[1][2]),
-            glm::vec3((float)structure.cellVectors[2][0], (float)structure.cellVectors[2][1], (float)structure.cellVectors[2][2]));
-        float det = glm::determinant(cell);
-        if (std::abs(det) > 1e-8f)
+        if (tryMakeCellMatrices(structure, cell, invCell))
         {
-            invCell = glm::inverse(cell);
-            volume = std::abs(det);
+            volume = std::abs(glm::determinant(cell));
             usePbc = true;
         }
     }

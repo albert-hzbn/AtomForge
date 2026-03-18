@@ -90,9 +90,3 @@ void endShadowPass()
     // re-enable color writes
     glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
 }
-
-void bindShadowTexture(const ShadowMap& shadow,int textureUnit)
-{
-    glActiveTexture(GL_TEXTURE0 + textureUnit);
-    glBindTexture(GL_TEXTURE_2D,shadow.depthTexture);
-}

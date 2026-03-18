@@ -91,12 +91,3 @@ SphereMesh::SphereMesh(int st,int sl)
 
     glBindVertexArray(0);
 }
-
-void SphereMesh::draw()
-{
-    glBindVertexArray(vao);
-
-    glDrawArrays(GL_TRIANGLES,
-                 0,
-                 vertexCount);
-}

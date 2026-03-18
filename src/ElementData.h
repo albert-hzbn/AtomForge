@@ -3,17 +3,6 @@
 #include <vector>
 #include <glm/glm.hpp>
 
-// ---------------------------------------------------------------------------
-// Periodic action requested from the context menu
-// ---------------------------------------------------------------------------
-
-enum class PeriodicAction
-{
-    None,
-    Substitute,
-    InsertMidpoint,
-};
-
 // Return the chemical symbol for atomic number z (1–118), or "?" otherwise.
 const char* elementSymbol(int z);
 

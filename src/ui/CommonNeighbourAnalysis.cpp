@@ -1,16 +1,19 @@
 #include "ui/CommonNeighbourAnalysis.h"
 
 #include "ElementData.h"
+#include "math/StructureMath.h"
 #include "imgui.h"
 
 #include <glm/glm.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <cmath>
 #include <cstdio>
 #include <map>
 #include <queue>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -18,7 +21,22 @@
 namespace
 {
 constexpr float kDefaultCutoffScale = 1.18f;
-constexpr float kMinBondDistance = 0.10f;
+constexpr float kSpatialHashCellSize = 4.0f;
+
+struct Vec3iHash
+{
+    size_t operator()(const glm::ivec3& value) const
+    {
+        return ((size_t)value.x * 73856093u) ^ ((size_t)value.y * 19349663u) ^ ((size_t)value.z * 83492791u);
+    }
+};
+
+glm::ivec3 getGridCell(const glm::vec3& position)
+{
+    return glm::ivec3((int)std::floor(position.x / kSpatialHashCellSize),
+                      (int)std::floor(position.y / kSpatialHashCellSize),
+                      (int)std::floor(position.z / kSpatialHashCellSize));
+}
 
 struct Signature
 {
@@ -92,19 +110,6 @@ uint64_t edgeKey(int a, int b)
     return ((uint64_t)(uint32_t)a << 32) | (uint32_t)b;
 }
 
-glm::vec3 minimumImageDelta(const glm::vec3& deltaCartesian,
-                            bool usePbc,
-                            const glm::mat3& cell,
-                            const glm::mat3& invCell)
-{
-    if (!usePbc)
-        return deltaCartesian;
-
-    glm::vec3 frac = invCell * deltaCartesian;
-    frac -= glm::round(frac);
-    return cell * frac;
-}
-
 int longestChainLength(const std::vector<int>& commonNodes,
                        const std::unordered_set<uint64_t>& edgeSet)
 {
@@ -175,17 +180,7 @@ CnaResult runCna(const Structure& structure, float cutoffScale, bool usePbcReque
     bool usePbc = false;
     if (usePbcRequest && structure.hasUnitCell)
     {
-        cell = glm::mat3(
-            glm::vec3((float)structure.cellVectors[0][0], (float)structure.cellVectors[0][1], (float)structure.cellVectors[0][2]),
-            glm::vec3((float)structure.cellVectors[1][0], (float)structure.cellVectors[1][1], (float)structure.cellVectors[1][2]),
-            glm::vec3((float)structure.cellVectors[2][0], (float)structure.cellVectors[2][1], (float)structure.cellVectors[2][2]));
-
-        float det = glm::determinant(cell);
-        if (std::abs(det) > 1e-8f)
-        {
-            invCell = glm::inverse(cell);
-            usePbc = true;
-        }
+        usePbc = tryMakeCellMatrices(structure, cell, invCell);
     }
     result.pbcUsed = usePbc;
 
@@ -200,28 +195,67 @@ CnaResult runCna(const Structure& structure, float cutoffScale, bool usePbcReque
     std::vector<std::vector<int>> neighbors(structure.atoms.size());
     std::unordered_set<uint64_t> edgeSet;
 
-    for (int i = 0; i < (int)structure.atoms.size(); ++i)
+    auto tryAddBond = [&](int i, int j)
     {
+        if (j <= i)
+            return;
+
         int zi = structure.atoms[i].atomicNumber;
         float ri = (zi >= 0 && zi < (int)radii.size()) ? radii[zi] : 1.0f;
+        int zj = structure.atoms[j].atomicNumber;
+        float rj = (zj >= 0 && zj < (int)radii.size()) ? radii[zj] : 1.0f;
 
-        for (int j = i + 1; j < (int)structure.atoms.size(); ++j)
+        glm::vec3 delta = minimumImageDelta(positions[j] - positions[i], usePbc, cell, invCell);
+        float d = glm::length(delta);
+        if (d <= kMinBondDistance)
+            return;
+
+        float cutoff = (ri + rj) * cutoffScale;
+        if (d > cutoff)
+            return;
+
+        neighbors[i].push_back(j);
+        neighbors[j].push_back(i);
+        edgeSet.insert(edgeKey(i, j));
+    };
+
+    if (!usePbc)
+    {
+        std::unordered_map<glm::ivec3, std::vector<int>, Vec3iHash> grid;
+        grid.reserve(positions.size());
+        for (int i = 0; i < (int)positions.size(); ++i)
+            grid[getGridCell(positions[i])].push_back(i);
+
+        for (int i = 0; i < (int)positions.size(); ++i)
         {
-            int zj = structure.atoms[j].atomicNumber;
-            float rj = (zj >= 0 && zj < (int)radii.size()) ? radii[zj] : 1.0f;
+            const glm::ivec3 cellCoord = getGridCell(positions[i]);
+            for (int dx = -1; dx <= 1; ++dx)
+            {
+                for (int dy = -1; dy <= 1; ++dy)
+                {
+                    for (int dz = -1; dz <= 1; ++dz)
+                    {
+                        const glm::ivec3 neighborCell(cellCoord.x + dx,
+                                                      cellCoord.y + dy,
+                                                      cellCoord.z + dz);
+                        std::unordered_map<glm::ivec3, std::vector<int>, Vec3iHash>::const_iterator it = grid.find(neighborCell);
+                        if (it == grid.end())
+                            continue;
 
-            glm::vec3 delta = minimumImageDelta(positions[j] - positions[i], usePbc, cell, invCell);
-            float d = glm::length(delta);
-            if (d <= kMinBondDistance)
-                continue;
-
-            float cutoff = (ri + rj) * cutoffScale;
-            if (d > cutoff)
-                continue;
-
-            neighbors[i].push_back(j);
-            neighbors[j].push_back(i);
-            edgeSet.insert(edgeKey(i, j));
+                        const std::vector<int>& candidates = it->second;
+                        for (int index = 0; index < (int)candidates.size(); ++index)
+                            tryAddBond(i, candidates[index]);
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < (int)structure.atoms.size(); ++i)
+        {
+            for (int j = i + 1; j < (int)structure.atoms.size(); ++j)
+                tryAddBond(i, j);
         }
     }
 

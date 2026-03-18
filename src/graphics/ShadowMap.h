@@ -16,5 +16,3 @@ ShadowMap createShadowMap(int width, int height);
 void beginShadowPass(const ShadowMap& shadow);
 
 void endShadowPass();
-
-void bindShadowTexture(const ShadowMap& shadow, int textureUnit);
