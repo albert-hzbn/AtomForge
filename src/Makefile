@@ -58,8 +58,8 @@ IMGUI_SOURCES = \
     $(IMGUI)/imgui/imgui_draw.cpp         \
     $(IMGUI)/imgui/imgui_tables.cpp       \
     $(IMGUI)/imgui/imgui_widgets.cpp      \
-    $(IMGUI)/backends/imgui_impl_glfw.cpp \
-    $(IMGUI)/backends/imgui_impl_opengl3.cpp
+    $(IMGUI)/imgui/imgui_impl_glfw.cpp    \
+    $(IMGUI)/imgui/imgui_impl_opengl3.cpp
 
 SOURCES = $(APP_SOURCES) $(CAMERA_SOURCES) $(GRAPHICS_SOURCES) \
           $(UI_SOURCES) $(IO_SOURCES) $(IMGUI_SOURCES)
@@ -70,7 +70,7 @@ SOURCES = $(APP_SOURCES) $(CAMERA_SOURCES) $(GRAPHICS_SOURCES) \
 
 CXXFLAGS = \
     -std=c++11 -O2 -g -Wall -Wformat \
-    -I. -I$(IMGUI)/imgui -I$(IMGUI)/backends \
+    -I. -I$(IMGUI)/imgui \
     -Icamera -Igraphics -Imath -Iui -Iio
 
 LDFLAGS =

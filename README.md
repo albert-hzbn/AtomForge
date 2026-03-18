@@ -217,5 +217,5 @@ src/
   ui/                        — Dear ImGui panels and dialogs
   io/                        — structure loading (Open Babel)
 imgui/                       — bundled Dear ImGui sources
-backends/                    — ImGui GLFW / OpenGL backends
+                             — includes ImGui GLFW / OpenGL backend files
 ```
