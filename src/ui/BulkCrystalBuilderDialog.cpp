@@ -354,6 +354,11 @@ BulkBuildResult buildBulkCrystal(Structure& structure,
 
     std::vector<AtomSite> generatedAtoms;
     generatedAtoms.reserve(asymmetricAtoms.size() * (size_t)operationCount);
+    // Keep fractional coords in a separate list for deduplication.
+    // generatedAtoms.x/y/z are overwritten with Cartesian before push_back,
+    // so they cannot be used for the fractional duplicate check.
+    std::vector<glm::vec3> generatedFrac;
+    generatedFrac.reserve(asymmetricAtoms.size() * (size_t)operationCount);
 
     for (size_t atomIndex = 0; atomIndex < asymmetricAtoms.size(); ++atomIndex)
     {
@@ -375,12 +380,9 @@ BulkBuildResult buildBulkCrystal(Structure& structure,
             bool duplicate = false;
             for (size_t existingIndex = 0; existingIndex < generatedAtoms.size(); ++existingIndex)
             {
-                const AtomSite& existing = generatedAtoms[existingIndex];
-                if (existing.atomicNumber != basisAtom.atomicNumber)
+                if (generatedAtoms[existingIndex].atomicNumber != basisAtom.atomicNumber)
                     continue;
-                if (sameFractionalPosition(transformed,
-                                           glm::vec3((float)existing.x, (float)existing.y, (float)existing.z),
-                                           1e-5f))
+                if (sameFractionalPosition(transformed, generatedFrac[existingIndex], 1e-5f))
                 {
                     duplicate = true;
                     break;
@@ -411,6 +413,7 @@ BulkBuildResult buildBulkCrystal(Structure& structure,
             generated.x = cart.x;
             generated.y = cart.y;
             generated.z = cart.z;
+            generatedFrac.push_back(transformed);
             generatedAtoms.push_back(generated);
         }
     }
@@ -475,7 +478,6 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
     static int crystalSystemIndex = (int)CrystalSystem::Cubic;
     static int selectedSpaceGroup = 225;
     static LatticeParameters latticeParams;
-    static bool useDirectCoords = true;
     static std::vector<AtomSite> asymmetricAtoms;
     static BulkBuildResult lastResult;
     static int selectedEditElement = 6;
@@ -606,11 +608,7 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
 
         ImGui::Separator();
         ImGui::Text("Asymmetric Unit Atoms");
-        const char* modeLabels[] = { "Cartesian", "Direct" };
-        int mode = useDirectCoords ? 1 : 0;
-        if (ImGui::Combo("Position Mode", &mode, modeLabels, 2))
-            useDirectCoords = (mode == 1);
-        ImGui::TextDisabled("Symmetry expansion uses fractional coordinates. Enter Cartesian or Direct as convenient.");
+        ImGui::TextDisabled("Positions are in direct (fractional) coordinates.");
 
         if (ImGui::Button("Add Atom"))
         {
@@ -623,11 +621,6 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
             asymmetricAtoms.clear();
             addDefaultAsymmetricAtom(asymmetricAtoms, elementColors);
         }
-
-        glm::mat3 lattice = buildLatticeFromParameters(latticeParams);
-        float det = glm::determinant(lattice);
-        bool validLattice = std::abs(det) > 1e-10f;
-        glm::mat3 invLattice = validLattice ? glm::inverse(lattice) : glm::mat3(1.0f);
 
         int pendingDelete = -1;
         if (ImGui::BeginChild("##bulk-atom-rows", ImVec2(930.0f, 260.0f), true))
@@ -644,32 +637,13 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
                 ImGui::SameLine();
 
                 float editPos[3] = { (float)atom.x, (float)atom.y, (float)atom.z };
-                if (!useDirectCoords && validLattice)
-                {
-                    glm::vec3 frac((float)atom.x, (float)atom.y, (float)atom.z);
-                    glm::vec3 cart = lattice * frac;
-                    editPos[0] = cart.x;
-                    editPos[1] = cart.y;
-                    editPos[2] = cart.z;
-                }
 
                 ImGui::PushItemWidth(420.0f);
-                if (ImGui::DragFloat3(useDirectCoords ? "##bulk-direct" : "##bulk-cart", editPos, 0.005f, -1000.0f, 1000.0f, "%.6f"))
+                if (ImGui::DragFloat3("##bulk-direct", editPos, 0.005f, -10.0f, 10.0f, "%.6f"))
                 {
-                    if (useDirectCoords || !validLattice)
-                    {
-                        atom.x = editPos[0];
-                        atom.y = editPos[1];
-                        atom.z = editPos[2];
-                    }
-                    else
-                    {
-                        glm::vec3 cart(editPos[0], editPos[1], editPos[2]);
-                        glm::vec3 frac = invLattice * cart;
-                        atom.x = frac.x;
-                        atom.y = frac.y;
-                        atom.z = frac.z;
-                    }
+                    atom.x = editPos[0];
+                    atom.y = editPos[1];
+                    atom.z = editPos[2];
                 }
                 ImGui::PopItemWidth();
 
