@@ -5,7 +5,7 @@ class Camera
 {
 public:
     static constexpr float kMinDistance = 2.0f;
-    static constexpr float kMaxDistance = 500.0f;
+    static constexpr float kMaxDistance = 5000.0f;
 
     // trackball parameters
     float yaw   = 45.0f;

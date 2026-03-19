@@ -11,6 +11,18 @@ constexpr float kEpsilon = 1e-5f;
 constexpr float kPbcBoundaryTol = 1e-4f;
 constexpr float kAtomVisualScale = 0.90f;
 
+float wrapAndSnapFractional(float value)
+{
+    value -= std::floor(value);
+
+    if (std::abs(value) <= kPbcBoundaryTol)
+        return 0.0f;
+    if (std::abs(1.0f - value) <= kPbcBoundaryTol)
+        return 0.0f;
+
+    return value;
+}
+
 void appendBoxEdges(const glm::vec3 (&corners)[8], std::vector<glm::vec3>& boxLines)
 {
     static const int edges[12][2] = {
@@ -56,17 +68,20 @@ void appendPbcBoundaryImages(const Structure& structure,
     {
         const glm::vec3 pos = positions[i];
         glm::vec3 frac = invCellMat * (pos - origin);
-        frac.x -= std::floor(frac.x);
-        frac.y -= std::floor(frac.y);
-        frac.z -= std::floor(frac.z);
+        frac.x = wrapAndSnapFractional(frac.x);
+        frac.y = wrapAndSnapFractional(frac.y);
+        frac.z = wrapAndSnapFractional(frac.z);
+
+        const glm::vec3 canonicalPos = origin + frac.x * a + frac.y * b + frac.z * c;
+        positions[i] = canonicalPos;
 
         std::vector<int> shiftsX = {0};
         std::vector<int> shiftsY = {0};
         std::vector<int> shiftsZ = {0};
 
-        // Only mirror atoms on the low boundary to the high boundary.
-        // This keeps periodic images on visible cell faces/edges/vertices
-        // without creating copies outside the displayed box.
+        // Mirror atoms on the low boundary to the high boundary.
+        // After load-time wrapping, this handles face/edge/vertex continuity
+        // without creating periodic images outside the displayed cell.
         if (std::abs(frac.x) <= kPbcBoundaryTol) shiftsX.push_back(1);
         if (std::abs(frac.y) <= kPbcBoundaryTol) shiftsY.push_back(1);
         if (std::abs(frac.z) <= kPbcBoundaryTol) shiftsZ.push_back(1);
@@ -80,7 +95,7 @@ void appendPbcBoundaryImages(const Structure& structure,
                     if (sx == 0 && sy == 0 && sz == 0)
                         continue;
 
-                    glm::vec3 imagePos = pos + (float)sx * a + (float)sy * b + (float)sz * c;
+                    glm::vec3 imagePos = canonicalPos + (float)sx * a + (float)sy * b + (float)sz * c;
                     positions.push_back(imagePos);
                     colors.push_back(colors[i]);
                     scales.push_back(scales[i]);

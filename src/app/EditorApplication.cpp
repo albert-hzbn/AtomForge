@@ -26,6 +26,31 @@
 
 namespace {
 
+float estimateSceneRadius(const SceneBuffers& sceneBuffers)
+{
+    float maxRadius = 0.0f;
+
+    if (!sceneBuffers.atomPositions.empty())
+    {
+        for (size_t i = 0; i < sceneBuffers.atomPositions.size(); ++i)
+        {
+            const float radius = (i < sceneBuffers.atomRadii.size()) ? sceneBuffers.atomRadii[i] : 0.0f;
+            const float distance = glm::length(sceneBuffers.atomPositions[i] - sceneBuffers.orbitCenter) + radius;
+            maxRadius = std::max(maxRadius, distance);
+        }
+    }
+    else if (!sceneBuffers.boxLines.empty())
+    {
+        for (const glm::vec3& point : sceneBuffers.boxLines)
+        {
+            const float distance = glm::length(point - sceneBuffers.orbitCenter);
+            maxRadius = std::max(maxRadius, distance);
+        }
+    }
+
+    return std::max(maxRadius, 1.0f);
+}
+
 struct FrameView
 {
     int framebufferWidth = 0;
@@ -65,26 +90,35 @@ void buildFrameView(Camera& camera,
 {
     const float aspect = (float)frame.framebufferWidth / (float)frame.framebufferHeight;
     const float verticalFov = glm::radians(45.0f);
+    const float sceneRadius = estimateSceneRadius(sceneBuffers);
+    const float depthPadding = std::max(10.0f, sceneRadius * 0.25f);
 
     if (useOrthographicView)
     {
         const float halfHeight = std::max(0.1f, camera.distance * std::tan(verticalFov * 0.5f));
         const float halfWidth = halfHeight * aspect;
+        const float depthRange = std::max(1000.0f, camera.distance + sceneRadius + depthPadding);
         frame.projection = glm::ortho(
             -halfWidth,
             halfWidth,
             -halfHeight,
             halfHeight,
-            -1000.0f,
-            1000.0f);
+            -depthRange,
+            depthRange);
     }
     else
     {
+        const float nearestSurface = camera.distance - sceneRadius;
+        const float nearClip = (nearestSurface > 0.0f)
+            ? std::max(0.01f, nearestSurface * 0.25f)
+            : 0.01f;
+        const float farClip = std::max(nearClip + 100.0f, camera.distance + sceneRadius + depthPadding);
+
         frame.projection = glm::perspective(
             verticalFov,
             aspect,
-            0.1f,
-            1000.0f);
+            nearClip,
+            farClip);
     }
 
     float yaw = glm::radians(camera.yaw);

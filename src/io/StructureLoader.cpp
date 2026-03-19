@@ -17,6 +17,9 @@
 #include <vector>
 #include <sys/stat.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
+
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -188,6 +191,44 @@ bool isSupportedExtension(const std::string& extLower)
 std::string supportedExtensionsSummary()
 {
     return ".cif, .mol, .pdb, .xyz, .sdf, .vasp, .mol2, .pwi, .gjf";
+}
+
+void wrapAtomsIntoPrimaryCell(Structure& structure)
+{
+    if (!structure.hasUnitCell || structure.atoms.empty())
+        return;
+
+    const glm::vec3 origin(0.0f, 0.0f, 0.0f);
+    const glm::vec3 a((float)structure.cellVectors[0][0], (float)structure.cellVectors[0][1], (float)structure.cellVectors[0][2]);
+    const glm::vec3 b((float)structure.cellVectors[1][0], (float)structure.cellVectors[1][1], (float)structure.cellVectors[1][2]);
+    const glm::vec3 c((float)structure.cellVectors[2][0], (float)structure.cellVectors[2][1], (float)structure.cellVectors[2][2]);
+
+    const glm::mat3 cellMat(a, b, c);
+    const float det = glm::determinant(cellMat);
+    if (std::abs(det) <= 1e-8f)
+        return;
+
+    const glm::mat3 invCellMat = glm::inverse(cellMat);
+    constexpr float kWrapTol = 1e-5f;
+
+    for (auto& atom : structure.atoms)
+    {
+        glm::vec3 pos((float)atom.x, (float)atom.y, (float)atom.z);
+        glm::vec3 frac = invCellMat * (pos - origin);
+
+        frac.x -= std::floor(frac.x);
+        frac.y -= std::floor(frac.y);
+        frac.z -= std::floor(frac.z);
+
+        if (std::abs(frac.x) <= kWrapTol || std::abs(1.0f - frac.x) <= kWrapTol) frac.x = 0.0f;
+        if (std::abs(frac.y) <= kWrapTol || std::abs(1.0f - frac.y) <= kWrapTol) frac.y = 0.0f;
+        if (std::abs(frac.z) <= kWrapTol || std::abs(1.0f - frac.z) <= kWrapTol) frac.z = 0.0f;
+
+        const glm::vec3 wrapped = origin + frac.x * a + frac.y * b + frac.z * c;
+        atom.x = wrapped.x;
+        atom.y = wrapped.y;
+        atom.z = wrapped.z;
+    }
 }
 }
 
@@ -404,11 +445,6 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
                     structure.cellVectors[i][2] = vecs[i].GetZ();
                 }
             }
-
-            auto off = cell->GetOffset();
-            structure.cellOffset[0] = off.GetX();
-            structure.cellOffset[1] = off.GetY();
-            structure.cellOffset[2] = off.GetZ();
         }
     }
 
@@ -452,6 +488,9 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
         std::cerr << "Loaded structure with " << structure.atoms.size() 
                   << " atoms." << std::endl;
     }
+
+    if (structure.hasUnitCell)
+        wrapAtomsIntoPrimaryCell(structure);
 
     if (structure.atoms.empty())
     {
