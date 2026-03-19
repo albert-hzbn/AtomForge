@@ -63,7 +63,8 @@ public:
     void reset(const EditorSnapshot& initialSnapshot)
     {
         m_history.clear();
-        m_history.push_back(initialSnapshot);
+        m_history.resize(1);
+        m_history[0] = initialSnapshot;
         m_index = 0;
     }
 
@@ -75,8 +76,11 @@ public:
             return;
         }
 
-        if (snapshot == m_history[m_index])
+        if (m_index >= m_history.size())
+        {
+            reset(snapshot);
             return;
+        }
 
         if (m_index + 1 < m_history.size())
             m_history.erase(m_history.begin() + (std::ptrdiff_t)m_index + 1, m_history.end());

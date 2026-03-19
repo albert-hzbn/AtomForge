@@ -128,29 +128,43 @@ static const char* kAtomFS = R"(
         vec3 norm = normalize(fragNormal);
         vec3 lightPosFillA = vec3(-lightPos.x, lightPos.y, lightPos.z);
         vec3 lightPosFillB = vec3(lightPos.x, -lightPos.y, lightPos.z);
+        vec3 lightPosFillC = vec3(-lightPos.x, 0.65 * lightPos.y, -0.60 * lightPos.z);
 
         vec3 lightDir0 = normalize(lightPos - fragWorldPos);
         vec3 lightDir1 = normalize(lightPosFillA - fragWorldPos);
         vec3 lightDir2 = normalize(lightPosFillB - fragWorldPos);
+        vec3 lightDir3 = normalize(lightPosFillC - fragWorldPos);
 
         vec3 viewDir = normalize(viewPos - fragWorldPos);
         vec3 reflectDir0 = reflect(-lightDir0, norm);
         vec3 reflectDir1 = reflect(-lightDir1, norm);
+        vec3 reflectDir2 = reflect(-lightDir2, norm);
+        vec3 reflectDir3 = reflect(-lightDir3, norm);
 
         float diff0 = max(dot(norm, lightDir0), 0.0);
         float diff1 = max(dot(norm, lightDir1), 0.0);
         float diff2 = max(dot(norm, lightDir2), 0.0);
-        float diff = 0.55 * diff0 + 0.30 * diff1 + 0.15 * diff2;
-        diff = max(diff, 0.30);
+        float diff3 = max(dot(norm, lightDir3), 0.0);
+        float diff = 0.45 * diff0 + 0.22 * diff1 + 0.18 * diff2 + 0.15 * diff3;
+        diff = max(diff, 0.34);
 
-        float spec0 = pow(max(dot(viewDir, reflectDir0), 0.0), max(fragShininess, 1.0));
-        float spec1 = pow(max(dot(viewDir, reflectDir1), 0.0), max(fragShininess, 1.0));
-        float spec = 0.75 * spec0 + 0.25 * spec1;
+        float specPower = max(fragShininess * 1.20, 16.0);
+        float spec0 = pow(max(dot(viewDir, reflectDir0), 0.0), specPower);
+        float spec1 = pow(max(dot(viewDir, reflectDir1), 0.0), specPower);
+        float spec2 = pow(max(dot(viewDir, reflectDir2), 0.0), specPower);
+        float spec3 = pow(max(dot(viewDir, reflectDir3), 0.0), specPower);
+        float spec = 0.45 * spec0 + 0.22 * spec1 + 0.18 * spec2 + 0.15 * spec3;
 
-        float ambient = 0.45;
+        // Increase visual separation on light backgrounds.
+        float ambient = 0.34;
+        vec3 baseColor = fragColor;
+        float luma = dot(baseColor, vec3(0.2126, 0.7152, 0.0722));
+        baseColor = mix(vec3(luma), baseColor, 1.20);
+        baseColor = clamp((baseColor - 0.5) * 1.10 + 0.5, 0.0, 1.0);
+
         float litFactor = ambient + (1.0 - ambient) * diff * (1.0 - shadow);
-        vec3 diffuse = fragColor * litFactor;
-        vec3 specular = vec3(0.40 * spec * (1.0 - shadow));
+        vec3 diffuse = baseColor * litFactor;
+        vec3 specular = vec3(0.46 * spec * (1.0 - shadow));
 
         color = vec4(diffuse + specular, 1.0);
     }
@@ -186,6 +200,8 @@ static const char* kBondVS = R"(
     in vec3 bondColorA;
     in vec3 bondColorB;
     in float bondRadius;
+    in float bondShininessA;
+    in float bondShininessB;
 
     uniform mat4 projection;
     uniform mat4 view;
@@ -193,6 +209,10 @@ static const char* kBondVS = R"(
     out vec3 fragColorA;
     out vec3 fragColorB;
     out float fragAxis;
+    out vec3 fragWorldPos;
+    out vec3 fragNormal;
+    out float fragShininessA;
+    out float fragShininessB;
 
     void main()
     {
@@ -206,11 +226,17 @@ static const char* kBondVS = R"(
         vec3 local = vec3(position.xy * bondRadius, position.z * lengthAxis);
         vec3 center = 0.5 * (bondStart + bondEnd);
         vec3 worldPos = center + tangent * local.x + bitangent * local.y + dir * local.z;
+        vec3 localNormal = normalize(vec3(position.xy, 0.0));
+        vec3 worldNormal = normalize(tangent * localNormal.x + bitangent * localNormal.y + dir * localNormal.z);
 
         gl_Position = projection * view * vec4(worldPos, 1.0);
         fragColorA = bondColorA;
         fragColorB = bondColorB;
         fragAxis = position.z;
+        fragWorldPos = worldPos;
+        fragNormal = worldNormal;
+        fragShininessA = bondShininessA;
+        fragShininessB = bondShininessB;
     }
 )";
 
@@ -220,13 +246,60 @@ static const char* kBondFS = R"(
     in vec3 fragColorA;
     in vec3 fragColorB;
     in float fragAxis;
+    in vec3 fragWorldPos;
+    in vec3 fragNormal;
+    in float fragShininessA;
+    in float fragShininessB;
+
+    uniform vec3 lightPos;
+    uniform vec3 viewPos;
 
     out vec4 color;
 
     void main()
     {
+        vec3 norm = normalize(fragNormal);
+        vec3 lightPosFillA = vec3(-lightPos.x, lightPos.y, lightPos.z);
+        vec3 lightPosFillB = vec3(lightPos.x, -lightPos.y, lightPos.z);
+        vec3 lightPosFillC = vec3(-lightPos.x, 0.65 * lightPos.y, -0.60 * lightPos.z);
+
+        vec3 lightDir0 = normalize(lightPos - fragWorldPos);
+        vec3 lightDir1 = normalize(lightPosFillA - fragWorldPos);
+        vec3 lightDir2 = normalize(lightPosFillB - fragWorldPos);
+        vec3 lightDir3 = normalize(lightPosFillC - fragWorldPos);
+
+        vec3 viewDir = normalize(viewPos - fragWorldPos);
+        vec3 reflectDir0 = reflect(-lightDir0, norm);
+        vec3 reflectDir1 = reflect(-lightDir1, norm);
+        vec3 reflectDir2 = reflect(-lightDir2, norm);
+        vec3 reflectDir3 = reflect(-lightDir3, norm);
+
+        float diff0 = max(dot(norm, lightDir0), 0.0);
+        float diff1 = max(dot(norm, lightDir1), 0.0);
+        float diff2 = max(dot(norm, lightDir2), 0.0);
+        float diff3 = max(dot(norm, lightDir3), 0.0);
+        float diff = 0.45 * diff0 + 0.22 * diff1 + 0.18 * diff2 + 0.15 * diff3;
+        diff = max(diff, 0.34);
+
         vec3 baseColor = (fragAxis < 0.0) ? fragColorA : fragColorB;
-        color = vec4(baseColor, 1.0);
+        float luma = dot(baseColor, vec3(0.2126, 0.7152, 0.0722));
+        baseColor = mix(vec3(luma), baseColor, 1.20);
+        baseColor = clamp((baseColor - 0.5) * 1.10 + 0.5, 0.0, 1.0);
+
+        float shininess = (fragAxis < 0.0) ? fragShininessA : fragShininessB;
+        float specPower = max(shininess * 1.20, 16.0);
+        float spec0 = pow(max(dot(viewDir, reflectDir0), 0.0), specPower);
+        float spec1 = pow(max(dot(viewDir, reflectDir1), 0.0), specPower);
+        float spec2 = pow(max(dot(viewDir, reflectDir2), 0.0), specPower);
+        float spec3 = pow(max(dot(viewDir, reflectDir3), 0.0), specPower);
+        float spec = 0.45 * spec0 + 0.22 * spec1 + 0.18 * spec2 + 0.15 * spec3;
+
+        float ambient = 0.34;
+        float litFactor = ambient + (1.0 - ambient) * diff;
+        vec3 diffuse = baseColor * litFactor;
+        vec3 specular = vec3(0.46 * spec);
+
+        color = vec4(diffuse + specular, 1.0);
     }
 )";
 
@@ -372,6 +445,8 @@ void Renderer::drawAtoms(const glm::mat4& projection,
 
 void Renderer::drawBonds(const glm::mat4& projection,
                          const glm::mat4& view,
+                         const glm::vec3& lightPos,
+                         const glm::vec3& viewPos,
                          const CylinderMesh& cylinder,
                          size_t bondCount)
 {
@@ -384,6 +459,10 @@ void Renderer::drawBonds(const glm::mat4& projection,
                        1, GL_FALSE, glm::value_ptr(projection));
     glUniformMatrix4fv(glGetUniformLocation(bondProgram, "view"),
                        1, GL_FALSE, glm::value_ptr(view));
+    glUniform3fv(glGetUniformLocation(bondProgram, "lightPos"),
+                 1, glm::value_ptr(lightPos));
+    glUniform3fv(glGetUniformLocation(bondProgram, "viewPos"),
+                 1, glm::value_ptr(viewPos));
 
     glBindVertexArray(cylinder.vao);
     glDrawArraysInstanced(GL_TRIANGLES, 0, cylinder.vertexCount, (GLsizei)bondCount);

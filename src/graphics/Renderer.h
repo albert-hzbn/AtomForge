@@ -44,6 +44,8 @@ struct Renderer
 
     void drawBonds(const glm::mat4& projection,
                    const glm::mat4& view,
+                   const glm::vec3& lightPos,
+                   const glm::vec3& viewPos,
                    const CylinderMesh& cylinder,
                    size_t bondCount);
 

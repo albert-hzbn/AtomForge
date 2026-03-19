@@ -354,6 +354,8 @@ int runAtomsEditor()
             renderer.drawBonds(
                 frame.projection,
                 frame.view,
+                frame.lightPosition,
+                frame.cameraPosition,
                 cylinder,
                 state.sceneBuffers.bondCount);
         }

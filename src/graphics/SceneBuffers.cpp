@@ -8,8 +8,8 @@
 
 namespace
 {
-constexpr float kMinBondRadius = 0.10f;
-constexpr float kMaxBondRadius = 0.24f;
+constexpr float kMinBondRadius = 0.06f;
+constexpr float kMaxBondRadius = 0.16f;
 constexpr float kBondInsetFactor = 0.55f;
 constexpr size_t kMaxBondCount = 1000000;  // Prevent memory exhaustion
 constexpr float kSpatialHashCellSize = 4.0f;  // Cell size for spatial hashing
@@ -37,6 +37,32 @@ glm::ivec3 getGridCell(const glm::vec3& pos, float cellSize)
         (int)std::floor(pos.z / cellSize)
     );
 }
+
+bool isLikelyCovalentElement(int atomicNumber)
+{
+    switch (atomicNumber)
+    {
+        case 1:   // H
+        case 5:   // B
+        case 6:   // C
+        case 7:   // N
+        case 8:   // O
+        case 9:   // F
+        case 14:  // Si
+        case 15:  // P
+        case 16:  // S
+        case 17:  // Cl
+        case 32:  // Ge
+        case 33:  // As
+        case 34:  // Se
+        case 35:  // Br
+        case 52:  // Te
+        case 53:  // I
+            return true;
+        default:
+            return false;
+    }
+}
 }
 
 void SceneBuffers::init(GLuint sphereVAO, GLuint cylinderVAO)
@@ -50,6 +76,8 @@ void SceneBuffers::init(GLuint sphereVAO, GLuint cylinderVAO)
     glGenBuffers(1, &bondColorAVBO);
     glGenBuffers(1, &bondColorBVBO);
     glGenBuffers(1, &bondRadiusVBO);
+    glGenBuffers(1, &bondShininessAVBO);
+    glGenBuffers(1, &bondShininessBVBO);
     glGenVertexArrays(1, &lineVAO);
     glGenBuffers(1, &lineVBO);
 
@@ -106,6 +134,16 @@ void SceneBuffers::init(GLuint sphereVAO, GLuint cylinderVAO)
     glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
     glVertexAttribDivisor(5, 1);
 
+    glBindBuffer(GL_ARRAY_BUFFER, bondShininessAVBO);
+    glEnableVertexAttribArray(6);
+    glVertexAttribPointer(6, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
+    glVertexAttribDivisor(6, 1);
+
+    glBindBuffer(GL_ARRAY_BUFFER, bondShininessBVBO);
+    glEnableVertexAttribArray(7);
+    glVertexAttribPointer(7, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
+    glVertexAttribDivisor(7, 1);
+
     glBindVertexArray(0);
 
     // Wire the line VBO into the dedicated line VAO.
@@ -116,7 +154,9 @@ void SceneBuffers::init(GLuint sphereVAO, GLuint cylinderVAO)
     glBindVertexArray(0);
 }
 
-void SceneBuffers::upload(const StructureInstanceData& data)
+void SceneBuffers::upload(const StructureInstanceData& data,
+                          bool bondElementFilterEnabled,
+                          const std::array<bool, 119>& bondElementFilterMask)
 {
     atomCount     = data.positions.size();
     bondCount     = 0;
@@ -183,6 +223,11 @@ void SceneBuffers::upload(const StructureInstanceData& data)
     std::vector<glm::vec3> bondColorA;
     std::vector<glm::vec3> bondColorB;
     std::vector<float> bondRadii;
+    std::vector<float> bondShininessA;
+    std::vector<float> bondShininessB;
+    const std::vector<float>& bondSourceRadii =
+        (data.bondRadii.size() == data.positions.size()) ? data.bondRadii : data.scales;
+    const std::vector<int>& bondSourceAtomicNumbers = data.atomicNumbers;
 
     // Disable bond detection for very large structures (>500k atoms)
     constexpr size_t kBondDisableCutoff = 500000;
@@ -195,6 +240,8 @@ void SceneBuffers::upload(const StructureInstanceData& data)
         bondColorA.reserve(std::min(expectedBonds, kMaxBondCount));
         bondColorB.reserve(std::min(expectedBonds, kMaxBondCount));
         bondRadii.reserve(std::min(expectedBonds, kMaxBondCount));
+        bondShininessA.reserve(std::min(expectedBonds, kMaxBondCount));
+        bondShininessB.reserve(std::min(expectedBonds, kMaxBondCount));
 
         // Build spatial grid for efficient neighbor lookup
         std::unordered_map<glm::ivec3, std::vector<size_t>, Vec3iHash> grid;
@@ -209,7 +256,7 @@ void SceneBuffers::upload(const StructureInstanceData& data)
         for (size_t i = 0; i < atomPositions.size() && bondStarts.size() < kMaxBondCount; ++i)
         {
             glm::ivec3 centerCell = getGridCell(atomPositions[i], kSpatialHashCellSize);
-            float radiusA = (i < atomRadii.size()) ? atomRadii[i] : 1.0f;
+            float radiusA = (i < bondSourceRadii.size()) ? bondSourceRadii[i] : 1.0f;
 
             // Check all neighboring cells
             for (int dx = -neighborRange; dx <= neighborRange; ++dx)
@@ -228,12 +275,35 @@ void SceneBuffers::upload(const StructureInstanceData& data)
                             if (j <= i)
                                 continue;  // Only check each pair once
 
+                            if (bondElementFilterEnabled)
+                            {
+                                const int zA = (i < bondSourceAtomicNumbers.size()) ? bondSourceAtomicNumbers[i] : 0;
+                                const int zB = (j < bondSourceAtomicNumbers.size()) ? bondSourceAtomicNumbers[j] : 0;
+
+                                const bool allowedA = (zA >= 1 && zA <= 118) ? bondElementFilterMask[(size_t)zA] : false;
+                                const bool allowedB = (zB >= 1 && zB <= 118) ? bondElementFilterMask[(size_t)zB] : false;
+                                // Filter semantics: include bonds touching selected elements
+                                // (e.g. "C,F" keeps C-*, F-* and C-F bonds).
+                                if (!allowedA && !allowedB)
+                                    continue;
+                            }
+                            else
+                            {
+                                const int zA = (i < bondSourceAtomicNumbers.size()) ? bondSourceAtomicNumbers[i] : 0;
+                                const int zB = (j < bondSourceAtomicNumbers.size()) ? bondSourceAtomicNumbers[j] : 0;
+
+                                // Default mode is covalent-focused: suppress metal-metal bonds.
+                                if (zA >= 1 && zA <= 118 && zB >= 1 && zB <= 118 &&
+                                    !isLikelyCovalentElement(zA) && !isLikelyCovalentElement(zB))
+                                    continue;
+                            }
+
                             glm::vec3 delta = atomPositions[j] - atomPositions[i];
                             float distance = glm::length(delta);
                             if (distance <= kMinBondDistance)
                                 continue;
 
-                            float radiusB = (j < atomRadii.size()) ? atomRadii[j] : 1.0f;
+                            float radiusB = (j < bondSourceRadii.size()) ? bondSourceRadii[j] : 1.0f;
                             float maxBondDistance = (radiusA + radiusB) * kBondToleranceFactor;
                             if (distance > maxBondDistance)
                                 continue;
@@ -247,7 +317,7 @@ void SceneBuffers::upload(const StructureInstanceData& data)
                             if (visibleLength <= kMinBondDistance)
                                 continue;
 
-                            float bondRadius = clampValue(0.18f * (radiusA + radiusB) * 0.5f,
+                            float bondRadius = clampValue(0.12f * (radiusA + radiusB) * 0.5f,
                                                           kMinBondRadius,
                                                           kMaxBondRadius);
 
@@ -256,6 +326,8 @@ void SceneBuffers::upload(const StructureInstanceData& data)
                             bondColorA.push_back((i < atomColors.size()) ? atomColors[i] : glm::vec3(0.8f));
                             bondColorB.push_back((j < atomColors.size()) ? atomColors[j] : glm::vec3(0.8f));
                             bondRadii.push_back(bondRadius);
+                            bondShininessA.push_back((i < atomShininess.size()) ? atomShininess[i] : 32.0f);
+                            bondShininessB.push_back((j < atomShininess.size()) ? atomShininess[j] : 32.0f);
 
                             if (bondStarts.size() >= kMaxBondCount)
                             {
@@ -307,6 +379,18 @@ void SceneBuffers::upload(const StructureInstanceData& data)
     glBufferData(GL_ARRAY_BUFFER,
                  bondRadii.size() * sizeof(float),
                  bondRadii.empty() ? nullptr : bondRadii.data(),
+                 GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, bondShininessAVBO);
+    glBufferData(GL_ARRAY_BUFFER,
+                 bondShininessA.size() * sizeof(float),
+                 bondShininessA.empty() ? nullptr : bondShininessA.data(),
+                 GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, bondShininessBVBO);
+    glBufferData(GL_ARRAY_BUFFER,
+                 bondShininessB.size() * sizeof(float),
+                 bondShininessB.empty() ? nullptr : bondShininessB.data(),
                  GL_STATIC_DRAW);
 
     glBindBuffer(GL_ARRAY_BUFFER, lineVBO);

@@ -40,6 +40,8 @@ struct FileBrowser
     void clearTransformMatrix() { transformDialog.clearTransform(); }
     bool isShowElementEnabled() const { return showElementLabels; }
     bool isShowBondsEnabled() const { return showBonds; }
+    bool isBondElementFilterEnabled() const { return bondElementFilterEnabled; }
+    const std::array<bool, 119>& getBondElementFilterMask() const { return bondElementFilterMask; }
     bool isOrthographicViewEnabled() const { return viewMode == ViewMode::Orthographic; }
     bool isBoxSelectModeEnabled() const { return boxSelectMode; }
     bool consumeMeasureDistanceRequest()
@@ -105,6 +107,7 @@ struct FileBrowser
     void showLoadError(const std::string& message);
 
 private:
+    void updateBondElementFilterMask();
     void pushHistory(const std::string& dir);
     static std::string toLower(const std::string& s);
     bool isAllowedFile(const std::string& name) const;
@@ -114,6 +117,7 @@ private:
     bool showEditColors;
     bool showElementLabels;
     bool showBonds;
+    bool bondElementFilterEnabled;
     ViewMode viewMode;
     bool boxSelectMode;
     bool requestMeasureDistance;
@@ -151,6 +155,8 @@ private:
     std::vector<std::string> allowedExtensions;
 
     char openFilename[1024];
+    char bondElementFilterInput[256];
+    std::array<bool, 119> bondElementFilterMask;
 
     BulkCrystalBuilderDialog bulkCrystalDialog;
     CSLGrainBoundaryDialog cslDialog;

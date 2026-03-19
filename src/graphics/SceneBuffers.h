@@ -5,6 +5,7 @@
 #include <GL/glew.h>
 #include <glm/glm.hpp>
 
+#include <array>
 #include <vector>
 
 // Owns the GPU buffers for instanced atom rendering and the bounding-box lines.
@@ -19,6 +20,8 @@ struct SceneBuffers
     GLuint bondColorAVBO = 0;
     GLuint bondColorBVBO = 0;
     GLuint bondRadiusVBO = 0;
+    GLuint bondShininessAVBO = 0;
+    GLuint bondShininessBVBO = 0;
     GLuint lineVAO     = 0;
     GLuint lineVBO     = 0;
 
@@ -42,7 +45,9 @@ struct SceneBuffers
     void init(GLuint sphereVAO, GLuint cylinderVAO);
 
     // Upload a new StructureInstanceData set to the GPU and cache derived data.
-    void upload(const StructureInstanceData& data);
+    void upload(const StructureInstanceData& data,
+                bool bondElementFilterEnabled,
+                const std::array<bool, 119>& bondElementFilterMask);
 
     // Patch the colour of one instance (e.g. to highlight a selected atom).
     void highlightAtom(int instanceIdx, glm::vec3 color);

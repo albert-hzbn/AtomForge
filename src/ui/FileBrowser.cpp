@@ -27,6 +27,27 @@ namespace
 {
 using DirectoryEntry = std::pair<std::string, bool>;
 
+int atomicNumberFromSymbol(const std::string& symbol)
+{
+    if (symbol.empty())
+        return -1;
+
+    std::string lowered = symbol;
+    for (char& ch : lowered)
+        ch = (char)std::tolower((unsigned char)ch);
+
+    for (int z = 1; z <= 118; ++z)
+    {
+        std::string candidate = elementSymbol(z);
+        for (char& ch : candidate)
+            ch = (char)std::tolower((unsigned char)ch);
+        if (candidate == lowered)
+            return z;
+    }
+
+    return -1;
+}
+
 std::string normalizePathSeparators(const std::string& path)
 {
     std::string out = path;
@@ -234,6 +255,7 @@ FileBrowser::FileBrowser()
             showEditColors(false),
             showElementLabels(false),
             showBonds(false),
+            bondElementFilterEnabled(false),
             viewMode(ViewMode::Isometric),
             boxSelectMode(false),
             requestMeasureDistance(false),
@@ -292,6 +314,34 @@ FileBrowser::FileBrowser()
     loadErrorMsg[0] = '\0';
     saveFilename[0] = '\0';
     saveStatusMsg[0] = '\0';
+    std::snprintf(bondElementFilterInput, sizeof(bondElementFilterInput), "%s", "O,F");
+    bondElementFilterMask.fill(false);
+    updateBondElementFilterMask();
+}
+
+void FileBrowser::updateBondElementFilterMask()
+{
+    bondElementFilterMask.fill(false);
+
+    std::string token;
+    const size_t len = std::strlen(bondElementFilterInput);
+    for (size_t i = 0; i <= len; ++i)
+    {
+        const char ch = (i < len) ? bondElementFilterInput[i] : ',';
+        if (ch == ',' || std::isspace((unsigned char)ch))
+        {
+            if (!token.empty())
+            {
+                const int z = atomicNumberFromSymbol(token);
+                if (z >= 1 && z <= 118)
+                    bondElementFilterMask[(size_t)z] = true;
+                token.clear();
+            }
+            continue;
+        }
+
+        token.push_back(ch);
+    }
 }
 
 void FileBrowser::initFromPath(const std::string& initialPath)
@@ -375,7 +425,22 @@ void FileBrowser::draw(Structure& structure,
         if (ImGui::BeginMenu("View"))
         {
             ImGui::MenuItem("Show Element", nullptr, &showElementLabels);
+            bool bondFilterChanged = false;
             ImGui::MenuItem("Show Bonds", nullptr, &showBonds);
+            if (ImGui::MenuItem("Filter Bonds By Elements", nullptr, &bondElementFilterEnabled))
+                bondFilterChanged = true;
+            if (bondElementFilterEnabled)
+            {
+                ImGui::SetNextItemWidth(240.0f);
+                if (ImGui::InputText("Bond Elements##filter", bondElementFilterInput, sizeof(bondElementFilterInput)))
+                {
+                    updateBondElementFilterMask();
+                    bondFilterChanged = true;
+                }
+                ImGui::TextDisabled("Comma-separated symbols (e.g. O,F,Cl)");
+            }
+            if (bondFilterChanged)
+                updateBuffers(structure);
             ImGui::Separator();
 
             const bool isIsometricView = (viewMode == ViewMode::Isometric);

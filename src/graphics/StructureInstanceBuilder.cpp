@@ -9,7 +9,7 @@ namespace
 {
 constexpr float kEpsilon = 1e-5f;
 constexpr float kPbcBoundaryTol = 1e-4f;
-constexpr float kAtomVisualScale = 0.90f;
+constexpr float kAtomVisualScale = 0.60f;
 
 float wrapAndSnapFractional(float value)
 {
@@ -42,7 +42,9 @@ void appendPbcBoundaryImages(const Structure& structure,
                              std::vector<glm::vec3>& positions,
                              std::vector<glm::vec3>& colors,
                              std::vector<float>& scales,
+                             std::vector<float>& bondRadii,
                              std::vector<float>& shininess,
+                             std::vector<int>& atomicNumbers,
                              std::vector<int>& atomIndices)
 {
     if (!structure.hasUnitCell || positions.empty())
@@ -99,7 +101,9 @@ void appendPbcBoundaryImages(const Structure& structure,
                     positions.push_back(imagePos);
                     colors.push_back(colors[i]);
                     scales.push_back(scales[i]);
+                    bondRadii.push_back(bondRadii[i]);
                     shininess.push_back(shininess[i]);
+                    atomicNumbers.push_back(atomicNumbers[i]);
                     atomIndices.push_back(atomIndices[i]);
                 }
             }
@@ -120,7 +124,9 @@ StructureInstanceData buildStructureInstanceData(
     data.positions.reserve(structure.atoms.size());
     data.colors.reserve(structure.atoms.size());
     data.scales.reserve(structure.atoms.size());
+    data.bondRadii.reserve(structure.atoms.size());
     data.shininess.reserve(structure.atoms.size());
+    data.atomicNumbers.reserve(structure.atoms.size());
 
     for (int i = 0; i < (int)structure.atoms.size(); ++i)
     {
@@ -131,10 +137,12 @@ StructureInstanceData buildStructureInstanceData(
         if (atom.atomicNumber >= 0 && atom.atomicNumber < (int)elementRadii.size() && elementRadii[atom.atomicNumber] > 0.0f)
             radius = elementRadii[atom.atomicNumber];
         data.scales.push_back(radius * kAtomVisualScale);
+        data.bondRadii.push_back(radius);
         float atomShine = 32.0f;
         if (atom.atomicNumber >= 0 && atom.atomicNumber < (int)elementShininess.size())
             atomShine = elementShininess[atom.atomicNumber];
         data.shininess.push_back(atomShine);
+        data.atomicNumbers.push_back(atom.atomicNumber);
         data.atomIndices.push_back(i);
     }
 
@@ -143,13 +151,17 @@ StructureInstanceData buildStructureInstanceData(
         std::vector<glm::vec3> basePositions = data.positions;
         std::vector<glm::vec3> baseColors    = data.colors;
         std::vector<float>     baseScales    = data.scales;
+        std::vector<float>     baseBondRadii = data.bondRadii;
         std::vector<float>     baseShininess = data.shininess;
+        std::vector<int>       baseAtomicNumbers = data.atomicNumbers;
         std::vector<int>       baseIndices   = data.atomIndices;
 
         data.positions.clear();
         data.colors.clear();
         data.scales.clear();
+        data.bondRadii.clear();
         data.shininess.clear();
+        data.atomicNumbers.clear();
         data.atomIndices.clear();
 
         glm::vec3 origin((float)structure.cellOffset[0],
@@ -174,7 +186,9 @@ StructureInstanceData buildStructureInstanceData(
             data.positions   = std::move(basePositions);
             data.colors      = std::move(baseColors);
             data.scales      = std::move(baseScales);
+            data.bondRadii   = std::move(baseBondRadii);
             data.shininess   = std::move(baseShininess);
+            data.atomicNumbers = std::move(baseAtomicNumbers);
             data.atomIndices = std::move(baseIndices);
         }
         else
@@ -185,7 +199,9 @@ StructureInstanceData buildStructureInstanceData(
             data.positions.reserve(basePositions.size() * (size_t)expectedCopies);
             data.colors.reserve(baseColors.size() * (size_t)expectedCopies);
             data.scales.reserve(baseScales.size() * (size_t)expectedCopies);
+            data.bondRadii.reserve(baseBondRadii.size() * (size_t)expectedCopies);
             data.shininess.reserve(baseShininess.size() * (size_t)expectedCopies);
+            data.atomicNumbers.reserve(baseAtomicNumbers.size() * (size_t)expectedCopies);
 
             int nMin[3] = {0, 0, 0};
             int nMax[3] = {0, 0, 0};
@@ -231,7 +247,9 @@ StructureInstanceData buildStructureInstanceData(
                             data.positions.push_back(worldPos);
                             data.colors.push_back(baseColors[atomIndex]);
                             data.scales.push_back(baseScales[atomIndex]);
+                            data.bondRadii.push_back(baseBondRadii[atomIndex]);
                             data.shininess.push_back(baseShininess[atomIndex]);
+                            data.atomicNumbers.push_back(baseAtomicNumbers[atomIndex]);
                             data.atomIndices.push_back(baseIndices[atomIndex]);
                         }
                     }
@@ -243,7 +261,7 @@ StructureInstanceData buildStructureInstanceData(
     // For periodic display, duplicate boundary atoms across neighboring cells
     // so atoms are visible on opposite faces/edges/vertices of the unit cell.
     if (!useTransformMatrix && structure.hasUnitCell)
-        appendPbcBoundaryImages(structure, data.positions, data.colors, data.scales, data.shininess, data.atomIndices);
+        appendPbcBoundaryImages(structure, data.positions, data.colors, data.scales, data.bondRadii, data.shininess, data.atomicNumbers, data.atomIndices);
 
     if (data.positions.empty())
         return data;

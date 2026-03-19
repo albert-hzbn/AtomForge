@@ -70,7 +70,10 @@ void updateBuffers(EditorState& state)
         state.editMenuDialogs.elementRadii,
         state.editMenuDialogs.elementShininess);
 
-    state.sceneBuffers.upload(data);
+    state.sceneBuffers.upload(
+        data,
+        state.fileBrowser.isBondElementFilterEnabled(),
+        state.fileBrowser.getBondElementFilterMask());
     state.selectedInstanceIndices.clear();
 
     if (!state.suppressHistoryCommit)
