@@ -584,29 +584,96 @@ void drawElementLabelsOverlay(ImDrawList* drawList,
     if (!drawList || structure.atoms.empty() || sceneBuffers.atomPositions.empty())
         return;
 
-    // Guard against excessive text allocations when many periodic instances
-    // are visible.
-    const size_t kMaxLabelsPerFrame = 5000;
-
-    size_t labelCount = 0;
-    for (size_t i = 0; i < sceneBuffers.atomPositions.size(); ++i)
+    struct LabelCandidate
     {
-        int baseIdx = (i < sceneBuffers.atomIndices.size()) ? sceneBuffers.atomIndices[i] : -1;
+        int baseIdx = -1;
+        float sx = 0.0f;
+        float sy = 0.0f;
+        float depth = 0.0f;
+    };
+
+    auto intersects = [](const ImVec4& a, const ImVec4& b) {
+        return a.x < b.z && a.z > b.x && a.y < b.w && a.w > b.y;
+    };
+
+    const size_t kMaxCandidates = 8000;
+    const size_t kMaxLabelsPerFrame = 1200;
+    const float kLabelPadding = 2.0f;
+
+    std::vector<LabelCandidate> candidates;
+    candidates.reserve(std::min(sceneBuffers.atomPositions.size(), kMaxCandidates));
+
+    for (size_t i = 0; i < sceneBuffers.atomPositions.size() && candidates.size() < kMaxCandidates; ++i)
+    {
+        const int baseIdx = (i < sceneBuffers.atomIndices.size()) ? sceneBuffers.atomIndices[i] : -1;
         if (baseIdx < 0 || baseIdx >= (int)structure.atoms.size())
             continue;
 
-        float sx, sy;
+        const std::string& label = structure.atoms[baseIdx].symbol;
+        if (label.empty())
+            continue;
+
+        const glm::vec4 viewPos = view * glm::vec4(sceneBuffers.atomPositions[i], 1.0f);
+        if (viewPos.z >= 0.0f)
+            continue;
+
+        float sx = 0.0f;
+        float sy = 0.0f;
         if (!projectToScreen(sceneBuffers.atomPositions[i], projection, view, viewportWidth, viewportHeight, sx, sy))
             continue;
 
-        const std::string& label = structure.atoms[baseIdx].symbol;
-        ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
-        drawList->AddText(ImVec2(sx - textSize.x * 0.5f, sy - textSize.y * 0.5f),
+        LabelCandidate c;
+        c.baseIdx = baseIdx;
+        c.sx = sx;
+        c.sy = sy;
+        c.depth = -viewPos.z;
+        candidates.push_back(c);
+    }
+
+    std::sort(candidates.begin(), candidates.end(), [](const LabelCandidate& a, const LabelCandidate& b) {
+        return a.depth < b.depth;
+    });
+
+    std::vector<ImVec4> occupiedRects;
+    occupiedRects.reserve(std::min(candidates.size(), kMaxLabelsPerFrame));
+
+    size_t labelsPlaced = 0;
+    for (const LabelCandidate& c : candidates)
+    {
+        const std::string& label = structure.atoms[c.baseIdx].symbol;
+        const ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
+
+        ImVec4 rect(
+            c.sx - textSize.x * 0.5f - kLabelPadding,
+            c.sy - textSize.y * 0.5f - kLabelPadding,
+            c.sx + textSize.x * 0.5f + kLabelPadding,
+            c.sy + textSize.y * 0.5f + kLabelPadding);
+
+        if (rect.z < 0.0f || rect.x > (float)viewportWidth ||
+            rect.w < 0.0f || rect.y > (float)viewportHeight)
+        {
+            continue;
+        }
+
+        bool overlaps = false;
+        for (const ImVec4& placed : occupiedRects)
+        {
+            if (intersects(rect, placed))
+            {
+                overlaps = true;
+                break;
+            }
+        }
+        if (overlaps)
+            continue;
+
+        drawList->AddText(ImVec2(rect.x + kLabelPadding, rect.y + kLabelPadding),
                           IM_COL32(255, 255, 255, 255),
                           label.c_str());
+        occupiedRects.push_back(rect);
 
-        ++labelCount;
-        if (labelCount >= kMaxLabelsPerFrame)
+        ++labelsPlaced;
+        if (labelsPlaced >= kMaxLabelsPerFrame)
             break;
     }
 }

@@ -287,7 +287,8 @@ int runAtomsEditor()
         handleUndoRedoRequest(state, requests);
         handleAxisViewRequest(camera, requests);
 
-        ImDrawList* drawList = ImGui::GetForegroundDrawList();
+        // Keep scene overlays visible over the viewport but underneath UI popups/dialogs.
+        ImDrawList* drawList = ImGui::GetBackgroundDrawList();
         handleBoxSelection(
             state,
             frame.windowWidth,
