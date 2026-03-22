@@ -26,7 +26,8 @@ struct BondStats
 BondStats computeBondStatsForAtom(int centerInstanceIdx,
                                   int centerBaseIdx,
                                   const SceneBuffers& sceneBuffers,
-                                  const Structure& structure)
+                                  const Structure& structure,
+                                  const std::vector<float>& elementRadii)
 {
     BondStats stats;
 
@@ -43,17 +44,22 @@ BondStats computeBondStatsForAtom(int centerInstanceIdx,
                     (float)structure.atoms[centerBaseIdx].z)
         : sceneBuffers.atomPositions[centerInstanceIdx];
 
-    const float radiusCenter = sceneBuffers.atomRadii[centerInstanceIdx];
-
-    std::vector<float> baseRadii;
-    baseRadii.assign(structure.atoms.size(), -1.0f);
-    const int pairCount = std::min((int)sceneBuffers.atomIndices.size(), (int)sceneBuffers.atomRadii.size());
-    for (int i = 0; i < pairCount; ++i)
+    auto lookupAtomRadius = [&](int baseIdx, int instanceIdx) -> float
     {
-        int b = sceneBuffers.atomIndices[i];
-        if (b >= 0 && b < (int)baseRadii.size() && baseRadii[b] < 0.0f)
-            baseRadii[b] = sceneBuffers.atomRadii[i];
-    }
+        if (baseIdx >= 0 && baseIdx < (int)structure.atoms.size())
+        {
+            const int atomicNumber = structure.atoms[baseIdx].atomicNumber;
+            if (atomicNumber >= 0 && atomicNumber < (int)elementRadii.size() && elementRadii[atomicNumber] > 0.0f)
+                return elementRadii[atomicNumber];
+        }
+
+        if (instanceIdx >= 0 && instanceIdx < (int)sceneBuffers.atomRadii.size())
+            return sceneBuffers.atomRadii[instanceIdx];
+
+        return 1.0f;
+    };
+
+    const float radiusCenter = lookupAtomRadius(centerBaseIdx, centerInstanceIdx);
 
     bool usePbc = false;
     glm::mat3 cell(1.0f);
@@ -80,9 +86,7 @@ BondStats computeBondStatsForAtom(int centerInstanceIdx,
             if (distance <= kMinBondDistance)
                 continue;
 
-            const float radiusOther = (j >= 0 && j < (int)baseRadii.size() && baseRadii[j] > 0.0f)
-                ? baseRadii[j]
-                : 1.0f;
+            const float radiusOther = lookupAtomRadius(j, -1);
             const float maxBondDistance = (radiusCenter + radiusOther) * kBondToleranceFactor;
             if (distance > maxBondDistance)
                 continue;
@@ -105,7 +109,8 @@ BondStats computeBondStatsForAtom(int centerInstanceIdx,
             if (distance <= kMinBondDistance)
                 continue;
 
-            const float radiusOther = sceneBuffers.atomRadii[i];
+            const int otherBaseIdx = (i < (int)sceneBuffers.atomIndices.size()) ? sceneBuffers.atomIndices[i] : -1;
+            const float radiusOther = lookupAtomRadius(otherBaseIdx, i);
             const float maxBondDistance = (radiusCenter + radiusOther) * kBondToleranceFactor;
             if (distance > maxBondDistance)
                 continue;
@@ -226,7 +231,8 @@ void processMeasurementRequests(MeasurementOverlayState& state,
                                 bool requestAtomInfo,
                                 const std::vector<int>& selectedInstanceIndices,
                                 const SceneBuffers& sceneBuffers,
-                                const Structure& structure)
+                                const Structure& structure,
+                                const std::vector<float>& elementRadii)
 {
     // Measurements disabled for large structures (CPU caches not available)
     if (sceneBuffers.cpuCachesDisabled)
@@ -387,7 +393,7 @@ void processMeasurementRequests(MeasurementOverlayState& state,
                     }
                 }
 
-                BondStats stats = computeBondStatsForAtom(idx, baseIdx, sceneBuffers, structure);
+                BondStats stats = computeBondStatsForAtom(idx, baseIdx, sceneBuffers, structure, elementRadii);
                 len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
                                      "\nCoordination number:  %d\n",
                                      stats.coordinationNumber);

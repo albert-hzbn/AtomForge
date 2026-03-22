@@ -160,7 +160,8 @@ int runAtomsEditor()
             requests.requestAtomInfo,
             state.selectedInstanceIndices,
             state.sceneBuffers,
-            state.structure);
+            state.structure,
+            state.editMenuDialogs.elementRadii);
         drawMeasurementPopups(state.measurementState);
         drawStructureInfoDialog(state.structureInfoDialog, requests.requestStructureInfo, state.structure);
 

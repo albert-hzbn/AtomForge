@@ -36,7 +36,8 @@ void processMeasurementRequests(MeasurementOverlayState& state,
                                 bool requestAtomInfo,
                                 const std::vector<int>& selectedInstanceIndices,
                                 const SceneBuffers& sceneBuffers,
-                                const Structure& structure);
+                                const Structure& structure,
+                                const std::vector<float>& elementRadii);
 
 void drawMeasurementPopups(MeasurementOverlayState& state);
 
