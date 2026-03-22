@@ -43,6 +43,12 @@ void processDroppedFiles(EditorState& state)
     const std::string droppedFile = state.pendingDroppedFiles.back();
     state.pendingDroppedFiles.clear();
 
+    if (state.fileBrowser.isNanoCrystalDialogOpen())
+    {
+        state.fileBrowser.feedDropToNanoCrystalDialog(droppedFile);
+        return;
+    }
+
     Structure loadedStructure;
     std::string loadError;
     if (!loadStructureFromFile(droppedFile, loadedStructure, loadError))

@@ -3,6 +3,7 @@
 #include "StructureLoader.h"
 #include "ui/BulkCrystalBuilderDialog.h"
 #include "ui/CSLGrainBoundaryDialog.h"
+#include "ui/NanoCrystalBuilderDialog.h"
 #include "ui/CommonNeighbourAnalysis.h"
 #include "ui/RadialDistributionAnalysis.h"
 #include "ui/TransformAtomsDialog.h"
@@ -128,6 +129,11 @@ struct FileBrowser
     // Apply persistent user element color overrides to a loaded structure.
     void applyElementColorOverrides(Structure& structure) const;
 
+    // Initialise the nanocrystal dialog's own GL preview resources.
+    void initNanoCrystalRenderResources(Renderer& renderer);
+    bool isNanoCrystalDialogOpen() const;
+    void feedDropToNanoCrystalDialog(const std::string& path);
+
     // Show a modal error popup for file-load failures.
     void showLoadError(const std::string& message);
 
@@ -198,6 +204,7 @@ private:
 
     BulkCrystalBuilderDialog bulkCrystalDialog;
     CSLGrainBoundaryDialog cslDialog;
+    NanoCrystalBuilderDialog nanoCrystalDialog;
     CommonNeighbourAnalysisDialog cnaDialog;
     RadialDistributionAnalysisDialog rdfDialog;
     TransformAtomsDialog transformDialog;

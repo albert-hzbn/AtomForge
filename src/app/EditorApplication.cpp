@@ -206,6 +206,7 @@ int runAtomsEditor()
 
     Renderer renderer;
     renderer.init();
+    state.fileBrowser.initNanoCrystalRenderResources(renderer);
 
     ShadowMap shadow = createShadowMap(1024, 1024);
 

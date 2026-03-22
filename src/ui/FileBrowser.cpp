@@ -490,6 +490,7 @@ void FileBrowser::draw(Structure& structure,
         {
             bulkCrystalDialog.drawMenuItem(true);
             cslDialog.drawMenuItem(true);
+            nanoCrystalDialog.drawMenuItem(true);
             ImGui::EndMenu();
         }
 
@@ -568,6 +569,9 @@ void FileBrowser::draw(Structure& structure,
     transformDialog.drawDialog([&]() { updateBuffers(structure); });
     bulkCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors, updateBuffers);
     cslDialog.drawDialog(structure, updateBuffers);
+    nanoCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors,
+                                 editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
+                                 updateBuffers);
     cnaDialog.drawDialog(structure);
     rdfDialog.drawDialog(structure);
 
@@ -1062,6 +1066,7 @@ void FileBrowser::draw(Structure& structure,
             ImGui::Text("Build Menu");
             ImGui::BulletText("Bulk Crystal...: build a full unit cell from crystal system, space group, lattice parameters, and asymmetric-unit atoms");
             ImGui::BulletText("CSL Grain Boundary...: cubic GB builder with Sigma-list selection and in-plane supercell replication");
+            ImGui::BulletText("Nanocrystal...: carve a nanoparticle from the loaded structure using sphere, ellipsoid, box, cylinder, octahedron, truncated octahedron, or cuboctahedron shapes");
 
             ImGui::Spacing();
             ImGui::Text("View Menu");
@@ -1257,6 +1262,21 @@ void FileBrowser::applyElementColorOverrides(Structure& structure) const
         structure.atoms[i].g = it->second[1];
         structure.atoms[i].b = it->second[2];
     }
+}
+
+void FileBrowser::initNanoCrystalRenderResources(Renderer& renderer)
+{
+    nanoCrystalDialog.initRenderResources(renderer);
+}
+
+bool FileBrowser::isNanoCrystalDialogOpen() const
+{
+    return nanoCrystalDialog.isOpen();
+}
+
+void FileBrowser::feedDropToNanoCrystalDialog(const std::string& path)
+{
+    nanoCrystalDialog.feedDroppedFile(path);
 }
 
 void FileBrowser::showLoadError(const std::string& message)
