@@ -57,10 +57,6 @@ void Camera::cursor(GLFWwindow*,double x,double y)
 
         instance->yaw   -= dx * instance->sensitivity;
         instance->pitch += dy * instance->sensitivity;
-
-        // limit pitch so camera never flips
-        if(instance->pitch > 89.0f) instance->pitch = 89.0f;
-        if(instance->pitch < -89.0f) instance->pitch = -89.0f;
     }
 
     instance->lastX = x;

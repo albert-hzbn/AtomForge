@@ -183,39 +183,160 @@ struct AxisOverlayEntry
     ImU32 color;
 };
 
-void drawAxisArrow(ImDrawList* drawList,
-                   ImVec2 origin,
-                   const AxisOverlayEntry& axis,
-                   float baseLength)
+struct GizmoEdge
 {
-    glm::vec2 screenDir(axis.dir.x, -axis.dir.y);
-    float screenLen = glm::length(screenDir);
-    if (screenLen < 1e-4f)
-        screenDir = glm::vec2(0.0f, -1.0f);
-    else
-        screenDir /= screenLen;
+    int a;
+    int b;
+};
 
-    const float towardViewer = std::max(0.0f, -axis.dir.z);
-    const float axisLength = baseLength + 7.0f * towardViewer;
-    const float headLength = 8.0f;
-    const float headWidth = 4.0f;
+struct ProjectedPoint
+{
+    ImVec2 screen = ImVec2(0.0f, 0.0f);
+    float depth = 0.0f;
+};
 
-    ImVec2 end(origin.x + screenDir.x * axisLength,
-               origin.y + screenDir.y * axisLength);
-    ImVec2 headBase(end.x - screenDir.x * headLength,
-                    end.y - screenDir.y * headLength);
-    ImVec2 perp(-screenDir.y, screenDir.x);
+ProjectedPoint projectGizmoPoint(const glm::vec3& point,
+                                 ImVec2 origin,
+                                 float projectionScale)
+{
+    ProjectedPoint projected;
+    projected.screen = ImVec2(
+        origin.x + point.x * projectionScale,
+        origin.y - point.y * projectionScale);
+    projected.depth = point.z;
+    return projected;
+}
 
-    drawList->AddLine(origin, headBase, axis.color, 2.5f);
-    drawList->AddTriangleFilled(
-        end,
-        ImVec2(headBase.x + perp.x * headWidth, headBase.y + perp.y * headWidth),
-        ImVec2(headBase.x - perp.x * headWidth, headBase.y - perp.y * headWidth),
-        axis.color);
+float toGizmoDepth(const glm::vec3& cameraAxisDirection)
+{
+    // In view space, negative Z is toward viewer. Flip for local gizmo camera.
+    return -cameraAxisDirection.z;
+}
 
-    ImVec2 labelOffset(screenDir.x * 8.0f + perp.x * 3.0f,
-                       screenDir.y * 8.0f + perp.y * 3.0f);
-    drawList->AddText(ImVec2(end.x + labelOffset.x, end.y + labelOffset.y), axis.color, axis.label);
+void draw3DAxis(ImDrawList* drawList,
+                ImVec2 origin,
+                const AxisOverlayEntry& axis,
+                float axisLength,
+                float projectionScale)
+{
+    const glm::vec3 endPoint(axis.dir.x * axisLength,
+                             axis.dir.y * axisLength,
+                             toGizmoDepth(axis.dir) * axisLength);
+    const ProjectedPoint p0 = projectGizmoPoint(glm::vec3(0.0f), origin, projectionScale);
+    const ProjectedPoint p1 = projectGizmoPoint(endPoint, origin, projectionScale);
+
+    const float depth01 = glm::clamp((p1.depth + 1.0f) * 0.5f, 0.0f, 1.0f);
+    const float thickness = 1.8f + 1.2f * depth01;
+    drawList->AddLine(p0.screen, p1.screen, axis.color, thickness);
+
+    const float endpointRadius = 2.5f + 2.0f * depth01;
+    drawList->AddCircleFilled(p1.screen, endpointRadius, axis.color, 16);
+    drawList->AddCircle(p1.screen, endpointRadius + 1.0f, IM_COL32(245, 245, 250, 200), 16, 1.0f);
+
+    drawList->AddText(ImVec2(p1.screen.x + 5.5f, p1.screen.y + 4.0f), axis.color, axis.label);
+}
+
+void draw3DWireCube(ImDrawList* drawList,
+                    ImVec2 origin,
+                    const glm::mat3& viewRotation,
+                    float halfExtent,
+                    float projectionScale)
+{
+    const std::array<glm::vec3, 8> cubeLocal = {{
+        {-halfExtent, -halfExtent, -halfExtent},
+        { halfExtent, -halfExtent, -halfExtent},
+        { halfExtent,  halfExtent, -halfExtent},
+        {-halfExtent,  halfExtent, -halfExtent},
+        {-halfExtent, -halfExtent,  halfExtent},
+        { halfExtent, -halfExtent,  halfExtent},
+        { halfExtent,  halfExtent,  halfExtent},
+        {-halfExtent,  halfExtent,  halfExtent}
+    }};
+
+    const std::array<GizmoEdge, 12> edges = {{
+        {0, 1}, {1, 2}, {2, 3}, {3, 0},
+        {4, 5}, {5, 6}, {6, 7}, {7, 4},
+        {0, 4}, {1, 5}, {2, 6}, {3, 7}
+    }};
+
+    std::array<ProjectedPoint, 8> projectedPoints;
+    for (std::size_t i = 0; i < cubeLocal.size(); ++i)
+    {
+        const glm::vec3 rotated = viewRotation * cubeLocal[i];
+        const glm::vec3 gizmoPoint(rotated.x, rotated.y, toGizmoDepth(rotated));
+        projectedPoints[i] = projectGizmoPoint(gizmoPoint, origin, projectionScale);
+    }
+
+    std::array<int, 12> edgeOrder = {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}};
+    std::sort(edgeOrder.begin(), edgeOrder.end(), [&](int lhs, int rhs) {
+        const GizmoEdge& e0 = edges[(std::size_t)lhs];
+        const GizmoEdge& e1 = edges[(std::size_t)rhs];
+        const float z0 = 0.5f * (projectedPoints[(std::size_t)e0.a].depth + projectedPoints[(std::size_t)e0.b].depth);
+        const float z1 = 0.5f * (projectedPoints[(std::size_t)e1.a].depth + projectedPoints[(std::size_t)e1.b].depth);
+        return z0 < z1;
+    });
+
+    for (int orderIndex : edgeOrder)
+    {
+        const GizmoEdge& edge = edges[(std::size_t)orderIndex];
+        const ProjectedPoint& a = projectedPoints[(std::size_t)edge.a];
+        const ProjectedPoint& b = projectedPoints[(std::size_t)edge.b];
+        const float zMid = 0.5f * (a.depth + b.depth);
+        const float alphaFactor = glm::clamp(0.45f + 0.35f * ((zMid + 1.0f) * 0.5f), 0.25f, 0.9f);
+        const int alpha = (int)(alphaFactor * 255.0f);
+        drawList->AddLine(a.screen, b.screen, IM_COL32(205, 215, 230, alpha), 1.0f);
+    }
+}
+
+void draw3DOrientationGizmo(ImDrawList* drawList,
+                            ImVec2 origin,
+                            const std::array<AxisOverlayEntry, 3>& axes,
+                            const glm::mat3& viewRotation)
+{
+    const float projectionScale = 53.0f;
+    const float cubeHalfExtent = 0.38f;
+    const float axisLength = 0.77f;
+
+    draw3DWireCube(drawList, origin, viewRotation, cubeHalfExtent, projectionScale);
+
+    std::array<int, 3> axisOrder = {{0, 1, 2}};
+    std::sort(axisOrder.begin(), axisOrder.end(), [&](int lhs, int rhs) {
+        return axes[(std::size_t)lhs].dir.z > axes[(std::size_t)rhs].dir.z;
+    });
+
+    for (int idx : axisOrder)
+        draw3DAxis(drawList, origin, axes[(std::size_t)idx], axisLength, projectionScale);
+}
+
+void drawGizmoBackdrop(ImDrawList* drawList, ImVec2 origin)
+{
+    const float backgroundRadius = 53.0f;
+    drawList->AddCircleFilled(origin, backgroundRadius, IM_COL32(18, 22, 28, 190), 48);
+    drawList->AddCircle(origin, backgroundRadius, IM_COL32(255, 255, 255, 55), 48, 1.0f);
+    drawList->AddCircle(origin, backgroundRadius - 7.0f, IM_COL32(255, 255, 255, 20), 48, 1.0f);
+}
+
+void drawGizmoCenter(ImDrawList* drawList, ImVec2 origin)
+{
+    drawList->AddCircleFilled(origin, 3.2f, IM_COL32(240, 240, 245, 240), 16);
+}
+
+void drawOrientationAxesGizmo(ImDrawList* drawList,
+                              const glm::mat4& view,
+                              int viewportHeight)
+{
+    const ImVec2 origin(73.0f, (float)viewportHeight - 73.0f);
+    drawGizmoBackdrop(drawList, origin);
+
+    const glm::mat3 viewRotation(view);
+    std::array<AxisOverlayEntry, 3> axes = {{
+        { glm::normalize(viewRotation * glm::vec3(1.0f, 0.0f, 0.0f)), "X", IM_COL32(235, 92, 92, 255) },
+        { glm::normalize(viewRotation * glm::vec3(0.0f, 1.0f, 0.0f)), "Y", IM_COL32(110, 220, 120, 255) },
+        { glm::normalize(viewRotation * glm::vec3(0.0f, 0.0f, 1.0f)), "Z", IM_COL32(110, 175, 255, 255) }
+    }};
+
+    draw3DOrientationGizmo(drawList, origin, axes, viewRotation);
+    drawGizmoCenter(drawList, origin);
 }
 } // namespace
 
@@ -686,26 +807,5 @@ void drawOrientationAxesOverlay(ImDrawList* drawList,
     if (!drawList || viewportWidth < 120 || viewportHeight < 120)
         return;
 
-    const ImVec2 origin(58.0f, (float)viewportHeight - 58.0f);
-    const float backgroundRadius = 34.0f;
-    const float baseAxisLength = 24.0f;
-
-    drawList->AddCircleFilled(origin, backgroundRadius, IM_COL32(20, 24, 30, 170), 32);
-    drawList->AddCircle(origin, backgroundRadius, IM_COL32(255, 255, 255, 45), 32, 1.0f);
-
-    const glm::mat3 viewRotation(view);
-    std::array<AxisOverlayEntry, 3> axes = {{
-        { glm::normalize(viewRotation * glm::vec3(1.0f, 0.0f, 0.0f)), "X", IM_COL32(235, 92, 92, 255) },
-        { glm::normalize(viewRotation * glm::vec3(0.0f, 1.0f, 0.0f)), "Y", IM_COL32(110, 220, 120, 255) },
-        { glm::normalize(viewRotation * glm::vec3(0.0f, 0.0f, 1.0f)), "Z", IM_COL32(110, 175, 255, 255) }
-    }};
-
-    std::sort(axes.begin(), axes.end(), [](const AxisOverlayEntry& a, const AxisOverlayEntry& b) {
-        return a.dir.z > b.dir.z;
-    });
-
-    for (std::size_t i = 0; i < axes.size(); ++i)
-        drawAxisArrow(drawList, origin, axes[i], baseAxisLength);
-
-    drawList->AddCircleFilled(origin, 3.5f, IM_COL32(240, 240, 245, 240), 16);
+    drawOrientationAxesGizmo(drawList, view, viewportHeight);
 }

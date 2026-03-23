@@ -936,8 +936,6 @@ void NanoCrystalBuilderDialog::drawDialog(
                 ImVec2 delta = ImGui::GetIO().MouseDelta;
                 m_camYaw   -= delta.x * 0.5f;
                 m_camPitch += delta.y * 0.5f;
-                if (m_camPitch >  89.0f) m_camPitch =  89.0f;
-                if (m_camPitch < -89.0f) m_camPitch = -89.0f;
             }
 
             if (dropZoneHovered) {
