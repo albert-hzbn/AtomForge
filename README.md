@@ -78,6 +78,100 @@ To remove all generated artifacts:
 rm -rf build
 ```
 
+## Portable Builds
+
+Build portable packages that bundle all dependencies (no system library dependencies required at runtime).
+
+### Windows Portable
+
+Build a portable ZIP package with bundled DLLs:
+
+```bash
+# In MSYS2 UCRT64 shell:
+cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_PORTABLE=ON
+cmake --build build -j
+
+# Create a portable ZIP package:
+cd build
+cpack -G ZIP
+```
+
+This generates `AtomForge-1.0.0-win64.zip` containing the executable and all required DLLs. Extract it anywhere and run `AtomForge.exe` without any further installation.
+
+**Manual portable package:**
+```bash
+mkdir AtomForge-portable
+cd AtomForge-portable
+cp ../build/Release/AtomForge.exe .
+cp ../README.md .
+# Copy required DLLs from C:\msys2\ucrt64\bin:
+cp C:/msys2/ucrt64/bin/glfw3.dll .
+cp C:/msys2/ucrt64/bin/glew32.dll .
+cp C:/msys2/ucrt64/bin/openbabel3.dll .
+# For spglib support (if available):
+cp C:/msys2/ucrt64/bin/spglib.dll .
+cp C:/msys2/ucrt64/bin/symspg.dll .
+cd ..
+7z a AtomForge-portable.zip AtomForge-portable/
+```
+
+### Linux Portable (Tarball + Bundled Libraries)
+
+Build a portable tarball for easy distribution:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_PORTABLE=ON
+cmake --build build -j
+cd build
+cpack -G TGZ
+```
+
+This generates `AtomForge-1.0.0-Linux.tar.gz` with the executable ready to run.
+
+**Manual portable tarball with bundled libs:**
+```bash
+mkdir -p AtomForge-portable/lib
+cd AtomForge-portable
+
+# Copy executable
+cp ../build/AtomForge .
+cp ../README.md .
+
+# Copy runtime libraries (adjust paths as needed for your system)
+# Find library locations:
+# ldd ../build/AtomForge  # to see which libraries to copy
+ldd ../build/AtomForge | grep "=> /" | awk '{print $3}' | sort -u > libs.txt
+
+# Copy essential libraries (GLFW, GLEW, OpenBabel, OpenGL, etc.):
+cp /usr/lib/x86_64-linux-gnu/libglfw.so.3 lib/
+cp /usr/lib/x86_64-linux-gnu/libGLEW.so.2.2 lib/
+cp /usr/lib/x86_64-linux-gnu/libopenbabel.so.3 lib/
+cp /usr/lib/x86_64-linux-gnu/libGL.so.1 lib/
+cp /usr/lib/x86_64-linux-gnu/libGLX.so.0 lib/
+
+cd ..
+tar czf AtomForge-portable.tar.gz AtomForge-portable/
+```
+
+To run the portable Linux package:
+```bash
+tar xzf AtomForge-portable.tar.gz
+cd AtomForge-portable
+export LD_LIBRARY_PATH=$(pwd)/lib:$LD_LIBRARY_PATH
+./AtomForge
+```
+
+### Alternative: Build for System Installation
+
+For standard system-wide installation (requires dependencies on target machine):
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j install
+```
+
+On Linux, this installs to `/usr/local/bin` (may require `sudo`).
+
 ## Supported formats
 
 **Structure files** (open and save): `.xyz`, `.cif`, `.pdb`, `.sdf`, `.mol`, `.vasp`, `.mol2`, `.pwi`, `.gjf`
