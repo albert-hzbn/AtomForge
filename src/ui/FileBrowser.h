@@ -167,6 +167,11 @@ struct FileBrowser
     bool isNanoCrystalDialogOpen() const;
     void feedDropToNanoCrystalDialog(const std::string& path);
 
+    // CSL grain boundary dialog GL resources and drop routing.
+    void initCSLGrainBoundaryRenderResources(Renderer& renderer);
+    bool isCSLGrainBoundaryDialogOpen() const;
+    void feedDropToCSLGrainBoundaryDialog(const std::string& path);
+
     // Interface builder dialog GL resources and drop routing.
     void initInterfaceBuilderRenderResources(Renderer& renderer);
     bool isInterfaceBuilderDialogOpen() const;

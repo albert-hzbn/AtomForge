@@ -630,7 +630,9 @@ void FileBrowser::draw(Structure& structure,
 
     transformDialog.drawDialog([&]() { updateBuffers(structure); });
     bulkCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors, updateBuffers);
-    cslDialog.drawDialog(structure, updateBuffers);
+    cslDialog.drawDialog(structure, editMenuDialogs.elementColors,
+                         editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
+                         updateBuffers);
     nanoCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                  editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
                                  updateBuffers);
@@ -1483,6 +1485,21 @@ void FileBrowser::feedDropToNanoCrystalDialog(const std::string& path)
 void FileBrowser::initInterfaceBuilderRenderResources(Renderer& renderer)
 {
     interfaceBuilderDialog.initRenderResources(renderer);
+}
+
+void FileBrowser::initCSLGrainBoundaryRenderResources(Renderer& renderer)
+{
+    cslDialog.initRenderResources(renderer);
+}
+
+bool FileBrowser::isCSLGrainBoundaryDialogOpen() const
+{
+    return cslDialog.isOpen();
+}
+
+void FileBrowser::feedDropToCSLGrainBoundaryDialog(const std::string& path)
+{
+    cslDialog.feedDroppedFile(path);
 }
 
 bool FileBrowser::isInterfaceBuilderDialogOpen() const

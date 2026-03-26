@@ -264,6 +264,7 @@ int runAtomsEditor(const std::string& startupStructurePath)
     renderer.init();
     state.fileBrowser.initNanoCrystalRenderResources(renderer);
     state.fileBrowser.initInterfaceBuilderRenderResources(renderer);
+    state.fileBrowser.initCSLGrainBoundaryRenderResources(renderer);
 
     ShadowMap shadow = createShadowMap(1024, 1024);
 

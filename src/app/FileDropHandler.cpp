@@ -49,6 +49,12 @@ void processDroppedFiles(EditorState& state)
         return;
     }
 
+    if (state.fileBrowser.isCSLGrainBoundaryDialogOpen())
+    {
+        state.fileBrowser.feedDropToCSLGrainBoundaryDialog(droppedFile);
+        return;
+    }
+
     if (state.fileBrowser.isInterfaceBuilderDialogOpen())
     {
         state.fileBrowser.feedDropToInterfaceBuilderDialog(droppedFile);
