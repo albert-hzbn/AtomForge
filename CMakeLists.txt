@@ -176,6 +176,22 @@ if(BUILD_PORTABLE)
     endif()
 
     set(ATOMFORGE_PORTABLE_EXE_NAME "AtomForge${CMAKE_EXECUTABLE_SUFFIX}")
+    get_filename_component(ATOMFORGE_CXX_COMPILER_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
+
+    # Collect library directories from pkg-config so the dependency scanner
+    # can locate DLLs for glew, glfw, openbabel, symspg, etc.
+    set(_pkg_lib_dirs "")
+    foreach(_pc_libdirs GLFW3_LIBRARY_DIRS GLEW_LIBRARY_DIRS OPENBABEL_LIBRARY_DIRS SPGLIB_LIBRARY_DIRS)
+        if(${_pc_libdirs})
+            foreach(_d IN LISTS ${_pc_libdirs})
+                get_filename_component(_d_bin "${_d}/../bin" ABSOLUTE)
+                list(APPEND _pkg_lib_dirs "${_d}" "${_d_bin}")
+            endforeach()
+        endif()
+    endforeach()
+    list(REMOVE_DUPLICATES _pkg_lib_dirs)
+    set(ATOMFORGE_EXTRA_DLL_DIRS "${_pkg_lib_dirs}")
+
     configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/InstallPortableDependencies.cmake.in"
         "${CMAKE_CURRENT_BINARY_DIR}/InstallPortableDependencies.cmake"

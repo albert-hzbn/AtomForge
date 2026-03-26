@@ -1,5 +1,7 @@
 set(_atomforge_bin_dir "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/@ATOMFORGE_PORTABLE_BIN_DIR@")
 set(_atomforge_exe "${_atomforge_bin_dir}/@ATOMFORGE_PORTABLE_EXE_NAME@")
+set(_compiler_dir "@ATOMFORGE_CXX_COMPILER_DIR@")
+set(_extra_dll_dirs "@ATOMFORGE_EXTRA_DLL_DIRS@")
 
 if(POLICY CMP0207)
     cmake_policy(SET CMP0207 NEW)
@@ -10,19 +12,99 @@ if(NOT EXISTS "${_atomforge_exe}")
     return()
 endif()
 
+# Build the list of directories for the dependency scanner.
+set(_search_dirs "${_compiler_dir}")
+foreach(_d IN LISTS _extra_dll_dirs)
+    if(IS_DIRECTORY "${_d}")
+        list(APPEND _search_dirs "${_d}")
+    endif()
+endforeach()
+list(REMOVE_DUPLICATES _search_dirs)
+message(STATUS "Dependency search directories: ${_search_dirs}")
+
+# Exclude Windows system DLLs by name and by path.
+set(_exclude_pre
+    "api-ms-win-.*"
+    "ext-ms-.*"
+    "[Aa][Dd][Vv][Aa][Pp][Ii]32\\.dll"
+    "[Bb][Cc][Rr][Yy][Pp][Tt]\\.dll"
+    "[Cc][Ff][Gg][Mm][Gg][Rr]32\\.dll"
+    "[Cc][Oo][Mm][Bb][Aa][Ss][Ee]\\.dll"
+    "[Cc][Rr][Yy][Pp][Tt]32\\.dll"
+    "[Cc][Rr][Yy][Pp][Tt][Bb][Aa][Ss][Ee]\\.dll"
+    "[Dd][Nn][Ss][Aa][Pp][Ii]\\.dll"
+    "[Gg][Dd][Ii]32\\.dll"
+    "[Gg][Ll][Uu]32\\.dll"
+    "[Ii][Pp][Hh][Ll][Pp][Aa][Pp][Ii]\\.dll"
+    "[Kk][Ee][Rr][Nn][Ee][Ll]32\\.dll"
+    "[Kk][Ee][Rr][Nn][Ee][Ll][Bb][Aa][Ss][Ee]\\.dll"
+    "[Mm][Ss][Vv][Cc][Rr][Tt]\\.dll"
+    "[Mm][Ss][Vv][Cc][Pp]_[Ww][Ii][Nn]\\.dll"
+    "[Nn][Tt][Dd][Ll][Ll]\\.dll"
+    "[Oo][Ll][Ee]32\\.dll"
+    "[Oo][Ll][Ee][Aa][Uu][Tt]32\\.dll"
+    "[Oo][Pp][Ee][Nn][Gg][Ll]32\\.dll"
+    "[Rr][Pp][Cc][Rr][Tt]4\\.dll"
+    "[Ss][Ee][Cc][Hh][Oo][Ss][Tt]\\.dll"
+    "[Ss][Hh][Ee][Ll][Ll]32\\.dll"
+    "[Ss][Hh][Ll][Ww][Aa][Pp][Ii]\\.dll"
+    "[Uu][Cc][Rr][Tt][Bb][Aa][Ss][Ee]\\.dll"
+    "[Uu][Ss][Ee][Rr]32\\.dll"
+    "[Uu][Ss][Ee][Rr][Ee][Nn][Vv]\\.dll"
+    "[Ww][Ii][Nn]32[Uu]\\.dll"
+    "[Ww][Ss]2_32\\.dll"
+    "[Ww][Ss][Oo][Cc][Kk]32\\.dll"
+)
+set(_exclude_post ".*/[Ww][Ii][Nn][Dd][Oo][Ww][Ss]/.*"  ".*/System/Library/.*")
+
+# Pass 1: resolve direct dependencies of the executable.
 file(GET_RUNTIME_DEPENDENCIES
     EXECUTABLES "${_atomforge_exe}"
-    RESOLVED_DEPENDENCIES_VAR _atomforge_resolved
-    UNRESOLVED_DEPENDENCIES_VAR _atomforge_unresolved
-    PRE_EXCLUDE_REGEXES
-        "api-ms-win-.*"
-        "ext-ms-.*"
-    POST_EXCLUDE_REGEXES
-        ".*/[Ww]indows/[Ss]ystem32/.*"
-        ".*/System/Library/.*"
+    RESOLVED_DEPENDENCIES_VAR _resolved
+    UNRESOLVED_DEPENDENCIES_VAR _unresolved
+    DIRECTORIES ${_search_dirs}
+    PRE_EXCLUDE_REGEXES  ${_exclude_pre}
+    POST_EXCLUDE_REGEXES ${_exclude_post}
 )
 
-foreach(_dep IN LISTS _atomforge_resolved)
+# Pass 2+: recursively resolve transitive dependencies of resolved DLLs
+# until no new libraries are discovered.
+set(_all_resolved ${_resolved})
+set(_new_libs ${_resolved})
+
+foreach(_pass RANGE 1 8)
+    if(NOT _new_libs)
+        break()
+    endif()
+
+    file(GET_RUNTIME_DEPENDENCIES
+        LIBRARIES ${_new_libs}
+        RESOLVED_DEPENDENCIES_VAR _transitive_resolved
+        UNRESOLVED_DEPENDENCIES_VAR _transitive_unresolved
+        DIRECTORIES ${_search_dirs}
+        PRE_EXCLUDE_REGEXES  ${_exclude_pre}
+        POST_EXCLUDE_REGEXES ${_exclude_post}
+    )
+
+    set(_new_libs "")
+    foreach(_dep IN LISTS _transitive_resolved)
+        list(FIND _all_resolved "${_dep}" _idx)
+        if(_idx EQUAL -1)
+            list(APPEND _all_resolved "${_dep}")
+            list(APPEND _new_libs "${_dep}")
+        endif()
+    endforeach()
+
+    list(APPEND _unresolved ${_transitive_unresolved})
+
+    if(_new_libs)
+        list(LENGTH _new_libs _new_count)
+        message(STATUS "Dependency pass ${_pass}: found ${_new_count} new transitive libraries")
+    endif()
+endforeach()
+
+# Install all resolved dependencies.
+foreach(_dep IN LISTS _all_resolved)
     get_filename_component(_dep_name "${_dep}" NAME)
     set(_dep_out "${_atomforge_bin_dir}/${_dep_name}")
     if(NOT EXISTS "${_dep_out}")
@@ -30,6 +112,29 @@ foreach(_dep IN LISTS _atomforge_resolved)
     endif()
 endforeach()
 
-if(_atomforge_unresolved)
-    message(WARNING "Portable packaging unresolved runtime dependencies: ${_atomforge_unresolved}")
+if(_unresolved)
+    list(REMOVE_DUPLICATES _unresolved)
+    message(WARNING "Portable packaging unresolved runtime dependencies: ${_unresolved}")
 endif()
+
+# Final safety net: ensure critical MinGW runtime DLLs are present even if
+# the dependency walker missed them entirely.
+set(_mingw_runtime_dlls
+    libgcc_s_seh-1.dll
+    libstdc++-6.dll
+    libwinpthread-1.dll
+)
+foreach(_rt_dll IN LISTS _mingw_runtime_dlls)
+    set(_rt_out "${_atomforge_bin_dir}/${_rt_dll}")
+    if(NOT EXISTS "${_rt_out}")
+        find_file(_rt_path "${_rt_dll}" PATHS "${_compiler_dir}" ${_extra_dll_dirs} "$ENV{PATH}" NO_DEFAULT_PATH)
+        if(NOT _rt_path)
+            find_file(_rt_path "${_rt_dll}")
+        endif()
+        if(_rt_path)
+            file(INSTALL DESTINATION "${_atomforge_bin_dir}" TYPE SHARED_LIBRARY FILES "${_rt_path}")
+            message(STATUS "Bundled MinGW runtime (safety net): ${_rt_path}")
+        endif()
+        unset(_rt_path CACHE)
+    endif()
+endforeach()
