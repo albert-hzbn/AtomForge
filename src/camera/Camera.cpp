@@ -71,8 +71,9 @@ void Camera::cursor(GLFWwindow*,double x,double y)
     if (instance->middleMouseDown)
     {
         const float dy = (float)(y - instance->lastY);
-        // Middle-button drag zoom: move mouse up to zoom in, down to zoom out.
-        instance->distance += dy * instance->zoomSpeed * 0.06f;
+        // Middle-button drag zoom: proportional to distance for consistent feel.
+        float factor = dy * instance->zoomSpeed * 0.004f * instance->distance;
+        instance->distance += factor;
         instance->distance = std::max(Camera::kMinDistance, std::min(Camera::kMaxDistance, instance->distance));
     }
 
@@ -85,7 +86,10 @@ void Camera::scroll(GLFWwindow*, double, double y)
     if (ImGui::GetIO().WantCaptureMouse)
         return;
 
-    instance->distance -= y * instance->zoomSpeed;
+    // Proportional zoom: each scroll step scales distance by a fixed ratio.
+    // This makes zooming feel equally responsive when close up or far away.
+    float factor = 1.0f - (float)y * instance->zoomSpeed * 0.15f;
+    instance->distance *= factor;
 
     if(instance->distance < Camera::kMinDistance)
         instance->distance = Camera::kMinDistance;

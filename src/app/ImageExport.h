@@ -9,6 +9,8 @@
 struct Renderer;
 struct ShadowMap;
 struct SphereMesh;
+struct LowPolyMesh;
+struct BillboardMesh;
 struct CylinderMesh;
 struct SceneBuffers;
 
@@ -31,5 +33,7 @@ bool exportStructureImage(const ImageExportRequest& request,
                           Renderer& renderer,
                           const ShadowMap& shadow,
                           const SphereMesh& sphere,
+                          const LowPolyMesh& lowPolyMesh,
+                          const BillboardMesh& billboardMesh,
                           const CylinderMesh& cylinder,
                           std::string& errorMessage);

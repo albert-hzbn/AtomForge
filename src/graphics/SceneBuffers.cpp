@@ -65,7 +65,7 @@ bool isLikelyCovalentElement(int atomicNumber)
 }
 }
 
-void SceneBuffers::init(GLuint sphereVAO, GLuint cylinderVAO)
+void SceneBuffers::init(GLuint sphereVAO, GLuint lowPolyVAO, GLuint billboardVAO, GLuint cylinderVAO)
 {
     glGenBuffers(1, &instanceVBO);
     glGenBuffers(1, &colorVBO);
@@ -81,31 +81,36 @@ void SceneBuffers::init(GLuint sphereVAO, GLuint cylinderVAO)
     glGenVertexArrays(1, &lineVAO);
     glGenBuffers(1, &lineVBO);
 
-    // Wire instance buffers into the sphere VAO so the atom draw call
-    // picks them up as instanced attributes.
-    glBindVertexArray(sphereVAO);
+    // Wire instance buffers into all atom mesh VAOs (sphere, low-poly, billboard)
+    GLuint atomVAOs[] = { sphereVAO, lowPolyVAO, billboardVAO };
+    for (GLuint vao : atomVAOs)
+    {
+        if (vao == 0) continue;  // skip when not provided (preview renderers)
 
-    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glVertexAttribDivisor(1, 1);
+        glBindVertexArray(vao);
 
-    glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glVertexAttribDivisor(2, 1);
+        glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glVertexAttribDivisor(1, 1);
 
-    glBindBuffer(GL_ARRAY_BUFFER, scaleVBO);
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
-    glVertexAttribDivisor(3, 1);
+        glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glVertexAttribDivisor(2, 1);
 
-    glBindBuffer(GL_ARRAY_BUFFER, shininessVBO);
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
-    glVertexAttribDivisor(4, 1);
+        glBindBuffer(GL_ARRAY_BUFFER, scaleVBO);
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
+        glVertexAttribDivisor(3, 1);
 
-    glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, shininessVBO);
+        glEnableVertexAttribArray(4);
+        glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
+        glVertexAttribDivisor(4, 1);
+
+        glBindVertexArray(0);
+    }
 
     glBindVertexArray(cylinderVAO);
 
@@ -154,6 +159,11 @@ void SceneBuffers::init(GLuint sphereVAO, GLuint cylinderVAO)
     glBindVertexArray(0);
 }
 
+void SceneBuffers::init(GLuint sphereVAO, GLuint cylinderVAO)
+{
+    init(sphereVAO, 0, 0, cylinderVAO);
+}
+
 void SceneBuffers::upload(const StructureInstanceData& data,
                           bool bondElementFilterEnabled,
                           const std::array<bool, 119>& bondElementFilterMask)
@@ -162,6 +172,16 @@ void SceneBuffers::upload(const StructureInstanceData& data,
     bondCount     = 0;
     orbitCenter   = atomCount > 0 ? data.orbitCenter : glm::vec3(0.0f);
     boxLines      = data.boxLines;
+
+    // Initial rendering mode estimate based on atom count.
+    // The adaptive renderer in the main loop will override this
+    // dynamically based on measured frame performance.
+    if (atomCount >= 10000000)  // 10 million
+        renderMode = RenderingMode::BillboardImposters;
+    else if (atomCount > 100000)  // 100k
+        renderMode = RenderingMode::LowPolyInstancing;
+    else
+        renderMode = RenderingMode::StandardInstancing;
 
     // Determine if this is a large structure
     constexpr size_t kCacheCutoff = 100000;

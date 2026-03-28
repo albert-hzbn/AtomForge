@@ -330,6 +330,291 @@ static const char* kBondShadowVS = R"(
     }
 )";
 
+// Low-poly instancing shaders (12 facet icosahedron)
+static const char* kAtomLowPolyVS = R"(
+    #version 130
+
+    in vec3 position;
+    in vec3 instancePos;
+    in vec3 instanceColor;
+    in float instanceScale;
+    in float instanceShininess;
+
+    uniform mat4 projection;
+    uniform mat4 view;
+    uniform mat4 lightMVP;
+    uniform vec4 frustumPlanes[6];
+    uniform int enableFrustumCulling;
+
+    out vec3 fragColor;
+    out vec3 fragWorldPos;
+    out vec3 fragNormal;
+    out float fragShininess;
+    out vec4 FragPosLight;
+
+    void main()
+    {
+        if (enableFrustumCulling != 0)
+        {
+            for (int i = 0; i < 6; ++i)
+            {
+                float signedDistance = dot(frustumPlanes[i].xyz, instancePos) + frustumPlanes[i].w;
+                if (signedDistance < -instanceScale)
+                {
+                    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+                    FragPosLight = vec4(0.0);
+                    fragColor = vec3(0.0);
+                    fragWorldPos = vec3(0.0);
+                    fragNormal = vec3(0.0, 0.0, 1.0);
+                    fragShininess = instanceShininess;
+                    return;
+                }
+            }
+        }
+
+        vec3 worldPos = position * instanceScale + instancePos;
+        gl_Position   = projection * view * vec4(worldPos, 1.0);
+        FragPosLight  = lightMVP * vec4(worldPos, 1.0);
+        fragColor     = instanceColor;
+        fragWorldPos  = worldPos;
+        fragNormal    = normalize(position);
+        fragShininess = instanceShininess;
+    }
+)";
+
+static const char* kAtomLowPolyFS = kAtomFS;  // Reuse the same fragment shader
+
+// Billboard imposters shader (quad rendering for very high atom counts)
+static const char* kAtomBillboardVS = R"(
+    #version 130
+
+    in vec3 position;
+    in vec3 instancePos;
+    in vec3 instanceColor;
+    in float instanceScale;
+    in float instanceShininess;
+
+    uniform mat4 projection;
+    uniform mat4 view;
+    uniform mat4 lightMVP;
+    uniform vec4 frustumPlanes[6];
+    uniform int enableFrustumCulling;
+    uniform vec3 viewPos;
+
+    out vec3 fragColor;
+    out vec3 fragWorldCenter;
+    out float fragRadius;
+    out float fragShininess;
+    out vec2 quad_uv;
+    out vec4 FragPosLight;
+    out mat4 fragView;
+    out mat4 fragProj;
+
+    void main()
+    {
+        if (enableFrustumCulling != 0)
+        {
+            for (int i = 0; i < 6; ++i)
+            {
+                float signedDistance = dot(frustumPlanes[i].xyz, instancePos) + frustumPlanes[i].w;
+                if (signedDistance < -instanceScale)
+                {
+                    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+                    fragColor = vec3(0.0);
+                    fragWorldCenter = vec3(0.0);
+                    fragRadius = 0.0;
+                    fragShininess = instanceShininess;
+                    quad_uv = vec2(0.0);
+                    FragPosLight = vec4(0.0);
+                    fragView = view;
+                    fragProj = projection;
+                    return;
+                }
+            }
+        }
+
+        // Expand quad towards camera
+        vec3 viewDir = normalize(instancePos - viewPos);
+        vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), viewDir));
+        vec3 up = normalize(cross(viewDir, right));
+
+        vec3 quadOffset = right * position.x + up * position.y;
+        vec3 worldPos = instancePos + quadOffset * instanceScale;
+
+        gl_Position = projection * view * vec4(worldPos, 1.0);
+        FragPosLight = lightMVP * vec4(instancePos, 1.0);
+        fragColor = instanceColor;
+        fragWorldCenter = instancePos;
+        fragRadius = instanceScale;
+        fragShininess = instanceShininess;
+        quad_uv = position.xy;
+        fragView = view;
+        fragProj = projection;
+    }
+)";
+
+static const char* kAtomBillboardFS = R"(
+    #version 130
+
+    in vec3 fragColor;
+    in vec3 fragWorldCenter;
+    in float fragRadius;
+    in float fragShininess;
+    in vec2 quad_uv;
+    in vec4 FragPosLight;
+    in mat4 fragView;
+    in mat4 fragProj;
+
+    uniform sampler2D shadowMap;
+    uniform vec3 lightPos;
+    uniform vec3 viewPos;
+
+    out vec4 color;
+
+    float computeShadow(vec4 pos)
+    {
+        vec3 proj = pos.xyz / pos.w;
+        proj = proj * 0.5 + 0.5;
+
+        if (proj.x < 0.0 || proj.x > 1.0 ||
+            proj.y < 0.0 || proj.y > 1.0 ||
+            proj.z < 0.0 || proj.z > 1.0)
+            return 0.0;
+
+        float closest = texture(shadowMap, proj.xy).r;
+        float current = proj.z;
+        float bias    = 0.003;
+
+        return (current - bias > closest) ? 1.0 : 0.0;
+    }
+
+    void main()
+    {
+        // Discard pixels outside the sphere silhouette.
+        float r2 = dot(quad_uv, quad_uv);
+        if (r2 > 1.0)
+            discard;
+
+        // Reconstruct spherical normal in view-aligned space and map to world.
+        float nz = sqrt(1.0 - r2);
+        vec3 viewDir = normalize(viewPos - fragWorldCenter);
+        vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), viewDir));
+        vec3 up = normalize(cross(viewDir, right));
+        vec3 norm = normalize(right * quad_uv.x + up * quad_uv.y + viewDir * nz);
+
+        // Approximate world position on the sphere surface.
+        vec3 fragWorldPos = fragWorldCenter + norm * fragRadius;
+
+        // Write correct depth so spheres intersect properly.
+        vec4 clipPos = fragProj * fragView * vec4(fragWorldPos, 1.0);
+        float ndcDepth = clipPos.z / clipPos.w;
+        gl_FragDepth = ndcDepth * 0.5 + 0.5;
+
+        float shadow = computeShadow(FragPosLight);
+
+        // Multi-light Phong matching the standard atom shader.
+        vec3 lightPosFillA = vec3(-lightPos.x, lightPos.y, lightPos.z);
+        vec3 lightPosFillB = vec3(lightPos.x, -lightPos.y, lightPos.z);
+        vec3 lightPosFillC = vec3(-lightPos.x, 0.65 * lightPos.y, -0.60 * lightPos.z);
+
+        vec3 lightDir0 = normalize(lightPos - fragWorldPos);
+        vec3 lightDir1 = normalize(lightPosFillA - fragWorldPos);
+        vec3 lightDir2 = normalize(lightPosFillB - fragWorldPos);
+        vec3 lightDir3 = normalize(lightPosFillC - fragWorldPos);
+
+        vec3 vDir = normalize(viewPos - fragWorldPos);
+        vec3 reflectDir0 = reflect(-lightDir0, norm);
+        vec3 reflectDir1 = reflect(-lightDir1, norm);
+        vec3 reflectDir2 = reflect(-lightDir2, norm);
+        vec3 reflectDir3 = reflect(-lightDir3, norm);
+
+        float diff0 = max(dot(norm, lightDir0), 0.0);
+        float diff1 = max(dot(norm, lightDir1), 0.0);
+        float diff2 = max(dot(norm, lightDir2), 0.0);
+        float diff3 = max(dot(norm, lightDir3), 0.0);
+        float diff = 0.45 * diff0 + 0.22 * diff1 + 0.18 * diff2 + 0.15 * diff3;
+        diff = max(diff, 0.34);
+
+        float specPower = max(fragShininess * 1.20, 16.0);
+        float spec0 = pow(max(dot(vDir, reflectDir0), 0.0), specPower);
+        float spec1 = pow(max(dot(vDir, reflectDir1), 0.0), specPower);
+        float spec2 = pow(max(dot(vDir, reflectDir2), 0.0), specPower);
+        float spec3 = pow(max(dot(vDir, reflectDir3), 0.0), specPower);
+        float spec = 0.45 * spec0 + 0.22 * spec1 + 0.18 * spec2 + 0.15 * spec3;
+
+        float ambient = 0.34;
+        vec3 baseColor = fragColor;
+        float luma = dot(baseColor, vec3(0.2126, 0.7152, 0.0722));
+        baseColor = mix(vec3(luma), baseColor, 1.20);
+        baseColor = clamp((baseColor - 0.5) * 1.10 + 0.5, 0.0, 1.0);
+
+        float litFactor = ambient + (1.0 - ambient) * diff * (1.0 - shadow);
+        vec3 diffuse = baseColor * litFactor;
+        vec3 specular = vec3(0.46 * spec * (1.0 - shadow));
+
+        color = vec4(diffuse + specular, 1.0);
+    }
+)";
+
+// Low-poly shadow shader
+static const char* kShadowLowPolyVS = R"(
+    #version 130
+
+    in vec3 position;
+    in vec3 instancePos;
+    in float instanceScale;
+
+    uniform mat4 lightMVP;
+
+    void main()
+    {
+        vec3 worldPos    = position * instanceScale + instancePos;
+        gl_Position      = lightMVP * vec4(worldPos, 1.0);
+    }
+)";
+
+// Billboard shadow shader
+static const char* kShadowBillboardVS = R"(
+    #version 130
+
+    in vec3 position;
+    in vec3 instancePos;
+    in float instanceScale;
+
+    uniform mat4 projection;
+    uniform mat4 view;
+    uniform mat4 lightMVP;
+    uniform vec3 viewPos;
+
+    out vec2 quad_uv;
+
+    void main()
+    {
+        // Project quad towards light source
+        vec3 viewDir = normalize(instancePos - viewPos);
+        vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), viewDir));
+        vec3 up = normalize(cross(viewDir, right));
+
+        vec3 quadOffset = right * position.x + up * position.y;
+        vec3 worldPos = instancePos + quadOffset * instanceScale;
+
+        gl_Position = lightMVP * vec4(worldPos, 1.0);
+        quad_uv = position.xy;
+    }
+)";
+
+static const char* kShadowBillboardFS = R"(
+    #version 130
+
+    in vec2 quad_uv;
+
+    void main()
+    {
+        if (dot(quad_uv, quad_uv) > 1.0)
+            discard;
+    }
+)";
+
 static const char* kLineVS = R"(
     #version 130
 
@@ -363,10 +648,29 @@ static const char* kLineFS = R"(
 void Renderer::init()
 {
     atomProgram   = createProgram(kAtomVS,   kAtomFS);
+    atomLowPolyProgram = createProgram(kAtomLowPolyVS, kAtomLowPolyFS);
+    atomBillboardProgram = createProgram(kAtomBillboardVS, kAtomBillboardFS);
     bondProgram   = createProgram(kBondVS,   kBondFS);
     shadowProgram = createProgram(kShadowVS, kShadowFS);
+    shadowLowPolyProgram = createProgram(kShadowLowPolyVS, kShadowFS);
+    shadowBillboardProgram = createProgram(kShadowBillboardVS, kShadowBillboardFS);
     bondShadowProgram = createProgram(kBondShadowVS, kShadowFS);
     lineProgram   = createProgram(kLineVS,   kLineFS);
+}
+
+RenderingMode Renderer::selectRenderingMode(size_t atomCount) const
+{
+    // Selection thresholds:
+    // N > 10^7        -> Billboard imposters (quad rendering)
+    // 10^5 < N < 10^7 -> Low-poly instancing (12 facet)
+    // N <= 10^5       -> Standard instancing (full sphere)
+    
+    if (atomCount >= 10000000)  // 10 million
+        return RenderingMode::BillboardImposters;
+    else if (atomCount > 100000)  // 100k
+        return RenderingMode::LowPolyInstancing;
+    else
+        return RenderingMode::StandardInstancing;
 }
 
 void Renderer::drawShadowPass(const ShadowMap& shadow,
@@ -381,7 +685,7 @@ void Renderer::drawShadowPass(const ShadowMap& shadow,
                        1, GL_FALSE, glm::value_ptr(lightMVP));
 
     glBindVertexArray(sphere.vao);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, sphere.vertexCount, (GLsizei)atomCount);
+    glDrawElementsInstanced(GL_TRIANGLES, sphere.indexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
 
     endShadowPass();
 }
@@ -440,7 +744,120 @@ void Renderer::drawAtoms(const glm::mat4& projection,
     glUniform1i(glGetUniformLocation(atomProgram, "shadowMap"), 0);
 
     glBindVertexArray(sphere.vao);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, sphere.vertexCount, (GLsizei)atomCount);
+    glDrawElementsInstanced(GL_TRIANGLES, sphere.indexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
+}
+
+void Renderer::drawShadowPassLowPoly(const ShadowMap& shadow,
+                                     const LowPolyMesh& mesh,
+                                     const glm::mat4& lightMVP,
+                                     size_t atomCount)
+{
+    beginShadowPass(shadow);
+
+    glUseProgram(shadowLowPolyProgram);
+    glUniformMatrix4fv(glGetUniformLocation(shadowLowPolyProgram, "lightMVP"),
+                       1, GL_FALSE, glm::value_ptr(lightMVP));
+
+    glBindVertexArray(mesh.vao);
+    glDrawElementsInstanced(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
+
+    endShadowPass();
+}
+
+void Renderer::drawShadowPassBillboard(const ShadowMap& shadow,
+                                       const BillboardMesh& mesh,
+                                       const glm::mat4& lightMVP,
+                                       const glm::mat4& view,
+                                       size_t atomCount)
+{
+    beginShadowPass(shadow);
+
+    glUseProgram(shadowBillboardProgram);
+    glUniformMatrix4fv(glGetUniformLocation(shadowBillboardProgram, "lightMVP"),
+                       1, GL_FALSE, glm::value_ptr(lightMVP));
+    glUniformMatrix4fv(glGetUniformLocation(shadowBillboardProgram, "projection"),
+                       1, GL_FALSE, glm::value_ptr(glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, 0.1f, 100.0f)));
+    glUniformMatrix4fv(glGetUniformLocation(shadowBillboardProgram, "view"),
+                       1, GL_FALSE, glm::value_ptr(view));
+
+    glBindVertexArray(mesh.vao);
+    glDrawElementsInstanced(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
+
+    endShadowPass();
+}
+
+void Renderer::drawAtomsLowPoly(const glm::mat4& projection,
+                                const glm::mat4& view,
+                                const glm::mat4& lightMVP,
+                                const glm::vec3& lightPos,
+                                const glm::vec3& viewPos,
+                                const ShadowMap& shadow,
+                                const LowPolyMesh& mesh,
+                                size_t atomCount)
+{
+    glUseProgram(atomLowPolyProgram);
+
+    glUniformMatrix4fv(glGetUniformLocation(atomLowPolyProgram, "projection"),
+                       1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(glGetUniformLocation(atomLowPolyProgram, "view"),
+                       1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(atomLowPolyProgram, "lightMVP"),
+                       1, GL_FALSE, glm::value_ptr(lightMVP));
+
+    const std::array<glm::vec4, 6> frustumPlanes = extractFrustumPlanes(projection * view);
+    glUniform4fv(glGetUniformLocation(atomLowPolyProgram, "frustumPlanes"),
+                 6,
+                 glm::value_ptr(frustumPlanes[0]));
+    glUniform1i(glGetUniformLocation(atomLowPolyProgram, "enableFrustumCulling"), 1);
+
+    glUniform3fv(glGetUniformLocation(atomLowPolyProgram, "lightPos"),
+                 1, glm::value_ptr(lightPos));
+    glUniform3fv(glGetUniformLocation(atomLowPolyProgram, "viewPos"),
+                 1, glm::value_ptr(viewPos));
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
+    glUniform1i(glGetUniformLocation(atomLowPolyProgram, "shadowMap"), 0);
+
+    glBindVertexArray(mesh.vao);
+    glDrawElementsInstanced(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
+}
+
+void Renderer::drawAtomsBillboard(const glm::mat4& projection,
+                                  const glm::mat4& view,
+                                  const glm::mat4& lightMVP,
+                                  const glm::vec3& lightPos,
+                                  const glm::vec3& viewPos,
+                                  const ShadowMap& shadow,
+                                  const BillboardMesh& mesh,
+                                  size_t atomCount)
+{
+    glUseProgram(atomBillboardProgram);
+
+    glUniformMatrix4fv(glGetUniformLocation(atomBillboardProgram, "projection"),
+                       1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(glGetUniformLocation(atomBillboardProgram, "view"),
+                       1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(atomBillboardProgram, "lightMVP"),
+                       1, GL_FALSE, glm::value_ptr(lightMVP));
+
+    const std::array<glm::vec4, 6> frustumPlanes = extractFrustumPlanes(projection * view);
+    glUniform4fv(glGetUniformLocation(atomBillboardProgram, "frustumPlanes"),
+                 6,
+                 glm::value_ptr(frustumPlanes[0]));
+    glUniform1i(glGetUniformLocation(atomBillboardProgram, "enableFrustumCulling"), 1);
+
+    glUniform3fv(glGetUniformLocation(atomBillboardProgram, "lightPos"),
+                 1, glm::value_ptr(lightPos));
+    glUniform3fv(glGetUniformLocation(atomBillboardProgram, "viewPos"),
+                 1, glm::value_ptr(viewPos));
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
+    glUniform1i(glGetUniformLocation(atomBillboardProgram, "shadowMap"), 0);
+
+    glBindVertexArray(mesh.vao);
+    glDrawElementsInstanced(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
 }
 
 void Renderer::drawBonds(const glm::mat4& projection,

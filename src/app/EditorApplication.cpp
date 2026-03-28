@@ -20,6 +20,8 @@
 #include "Renderer.h"
 #include "ShadowMap.h"
 #include "SphereMesh.h"
+#include "LowPolyMesh.h"
+#include "BillboardMesh.h"
 #include "ui/ImGuiSetup.h"
 #include "ui/LatticePlaneOverlay.h"
 
@@ -32,6 +34,107 @@
 namespace
 {
 const glm::vec4 kSceneBackgroundColor(0.09f, 0.11f, 0.15f, 1.0f);
+
+// Dynamically selects rendering mode based on measured frame performance.
+// Starts from an initial estimate (set by SceneBuffers::upload based on atom
+// count) and adjusts up or down if the GPU can handle a better mode or is
+// struggling with the current one.
+struct AdaptiveRenderState
+{
+    static constexpr int    kWindowSize          = 30;     // rolling window (frames)
+    static constexpr int    kCooldownFrames      = 60;     // pause after a mode switch
+    static constexpr double kDowngradeThresholdMs = 33.0;  // > 33 ms ≈ < 30 fps
+    static constexpr double kUpgradeThresholdMs   = 20.0;  // < 20 ms ≈ > 50 fps
+
+    double frameTimes[30] = {};
+    int    frameIndex   = 0;
+    int    sampleCount  = 0;
+    int    cooldown     = 0;
+    double lastTime     = 0.0;
+    size_t lastAtomCount = 0;
+    bool   initialized  = false;
+
+    void update(SceneBuffers& buffers)
+    {
+        double now = glfwGetTime();
+        if (!initialized)
+        {
+            lastTime     = now;
+            lastAtomCount = buffers.atomCount;
+            initialized  = true;
+            return;
+        }
+
+        double dtMs = (now - lastTime) * 1000.0;
+        lastTime = now;
+
+        // Reset measurements when the structure changes.
+        if (buffers.atomCount != lastAtomCount)
+        {
+            lastAtomCount = buffers.atomCount;
+            sampleCount   = 0;
+            frameIndex    = 0;
+            cooldown      = kCooldownFrames;
+            return;
+        }
+
+        frameTimes[frameIndex] = dtMs;
+        frameIndex = (frameIndex + 1) % kWindowSize;
+        if (sampleCount < kWindowSize)
+            sampleCount++;
+
+        if (cooldown > 0) { cooldown--; return; }
+        if (sampleCount < kWindowSize) return;
+
+        // Compute rolling average frame time.
+        double avg = 0.0;
+        for (int i = 0; i < kWindowSize; i++)
+            avg += frameTimes[i];
+        avg /= kWindowSize;
+
+        RenderingMode current = buffers.renderMode;
+
+        if (avg > kDowngradeThresholdMs)
+        {
+            // Frame rate too low – switch to a cheaper mode.
+            if (current == RenderingMode::StandardInstancing)
+            {
+                buffers.renderMode = RenderingMode::LowPolyInstancing;
+                resetSamples();
+                std::cout << "[Adaptive] Downgraded to LowPoly (avg " << avg << " ms)\n";
+            }
+            else if (current == RenderingMode::LowPolyInstancing)
+            {
+                buffers.renderMode = RenderingMode::BillboardImposters;
+                resetSamples();
+                std::cout << "[Adaptive] Downgraded to Billboard (avg " << avg << " ms)\n";
+            }
+        }
+        else if (avg < kUpgradeThresholdMs)
+        {
+            // Plenty of headroom – try a higher-quality mode.
+            if (current == RenderingMode::BillboardImposters)
+            {
+                buffers.renderMode = RenderingMode::LowPolyInstancing;
+                resetSamples();
+                std::cout << "[Adaptive] Upgraded to LowPoly (avg " << avg << " ms)\n";
+            }
+            else if (current == RenderingMode::LowPolyInstancing)
+            {
+                buffers.renderMode = RenderingMode::StandardInstancing;
+                resetSamples();
+                std::cout << "[Adaptive] Upgraded to Standard (avg " << avg << " ms)\n";
+            }
+        }
+    }
+
+    void resetSamples()
+    {
+        cooldown    = kCooldownFrames;
+        sampleCount = 0;
+        frameIndex  = 0;
+    }
+};
 
 void applyPendingDefaultViewReset(Camera& camera, EditorState& state, const FrameView& frame)
 {
@@ -166,10 +269,30 @@ void drawScene(Renderer& renderer,
                const FrameView& frame,
                const ShadowMap& shadow,
                const SphereMesh& sphere,
+               const LowPolyMesh& lowPolyMesh,
+               const BillboardMesh& billboardMesh,
                const CylinderMesh& cylinder,
                const SceneBuffers& sceneBuffers,
                bool showBonds)
 {
+    // Shadow passes first (render into shadow FBO at shadow resolution)
+    switch (sceneBuffers.renderMode)
+    {
+        case RenderingMode::StandardInstancing:
+            renderer.drawShadowPass(shadow, sphere, frame.lightMVP, sceneBuffers.atomCount);
+            break;
+        case RenderingMode::LowPolyInstancing:
+            renderer.drawShadowPassLowPoly(shadow, lowPolyMesh, frame.lightMVP, sceneBuffers.atomCount);
+            break;
+        case RenderingMode::BillboardImposters:
+            renderer.drawShadowPassBillboard(shadow, billboardMesh, frame.lightMVP, frame.view, sceneBuffers.atomCount);
+            break;
+    }
+
+    if (showBonds)
+        renderer.drawBondShadowPass(shadow, cylinder, frame.lightMVP, sceneBuffers.bondCount);
+
+    // Restore viewport to screen size after shadow passes
     glViewport(0, 0, frame.framebufferWidth, frame.framebufferHeight);
     glClearColor(kSceneBackgroundColor.r,
                  kSceneBackgroundColor.g,
@@ -188,15 +311,43 @@ void drawScene(Renderer& renderer,
             sceneBuffers.bondCount);
     }
 
-    renderer.drawAtoms(
-        frame.projection,
-        frame.view,
-        frame.lightMVP,
-        frame.lightPosition,
-        frame.cameraPosition,
-        shadow,
-        sphere,
-        sceneBuffers.atomCount);
+    // Draw atoms based on rendering mode
+    switch (sceneBuffers.renderMode)
+    {
+        case RenderingMode::StandardInstancing:
+            renderer.drawAtoms(
+                frame.projection,
+                frame.view,
+                frame.lightMVP,
+                frame.lightPosition,
+                frame.cameraPosition,
+                shadow,
+                sphere,
+                sceneBuffers.atomCount);
+            break;
+        case RenderingMode::LowPolyInstancing:
+            renderer.drawAtomsLowPoly(
+                frame.projection,
+                frame.view,
+                frame.lightMVP,
+                frame.lightPosition,
+                frame.cameraPosition,
+                shadow,
+                lowPolyMesh,
+                sceneBuffers.atomCount);
+            break;
+        case RenderingMode::BillboardImposters:
+            renderer.drawAtomsBillboard(
+                frame.projection,
+                frame.view,
+                frame.lightMVP,
+                frame.lightPosition,
+                frame.cameraPosition,
+                shadow,
+                billboardMesh,
+                sceneBuffers.atomCount);
+            break;
+    }
 
     renderer.drawBoxLines(
         frame.projection,
@@ -212,6 +363,8 @@ void handleImageExportIfRequested(bool hasImageExportRequest,
                                   Renderer& renderer,
                                   ShadowMap& shadow,
                                   SphereMesh& sphere,
+                                  LowPolyMesh& lowPolyMesh,
+                                  BillboardMesh& billboardMesh,
                                   CylinderMesh& cylinder)
 {
     if (!hasImageExportRequest)
@@ -236,6 +389,8 @@ void handleImageExportIfRequested(bool hasImageExportRequest,
         renderer,
         shadow,
         sphere,
+        lowPolyMesh,
+        billboardMesh,
         cylinder,
         exportError);
 
@@ -294,13 +449,15 @@ int runAtomsEditor(const std::string& startupStructurePath)
     initImGui(window);
 
     SphereMesh sphere(40, 40);
+    LowPolyMesh lowPolyMesh;      // 12-facet icosahedron for 100k-10M atoms
+    BillboardMesh billboardMesh;  // Quad billboard for 10M+ atoms
     CylinderMesh cylinder(32);
 
     EditorState state;
     loadStartupStructureIfRequested(state, startupStructurePath);
     installDropFileCallback(window, state);
 
-    state.sceneBuffers.init(sphere.vao, cylinder.vao);
+    state.sceneBuffers.init(sphere.vao, lowPolyMesh.vao, billboardMesh.vao, cylinder.vao);
 
     Renderer renderer;
     renderer.init();
@@ -312,6 +469,8 @@ int runAtomsEditor(const std::string& startupStructurePath)
 
     updateBuffers(state);
     state.undoRedo.reset(captureSnapshot(state));
+
+    AdaptiveRenderState adaptiveRender;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -436,11 +595,16 @@ int runAtomsEditor(const std::string& startupStructurePath)
 
         ImGui::Render();
 
+        // Adaptive rendering: measure frame performance and adjust mode.
+        adaptiveRender.update(state.sceneBuffers);
+
         drawScene(
             renderer,
             frame,
             shadow,
             sphere,
+            lowPolyMesh,
+            billboardMesh,
             cylinder,
             state.sceneBuffers,
             state.fileBrowser.isShowBondsEnabled());
@@ -453,6 +617,8 @@ int runAtomsEditor(const std::string& startupStructurePath)
             renderer,
             shadow,
             sphere,
+            lowPolyMesh,
+            billboardMesh,
             cylinder);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

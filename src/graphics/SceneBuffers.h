@@ -8,6 +8,14 @@
 #include <array>
 #include <vector>
 
+// Rendering mode selection based on atom count
+enum class RenderingMode
+{
+    StandardInstancing,     // N > 100,000 - indexed sphere with glDrawElementsInstanced
+    LowPolyInstancing,      // 100k < N < 10M - 12-facet icosahedron
+    BillboardImposters      // N >= 10M - quad billboards
+};
+
 // Owns the GPU buffers for instanced atom rendering and the bounding-box lines.
 struct SceneBuffers
 {
@@ -27,6 +35,7 @@ struct SceneBuffers
 
     size_t         atomCount   = 0;
     size_t         bondCount   = 0;
+    RenderingMode  renderMode  = RenderingMode::StandardInstancing;  // Selected rendering mode
     glm::vec3      orbitCenter = glm::vec3(0.0f);
     std::vector<glm::vec3> boxLines;
 
@@ -48,7 +57,10 @@ struct SceneBuffers
     // Flag: if true, CPU caches are disabled (large structure)
     bool cpuCachesDisabled = false;
 
-    // Allocate GPU objects and wire instance attributes into sphereVAO.
+    // Allocate GPU objects and wire instance attributes into mesh VAOs.
+    void init(GLuint sphereVAO, GLuint lowPolyVAO, GLuint billboardVAO, GLuint cylinderVAO);
+
+    // Simplified init for preview renderers (standard instancing only).
     void init(GLuint sphereVAO, GLuint cylinderVAO);
 
     // Upload a new StructureInstanceData set to the GPU and cache derived data.

@@ -5,6 +5,8 @@
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
 #include "graphics/SphereMesh.h"
+#include "graphics/LowPolyMesh.h"
+#include "graphics/BillboardMesh.h"
 
 #include <GL/glew.h>
 #include <glm/glm.hpp>
@@ -92,8 +94,28 @@ void drawSceneToCurrentFramebuffer(const ImageExportView& view,
                                    Renderer& renderer,
                                    const ShadowMap& shadow,
                                    const SphereMesh& sphere,
+                                   const LowPolyMesh& lowPolyMesh,
+                                   const BillboardMesh& billboardMesh,
                                    const CylinderMesh& cylinder)
 {
+    // Shadow passes first (render into shadow FBO)
+    switch (sceneBuffers.renderMode)
+    {
+        case RenderingMode::StandardInstancing:
+            renderer.drawShadowPass(shadow, sphere, view.lightMVP, sceneBuffers.atomCount);
+            break;
+        case RenderingMode::LowPolyInstancing:
+            renderer.drawShadowPassLowPoly(shadow, lowPolyMesh, view.lightMVP, sceneBuffers.atomCount);
+            break;
+        case RenderingMode::BillboardImposters:
+            renderer.drawShadowPassBillboard(shadow, billboardMesh, view.lightMVP, view.view, sceneBuffers.atomCount);
+            break;
+    }
+
+    if (showBonds)
+        renderer.drawBondShadowPass(shadow, cylinder, view.lightMVP, sceneBuffers.bondCount);
+
+    // Restore viewport to export size after shadow passes
     glViewport(0, 0, view.width, view.height);
     glEnable(GL_DEPTH_TEST);
     glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
@@ -110,15 +132,43 @@ void drawSceneToCurrentFramebuffer(const ImageExportView& view,
             sceneBuffers.bondCount);
     }
 
-    renderer.drawAtoms(
-        view.projection,
-        view.view,
-        view.lightMVP,
-        view.lightPosition,
-        view.cameraPosition,
-        shadow,
-        sphere,
-        sceneBuffers.atomCount);
+    // Draw atoms based on rendering mode
+    switch (sceneBuffers.renderMode)
+    {
+        case RenderingMode::StandardInstancing:
+            renderer.drawAtoms(
+                view.projection,
+                view.view,
+                view.lightMVP,
+                view.lightPosition,
+                view.cameraPosition,
+                shadow,
+                sphere,
+                sceneBuffers.atomCount);
+            break;
+        case RenderingMode::LowPolyInstancing:
+            renderer.drawAtomsLowPoly(
+                view.projection,
+                view.view,
+                view.lightMVP,
+                view.lightPosition,
+                view.cameraPosition,
+                shadow,
+                lowPolyMesh,
+                sceneBuffers.atomCount);
+            break;
+        case RenderingMode::BillboardImposters:
+            renderer.drawAtomsBillboard(
+                view.projection,
+                view.view,
+                view.lightMVP,
+                view.lightPosition,
+                view.cameraPosition,
+                shadow,
+                billboardMesh,
+                sceneBuffers.atomCount);
+            break;
+    }
 
     renderer.drawBoxLines(
         view.projection,
@@ -150,6 +200,8 @@ bool captureSceneToRgba(const ImageExportView& view,
                         Renderer& renderer,
                         const ShadowMap& shadow,
                         const SphereMesh& sphere,
+                        const LowPolyMesh& lowPolyMesh,
+                        const BillboardMesh& billboardMesh,
                         const CylinderMesh& cylinder,
                         std::vector<unsigned char>& outPixels,
                         std::string& errorMessage)
@@ -223,6 +275,8 @@ bool captureSceneToRgba(const ImageExportView& view,
                                   renderer,
                                   shadow,
                                   sphere,
+                                  lowPolyMesh,
+                                  billboardMesh,
                                   cylinder);
 
     outPixels.resize((size_t)view.width * (size_t)view.height * 4);
@@ -253,6 +307,8 @@ bool writeRasterImage(const ImageExportRequest& request,
                       Renderer& renderer,
                       const ShadowMap& shadow,
                       const SphereMesh& sphere,
+                      const LowPolyMesh& lowPolyMesh,
+                      const BillboardMesh& billboardMesh,
                       const CylinderMesh& cylinder,
                       std::string& errorMessage)
 {
@@ -268,6 +324,8 @@ bool writeRasterImage(const ImageExportRequest& request,
                             renderer,
                             shadow,
                             sphere,
+                            lowPolyMesh,
+                            billboardMesh,
                             cylinder,
                             rgbaPixels,
                             errorMessage))
@@ -491,6 +549,8 @@ bool exportStructureImage(const ImageExportRequest& request,
                           Renderer& renderer,
                           const ShadowMap& shadow,
                           const SphereMesh& sphere,
+                          const LowPolyMesh& lowPolyMesh,
+                          const BillboardMesh& billboardMesh,
                           const CylinderMesh& cylinder,
                           std::string& errorMessage)
 {
@@ -512,6 +572,8 @@ bool exportStructureImage(const ImageExportRequest& request,
                             renderer,
                             shadow,
                             sphere,
+                            lowPolyMesh,
+                            billboardMesh,
                             cylinder,
                             errorMessage);
 }

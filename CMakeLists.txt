@@ -40,7 +40,9 @@ set(ATOMFORGE_SOURCES
     src/app/WindowSetup.cpp
     src/ElementData.cpp
     src/camera/Camera.cpp
+    src/graphics/BillboardMesh.cpp
     src/graphics/CylinderMesh.cpp
+    src/graphics/LowPolyMesh.cpp
     src/graphics/Renderer.cpp
     src/graphics/Picking.cpp
     src/graphics/SceneBuffers.cpp
