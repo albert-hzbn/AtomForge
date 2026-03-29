@@ -39,6 +39,11 @@ struct Structure
     // coloring mode is available.
     std::vector<std::array<float, 3>> grainColors;
 
+    // Optional per-atom grain/region ids for builder-generated bicrystals and
+    // polycrystals. When present, Grain Boundary coloring uses bonded
+    // cross-region neighbors instead of inferring boundaries from local order.
+    std::vector<int> grainRegionIds;
+
     // User-visible note set on load to indicate how IPF was obtained
     // (metadata sidecar, geometry fallback, or unavailable).
     std::string ipfLoadStatus;

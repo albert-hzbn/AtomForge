@@ -36,6 +36,7 @@ enum class AtomColorMode
 {
     ElementType = 0,
     CrystalOrientation,
+    GrainBoundary,
 };
 
 enum class ImageExportFormat

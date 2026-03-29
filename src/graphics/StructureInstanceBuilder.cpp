@@ -378,6 +378,7 @@ StructureInstanceData buildStructureInstanceData(
         result.hasUnitCell = true;
         result.cellOffset  = structure.cellOffset;
         const bool hasGrainColors = structure.grainColors.size() == structure.atoms.size();
+        const bool hasGrainRegionIds = structure.grainRegionIds.size() == structure.atoms.size();
 
         glm::vec3 aT = (float)transformMatrix[0][0]*a + (float)transformMatrix[0][1]*b + (float)transformMatrix[0][2]*c;
         glm::vec3 bT = (float)transformMatrix[1][0]*a + (float)transformMatrix[1][1]*b + (float)transformMatrix[1][2]*c;
@@ -415,6 +416,8 @@ StructureInstanceData buildStructureInstanceData(
                 result.atoms.push_back(site);
                 if (hasGrainColors)
                     result.grainColors.push_back(structure.grainColors[atomIndex]);
+                if (hasGrainRegionIds)
+                    result.grainRegionIds.push_back(structure.grainRegionIds[atomIndex]);
             }
         }
 

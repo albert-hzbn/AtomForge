@@ -1,14 +1,373 @@
 #include "app/EditorOps.h"
 
 #include "Camera.h"
+#include "ElementData.h"
 #include "graphics/StructureInstanceBuilder.h"
+#include "math/StructureMath.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
+#include <map>
+#include <queue>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace
 {
+struct Vec3iHash
+{
+    size_t operator()(const glm::ivec3& value) const
+    {
+        return ((size_t)value.x * 73856093u)
+             ^ ((size_t)value.y * 19349663u)
+             ^ ((size_t)value.z * 83492791u);
+    }
+};
+
+struct Signature
+{
+    int common = 0;
+    int bonds = 0;
+    int chain = 0;
+
+    bool operator<(const Signature& other) const
+    {
+        if (common != other.common) return common < other.common;
+        if (bonds != other.bonds) return bonds < other.bonds;
+        return chain < other.chain;
+    }
+
+    bool operator==(const Signature& other) const
+    {
+        return common == other.common && bonds == other.bonds && chain == other.chain;
+    }
+};
+
+glm::ivec3 getGridCell(const glm::vec3& position)
+{
+    constexpr float kSpatialHashCellSize = 4.0f;
+    return glm::ivec3((int)std::floor(position.x / kSpatialHashCellSize),
+                      (int)std::floor(position.y / kSpatialHashCellSize),
+                      (int)std::floor(position.z / kSpatialHashCellSize));
+}
+
+uint64_t edgeKey(int a, int b)
+{
+    if (a > b) std::swap(a, b);
+    return ((uint64_t)(uint32_t)a << 32) | (uint32_t)b;
+}
+
+int longestChainLength(const std::vector<int>& commonNodes,
+                       const std::unordered_set<uint64_t>& edgeSet)
+{
+    if (commonNodes.empty())
+        return 0;
+    if (commonNodes.size() == 1)
+        return 1;
+
+    std::vector<std::vector<int>> adjacency(commonNodes.size());
+    for (int i = 0; i < (int)commonNodes.size(); ++i)
+    {
+        for (int j = i + 1; j < (int)commonNodes.size(); ++j)
+        {
+            if (edgeSet.find(edgeKey(commonNodes[i], commonNodes[j])) != edgeSet.end())
+            {
+                adjacency[i].push_back(j);
+                adjacency[j].push_back(i);
+            }
+        }
+    }
+
+    int best = 1;
+    for (int src = 0; src < (int)commonNodes.size(); ++src)
+    {
+        std::vector<int> dist(commonNodes.size(), -1);
+        std::queue<int> q;
+        dist[src] = 0;
+        q.push(src);
+
+        while (!q.empty())
+        {
+            const int u = q.front();
+            q.pop();
+            for (int v : adjacency[u])
+            {
+                if (dist[v] >= 0)
+                    continue;
+                dist[v] = dist[u] + 1;
+                best = std::max(best, dist[v] + 1);
+                q.push(v);
+            }
+        }
+    }
+
+    return best;
+}
+
+bool isCrystalLikeEnvironment(const Signature& s)
+{
+    Signature fcc;  fcc.common = 4; fcc.bonds = 2; fcc.chain = 1;
+    Signature hcp;  hcp.common = 4; hcp.bonds = 2; hcp.chain = 2;
+    Signature bccA; bccA.common = 4; bccA.bonds = 4; bccA.chain = 1;
+    Signature bccB; bccB.common = 6; bccB.bonds = 6; bccB.chain = 1;
+    Signature ico;  ico.common = 5; ico.bonds = 5; ico.chain = 1;
+    return s == fcc || s == hcp || s == bccA || s == bccB || s == ico;
+}
+
+void applyGrainBoundaryColors(Structure& structure)
+{
+    if (structure.atoms.empty())
+        return;
+
+    const glm::vec3 crystalColor(0.20f, 0.72f, 0.98f);
+    const glm::vec3 gbColor(1.00f, 0.45f, 0.12f);
+
+    if (structure.atoms.size() < 4)
+    {
+        for (auto& atom : structure.atoms)
+        {
+            atom.r = crystalColor.r;
+            atom.g = crystalColor.g;
+            atom.b = crystalColor.b;
+        }
+        return;
+    }
+
+    std::vector<float> radii = makeLiteratureCovalentRadii();
+    glm::mat3 cell(1.0f), invCell(1.0f);
+    const bool usePbc = structure.hasUnitCell && tryMakeCellMatrices(structure, cell, invCell);
+
+    std::vector<glm::vec3> positions(structure.atoms.size());
+    for (int i = 0; i < (int)structure.atoms.size(); ++i)
+    {
+        positions[i] = glm::vec3((float)structure.atoms[i].x,
+                                 (float)structure.atoms[i].y,
+                                 (float)structure.atoms[i].z);
+    }
+
+    std::vector<std::vector<int>> neighbors(structure.atoms.size());
+    std::unordered_set<uint64_t> edgeSet;
+
+    auto tryAddBond = [&](int i, int j)
+    {
+        if (j <= i)
+            return;
+
+        const int zi = structure.atoms[i].atomicNumber;
+        const int zj = structure.atoms[j].atomicNumber;
+        const float ri = (zi >= 0 && zi < (int)radii.size()) ? radii[zi] : 1.0f;
+        const float rj = (zj >= 0 && zj < (int)radii.size()) ? radii[zj] : 1.0f;
+
+        const glm::vec3 delta = minimumImageDelta(positions[j] - positions[i], usePbc, cell, invCell);
+        const float d = glm::length(delta);
+        if (d <= kMinBondDistance)
+            return;
+
+        const float cutoff = (ri + rj) * kBondToleranceFactor;
+        if (d > cutoff)
+            return;
+
+        neighbors[i].push_back(j);
+        neighbors[j].push_back(i);
+        edgeSet.insert(edgeKey(i, j));
+    };
+
+    if (!usePbc)
+    {
+        std::unordered_map<glm::ivec3, std::vector<int>, Vec3iHash> grid;
+        grid.reserve(positions.size());
+        for (int i = 0; i < (int)positions.size(); ++i)
+            grid[getGridCell(positions[i])].push_back(i);
+
+        for (int i = 0; i < (int)positions.size(); ++i)
+        {
+            const glm::ivec3 cellCoord = getGridCell(positions[i]);
+            for (int dx = -1; dx <= 1; ++dx)
+            for (int dy = -1; dy <= 1; ++dy)
+            for (int dz = -1; dz <= 1; ++dz)
+            {
+                const glm::ivec3 neighborCell(cellCoord.x + dx, cellCoord.y + dy, cellCoord.z + dz);
+                auto it = grid.find(neighborCell);
+                if (it == grid.end())
+                    continue;
+
+                for (int idx : it->second)
+                    tryAddBond(i, idx);
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < (int)structure.atoms.size(); ++i)
+            for (int j = i + 1; j < (int)structure.atoms.size(); ++j)
+                tryAddBond(i, j);
+    }
+
+    for (auto& nbrs : neighbors)
+        std::sort(nbrs.begin(), nbrs.end());
+
+    std::vector<bool> isBoundary(structure.atoms.size(), false);
+    int boundarySeedCount = 0;
+
+    if (structure.grainRegionIds.size() == structure.atoms.size())
+    {
+        for (int i = 0; i < (int)structure.atoms.size(); ++i)
+        {
+            const int regionId = structure.grainRegionIds[i];
+            for (int ni : neighbors[i])
+            {
+                if (structure.grainRegionIds[ni] != regionId)
+                {
+                    if (!isBoundary[i])
+                    {
+                        isBoundary[i] = true;
+                        ++boundarySeedCount;
+                    }
+                    if (!isBoundary[ni])
+                    {
+                        isBoundary[ni] = true;
+                        ++boundarySeedCount;
+                    }
+                }
+            }
+        }
+
+        if (boundarySeedCount > 0)
+        {
+            for (int i = 0; i < (int)structure.atoms.size(); ++i)
+            {
+                const glm::vec3 color = isBoundary[i] ? gbColor : crystalColor;
+                structure.atoms[i].r = color.r;
+                structure.atoms[i].g = color.g;
+                structure.atoms[i].b = color.b;
+            }
+        }
+        else
+        {
+            for (auto& atom : structure.atoms)
+            {
+                atom.r = crystalColor.r;
+                atom.g = crystalColor.g;
+                atom.b = crystalColor.b;
+            }
+        }
+        return;
+    }
+
+    std::vector<int> coordination(structure.atoms.size(), 0);
+    std::map<int, std::map<int, int>> coordinationHistogramByElement;
+    for (int i = 0; i < (int)structure.atoms.size(); ++i)
+    {
+        coordination[i] = (int)neighbors[i].size();
+        ++coordinationHistogramByElement[structure.atoms[i].atomicNumber][coordination[i]];
+    }
+
+    std::map<int, int> modalCoordinationByElement;
+    for (std::map<int, std::map<int, int>>::const_iterator elementIt = coordinationHistogramByElement.begin();
+         elementIt != coordinationHistogramByElement.end(); ++elementIt)
+    {
+        int modalCoordination = 0;
+        int modalCount = -1;
+        for (std::map<int, int>::const_iterator coordIt = elementIt->second.begin();
+             coordIt != elementIt->second.end(); ++coordIt)
+        {
+            if (coordIt->second > modalCount)
+            {
+                modalCoordination = coordIt->first;
+                modalCount = coordIt->second;
+            }
+        }
+        modalCoordinationByElement[elementIt->first] = modalCoordination;
+    }
+
+    for (int i = 0; i < (int)structure.atoms.size(); ++i)
+    {
+        const int atomicNumber = structure.atoms[i].atomicNumber;
+        std::map<int, int>::const_iterator modalIt = modalCoordinationByElement.find(atomicNumber);
+        const int modalCoordination = (modalIt != modalCoordinationByElement.end()) ? modalIt->second : coordination[i];
+
+        if (std::abs(coordination[i] - modalCoordination) >= 1)
+        {
+            isBoundary[i] = true;
+            ++boundarySeedCount;
+        }
+    }
+
+    if (boundarySeedCount > 0)
+    {
+        for (int i = 0; i < (int)structure.atoms.size(); ++i)
+        {
+            const glm::vec3 color = isBoundary[i] ? gbColor : crystalColor;
+            structure.atoms[i].r = color.r;
+            structure.atoms[i].g = color.g;
+            structure.atoms[i].b = color.b;
+        }
+        return;
+    }
+
+    std::vector<std::map<Signature, int>> atomSignatures(structure.atoms.size());
+    for (int i = 0; i < (int)structure.atoms.size(); ++i)
+    {
+        for (int t = 0; t < (int)neighbors[i].size(); ++t)
+        {
+            const int j = neighbors[i][t];
+            if (j <= i)
+                continue;
+
+            std::vector<int> common;
+            common.reserve(std::min(neighbors[i].size(), neighbors[j].size()));
+            std::set_intersection(neighbors[i].begin(), neighbors[i].end(),
+                                  neighbors[j].begin(), neighbors[j].end(),
+                                  std::back_inserter(common));
+
+            int bondCount = 0;
+            for (int a = 0; a < (int)common.size(); ++a)
+            {
+                for (int b = a + 1; b < (int)common.size(); ++b)
+                {
+                    if (edgeSet.find(edgeKey(common[a], common[b])) != edgeSet.end())
+                        ++bondCount;
+                }
+            }
+
+            Signature sig;
+            sig.common = (int)common.size();
+            sig.bonds = bondCount;
+            sig.chain = longestChainLength(common, edgeSet);
+            ++atomSignatures[i][sig];
+            ++atomSignatures[j][sig];
+        }
+    }
+
+    std::vector<bool> fallbackBoundary(structure.atoms.size(), true);
+    for (int i = 0; i < (int)structure.atoms.size(); ++i)
+    {
+        Signature dominant;
+        int dominantCount = 0;
+        for (std::map<Signature, int>::const_iterator it = atomSignatures[i].begin(); it != atomSignatures[i].end(); ++it)
+        {
+            if (it->second > dominantCount)
+            {
+                dominant = it->first;
+                dominantCount = it->second;
+            }
+        }
+
+        const bool crystalLike = dominantCount > 0 && isCrystalLikeEnvironment(dominant);
+        fallbackBoundary[i] = !crystalLike;
+    }
+
+    for (int i = 0; i < (int)structure.atoms.size(); ++i)
+    {
+        const glm::vec3 color = fallbackBoundary[i] ? gbColor : crystalColor;
+        structure.atoms[i].r = color.r;
+        structure.atoms[i].g = color.g;
+        structure.atoms[i].b = color.b;
+    }
+}
+
 float estimateSceneRadius(const SceneBuffers& sceneBuffers)
 {
     float maxRadius = 0.0f;
@@ -72,7 +431,7 @@ void updateBuffers(EditorState& state)
         }
     }
 
-    // Override with grain orientation colors when Crystal Orientation mode is active
+    // Override with alternative color modes when selected.
     if (state.fileBrowser.getAtomColorMode() == AtomColorMode::CrystalOrientation)
     {
         if (state.structure.grainColors.size() == state.structure.atoms.size())
@@ -94,6 +453,10 @@ void updateBuffers(EditorState& state)
                 state.structure.atoms[i].b = 0.0f;
             }
         }
+    }
+    else if (state.fileBrowser.getAtomColorMode() == AtomColorMode::GrainBoundary)
+    {
+        applyGrainBoundaryColors(state.structure);
     }
 
     StructureInstanceData data = buildStructureInstanceData(

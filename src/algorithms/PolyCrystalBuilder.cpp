@@ -6,6 +6,7 @@
 #include <cmath>
 #include <random>
 #include <sstream>
+#include <unordered_map>
 
 // ---------------------------------------------------------------------------
 // Euler angles (Bunge convention, degrees) -> rotation matrix
@@ -48,14 +49,61 @@ static glm::mat3 randomRotation(std::mt19937& rng)
 // ---------------------------------------------------------------------------
 // Voronoi assignment: for each point, find out which seed is closest.
 // ---------------------------------------------------------------------------
-static int nearestSeed(const glm::vec3& pos,
-                       const std::vector<glm::vec3>& seeds)
+static float wrapPeriodicDelta(float delta, float period)
+{
+    if (period <= 1e-8f)
+        return delta;
+    return delta - std::round(delta / period) * period;
+}
+
+static float wrapToBox(float value, float period)
+{
+    if (period <= 1e-8f)
+        return value;
+    value -= std::floor(value / period) * period;
+    if (value >= period)
+        value -= period;
+    if (value < 0.0f)
+        value += period;
+    return value;
+}
+
+struct DedupCellKey
+{
+    int x = 0;
+    int y = 0;
+    int z = 0;
+
+    bool operator==(const DedupCellKey& other) const
+    {
+        return x == other.x && y == other.y && z == other.z;
+    }
+};
+
+struct DedupCellKeyHash
+{
+    size_t operator()(const DedupCellKey& key) const
+    {
+        return ((size_t)key.x * 73856093u)
+             ^ ((size_t)key.y * 19349663u)
+             ^ ((size_t)key.z * 83492791u);
+    }
+};
+
+static int nearestSeedPeriodic(const glm::vec3& pos,
+                               const std::vector<glm::vec3>& seeds,
+                               const glm::vec3& boxSize)
 {
     int best = 0;
-    float bestDist2 = glm::dot(pos - seeds[0], pos - seeds[0]);
+    glm::vec3 bestDelta(wrapPeriodicDelta(pos.x - seeds[0].x, boxSize.x),
+                        wrapPeriodicDelta(pos.y - seeds[0].y, boxSize.y),
+                        wrapPeriodicDelta(pos.z - seeds[0].z, boxSize.z));
+    float bestDist2 = glm::dot(bestDelta, bestDelta);
     for (int i = 1; i < (int)seeds.size(); ++i)
     {
-        const glm::vec3 d = pos - seeds[i];
+        const glm::vec3 d(wrapPeriodicDelta(pos.x - seeds[i].x, boxSize.x),
+                          wrapPeriodicDelta(pos.y - seeds[i].y, boxSize.y),
+                          wrapPeriodicDelta(pos.z - seeds[i].z, boxSize.z));
         const float d2 = glm::dot(d, d);
         if (d2 < bestDist2)
         {
@@ -163,6 +211,7 @@ PolyBuildResult buildPolycrystal(Structure& structure,
     std::vector<glm::vec3> seeds(params.numGrains);
     for (int i = 0; i < params.numGrains; ++i)
         seeds[i] = glm::vec3(distX(rng), distY(rng), distZ(rng));
+    const glm::vec3 boxSize(params.sizeX, params.sizeY, params.sizeZ);
 
     // --- Build rotation matrix per grain ------------------------------------
     std::vector<glm::mat3> grainRotations(params.numGrains);
@@ -232,6 +281,7 @@ PolyBuildResult buildPolycrystal(Structure& structure,
     // Precompute rotated lattice vectors for each grain
     std::vector<glm::vec3> rotA(params.numGrains), rotB(params.numGrains), rotC(params.numGrains);
     std::vector<std::array<float, 3>> grainIPFColors(params.numGrains);
+    constexpr float kInBoxTol = 1e-3f;
     for (int g = 0; g < params.numGrains; ++g)
     {
         rotA[g] = grainRotations[g] * a;
@@ -240,9 +290,63 @@ PolyBuildResult buildPolycrystal(Structure& structure,
         grainIPFColors[g] = computeIPFColor(grainRotations[g]);
     }
 
-    // For each grain, tile the unit cell (rotated) and keep atoms inside the
-    // box that belong to this grain's Voronoi region.
+    // For each grain, tile the unit cell (rotated), wrap atoms into the box,
+    // and keep sites that belong to this grain's periodic Voronoi region.
     std::vector<int> atomGrainIndex; // parallel to generatedAtoms
+    constexpr float kDuplicateTol = 0.08f;
+    constexpr float kDuplicateTolSq = kDuplicateTol * kDuplicateTol;
+    const float dedupCellSize = kDuplicateTol;
+    const int nx = std::max(1, (int)std::floor(params.sizeX / dedupCellSize));
+    const int ny = std::max(1, (int)std::floor(params.sizeY / dedupCellSize));
+    const int nz = std::max(1, (int)std::floor(params.sizeZ / dedupCellSize));
+    std::unordered_map<DedupCellKey, std::vector<int>, DedupCellKeyHash> dedupGrid;
+    dedupGrid.reserve((size_t)std::max(2048, (int)reference.atoms.size() * params.numGrains * 8));
+
+    auto wrapIndex = [](int idx, int n) -> int {
+        if (n <= 0) return 0;
+        idx %= n;
+        if (idx < 0) idx += n;
+        return idx;
+    };
+
+    auto dedupCellOf = [&](const glm::vec3& p) -> DedupCellKey {
+        DedupCellKey key;
+        key.x = wrapIndex((int)std::floor(p.x / dedupCellSize), nx);
+        key.y = wrapIndex((int)std::floor(p.y / dedupCellSize), ny);
+        key.z = wrapIndex((int)std::floor(p.z / dedupCellSize), nz);
+        return key;
+    };
+
+    auto isDuplicateSite = [&](const glm::vec3& p, int atomicNumber) -> bool {
+        const DedupCellKey center = dedupCellOf(p);
+        for (int dx = -1; dx <= 1; ++dx)
+        for (int dy = -1; dy <= 1; ++dy)
+        for (int dz = -1; dz <= 1; ++dz)
+        {
+            DedupCellKey key;
+            key.x = wrapIndex(center.x + dx, nx);
+            key.y = wrapIndex(center.y + dy, ny);
+            key.z = wrapIndex(center.z + dz, nz);
+            auto it = dedupGrid.find(key);
+            if (it == dedupGrid.end())
+                continue;
+
+            for (int idx : it->second)
+            {
+                const AtomSite& existing = generatedAtoms[idx];
+                if (existing.atomicNumber != atomicNumber)
+                    continue;
+
+                const float ddx = wrapPeriodicDelta(p.x - (float)existing.x, params.sizeX);
+                const float ddy = wrapPeriodicDelta(p.y - (float)existing.y, params.sizeY);
+                const float ddz = wrapPeriodicDelta(p.z - (float)existing.z, params.sizeZ);
+                const float d2 = ddx * ddx + ddy * ddy + ddz * ddz;
+                if (d2 <= kDuplicateTolSq)
+                    return true;
+            }
+        }
+        return false;
+    };
     for (int g = 0; g < params.numGrains; ++g)
     {
         const glm::vec3& seed = seeds[g];
@@ -273,20 +377,30 @@ PolyBuildResult buildPolycrystal(Structure& structure,
                 // place the grain's origin at its seed position.
                 const glm::vec3 pos = seed + rot * refPos + latticeOffset;
 
-                // Test: inside the simulation box?
-                if (pos.x < 0.0f || pos.x >= params.sizeX ||
-                    pos.y < 0.0f || pos.y >= params.sizeY ||
-                    pos.z < 0.0f || pos.z >= params.sizeZ)
+                // Keep only physically relevant images around the simulation box.
+                // Wrapping all distant images back into the box can flood the
+                // structure with aliased candidates and create disorder.
+                if (pos.x < -kInBoxTol || pos.x >= params.sizeX + kInBoxTol ||
+                    pos.y < -kInBoxTol || pos.y >= params.sizeY + kInBoxTol ||
+                    pos.z < -kInBoxTol || pos.z >= params.sizeZ + kInBoxTol)
                     continue;
 
+                const glm::vec3 wrappedPos(
+                    wrapToBox(pos.x, params.sizeX),
+                    wrapToBox(pos.y, params.sizeY),
+                    wrapToBox(pos.z, params.sizeZ));
+
                 // Test: belongs to this grain (nearest Voronoi seed)?
-                if (nearestSeed(pos, seeds) != g)
+                if (nearestSeedPeriodic(wrappedPos, seeds, boxSize) != g)
+                    continue;
+
+                if (isDuplicateSite(wrappedPos, atom.atomicNumber))
                     continue;
 
                 AtomSite out = atom;
-                out.x = (double)pos.x;
-                out.y = (double)pos.y;
-                out.z = (double)pos.z;
+                out.x = (double)wrappedPos.x;
+                out.y = (double)wrappedPos.y;
+                out.z = (double)wrappedPos.z;
 
                 int z = out.atomicNumber;
                 if (z >= 0 && z < (int)elementColors.size())
@@ -301,6 +415,7 @@ PolyBuildResult buildPolycrystal(Structure& structure,
                 }
                 generatedAtoms.push_back(out);
                 atomGrainIndex.push_back(g);
+                dedupGrid[dedupCellOf(wrappedPos)].push_back((int)generatedAtoms.size() - 1);
             }
         }
     }
@@ -325,8 +440,12 @@ PolyBuildResult buildPolycrystal(Structure& structure,
 
     // Populate per-atom grain orientation colors (IPF-Z) for EBSD-style display
     structure.grainColors.resize(structure.atoms.size());
+    structure.grainRegionIds.resize(structure.atoms.size());
     for (size_t i = 0; i < structure.atoms.size(); ++i)
+    {
         structure.grainColors[i] = grainIPFColors[atomGrainIndex[i]];
+        structure.grainRegionIds[i] = atomGrainIndex[i];
+    }
 
     result.success = true;
     std::ostringstream msg;

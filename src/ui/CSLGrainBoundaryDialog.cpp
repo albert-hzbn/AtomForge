@@ -638,6 +638,25 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
                     reduceToPrimitiveGB(structure, direction);
                 }
 
+                structure.grainRegionIds.assign(structure.atoms.size(), 0);
+                {
+                    double cell[3][3];
+                    for (int i = 0; i < 3; ++i)
+                        for (int j = 0; j < 3; ++j)
+                            cell[i][j] = structure.cellVectors[i][j];
+
+                    double inv[3][3];
+                    invertCell(cell, inv);
+                    for (size_t i = 0; i < structure.atoms.size(); ++i)
+                    {
+                        double cart[3] = {structure.atoms[i].x, structure.atoms[i].y, structure.atoms[i].z};
+                        double frac[3];
+                        cartToFrac(cart, inv, frac);
+                        const double layer = wrapFrac(frac[direction]);
+                        structure.grainRegionIds[i] = (layer >= 0.5) ? 1 : 0;
+                    }
+                }
+
                 lastResult.success = true;
                 lastResult.sigma = sel.sigma;
                 lastResult.thetaDeg = sel.thetaDeg;

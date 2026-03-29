@@ -174,7 +174,9 @@ bool loadIpfSidecarRecords(const std::string& filename,
 
     std::string header;
     std::getline(in, header);
-    if (header != "ATOMFORGE_IPF_V1")
+    const bool isV1 = (header == "ATOMFORGE_IPF_V1");
+    const bool isV2 = (header == "ATOMFORGE_IPF_V2");
+    if (!isV1 && !isV2)
         return false;
 
     size_t count = 0;
@@ -188,7 +190,15 @@ bool loadIpfSidecarRecords(const std::string& filename,
         int atomicNumber = 0;
         double x = 0.0, y = 0.0, z = 0.0;
         float r = 0.0f, g = 0.0f, b = 0.0f;
-        in >> atomicNumber >> x >> y >> z >> r >> g >> b;
+        if (isV1)
+        {
+            in >> atomicNumber >> x >> y >> z >> r >> g >> b;
+        }
+        else
+        {
+            int ignoredRegionId = -1;
+            in >> atomicNumber >> x >> y >> z >> r >> g >> b >> ignoredRegionId;
+        }
         if (!in)
             return false;
 
@@ -248,7 +258,9 @@ bool restoreIpfSidecar(const std::string& filename, Structure& structure)
     {
         // Fallback for formats that preserve atom order but perturb coordinates.
         for (size_t i = 0; i < structure.atoms.size(); ++i)
+        {
             restored[i] = records[i].color;
+        }
     }
 
     structure.grainColors.swap(restored);

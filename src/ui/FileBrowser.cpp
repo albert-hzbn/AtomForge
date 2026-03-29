@@ -309,6 +309,16 @@ void FileBrowser::draw(Structure& structure,
                         updateBuffers(structure);
                     }
                 }
+                if (ImGui::MenuItem("Grain Boundary", nullptr,
+                                    atomColorMode == AtomColorMode::GrainBoundary))
+                {
+                    if (atomColorMode != AtomColorMode::GrainBoundary)
+                    {
+                        atomColorMode = AtomColorMode::GrainBoundary;
+                        atomColorModeJustChanged = true;
+                        updateBuffers(structure);
+                    }
+                }
                 ImGui::EndMenu();
             }
 
