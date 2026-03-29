@@ -1078,6 +1078,16 @@ void FileBrowser::draw(Structure& structure,
             ImGui::BulletText("Polycrystal builds a Voronoi-based polycrystalline microstructure from a loaded reference single crystal with controllable box size, grain count, seed, and grain orientations.");
 
             ImGui::Spacing();
+            ImGui::Text("Bulk Crystal Builder");
+            ImGui::BulletText("Builds a full periodic unit cell from crystal system, space group, lattice parameters, and asymmetric-unit atoms.");
+            ImGui::BulletText("Useful for creating reference single crystals and simulation-ready periodic cells.");
+
+            ImGui::Spacing();
+            ImGui::Text("CSL Grain Boundary Builder");
+            ImGui::BulletText("Builds cubic bicrystals from ideal sc, bcc, fcc, or diamond source lattices.");
+            ImGui::BulletText("Controls Sigma selection, grain-boundary plane, replication, overlap removal, and rigid translation.");
+
+            ImGui::Spacing();
             ImGui::Text("Nanocrystal Builder");
             ImGui::BulletText("Uses the currently loaded structure as the reference source for carving.");
             ImGui::BulletText("You can drag and drop a supported structure file into the reference preview area while the dialog is open.");

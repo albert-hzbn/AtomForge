@@ -19,7 +19,6 @@ AtomForge is an atomic structure builder for metallurgical simulation and atomis
 - Windows via MSYS2 UCRT64 / MinGW-w64
 
 ## Quick start
-- **Polycrystal**: Build a polycrystalline box from a loaded reference single crystal using Voronoi grain partitioning. Control box size, grain count, random seed, and grain orientations.
 
 ### Linux
 
@@ -28,27 +27,11 @@ sudo apt update
 sudo apt install build-essential cmake pkg-config libglfw3-dev libglew-dev libglm-dev \
                  libopenbabel-dev libopenbabel3 libsymspg-dev
 
-### Polycrystal builder
-
-- Uses a loaded single-crystal reference structure with unit-cell information.
-- Builds grains by Voronoi tessellation inside a user-defined simulation box.
-- Supports fully random grain orientations, fully specified Euler-angle orientations, or mixed specified/random orientation sets.
-- Shows a live 3D preview of the reference crystal inside the builder dialog.
-- Writes per-atom IPF-Z orientation colors for visualization and export-side metadata.
-
-### Crystal orientation coloring
-
-- View -> Color Structure By -> Crystal Orientation switches atom colors from element colors to cubic IPF-Z colors.
-- An IPF triangle legend is shown in the main view when crystal-orientation coloring is active.
-- When a structure is saved, AtomForge writes a companion `basename.atomforge-ipf` file when IPF data is available.
-- On load, AtomForge first restores IPF from that saved metadata and only falls back to geometry-based reconstruction if no sidecar is found.
-
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ./build/AtomForge
 ./build/AtomForge structure.cif
 ```
-- Color by element type or crystal orientation.
 
 ### Windows (MSYS2 UCRT64)
 
@@ -221,6 +204,7 @@ Box selection is available through Edit -> Box Select Mode. When enabled, right-
 - **Bulk Crystal**: Generate periodic cells from crystal system, space group, lattice parameters, and asymmetric-unit atoms. Ideal for preparing supercells and commensurate structures.
 - **CSL Grain Boundary**: Construct cubic bicrystals with explicit Sigma selection from sc, bcc, fcc, or diamond source lattices. Control GB plane, in-plane replication, rigid translation, and overlap removal.
 - **Nanocrystal**: Carve finite particles from any loaded reference structure using sphere, ellipsoid, box, cylinder, octahedron, truncated octahedron, or cuboctahedron geometry. Apply auto-centering and optional unit-cell padding.
+- **Polycrystal**: Build a polycrystalline box from a loaded reference single crystal using Voronoi grain partitioning. Control box size, grain count, random seed, and grain orientations.
 
 ## Structure builders and analysis
 
@@ -246,6 +230,21 @@ AtomForge's builder system is designed to prepare structures for atomistic simul
 - Supports geometric shapes: sphere, ellipsoid, box, cylinder, octahedron, truncated octahedron, cuboctahedron.
 - Auto-replicates periodic inputs for efficient particle generation and can pad with vacuum.
 - Ideal for preparing nanoparticle input for cluster simulations and nanoscale property calculations.
+
+### Polycrystal builder
+
+- Uses a loaded single-crystal reference structure with unit-cell information.
+- Builds grains by Voronoi tessellation inside a user-defined simulation box.
+- Supports fully random grain orientations, fully specified Euler-angle orientations, or mixed specified/random orientation sets.
+- Shows a live 3D preview of the reference crystal inside the builder dialog.
+- Writes per-atom IPF-Z orientation colors for visualization and export-side metadata.
+
+### Crystal orientation coloring
+
+- View -> Color Structure By -> Crystal Orientation switches atom colors from element colors to cubic IPF-Z colors.
+- An IPF triangle legend is shown in the main view when crystal-orientation coloring is active.
+- When a structure is saved, AtomForge writes a companion `basename.atomforge-ipf` file when IPF data is available.
+- On load, AtomForge first restores IPF from that saved metadata and only falls back to geometry-based reconstruction if no sidecar is found.
 
 ### Structure analysis
 
@@ -281,6 +280,7 @@ AtomForge's builder system is designed to prepare structures for atomistic simul
 
 - Element labels and bond visibility.
 - Isometric and orthographic camera modes.
+- Color by element type or crystal orientation.
 - Structure information and measurement dialogs.
 - Reset default view.
 
@@ -288,6 +288,8 @@ AtomForge's builder system is designed to prepare structures for atomistic simul
 
 - Bulk Crystal.
 - CSL Grain Boundary.
+- Nanocrystal.
+- Polycrystal.
 - Nanocrystal.
 
 ### Analysis
