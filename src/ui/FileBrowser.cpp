@@ -1075,6 +1075,7 @@ void FileBrowser::draw(Structure& structure,
             ImGui::BulletText("Bulk Crystal builds a full periodic unit cell from crystal system, space group, lattice parameters, and asymmetric-unit atoms.");
             ImGui::BulletText("CSL Grain Boundary builds cubic bicrystals from ideal sc, bcc, fcc, or diamond source lattices.");
             ImGui::BulletText("Nanocrystal carves a finite particle from a loaded reference structure using sphere, ellipsoid, box, cylinder, octahedron, truncated octahedron, or cuboctahedron shapes.");
+            ImGui::BulletText("Polycrystal builds a Voronoi-based polycrystalline microstructure from a loaded reference single crystal with controllable box size, grain count, seed, and grain orientations.");
 
             ImGui::Spacing();
             ImGui::Text("Nanocrystal Builder");
@@ -1084,12 +1085,27 @@ void FileBrowser::draw(Structure& structure,
             ImGui::BulletText("Options include auto-centering, manual center coordinates, auto-replication for periodic inputs, and rectangular output-cell padding.");
 
             ImGui::Spacing();
+            ImGui::Text("Polycrystal Builder");
+            ImGui::BulletText("Requires a loaded reference single crystal with unit-cell information.");
+            ImGui::BulletText("The left panel accepts drag-and-drop and displays a 3D preview of the reference crystal.");
+            ImGui::BulletText("The builder creates grains by Voronoi tessellation inside a user-defined simulation box.");
+            ImGui::BulletText("Grain orientations can be all-random, all user-specified with Euler angles, or partially specified.");
+            ImGui::BulletText("Generated structures include per-atom IPF-Z orientation colors for crystal-orientation visualization.");
+
+            ImGui::Spacing();
             ImGui::Text("View Menu");
             ImGui::BulletText("Show Element toggles element labels.");
             ImGui::BulletText("Show Bonds toggles bond-cylinder rendering.");
             ImGui::BulletText("Isometric View and Orthographic View switch the camera projection mode.");
+            ImGui::BulletText("Color Structure By switches between element-type colors and crystal-orientation IPF coloring.");
             ImGui::BulletText("Structure Info shows composition, lattice metrics, positions, and symmetry when available.");
             ImGui::BulletText("Measure Distance, Measure Angle, and Atom Info open the corresponding dialogs for the current selection.");
+
+            ImGui::Spacing();
+            ImGui::Text("Crystal Orientation / IPF");
+            ImGui::BulletText("Crystal Orientation coloring uses cubic IPF-Z colors and displays an IPF triangle legend in the main view.");
+            ImGui::BulletText("When available, IPF data is restored from a saved sidecar file named basename.atomforge-ipf.");
+            ImGui::BulletText("If no saved IPF metadata is present, AtomForge can fall back to geometry-based orientation reconstruction.");
 
             ImGui::Spacing();
             ImGui::Text("Analysis Menu");
