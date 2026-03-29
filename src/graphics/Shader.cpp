@@ -69,3 +69,32 @@ GLuint createProgram(const char* vs,const char* fs)
 
     return p;
 }
+
+GLuint createComputeProgram(const char* cs)
+{
+    GLuint c = compile(GL_COMPUTE_SHADER, cs);
+    if (c == 0)
+        return 0;
+
+    GLuint p = glCreateProgram();
+    glAttachShader(p, c);
+    glLinkProgram(p);
+
+    GLint ok = GL_FALSE;
+    glGetProgramiv(p, GL_LINK_STATUS, &ok);
+    if (ok != GL_TRUE)
+    {
+        GLint logLength = 0;
+        glGetProgramiv(p, GL_INFO_LOG_LENGTH, &logLength);
+        std::vector<char> log((size_t)std::max(logLength, 1), '\0');
+        glGetProgramInfoLog(p, logLength, nullptr, log.data());
+        std::cerr << "Failed to link compute shader program:\n" << log.data() << "\n";
+
+        glDeleteProgram(p);
+        glDeleteShader(c);
+        return 0;
+    }
+
+    glDeleteShader(c);
+    return p;
+}

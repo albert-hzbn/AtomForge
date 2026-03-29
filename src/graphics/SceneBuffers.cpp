@@ -1,5 +1,6 @@
 #include "SceneBuffers.h"
 #include "math/StructureMath.h"
+#include "graphics/Shader.h"
 
 #include <algorithm>
 #include <cmath>
@@ -63,6 +64,145 @@ bool isLikelyCovalentElement(int atomicNumber)
             return false;
     }
 }
+
+const char* kInstanceUploadCS = R"(
+    #version 430 core
+
+    layout(local_size_x = 256) in;
+
+    layout(std430, binding = 0) readonly buffer InputPositions { vec4 inPositions[]; };
+    layout(std430, binding = 1) readonly buffer InputColors { vec4 inColors[]; };
+    layout(std430, binding = 2) readonly buffer InputScales { float inScales[]; };
+    layout(std430, binding = 3) readonly buffer InputShininess { float inShininess[]; };
+
+    layout(std430, binding = 4) writeonly buffer OutputPositions { vec4 outPositions[]; };
+    layout(std430, binding = 5) writeonly buffer OutputColors { vec4 outColors[]; };
+    layout(std430, binding = 6) writeonly buffer OutputScales { float outScales[]; };
+    layout(std430, binding = 7) writeonly buffer OutputShininess { float outShininess[]; };
+
+    uniform uint instanceCount;
+
+    void main()
+    {
+        uint idx = gl_GlobalInvocationID.x;
+        if (idx >= instanceCount)
+            return;
+
+        outPositions[idx] = inPositions[idx];
+        outColors[idx] = inColors[idx];
+        outScales[idx] = inScales[idx];
+        outShininess[idx] = inShininess[idx];
+    }
+)";
+
+bool uploadInstancesWithCompute(GLuint instanceVBO,
+                                GLuint colorVBO,
+                                GLuint scaleVBO,
+                                GLuint shininessVBO,
+                                const StructureInstanceData& data)
+{
+    if (!GLEW_VERSION_4_3)
+        return false;
+
+    static bool computeInitAttempted = false;
+    static GLuint computeProgram = 0;
+    if (!computeInitAttempted)
+    {
+        computeProgram = createComputeProgram(kInstanceUploadCS);
+        computeInitAttempted = true;
+    }
+    if (computeProgram == 0)
+        return false;
+
+    const size_t count = data.positions.size();
+    if (count == 0)
+    {
+        glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+        glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
+        glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, scaleVBO);
+        glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, shininessVBO);
+        glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_STATIC_DRAW);
+        return true;
+    }
+
+    std::vector<glm::vec4> pos4(count);
+    std::vector<glm::vec4> col4(count);
+    for (size_t i = 0; i < count; ++i)
+    {
+        pos4[i] = glm::vec4(data.positions[i], 1.0f);
+        col4[i] = glm::vec4(data.colors[i], 1.0f);
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+    glBufferData(GL_ARRAY_BUFFER, count * sizeof(glm::vec4), nullptr, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
+    glBufferData(GL_ARRAY_BUFFER, count * sizeof(glm::vec4), nullptr, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, scaleVBO);
+    glBufferData(GL_ARRAY_BUFFER, count * sizeof(float), nullptr, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ARRAY_BUFFER, shininessVBO);
+    glBufferData(GL_ARRAY_BUFFER, count * sizeof(float), nullptr, GL_STATIC_DRAW);
+
+    GLuint inPosSSBO = 0;
+    GLuint inColorSSBO = 0;
+    GLuint inScaleSSBO = 0;
+    GLuint inShinySSBO = 0;
+    glGenBuffers(1, &inPosSSBO);
+    glGenBuffers(1, &inColorSSBO);
+    glGenBuffers(1, &inScaleSSBO);
+    glGenBuffers(1, &inShinySSBO);
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, inPosSSBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, count * sizeof(glm::vec4), pos4.data(), GL_STATIC_DRAW);
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, inColorSSBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, count * sizeof(glm::vec4), col4.data(), GL_STATIC_DRAW);
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, inScaleSSBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, count * sizeof(float), data.scales.data(), GL_STATIC_DRAW);
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, inShinySSBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, count * sizeof(float), data.shininess.data(), GL_STATIC_DRAW);
+
+    glUseProgram(computeProgram);
+    glUniform1ui(glGetUniformLocation(computeProgram, "instanceCount"), (GLuint)count);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, inPosSSBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, inColorSSBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, inScaleSSBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, inShinySSBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, instanceVBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, colorVBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, scaleVBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, shininessVBO);
+
+    const GLuint localSize = 256;
+    const GLuint groups = (GLuint)((count + localSize - 1) / localSize);
+    glDispatchCompute(groups, 1, 1);
+    glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, 0);
+    glUseProgram(0);
+
+    glDeleteBuffers(1, &inPosSSBO);
+    glDeleteBuffers(1, &inColorSSBO);
+    glDeleteBuffers(1, &inScaleSSBO);
+    glDeleteBuffers(1, &inShinySSBO);
+
+    return true;
+}
 }
 
 void SceneBuffers::init(GLuint sphereVAO, GLuint lowPolyVAO, GLuint billboardVAO, GLuint cylinderVAO)
@@ -91,12 +231,12 @@ void SceneBuffers::init(GLuint sphereVAO, GLuint lowPolyVAO, GLuint billboardVAO
 
         glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), (void*)0);
         glVertexAttribDivisor(1, 1);
 
         glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
         glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), (void*)0);
         glVertexAttribDivisor(2, 1);
 
         glBindBuffer(GL_ARRAY_BUFFER, scaleVBO);
@@ -224,29 +364,46 @@ void SceneBuffers::upload(const StructureInstanceData& data,
         bondRadiiCpu.shrink_to_fit();
     }
 
-    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glBufferData(GL_ARRAY_BUFFER,
-                 data.positions.size() * sizeof(glm::vec3),
-                 data.positions.empty() ? nullptr : data.positions.data(),
-                 GL_STATIC_DRAW);
+    const bool uploadedWithCompute = uploadInstancesWithCompute(
+        instanceVBO,
+        colorVBO,
+        scaleVBO,
+        shininessVBO,
+        data);
 
-    glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
-    glBufferData(GL_ARRAY_BUFFER,
-                 data.colors.size() * sizeof(glm::vec3),
-                 data.colors.empty() ? nullptr : data.colors.data(),
-                 GL_STATIC_DRAW);
+    if (!uploadedWithCompute)
+    {
+        std::vector<glm::vec4> pos4(data.positions.size());
+        std::vector<glm::vec4> col4(data.colors.size());
+        for (size_t i = 0; i < data.positions.size(); ++i)
+            pos4[i] = glm::vec4(data.positions[i], 1.0f);
+        for (size_t i = 0; i < data.colors.size(); ++i)
+            col4[i] = glm::vec4(data.colors[i], 1.0f);
 
-    glBindBuffer(GL_ARRAY_BUFFER, scaleVBO);
-    glBufferData(GL_ARRAY_BUFFER,
-                 data.scales.size() * sizeof(float),
-                 data.scales.empty() ? nullptr : data.scales.data(),
-                 GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+        glBufferData(GL_ARRAY_BUFFER,
+                     pos4.size() * sizeof(glm::vec4),
+                     pos4.empty() ? nullptr : pos4.data(),
+                     GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ARRAY_BUFFER, shininessVBO);
-    glBufferData(GL_ARRAY_BUFFER,
-                 data.shininess.size() * sizeof(float),
-                 data.shininess.empty() ? nullptr : data.shininess.data(),
-                 GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
+        glBufferData(GL_ARRAY_BUFFER,
+                     col4.size() * sizeof(glm::vec4),
+                     col4.empty() ? nullptr : col4.data(),
+                     GL_STATIC_DRAW);
+
+        glBindBuffer(GL_ARRAY_BUFFER, scaleVBO);
+        glBufferData(GL_ARRAY_BUFFER,
+                     data.scales.size() * sizeof(float),
+                     data.scales.empty() ? nullptr : data.scales.data(),
+                     GL_STATIC_DRAW);
+
+        glBindBuffer(GL_ARRAY_BUFFER, shininessVBO);
+        glBufferData(GL_ARRAY_BUFFER,
+                     data.shininess.size() * sizeof(float),
+                     data.shininess.empty() ? nullptr : data.shininess.data(),
+                     GL_STATIC_DRAW);
+    }
 
     std::vector<glm::vec3> bondStarts;
     std::vector<glm::vec3> bondEnds;
@@ -440,11 +597,12 @@ void SceneBuffers::highlightAtom(int idx, glm::vec3 color)
 {
     if (idx < 0 || (size_t)idx >= atomCount)
         return;
+    glm::vec4 packed(color, 1.0f);
     glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
     glBufferSubData(GL_ARRAY_BUFFER,
-                    (GLintptr)(idx * (GLintptr)sizeof(glm::vec3)),
-                    sizeof(glm::vec3),
-                    &color);
+                    (GLintptr)(idx * (GLintptr)sizeof(glm::vec4)),
+                    sizeof(glm::vec4),
+                    &packed);
 }
 
 void SceneBuffers::restoreAtomColor(int idx)
@@ -452,9 +610,10 @@ void SceneBuffers::restoreAtomColor(int idx)
     if (idx < 0 || (size_t)idx >= atomColors.size())
         return;
     glm::vec3 orig = atomColors[idx];
+    glm::vec4 packed(orig, 1.0f);
     glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
     glBufferSubData(GL_ARRAY_BUFFER,
-                    (GLintptr)(idx * (GLintptr)sizeof(glm::vec3)),
-                    sizeof(glm::vec3),
-                    &orig);
+                    (GLintptr)(idx * (GLintptr)sizeof(glm::vec4)),
+                    sizeof(glm::vec4),
+                    &packed);
 }
