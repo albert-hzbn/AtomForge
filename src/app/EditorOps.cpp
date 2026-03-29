@@ -220,6 +220,17 @@ void applyGrainBoundaryColors(Structure& structure)
             {
                 if (structure.grainRegionIds[ni] != regionId)
                 {
+                    // Skip bonds that cross a periodic boundary – these connect
+                    // atoms on opposite faces of the box and are artefacts of
+                    // the periodic Voronoi tessellation, not real interior GBs.
+                    if (usePbc)
+                    {
+                        const glm::vec3 rawDelta = positions[ni] - positions[i];
+                        const glm::vec3 minDelta = minimumImageDelta(rawDelta, true, cell, invCell);
+                        if (glm::length(rawDelta - minDelta) > 0.1f)
+                            continue;
+                    }
+
                     if (!isBoundary[i])
                     {
                         isBoundary[i] = true;
@@ -282,13 +293,60 @@ void applyGrainBoundaryColors(Structure& structure)
         modalCoordinationByElement[elementIt->first] = modalCoordination;
     }
 
+    // Identify atoms near the bounding box edges.  Surface atoms naturally
+    // have lower coordination and should not be marked as grain-boundary atoms.
+    // For periodic structures the unit cell defines the box; for non-periodic
+    // structures we fall back to the bounding box of all atom positions.
+    std::vector<bool> nearEdge(structure.atoms.size(), false);
+    {
+        glm::vec3 bbMin, bbMax;
+        if (usePbc)
+        {
+            bbMin = glm::vec3((float)structure.cellOffset[0],
+                              (float)structure.cellOffset[1],
+                              (float)structure.cellOffset[2]);
+            bbMax = bbMin + glm::vec3(cell[0]) + glm::vec3(cell[1]) + glm::vec3(cell[2]);
+        }
+        else
+        {
+            bbMin = glm::vec3(std::numeric_limits<float>::max());
+            bbMax = glm::vec3(std::numeric_limits<float>::lowest());
+            for (const auto& pos : positions)
+            {
+                bbMin = glm::min(bbMin, pos);
+                bbMax = glm::max(bbMax, pos);
+            }
+        }
+
+        // Maximum possible bonding cutoff (two of the largest covalent radii).
+        float maxRadius = 0.0f;
+        for (int i = 0; i < (int)structure.atoms.size(); ++i)
+        {
+            const int z = structure.atoms[i].atomicNumber;
+            const float r = (z >= 0 && z < (int)radii.size()) ? radii[z] : 1.0f;
+            if (r > maxRadius) maxRadius = r;
+        }
+        const float edgeCutoff = maxRadius * 2.0f * kBondToleranceFactor;
+
+        for (int i = 0; i < (int)structure.atoms.size(); ++i)
+        {
+            const glm::vec3& p = positions[i];
+            if (p.x - bbMin.x < edgeCutoff || bbMax.x - p.x < edgeCutoff ||
+                p.y - bbMin.y < edgeCutoff || bbMax.y - p.y < edgeCutoff ||
+                p.z - bbMin.z < edgeCutoff || bbMax.z - p.z < edgeCutoff)
+            {
+                nearEdge[i] = true;
+            }
+        }
+    }
+
     for (int i = 0; i < (int)structure.atoms.size(); ++i)
     {
         const int atomicNumber = structure.atoms[i].atomicNumber;
         std::map<int, int>::const_iterator modalIt = modalCoordinationByElement.find(atomicNumber);
         const int modalCoordination = (modalIt != modalCoordinationByElement.end()) ? modalIt->second : coordination[i];
 
-        if (std::abs(coordination[i] - modalCoordination) >= 1)
+        if (std::abs(coordination[i] - modalCoordination) >= 1 && !nearEdge[i])
         {
             isBoundary[i] = true;
             ++boundarySeedCount;
