@@ -128,6 +128,7 @@ FileBrowser::FileBrowser()
 
     openFilename[0] = '\0';
     openStatusMsg[0] = '\0';
+    std::snprintf(loadPopupTitle, sizeof(loadPopupTitle), "Load Error");
     loadErrorMsg[0] = '\0';
     saveFilename[0] = '\0';
     saveStatusMsg[0] = '\0';
@@ -440,13 +441,13 @@ void FileBrowser::draw(Structure& structure,
 
     if (loadErrorPopupRequested)
     {
-        ImGui::OpenPopup("Load Error");
+        ImGui::OpenPopup(loadPopupTitle);
         loadErrorPopupRequested = false;
     }
 
     ImGui::SetNextWindowSize(ImVec2(720.0f, 0.0f), ImGuiCond_Appearing);
     bool loadErrorOpen = true;
-    if (ImGui::BeginPopupModal("Load Error", &loadErrorOpen, ImGuiWindowFlags_NoResize))
+    if (ImGui::BeginPopupModal(loadPopupTitle, &loadErrorOpen, ImGuiWindowFlags_NoResize))
     {
         ImGui::TextUnformatted(loadErrorMsg);
         ImGui::Spacing();
@@ -563,6 +564,7 @@ void FileBrowser::draw(Structure& structure,
                 latticePlanes.clear();
                 showLatticePlanes = false;
                 applyElementColorOverrides(structure);
+                showLoadInfo(structure.ipfLoadStatus);
 
                 updateBuffers(structure);
                 requestResetDefaultView = true;
@@ -1325,11 +1327,23 @@ void FileBrowser::feedDropToPolyCrystalDialog(const std::string& path)
 
 void FileBrowser::showLoadError(const std::string& message)
 {
+    std::snprintf(loadPopupTitle, sizeof(loadPopupTitle), "%s", "Load Error");
     std::snprintf(
         loadErrorMsg,
         sizeof(loadErrorMsg),
         "%s",
         message.empty() ? "Failed to load file." : message.c_str());
+    loadErrorPopupRequested = true;
+}
+
+void FileBrowser::showLoadInfo(const std::string& message)
+{
+    std::snprintf(loadPopupTitle, sizeof(loadPopupTitle), "%s", "Load Status");
+    std::snprintf(
+        loadErrorMsg,
+        sizeof(loadErrorMsg),
+        "%s",
+        message.empty() ? "Load completed." : message.c_str());
     loadErrorPopupRequested = true;
 }
 

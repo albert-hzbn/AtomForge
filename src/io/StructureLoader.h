@@ -38,6 +38,10 @@ struct Structure
     // builder. When non-empty (same size as atoms), "Crystal Orientation"
     // coloring mode is available.
     std::vector<std::array<float, 3>> grainColors;
+
+    // User-visible note set on load to indicate how IPF was obtained
+    // (metadata sidecar, geometry fallback, or unavailable).
+    std::string ipfLoadStatus;
 };
 
 void getDefaultElementColor(int atomicNumber, float& r, float& g, float& b);

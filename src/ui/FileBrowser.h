@@ -212,6 +212,8 @@ struct FileBrowser
 
     // Show a modal error popup for file-load failures.
     void showLoadError(const std::string& message);
+    // Show a modal informational popup for successful load status.
+    void showLoadInfo(const std::string& message);
 
 private:
     void updateBondElementFilterMask();
@@ -270,6 +272,7 @@ private:
     ImageExportRequest pendingImageExport;
 
     char openStatusMsg[256];
+    char loadPopupTitle[64];
     char loadErrorMsg[512];
     char saveFilename[1024];
     char saveStatusMsg[256];

@@ -80,6 +80,7 @@ void processDroppedFiles(EditorState& state)
     state.structure = std::move(loadedStructure);
     state.fileBrowser.initFromPath(droppedFile);
     state.fileBrowser.applyElementColorOverrides(state.structure);
+    state.fileBrowser.showLoadInfo(state.structure.ipfLoadStatus);
     updateBuffers(state);
     state.pendingDefaultViewReset = true;
 

@@ -18,6 +18,7 @@
 #include <cstring>
 #include <fstream>
 #include <iomanip>
+#include <queue>
 #include <sstream>
 #include <unordered_map>
 #include <vector>
@@ -74,6 +75,16 @@ struct IpfRecord
     std::array<float, 3> color = {{0.0f, 0.0f, 0.0f}};
 };
 
+struct Vec3iHash
+{
+    size_t operator()(const glm::ivec3& value) const
+    {
+        return ((size_t)value.x * 73856093u)
+             ^ ((size_t)value.y * 19349663u)
+             ^ ((size_t)value.z * 83492791u);
+    }
+};
+
 long long quantizeIpfCoord(double value)
 {
     return (long long)std::llround(value * 10000.0);
@@ -91,13 +102,27 @@ IpfKey makeIpfKey(int atomicNumber, double x, double y, double z)
 
 std::string ipfSidecarPath(const std::string& filename)
 {
+    const std::size_t slashPos = filename.find_last_of("/\\");
+    const std::size_t dotPos = filename.find_last_of('.');
+    const bool hasExtension = (dotPos != std::string::npos)
+                           && (slashPos == std::string::npos || dotPos > slashPos);
+    if (!hasExtension)
+        return filename + kIpfSidecarSuffix;
+    return filename.substr(0, dotPos) + kIpfSidecarSuffix;
+}
+
+std::string ipfLegacySidecarPath(const std::string& filename)
+{
     return filename + kIpfSidecarSuffix;
 }
 
 void removeIpfSidecar(const std::string& filename)
 {
     const std::string path = ipfSidecarPath(filename);
+    const std::string legacyPath = ipfLegacySidecarPath(filename);
     std::remove(path.c_str());
+    if (legacyPath != path)
+        std::remove(legacyPath.c_str());
 }
 
 bool saveIpfSidecar(const Structure& structure, const std::string& filename)
@@ -133,10 +158,19 @@ bool loadIpfSidecarRecords(const std::string& filename,
 {
     records.clear();
 
+    std::ifstream in;
     const std::string path = ipfSidecarPath(filename);
-    std::ifstream in(path.c_str());
+    in.open(path.c_str());
     if (!in)
-        return false;
+    {
+        in.clear();
+        const std::string legacyPath = ipfLegacySidecarPath(filename);
+        if (legacyPath == path)
+            return false;
+        in.open(legacyPath.c_str());
+        if (!in)
+            return false;
+    }
 
     std::string header;
     std::getline(in, header);
@@ -218,6 +252,429 @@ bool restoreIpfSidecar(const std::string& filename, Structure& structure)
     }
 
     structure.grainColors.swap(restored);
+    return true;
+}
+
+std::array<float, 3> ipfColorFromDirection(const glm::vec3& direction)
+{
+    float h = std::abs(direction.x);
+    float k = std::abs(direction.y);
+    float l = std::abs(direction.z);
+
+    if (h < k) std::swap(h, k);
+    if (h < l) std::swap(h, l);
+    if (k < l) std::swap(k, l);
+
+    const float len = std::sqrt(h * h + k * k + l * l);
+    if (len < 1e-10f)
+        return {{0.5f, 0.5f, 0.5f}};
+
+    h /= len;
+    k /= len;
+    l /= len;
+
+    float r = h - k;
+    float g = k - l;
+    float b = l * 1.7320508f;
+
+    const float maxC = std::max({r, g, b, 1e-6f});
+    r /= maxC;
+    g /= maxC;
+    b /= maxC;
+
+    return {{r, g, b}};
+}
+
+bool recoverIpfFromGeometry(Structure& structure)
+{
+    if (structure.atoms.size() < 8)
+        return false;
+
+    constexpr float kCellSize = 4.0f;
+    constexpr float kMaxNeighborDist = 4.2f;
+    constexpr float kMinNeighborDist = 0.2f;
+    constexpr int kTargetNeighbors = 16;
+
+    std::vector<glm::vec3> positions(structure.atoms.size());
+    positions.reserve(structure.atoms.size());
+    for (size_t i = 0; i < structure.atoms.size(); ++i)
+    {
+        positions[i] = glm::vec3((float)structure.atoms[i].x,
+                                 (float)structure.atoms[i].y,
+                                 (float)structure.atoms[i].z);
+    }
+
+    auto gridCell = [&](const glm::vec3& pos) -> glm::ivec3 {
+        return glm::ivec3((int)std::floor(pos.x / kCellSize),
+                          (int)std::floor(pos.y / kCellSize),
+                          (int)std::floor(pos.z / kCellSize));
+    };
+
+    std::unordered_map<glm::ivec3, std::vector<int>, Vec3iHash> grid;
+    grid.reserve(structure.atoms.size());
+    for (int i = 0; i < (int)positions.size(); ++i)
+        grid[gridCell(positions[i])].push_back(i);
+
+    std::vector<glm::vec3> crystalDirs(structure.atoms.size(), glm::vec3(0.0f, 0.0f, 1.0f));
+    std::vector<std::vector<int>> neighborIds(structure.atoms.size());
+    std::vector<bool> hasDir(structure.atoms.size(), false);
+    int recoveredCount = 0;
+
+    for (int i = 0; i < (int)positions.size(); ++i)
+    {
+        const glm::ivec3 c = gridCell(positions[i]);
+        std::vector<std::pair<float, int>> neighbors;
+        neighbors.reserve(64);
+
+        for (int dx = -1; dx <= 1; ++dx)
+        {
+            for (int dy = -1; dy <= 1; ++dy)
+            {
+                for (int dz = -1; dz <= 1; ++dz)
+                {
+                    const glm::ivec3 cc(c.x + dx, c.y + dy, c.z + dz);
+                    auto it = grid.find(cc);
+                    if (it == grid.end())
+                        continue;
+
+                    const std::vector<int>& bucket = it->second;
+                    for (int idx : bucket)
+                    {
+                        if (idx == i)
+                            continue;
+                        const glm::vec3 d = positions[idx] - positions[i];
+                        const float dist = glm::length(d);
+                        if (dist < kMinNeighborDist || dist > kMaxNeighborDist)
+                            continue;
+                        neighbors.push_back(std::make_pair(dist, idx));
+                    }
+                }
+            }
+        }
+
+        if (neighbors.size() < 3)
+            continue;
+
+        std::sort(neighbors.begin(), neighbors.end(),
+                        [](const std::pair<float, int>& a,
+                            const std::pair<float, int>& b) {
+            return a.first < b.first;
+        });
+
+        const int useCount = std::min((int)neighbors.size(), kTargetNeighbors);
+        neighborIds[i].reserve(useCount);
+        std::vector<glm::vec3> unitVecs;
+        unitVecs.reserve(useCount);
+        for (int n = 0; n < useCount; ++n)
+        {
+            const int ni = neighbors[n].second;
+            const glm::vec3 d = positions[ni] - positions[i];
+            const float dn = glm::length(d);
+            if (dn < 1e-8f)
+                continue;
+            const glm::vec3 u = d / dn;
+
+            neighborIds[i].push_back(ni);
+            unitVecs.push_back(u);
+        }
+
+        if (unitVecs.size() < 3)
+            continue;
+
+        // Build a local orthonormal frame from two non-collinear neighbor vectors.
+        const glm::vec3 u1 = glm::normalize(unitVecs[0]);
+        bool foundSecond = false;
+        glm::vec3 u2raw(0.0f);
+        for (size_t n = 1; n < unitVecs.size(); ++n)
+        {
+            const float c = std::abs(glm::dot(u1, unitVecs[n]));
+            if (c < 0.85f)
+            {
+                u2raw = unitVecs[n];
+                foundSecond = true;
+                break;
+            }
+        }
+        if (!foundSecond)
+            continue;
+
+        glm::vec3 u2 = u2raw - glm::dot(u2raw, u1) * u1;
+        const float u2n = glm::length(u2);
+        if (u2n < 1e-6f)
+            continue;
+        u2 /= u2n;
+
+        glm::vec3 u3 = glm::cross(u1, u2);
+        const float u3n = glm::length(u3);
+        if (u3n < 1e-6f)
+            continue;
+        u3 /= u3n;
+
+        const glm::mat3 R(u1, u2, u3);
+        const glm::vec3 zDir(0.0f, 0.0f, 1.0f);
+        const glm::vec3 crystalDir = glm::transpose(R) * zDir;
+        if (glm::length(crystalDir) < 1e-6f)
+            continue;
+
+        crystalDirs[i] = glm::normalize(crystalDir);
+        hasDir[i] = true;
+        ++recoveredCount;
+    }
+
+    if (recoveredCount < (int)structure.atoms.size() / 4)
+        return false;
+
+    // Fill missing directions using local neighbors only.
+    for (int pass = 0; pass < 3; ++pass)
+    {
+        bool changed = false;
+        for (size_t i = 0; i < crystalDirs.size(); ++i)
+        {
+            if (hasDir[i])
+                continue;
+
+            glm::vec3 sum(0.0f, 0.0f, 0.0f);
+            const std::vector<int>& nbrs = neighborIds[i];
+            for (int ni : nbrs)
+            {
+                if (!hasDir[ni])
+                    continue;
+                glm::vec3 a = crystalDirs[ni];
+                if (glm::dot(a, sum) < 0.0f)
+                    a = -a;
+                sum += a;
+            }
+
+            if (glm::length(sum) > 1e-8f)
+            {
+                crystalDirs[i] = glm::normalize(sum);
+                hasDir[i] = true;
+                changed = true;
+            }
+        }
+        if (!changed)
+            break;
+    }
+
+    for (size_t i = 0; i < crystalDirs.size(); ++i)
+    {
+        if (!hasDir[i])
+            crystalDirs[i] = glm::vec3(0.0f, 0.0f, 1.0f);
+    }
+
+    // Smooth orientation field inside neighborhoods.
+    for (int iter = 0; iter < 4; ++iter)
+    {
+        std::vector<glm::vec3> nextDirs = crystalDirs;
+        for (size_t i = 0; i < crystalDirs.size(); ++i)
+        {
+            glm::vec3 sum = crystalDirs[i] * 2.0f;
+            const std::vector<int>& nbrs = neighborIds[i];
+            for (int ni : nbrs)
+            {
+                glm::vec3 a = crystalDirs[ni];
+                if (glm::dot(a, sum) < 0.0f)
+                    a = -a;
+                sum += a;
+            }
+
+            if (glm::length(sum) > 1e-8f)
+            {
+                nextDirs[i] = glm::normalize(sum);
+            }
+        }
+        crystalDirs.swap(nextDirs);
+    }
+
+    // Segment into connected orientation regions and color per region
+    // to avoid speckled atom-wise noise.
+    const float cosThreshold = std::cos(20.0f * 3.1415926535f / 180.0f);
+    std::vector<int> regionId(crystalDirs.size(), -1);
+    std::vector<glm::vec3> regionMeans;
+    std::vector<std::vector<int>> regionMembers;
+
+    for (size_t seed = 0; seed < crystalDirs.size(); ++seed)
+    {
+        if (regionId[seed] >= 0)
+            continue;
+
+        const int rid = (int)regionMeans.size();
+        regionMeans.push_back(glm::normalize(crystalDirs[seed]));
+        regionMembers.push_back(std::vector<int>());
+
+        std::queue<int> q;
+        q.push((int)seed);
+        regionId[seed] = rid;
+        regionMembers[rid].push_back((int)seed);
+
+        glm::vec3 sum = crystalDirs[seed];
+
+        while (!q.empty())
+        {
+            const int u = q.front();
+            q.pop();
+
+            glm::vec3 ref = (glm::length(sum) > 1e-8f)
+                          ? glm::normalize(sum)
+                          : glm::normalize(crystalDirs[u]);
+
+            const std::vector<int>& nbrs = neighborIds[u];
+            for (int v : nbrs)
+            {
+                if (regionId[v] >= 0)
+                    continue;
+
+                const glm::vec3 dv = glm::normalize(crystalDirs[v]);
+                if (std::abs(glm::dot(dv, ref)) < cosThreshold)
+                    continue;
+
+                regionId[v] = rid;
+                regionMembers[rid].push_back(v);
+                q.push(v);
+
+                glm::vec3 aligned = dv;
+                if (glm::dot(aligned, sum) < 0.0f)
+                    aligned = -aligned;
+                sum += aligned;
+            }
+        }
+
+        if (glm::length(sum) > 1e-8f)
+            regionMeans[rid] = glm::normalize(sum);
+    }
+
+    const int nAtoms = (int)crystalDirs.size();
+    const int minRegionSize = std::max(32, nAtoms / 180);
+    std::vector<bool> isLarge(regionMeans.size(), false);
+    for (size_t r = 0; r < regionMembers.size(); ++r)
+        isLarge[r] = (int)regionMembers[r].size() >= minRegionSize;
+
+    bool anyLarge = false;
+    for (size_t r = 0; r < isLarge.size(); ++r)
+        anyLarge = anyLarge || isLarge[r];
+
+    if (!anyLarge && !regionMembers.empty())
+    {
+        size_t largest = 0;
+        for (size_t r = 1; r < regionMembers.size(); ++r)
+        {
+            if (regionMembers[r].size() > regionMembers[largest].size())
+                largest = r;
+        }
+        isLarge[largest] = true;
+    }
+
+    // Merge small noisy regions as whole components into large regions.
+    std::vector<int> regionRemap(regionMeans.size(), -1);
+    for (size_t r = 0; r < regionMeans.size(); ++r)
+        regionRemap[r] = (int)r;
+
+    std::vector<std::unordered_map<int, int>> regionAdjLarge(regionMeans.size());
+    for (int i = 0; i < nAtoms; ++i)
+    {
+        const int ri = regionId[i];
+        if (ri < 0)
+            continue;
+
+        const std::vector<int>& nbrs = neighborIds[i];
+        for (int ni : nbrs)
+        {
+            if (ni <= i)
+                continue;
+            const int rj = regionId[ni];
+            if (rj < 0 || rj == ri)
+                continue;
+
+            if (!isLarge[ri] && isLarge[rj])
+                regionAdjLarge[ri][rj] += 1;
+            if (!isLarge[rj] && isLarge[ri])
+                regionAdjLarge[rj][ri] += 1;
+        }
+    }
+
+    for (size_t r = 0; r < regionMeans.size(); ++r)
+    {
+        if (isLarge[r])
+            continue;
+
+        int bestRegion = -1;
+        int bestCount = -1;
+        float bestOrient = -1.0f;
+
+        for (std::unordered_map<int, int>::const_iterator it = regionAdjLarge[r].begin();
+             it != regionAdjLarge[r].end(); ++it)
+        {
+            const int nr = it->first;
+            const int cnt = it->second;
+            const float orient = std::abs(glm::dot(regionMeans[r], regionMeans[nr]));
+            if (cnt > bestCount || (cnt == bestCount && orient > bestOrient))
+            {
+                bestRegion = nr;
+                bestCount = cnt;
+                bestOrient = orient;
+            }
+        }
+
+        if (bestRegion < 0)
+        {
+            for (size_t nr = 0; nr < regionMeans.size(); ++nr)
+            {
+                if (!isLarge[nr])
+                    continue;
+                const float orient = std::abs(glm::dot(regionMeans[r], regionMeans[nr]));
+                if (orient > bestOrient)
+                {
+                    bestOrient = orient;
+                    bestRegion = (int)nr;
+                }
+            }
+        }
+
+        if (bestRegion >= 0)
+            regionRemap[r] = bestRegion;
+    }
+
+    for (int i = 0; i < nAtoms; ++i)
+    {
+        const int rid = regionId[i];
+        if (rid >= 0)
+            regionId[i] = regionRemap[rid];
+    }
+
+    // Recompute stable region means after merging.
+    std::vector<glm::vec3> finalMeans(regionMeans.size(), glm::vec3(0.0f));
+    std::vector<int> finalCounts(regionMeans.size(), 0);
+    for (int i = 0; i < nAtoms; ++i)
+    {
+        const int rid = regionId[i];
+        if (rid < 0)
+            continue;
+        glm::vec3 d = glm::normalize(crystalDirs[i]);
+        if (finalCounts[rid] > 0 && glm::dot(d, finalMeans[rid]) < 0.0f)
+            d = -d;
+        finalMeans[rid] += d;
+        finalCounts[rid] += 1;
+    }
+
+    for (size_t r = 0; r < finalMeans.size(); ++r)
+    {
+        if (finalCounts[r] > 0 && glm::length(finalMeans[r]) > 1e-8f)
+            finalMeans[r] = glm::normalize(finalMeans[r]);
+        else
+            finalMeans[r] = glm::vec3(0.0f, 0.0f, 1.0f);
+    }
+
+    std::vector<std::array<float, 3>> recovered(structure.atoms.size());
+    for (size_t i = 0; i < crystalDirs.size(); ++i)
+    {
+        const int rid = (regionId[i] >= 0) ? regionId[i] : 0;
+        const glm::vec3 dir = (rid >= 0 && rid < (int)finalMeans.size())
+                            ? finalMeans[rid]
+                            : glm::vec3(0.0f, 0.0f, 1.0f);
+        recovered[i] = ipfColorFromDirection(dir);
+    }
+
+    structure.grainColors.swap(recovered);
     return true;
 }
 
@@ -995,7 +1452,22 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
     if (structure.hasUnitCell)
         wrapAtomsIntoPrimaryCell(structure);
 
-    restoreIpfSidecar(filename, structure);
+    const bool restoredFromSidecar = restoreIpfSidecar(filename, structure);
+    const bool recoveredFromGeometry = !restoredFromSidecar
+                                   && recoverIpfFromGeometry(structure);
+
+    if (restoredFromSidecar)
+    {
+        structure.ipfLoadStatus = "IPF loaded from saved metadata.";
+    }
+    else if (recoveredFromGeometry)
+    {
+        structure.ipfLoadStatus = "IPF reconstructed from geometry fallback.";
+    }
+    else
+    {
+        structure.ipfLoadStatus = "IPF not found; using non-orientation colors.";
+    }
 
     if (structure.atoms.empty())
     {

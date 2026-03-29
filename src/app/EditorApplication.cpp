@@ -430,6 +430,7 @@ void loadStartupStructureIfRequested(EditorState& state, const std::string& star
     state.structure = std::move(loadedStructure);
     state.fileBrowser.initFromPath(startupStructurePath);
     state.fileBrowser.applyElementColorOverrides(state.structure);
+    state.fileBrowser.showLoadInfo(state.structure.ipfLoadStatus);
     state.pendingDefaultViewReset = true;
 
     std::cout << "[Operation] Startup-loaded structure: " << startupStructurePath
