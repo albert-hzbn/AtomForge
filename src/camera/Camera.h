@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glm/glm.hpp>
+
 struct GLFWwindow;
 
 class Camera
@@ -19,12 +21,18 @@ public:
 
     bool mouseDown = false;
     bool middleMouseDown = false;
+    bool rightMouseDown = false;
+
+    glm::vec3 panOffset = glm::vec3(0.0f);
 
     double lastX = 0;
     double lastY = 0;
 
     // Accumulated Manhattan drag distance since last left-press.
     float dragAccum = 0.0f;
+
+    // Accumulated Manhattan drag distance since last right-press.
+    float rightDragAccum = 0.0f;
 
     // Set to true for one frame when a short left-click is detected.
     bool   pendingClick = false;

@@ -2,6 +2,7 @@
 #include "imgui.h"
 
 #include <GLFW/glfw3.h>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -32,11 +33,23 @@ void Camera::mouseButton(GLFWwindow*,int button,int action,int)
         }
     }
 
-    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
+    if (button == GLFW_MOUSE_BUTTON_RIGHT)
     {
-        instance->pendingRightClick = true;
-        instance->rightClickX      = instance->lastX;
-        instance->rightClickY      = instance->lastY;
+        if (action == GLFW_PRESS)
+        {
+            instance->rightMouseDown = true;
+            instance->rightDragAccum = 0.0f;
+        }
+        else if (action == GLFW_RELEASE)
+        {
+            instance->rightMouseDown = false;
+            if (instance->rightDragAccum < 4.0f)
+            {
+                instance->pendingRightClick = true;
+                instance->rightClickX      = instance->lastX;
+                instance->rightClickY      = instance->lastY;
+            }
+        }
     }
 
     if (button == GLFW_MOUSE_BUTTON_MIDDLE)
@@ -66,6 +79,30 @@ void Camera::cursor(GLFWwindow*,double x,double y)
 
         instance->yaw   -= dx * instance->sensitivity;
         instance->pitch += dy * instance->sensitivity;
+    }
+
+    // Right-drag always pans.
+    if (instance->rightMouseDown)
+    {
+        const float dx = (float)(x - instance->lastX);
+        const float dy = (float)(y - instance->lastY);
+
+        instance->rightDragAccum += std::abs(dx) + std::abs(dy);
+
+        const float yawR   = glm::radians(instance->yaw);
+        const float pitchR = glm::radians(instance->pitch);
+
+        const glm::vec3 forward(
+            std::cos(pitchR) * std::sin(yawR),
+            std::sin(pitchR),
+            std::cos(pitchR) * std::cos(yawR));
+        const glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
+        const glm::vec3 right = glm::normalize(glm::cross(forward, worldUp));
+        const glm::vec3 up    = glm::normalize(glm::cross(right, forward));
+
+        const float panScale = 0.01f;
+        instance->panOffset += right * (dx * panScale);
+        instance->panOffset += up    * (dy * panScale);
     }
 
     if (instance->middleMouseDown)

@@ -565,6 +565,7 @@ void applyDefaultView(
 
     camera.yaw = kIsoYawDeg;
     camera.pitch = kIsoPitchDeg;
+    camera.panOffset = glm::vec3(0.0f);
 
     if (!fitToStructure || sceneBuffers.atomCount == 0)
     {

@@ -426,7 +426,7 @@ void FileBrowser::draw(Structure& structure,
             ImGui::SameLine(0.0f, 4.0f);
             if (ImGui::Button("Angle##measure", ImVec2(80.0f, 0.0f)))
                 requestMeasureAngle = true;
-            
+
             ImGui::PopStyleVar(2);
             ImGui::End();
         }

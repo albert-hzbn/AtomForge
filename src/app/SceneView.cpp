@@ -147,10 +147,12 @@ void buildFrameView(
 
     const glm::vec3 cameraOffset = computeCameraOffset(camera.distance, camera.yaw, camera.pitch);
 
-    frame.cameraPosition = sceneBuffers.orbitCenter + cameraOffset;
+    const glm::vec3 target = sceneBuffers.orbitCenter + camera.panOffset;
+
+    frame.cameraPosition = target + cameraOffset;
     frame.view = glm::lookAt(
         frame.cameraPosition,
-        sceneBuffers.orbitCenter,
+        target,
         computeCameraUp(camera.yaw, camera.pitch));
 
     const glm::mat4 lightProjection = glm::perspective(glm::radians(kVerticalFovDeg), 1.0f, 0.1f, 1000.0f);
