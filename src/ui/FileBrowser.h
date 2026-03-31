@@ -94,6 +94,7 @@ struct FileBrowser
     bool isShowLatticePlanesEnabled() const { return showLatticePlanes; }
     const std::vector<LatticePlane>& getLatticePlanes() const { return latticePlanes; }
     void clearLatticePlanes() { latticePlanes.clear(); }
+    bool isShowVoronoiEnabled() const { return showVoronoi; }
     bool consumeMeasureDistanceRequest()
     {
         bool requested = requestMeasureDistance;
@@ -241,6 +242,7 @@ private:
     bool showBonds;
     bool showLatticePlanes;
     bool showLatticePlanesDialog;
+    bool showVoronoi;
     bool bondElementFilterEnabled;
     ViewMode viewMode;
     AtomColorMode atomColorMode;

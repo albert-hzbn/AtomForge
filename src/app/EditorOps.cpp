@@ -529,6 +529,7 @@ void updateBuffers(EditorState& state)
         state.fileBrowser.isBondElementFilterEnabled(),
         state.fileBrowser.getBondElementFilterMask());
     state.selectedInstanceIndices.clear();
+    state.voronoiDirty = true;
 
     if (!state.suppressHistoryCommit)
         state.undoRedo.commit(captureSnapshot(state));

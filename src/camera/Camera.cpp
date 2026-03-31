@@ -81,7 +81,7 @@ void Camera::cursor(GLFWwindow*,double x,double y)
         instance->pitch += dy * instance->sensitivity;
     }
 
-    // Right-drag always pans.
+    // Right-drag pans unless disabled by the app (e.g. box-select mode).
     if (instance->rightMouseDown)
     {
         const float dx = (float)(x - instance->lastX);
@@ -100,9 +100,12 @@ void Camera::cursor(GLFWwindow*,double x,double y)
         const glm::vec3 right = glm::normalize(glm::cross(forward, worldUp));
         const glm::vec3 up    = glm::normalize(glm::cross(right, forward));
 
-        const float panScale = 0.01f;
-        instance->panOffset += right * (dx * panScale);
-        instance->panOffset += up    * (dy * panScale);
+        if (instance->allowPan)
+        {
+            const float panScale = 0.01f;
+            instance->panOffset += right * (dx * panScale);
+            instance->panOffset += up    * (dy * panScale);
+        }
     }
 
     if (instance->middleMouseDown)

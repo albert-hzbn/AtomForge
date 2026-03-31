@@ -24,6 +24,7 @@
 #include "BillboardMesh.h"
 #include "ui/ImGuiSetup.h"
 #include "ui/LatticePlaneOverlay.h"
+#include "ui/VoronoiOverlay.h"
 
 #include <glm/glm.hpp>
 
@@ -477,6 +478,8 @@ int runAtomsEditor(const std::string& startupStructurePath)
 
     while (!glfwWindowShouldClose(window))
     {
+        camera.allowPan = !state.fileBrowser.isBoxSelectModeEnabled();
+
         glfwPollEvents();
         processDroppedFiles(state);
 
@@ -577,6 +580,24 @@ int runAtomsEditor(const std::string& startupStructurePath)
             state.structure,
             state.fileBrowser.getLatticePlanes(),
             state.fileBrowser.isShowLatticePlanesEnabled());
+
+        if (state.fileBrowser.isShowVoronoiEnabled())
+        {
+            if (state.voronoiDirty)
+            {
+                state.voronoiDiagram = computeVoronoi(state.structure);
+                state.voronoiDirty = false;
+            }
+            drawVoronoiOverlay(
+                drawList,
+                frame.projection,
+                frame.view,
+                frame.framebufferWidth,
+                frame.framebufferHeight,
+                state.voronoiDiagram,
+                state.selectedInstanceIndices,
+                true);
+        }
 
         if (state.fileBrowser.isShowElementEnabled())
         {

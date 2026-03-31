@@ -55,6 +55,7 @@ FileBrowser::FileBrowser()
             showBonds(false),
             showLatticePlanes(false),
             showLatticePlanesDialog(false),
+            showVoronoi(false),
             bondElementFilterEnabled(false),
             viewMode(ViewMode::Orthographic),
             atomColorMode(AtomColorMode::ElementType),
@@ -344,6 +345,8 @@ void FileBrowser::draw(Structure& structure,
                 requestResetDefaultView = true;
             }
 
+            ImGui::Separator();
+            ImGui::MenuItem("Show Voronoi Volume", nullptr, &showVoronoi, !structure.atoms.empty());
             ImGui::Separator();
             if (ImGui::MenuItem("Structure Info"))
                 requestStructureInfo = true;

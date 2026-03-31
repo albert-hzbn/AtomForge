@@ -1,6 +1,7 @@
 #pragma once
 
 #include "UndoRedo.h"
+#include "algorithms/VoronoiComputation.h"
 #include "graphics/SceneBuffers.h"
 #include "io/StructureLoader.h"
 #include "ui/AtomContextMenu.h"
@@ -26,4 +27,6 @@ struct EditorState
     std::vector<std::string> pendingDroppedFiles;
     bool suppressHistoryCommit = false;
     bool pendingDefaultViewReset = true;
+    VoronoiDiagram voronoiDiagram;
+    bool voronoiDirty = true;  // recompute when structure changes
 };

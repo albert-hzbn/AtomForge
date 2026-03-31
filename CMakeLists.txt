@@ -61,6 +61,7 @@ set(ATOMFORGE_SOURCES
     src/ui/FileBrowser.cpp
     src/ui/ImGuiSetup.cpp
     src/ui/LatticePlaneOverlay.cpp
+    src/ui/VoronoiOverlay.cpp
     src/ui/MeasurementOverlay.cpp
     src/ui/PeriodicTableDialog.cpp
     src/ui/RadialDistributionAnalysis.cpp
@@ -72,6 +73,7 @@ set(ATOMFORGE_SOURCES
     src/algorithms/PolyCrystalBuilder.cpp
     src/algorithms/BulkCrystalBuilder.cpp
     src/algorithms/InterfaceBuilder.cpp
+    src/algorithms/VoronoiComputation.cpp
     src/io/StructureLoader.cpp
     imgui/imgui.cpp
     imgui/imgui_draw.cpp
