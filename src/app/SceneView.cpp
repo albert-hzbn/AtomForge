@@ -150,10 +150,16 @@ void buildFrameView(
     const glm::vec3 target = sceneBuffers.orbitCenter + camera.panOffset;
 
     frame.cameraPosition = target + cameraOffset;
+    // Apply roll: rotate the canonical up vector around the forward (look) axis.
+    const glm::vec3 baseUp  = computeCameraUp(camera.yaw, camera.pitch);
+    const glm::vec3 forward = glm::normalize(target - frame.cameraPosition);
+    const glm::vec3 right   = glm::normalize(glm::cross(forward, baseUp));
+    const float rollRad     = glm::radians(camera.roll);
+    const glm::vec3 rolledUp = std::cos(rollRad) * baseUp + std::sin(rollRad) * right;
     frame.view = glm::lookAt(
         frame.cameraPosition,
         target,
-        computeCameraUp(camera.yaw, camera.pitch));
+        rolledUp);
 
     const glm::mat4 lightProjection = glm::perspective(glm::radians(kVerticalFovDeg), 1.0f, 0.1f, 1000.0f);
     frame.lightPosition = buildLightPosition(sceneBuffers);

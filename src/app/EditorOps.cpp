@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <limits>
 #include <map>
@@ -566,6 +567,7 @@ void applyDefaultView(
 
     camera.yaw = kIsoYawDeg;
     camera.pitch = kIsoPitchDeg;
+    camera.roll = 0.0f;
     camera.panOffset = glm::vec3(0.0f);
 
     if (!fitToStructure || sceneBuffers.atomCount == 0)
@@ -645,4 +647,58 @@ void refreshSelectionHighlights(EditorState& state)
     state.selectedInstanceIndices.erase(
         std::remove(state.selectedInstanceIndices.begin(), state.selectedInstanceIndices.end(), -1),
         state.selectedInstanceIndices.end());
+}
+
+void rotateCrystalAroundAxis(Camera& camera, int axis, double angleDeg)
+{
+    // Rotating the crystal by +angleDeg visually equals orbiting the camera by -angleDeg.
+    const float rad = glm::radians((float)-angleDeg);
+    const glm::vec3 axisVec = (axis == 0) ? glm::vec3(1, 0, 0)
+                            : (axis == 1) ? glm::vec3(0, 1, 0)
+                                          : glm::vec3(0, 0, 1);
+    const glm::mat3 rot = glm::mat3(glm::rotate(glm::mat4(1.0f), rad, axisVec));
+
+    // Reconstruct full camera frame including current roll.
+    const float yawR   = glm::radians(camera.yaw);
+    const float pitchR = glm::radians(camera.pitch);
+    const glm::vec3 forward(
+        std::cos(pitchR) * std::sin(yawR),
+        std::sin(pitchR),
+        std::cos(pitchR) * std::cos(yawR));
+    const glm::vec3 canonUp(
+        -std::sin(pitchR) * std::sin(yawR),
+         std::cos(pitchR),
+        -std::sin(pitchR) * std::cos(yawR));
+    // right = cross(orbit-forward, canonUp) — matches buildFrameView convention
+    const glm::vec3 right = glm::normalize(glm::cross(forward, canonUp));
+    const float rollRad   = glm::radians(camera.roll);
+    const glm::vec3 upVec = std::cos(rollRad) * canonUp + std::sin(rollRad) * right;
+
+    // Rotate both vectors.
+    const glm::vec3 newForward = glm::normalize(rot * forward);
+    const glm::vec3 newUp      = glm::normalize(rot * upVec);
+
+    // Extract new yaw/pitch from rotated orbit-forward direction.
+    const float newPitch = glm::degrees(std::asin(glm::clamp(newForward.y, -1.0f, 1.0f)));
+    const float newYaw   = glm::degrees(std::atan2(newForward.x, newForward.z));
+
+    // Compute roll as the signed angle from the canonical up of the new
+    // orientation to the actual up, measured around the new forward axis.
+    const float ny = glm::radians(newYaw);
+    const float np = glm::radians(newPitch);
+    const glm::vec3 newCanonUp(
+        -std::sin(np) * std::sin(ny),
+         std::cos(np),
+        -std::sin(np) * std::cos(ny));
+    const float sinRoll = glm::dot(glm::cross(newCanonUp, newUp), newForward);
+    const float cosRoll = glm::dot(newCanonUp, newUp);
+    const float newRoll = glm::degrees(std::atan2(sinRoll, cosRoll));
+
+    camera.yaw   = newYaw;
+    camera.pitch = newPitch;
+    camera.roll  = newRoll;
+
+    const char* axisNames[] = {"X", "Y", "Z"};
+    std::cout << "[Operation] Camera orbited " << angleDeg << " deg around "
+              << axisNames[axis] << " (visual crystal rotation)" << std::endl;
 }

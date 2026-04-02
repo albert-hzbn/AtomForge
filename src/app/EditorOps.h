@@ -22,3 +22,7 @@ void applyDefaultView(
 void clearSelection(EditorState& state);
 void deleteSelectedAtoms(EditorState& state);
 void refreshSelectionHighlights(EditorState& state);
+
+// Orbit the camera to simulate the crystal rotating by angleDeg degrees
+// around the given world axis (0=X, 1=Y, 2=Z). Does not modify atom data.
+void rotateCrystalAroundAxis(Camera& camera, int axis, double angleDeg);

@@ -20,6 +20,9 @@ struct FrameActionRequests
     bool requestViewAxisY = false;
     bool requestViewAxisZ = false;
     bool requestViewLatticeA = false;
+    bool requestRotateCrystalX = false;
+    bool requestRotateCrystalY = false;
+    bool requestRotateCrystalZ = false;
     bool requestViewLatticeB = false;
     bool requestViewLatticeC = false;
 };

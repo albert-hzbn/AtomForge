@@ -149,6 +149,25 @@ struct FileBrowser
         requestViewLatticeC = false;
         return requested;
     }
+    float getRotateCrystalAngle() const { return rotateCrystalAngle; }
+    bool consumeRotateCrystalXRequest()
+    {
+        bool requested = requestRotateCrystalX;
+        requestRotateCrystalX = false;
+        return requested;
+    }
+    bool consumeRotateCrystalYRequest()
+    {
+        bool requested = requestRotateCrystalY;
+        requestRotateCrystalY = false;
+        return requested;
+    }
+    bool consumeRotateCrystalZRequest()
+    {
+        bool requested = requestRotateCrystalZ;
+        requestRotateCrystalZ = false;
+        return requested;
+    }
     bool consumeResetDefaultViewRequest()
     {
         bool requested = requestResetDefaultView;
@@ -255,6 +274,10 @@ private:
     bool requestViewAxisY;
     bool requestViewAxisZ;
     bool requestViewLatticeA;
+    float rotateCrystalAngle;
+    bool requestRotateCrystalX;
+    bool requestRotateCrystalY;
+    bool requestRotateCrystalZ;
     bool requestViewLatticeB;
     bool requestViewLatticeC;
     bool requestResetDefaultView;

@@ -68,6 +68,10 @@ FileBrowser::FileBrowser()
             requestViewAxisY(false),
             requestViewAxisZ(false),
             requestViewLatticeA(false),
+            rotateCrystalAngle(90.0f),
+            requestRotateCrystalX(false),
+            requestRotateCrystalY(false),
+            requestRotateCrystalZ(false),
             requestViewLatticeB(false),
             requestViewLatticeC(false),
             requestResetDefaultView(false),
@@ -417,6 +421,29 @@ void FileBrowser::draw(Structure& structure,
             if (ImGui::Button("c##latview", ImVec2(34.0f, 0.0f)))
                 requestViewLatticeC = true;
             if (!hasInputCell) ImGui::EndDisabled();
+
+            ImGui::SameLine(0.0f, 16.0f);
+
+            // Rotate Crystal section
+            const bool hasAtoms = !structure.atoms.empty();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Rotate:");
+            ImGui::SameLine(0.0f, 8.0f);
+            ImGui::SetNextItemWidth(68.0f);
+            ImGui::DragFloat("##rotangle", &rotateCrystalAngle, 1.0f, -360.0f, 360.0f, "%.1f\xc2\xb0");
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Rotation angle in degrees");
+            ImGui::SameLine(0.0f, 6.0f);
+            if (!hasAtoms) ImGui::BeginDisabled();
+            if (ImGui::Button("X##rot", ImVec2(36.0f, 0.0f)))
+                requestRotateCrystalX = true;
+            ImGui::SameLine(0.0f, 4.0f);
+            if (ImGui::Button("Y##rot", ImVec2(36.0f, 0.0f)))
+                requestRotateCrystalY = true;
+            ImGui::SameLine(0.0f, 4.0f);
+            if (ImGui::Button("Z##rot", ImVec2(36.0f, 0.0f)))
+                requestRotateCrystalZ = true;
+            if (!hasAtoms) ImGui::EndDisabled();
 
             ImGui::SameLine(0.0f, 16.0f);
             
