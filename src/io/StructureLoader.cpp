@@ -1145,6 +1145,17 @@ std::string supportedExtensionsSummary()
     return ".cif, .mol, .pdb, .xyz, .sdf, .vasp, .mol2, .pwi, .gjf";
 }
 
+bool filenameIsPoscarOrContcar(const std::string& filename)
+{
+    // Extract basename (after last slash or backslash)
+    const std::size_t slashPos = filename.find_last_of("/\\");
+    const std::string basename = (slashPos != std::string::npos)
+                               ? filename.substr(slashPos + 1)
+                               : filename;
+    return basename.compare(0, 6, "POSCAR") == 0
+        || basename.compare(0, 7, "CONTCAR") == 0;
+}
+
 void wrapAtomsIntoPrimaryCell(Structure& structure)
 {
     if (!structure.hasUnitCell || structure.atoms.empty())
@@ -1322,7 +1333,9 @@ void getDefaultElementColor(int Z,float& r,float& g,float& b)
 bool isSupportedStructureFile(const std::string& filename)
 {
     const std::string extLower = toLowerCopy(extractExtension(filename));
-    return isSupportedExtension(extLower);
+    if (isSupportedExtension(extLower))
+        return true;
+    return filenameIsPoscarOrContcar(filename);
 }
 
 bool loadStructureFromFile(const std::string& filename, Structure& structure, std::string& errorMessage)
@@ -1338,7 +1351,8 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
 
     const std::string ext = extractExtension(filename);
     const std::string extLower = toLowerCopy(ext);
-    if (!isSupportedExtension(extLower))
+    const bool detectedPoscar = !isSupportedExtension(extLower) && filenameIsPoscarOrContcar(filename);
+    if (!isSupportedExtension(extLower) && !detectedPoscar)
     {
         if (extLower.empty())
             errorMessage = "Unsupported file format (missing extension). Supported formats: " + supportedExtensionsSummary();
@@ -1373,7 +1387,7 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
         if (!extNoDot.empty())
             inFormatSet = conv.SetInFormat(extNoDot.c_str());
 
-        if (!inFormatSet && extLower == ".vasp")
+        if (!inFormatSet && (extLower == ".vasp" || detectedPoscar))
             inFormatSet = conv.SetInFormat("vasp");
     }
 
