@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <unordered_set>
 
 namespace
 {
@@ -262,6 +263,18 @@ void handleBoxSelection(
 
 namespace
 {
+constexpr float kGrabPbcTol = 1e-4f;
+
+float grabWrapFrac(float value)
+{
+    value -= std::floor(value);
+    if (std::abs(value) <= kGrabPbcTol)
+        return 0.0f;
+    if (std::abs(1.0f - value) <= kGrabPbcTol)
+        return 0.0f;
+    return value;
+}
+
 void startGrab(EditorState& state)
 {
     GrabState& grab = state.grabState;
@@ -279,43 +292,145 @@ void startGrab(EditorState& state)
         else
             grab.originalPositions.push_back(glm::vec3(0.0f));
     }
+
+    // Compute cell info for periodic handling
+    grab.hasCellInfo = false;
+    if (state.structure.hasUnitCell)
+    {
+        grab.cellA = glm::vec3((float)state.structure.cellVectors[0][0],
+                               (float)state.structure.cellVectors[0][1],
+                               (float)state.structure.cellVectors[0][2]);
+        grab.cellB = glm::vec3((float)state.structure.cellVectors[1][0],
+                               (float)state.structure.cellVectors[1][1],
+                               (float)state.structure.cellVectors[1][2]);
+        grab.cellC = glm::vec3((float)state.structure.cellVectors[2][0],
+                               (float)state.structure.cellVectors[2][1],
+                               (float)state.structure.cellVectors[2][2]);
+        grab.cellMatrix = glm::mat3(grab.cellA, grab.cellB, grab.cellC);
+        const float det = glm::determinant(grab.cellMatrix);
+        if (std::abs(det) > 1e-8f)
+        {
+            grab.invCellMatrix = glm::inverse(grab.cellMatrix);
+            grab.cellOrigin = glm::vec3((float)state.structure.cellOffset[0],
+                                        (float)state.structure.cellOffset[1],
+                                        (float)state.structure.cellOffset[2]);
+            grab.pbcTolerance = state.structure.pbcBoundaryTol > 0.0f
+                ? state.structure.pbcBoundaryTol : kGrabPbcTol;
+            grab.hasCellInfo = true;
+        }
+    }
+
+    // Build periodic siblings map with cell shifts
+    grab.periodicSiblings.clear();
+    grab.originalBasePositions.clear();
+
+    // Collect the set of base atom indices involved in the grab
+    std::unordered_set<int> grabbedBaseIndices;
+    for (int instanceIdx : state.selectedInstanceIndices)
+    {
+        if (instanceIdx >= 0 && instanceIdx < (int)state.sceneBuffers.atomIndices.size())
+            grabbedBaseIndices.insert(state.sceneBuffers.atomIndices[instanceIdx]);
+    }
+
+    // Store original base atom (canonical) positions from structure
+    for (int baseIdx : grabbedBaseIndices)
+    {
+        if (baseIdx >= 0 && baseIdx < (int)state.structure.atoms.size())
+        {
+            const auto& atom = state.structure.atoms[baseIdx];
+            grab.originalBasePositions[baseIdx] = glm::vec3((float)atom.x, (float)atom.y, (float)atom.z);
+        }
+    }
+
+    // Scan all instances and group by base atom index, computing cell shifts
+    for (int i = 0; i < (int)state.sceneBuffers.atomIndices.size(); ++i)
+    {
+        const int baseIdx = state.sceneBuffers.atomIndices[i];
+        if (!grabbedBaseIndices.count(baseIdx))
+            continue;
+
+        PeriodicSibling sib;
+        sib.instanceIdx = i;
+        sib.originalPos = state.sceneBuffers.atomPositions[i];
+        sib.cellShift = glm::ivec3(0);
+
+        // Compute cell shift: how many cell vectors offset is this instance from canonical?
+        if (grab.hasCellInfo)
+        {
+            const glm::vec3 frac = grab.invCellMatrix * (sib.originalPos - grab.cellOrigin);
+            // Cell shift is the integer part: images at frac >= 1 in some dimension
+            for (int d = 0; d < 3; ++d)
+                sib.cellShift[d] = (frac[d] > 0.5f) ? 1 : 0;
+        }
+
+        grab.periodicSiblings[baseIdx].push_back(sib);
+    }
 }
 
 void cancelGrab(EditorState& state)
 {
     GrabState& grab = state.grabState;
-    // Restore original positions
-    for (size_t i = 0; i < state.selectedInstanceIndices.size(); ++i)
+
+    // Restore all instances (including periodic images) to original positions
+    for (auto& pair : grab.periodicSiblings)
     {
-        const int instanceIdx = state.selectedInstanceIndices[i];
-        const glm::vec3& orig = grab.originalPositions[i];
+        for (const PeriodicSibling& sib : pair.second)
+            state.sceneBuffers.updateAtomPosition(sib.instanceIdx, sib.originalPos);
+    }
 
-        state.sceneBuffers.updateAtomPosition(instanceIdx, orig);
-
-        if (instanceIdx >= 0 && instanceIdx < (int)state.sceneBuffers.atomIndices.size())
+    // Restore base atom positions from stored originals (not from selected instance
+    // positions, which could be periodic images with cell-vector offsets).
+    for (auto& pair : grab.originalBasePositions)
+    {
+        const int baseIdx = pair.first;
+        const glm::vec3& origPos = pair.second;
+        if (baseIdx >= 0 && baseIdx < (int)state.structure.atoms.size())
         {
-            const int baseIdx = state.sceneBuffers.atomIndices[instanceIdx];
-            if (baseIdx >= 0 && baseIdx < (int)state.structure.atoms.size())
-            {
-                state.structure.atoms[baseIdx].x = (double)orig.x;
-                state.structure.atoms[baseIdx].y = (double)orig.y;
-                state.structure.atoms[baseIdx].z = (double)orig.z;
-            }
+            state.structure.atoms[baseIdx].x = (double)origPos.x;
+            state.structure.atoms[baseIdx].y = (double)origPos.y;
+            state.structure.atoms[baseIdx].z = (double)origPos.z;
         }
     }
 
     grab.active = false;
     grab.originalPositions.clear();
+    grab.periodicSiblings.clear();
+    grab.originalBasePositions.clear();
 }
 
 void confirmGrab(EditorState& state)
 {
     GrabState& grab = state.grabState;
+
+    // Wrap moved atoms into the unit cell before rebuilding
+    if (grab.hasCellInfo)
+    {
+        for (auto& pair : grab.originalBasePositions)
+        {
+            const int baseIdx = pair.first;
+            if (baseIdx < 0 || baseIdx >= (int)state.structure.atoms.size())
+                continue;
+
+            AtomSite& atom = state.structure.atoms[baseIdx];
+            const glm::vec3 pos((float)atom.x, (float)atom.y, (float)atom.z);
+            glm::vec3 frac = grab.invCellMatrix * (pos - grab.cellOrigin);
+            frac.x = grabWrapFrac(frac.x);
+            frac.y = grabWrapFrac(frac.y);
+            frac.z = grabWrapFrac(frac.z);
+            const glm::vec3 wrapped = grab.cellOrigin + grab.cellMatrix * frac;
+            atom.x = (double)wrapped.x;
+            atom.y = (double)wrapped.y;
+            atom.z = (double)wrapped.z;
+        }
+    }
+
     grab.active = false;
     grab.originalPositions.clear();
+    grab.periodicSiblings.clear();
+    grab.originalBasePositions.clear();
 
-    // Commit to undo history
-    state.undoRedo.commit(captureSnapshot(state));
+    // Full rebuild to get correct periodic images at the new position
+    updateBuffers(state);
     state.voronoiDirty = true;
 }
 
@@ -432,25 +547,85 @@ void handleGrabMode(
         default: break;
     }
 
-    // Apply delta to all selected atoms
+    // Apply delta to all selected atoms and their periodic images
+    std::unordered_set<int> updatedBaseIndices;
     for (size_t i = 0; i < state.selectedInstanceIndices.size(); ++i)
     {
         const int instanceIdx = state.selectedInstanceIndices[i];
-        const glm::vec3 newPos = grab.originalPositions[i] + worldDelta;
 
-        // Update GPU position
-        state.sceneBuffers.updateAtomPosition(instanceIdx, newPos);
+        if (instanceIdx < 0 || instanceIdx >= (int)state.sceneBuffers.atomIndices.size())
+            continue;
+        const int baseIdx = state.sceneBuffers.atomIndices[instanceIdx];
+        if (!updatedBaseIndices.insert(baseIdx).second)
+            continue; // already processed this base atom
 
-        // Update structure data
-        if (instanceIdx >= 0 && instanceIdx < (int)state.sceneBuffers.atomIndices.size())
+        auto sibIt = grab.periodicSiblings.find(baseIdx);
+        if (sibIt == grab.periodicSiblings.end())
+            continue;
+        auto baseIt = grab.originalBasePositions.find(baseIdx);
+        if (baseIt == grab.originalBasePositions.end())
+            continue;
+
+        // Compute new canonical position from original base atom + world delta.
+        // This avoids depending on which sibling instance was selected.
+        const glm::vec3 canonNew = baseIt->second + worldDelta;
+
+        // For non-periodic structures, just move all instances by the same delta
+        if (!grab.hasCellInfo)
         {
-            const int baseIdx = state.sceneBuffers.atomIndices[instanceIdx];
+            for (const PeriodicSibling& sib : sibIt->second)
+                state.sceneBuffers.updateAtomPosition(sib.instanceIdx, sib.originalPos + worldDelta);
             if (baseIdx >= 0 && baseIdx < (int)state.structure.atoms.size())
             {
-                state.structure.atoms[baseIdx].x = (double)newPos.x;
-                state.structure.atoms[baseIdx].y = (double)newPos.y;
-                state.structure.atoms[baseIdx].z = (double)newPos.z;
+                state.structure.atoms[baseIdx].x = (double)canonNew.x;
+                state.structure.atoms[baseIdx].y = (double)canonNew.y;
+                state.structure.atoms[baseIdx].z = (double)canonNew.z;
             }
+            continue;
+        }
+
+        // Wrap canonical position into the unit cell [0,1) in fractional space
+        glm::vec3 frac = grab.invCellMatrix * (canonNew - grab.cellOrigin);
+        frac.x = grabWrapFrac(frac.x);
+        frac.y = grabWrapFrac(frac.y);
+        frac.z = grabWrapFrac(frac.z);
+        const glm::vec3 wrappedCanon = grab.cellOrigin + grab.cellMatrix * frac;
+
+        // Update structure data with wrapped canonical position
+        if (baseIdx >= 0 && baseIdx < (int)state.structure.atoms.size())
+        {
+            state.structure.atoms[baseIdx].x = (double)wrappedCanon.x;
+            state.structure.atoms[baseIdx].y = (double)wrappedCanon.y;
+            state.structure.atoms[baseIdx].z = (double)wrappedCanon.z;
+        }
+
+        // Determine which boundary images are needed from wrapped fractional coords
+        const float tol = grab.pbcTolerance;
+        std::vector<int> shiftsX = {0}, shiftsY = {0}, shiftsZ = {0};
+        if (std::abs(frac.x) <= tol) shiftsX.push_back(1);
+        if (std::abs(frac.y) <= tol) shiftsY.push_back(1);
+        if (std::abs(frac.z) <= tol) shiftsZ.push_back(1);
+
+        // Build list of needed image positions (primary + boundary images)
+        std::vector<glm::vec3> neededPositions;
+        for (int sx : shiftsX)
+            for (int sy : shiftsY)
+                for (int sz : shiftsZ)
+                    neededPositions.push_back(
+                        wrappedCanon
+                        + (float)sx * grab.cellA
+                        + (float)sy * grab.cellB
+                        + (float)sz * grab.cellC);
+
+        // Assign positions to ALL sibling instances (including the selected one).
+        // First N get unique visible positions; the rest are hidden at wrappedCanon.
+        auto& siblings = sibIt->second;
+        for (size_t j = 0; j < siblings.size(); ++j)
+        {
+            if (j < neededPositions.size())
+                state.sceneBuffers.updateAtomPosition(siblings[j].instanceIdx, neededPositions[j]);
+            else
+                state.sceneBuffers.updateAtomPosition(siblings[j].instanceIdx, wrappedCanon);
         }
     }
 }

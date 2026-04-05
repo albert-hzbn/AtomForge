@@ -13,6 +13,7 @@
 #include <glm/glm.hpp>
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 enum class GrabAxisConstraint
@@ -23,6 +24,13 @@ enum class GrabAxisConstraint
     Z
 };
 
+struct PeriodicSibling
+{
+    int instanceIdx;
+    glm::vec3 originalPos;
+    glm::ivec3 cellShift;  // integer cell vector shift (e.g., (1,0,0) = image at +a)
+};
+
 struct GrabState
 {
     bool active = false;
@@ -30,6 +38,21 @@ struct GrabState
     glm::vec2 startMousePos = glm::vec2(0.0f);
     // Original positions of grabbed atoms (indexed same as selectedInstanceIndices)
     std::vector<glm::vec3> originalPositions;
+    // Maps base atom index -> list of ALL instances (including periodic images) with their original positions.
+    // Built at grab start so periodic siblings move together.
+    std::unordered_map<int, std::vector<PeriodicSibling>> periodicSiblings;
+    // Original base atom positions (canonical cartesian) for correct cancel.
+    std::unordered_map<int, glm::vec3> originalBasePositions;
+
+    // Unit cell info for periodic image handling during grab
+    bool hasCellInfo = false;
+    glm::mat3 cellMatrix = glm::mat3(1.0f);
+    glm::mat3 invCellMatrix = glm::mat3(1.0f);
+    glm::vec3 cellOrigin = glm::vec3(0.0f);
+    glm::vec3 cellA = glm::vec3(0.0f);
+    glm::vec3 cellB = glm::vec3(0.0f);
+    glm::vec3 cellC = glm::vec3(0.0f);
+    float pbcTolerance = 1e-4f;
 };
 
 struct EditorState
