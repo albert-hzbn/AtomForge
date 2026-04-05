@@ -73,4 +73,7 @@ struct SceneBuffers
 
     // Restore original (pre-highlight) colour for one instance.
     void restoreAtomColor(int instanceIdx);
+
+    // Update the world-space position of one instance on the GPU.
+    void updateAtomPosition(int instanceIdx, const glm::vec3& position);
 };

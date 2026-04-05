@@ -77,8 +77,11 @@ void Camera::cursor(GLFWwindow*,double x,double y)
 
         instance->dragAccum += std::abs(dx) + std::abs(dy);
 
-        instance->yaw   -= dx * instance->sensitivity;
-        instance->pitch += dy * instance->sensitivity;
+        if (instance->allowOrbit)
+        {
+            instance->yaw   -= dx * instance->sensitivity;
+            instance->pitch += dy * instance->sensitivity;
+        }
     }
 
     // Right-drag pans unless disabled by the app (e.g. box-select mode).

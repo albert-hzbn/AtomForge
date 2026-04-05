@@ -10,8 +10,27 @@
 #include "ui/MeasurementOverlay.h"
 #include "ui/StructureInfoDialog.h"
 
+#include <glm/glm.hpp>
+
 #include <string>
 #include <vector>
+
+enum class GrabAxisConstraint
+{
+    None,
+    X,
+    Y,
+    Z
+};
+
+struct GrabState
+{
+    bool active = false;
+    GrabAxisConstraint axisConstraint = GrabAxisConstraint::None;
+    glm::vec2 startMousePos = glm::vec2(0.0f);
+    // Original positions of grabbed atoms (indexed same as selectedInstanceIndices)
+    std::vector<glm::vec3> originalPositions;
+};
 
 struct EditorState
 {
@@ -29,4 +48,5 @@ struct EditorState
     bool pendingDefaultViewReset = true;
     VoronoiDiagram voronoiDiagram;
     bool voronoiDirty = true;  // recompute when structure changes
+    GrabState grabState;
 };

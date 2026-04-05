@@ -48,3 +48,22 @@ void handleBoxSelection(
     ImDrawList* drawList);
 
 void handleRightClick(Camera& camera, EditorState& state);
+
+// Blender-style grab mode: press G to grab selected atoms, move with mouse,
+// optionally constrain to X/Y/Z axis, click to confirm, Escape/right-click to cancel.
+void handleGrabMode(
+    EditorState& state,
+    Camera& camera,
+    const glm::mat4& projection,
+    const glm::mat4& view,
+    int windowWidth,
+    int windowHeight);
+
+// Draw real-time position overlay for atoms being grabbed.
+void drawGrabOverlay(
+    const EditorState& state,
+    ImDrawList* drawList,
+    const glm::mat4& projection,
+    const glm::mat4& view,
+    int windowWidth,
+    int windowHeight);

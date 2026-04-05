@@ -26,6 +26,7 @@ public:
 
     glm::vec3 panOffset = glm::vec3(0.0f);
     bool allowPan = true;
+    bool allowOrbit = true;
 
     double lastX = 0;
     double lastY = 0;

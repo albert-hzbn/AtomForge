@@ -171,6 +171,13 @@ void AtomContextMenu::open()
     m_openRequested = true;
 }
 
+void AtomContextMenu::openSubstitute()
+{
+    m_pendingAction = PeriodicAction::Substitute;
+    m_ownsPeriodicPopup = true;
+    openPeriodicTable();
+}
+
 void AtomContextMenu::draw(Structure& structure,
                            SceneBuffers& sceneBuffers,
                            const std::vector<glm::vec3>& elementColors,

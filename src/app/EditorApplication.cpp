@@ -485,6 +485,7 @@ int runAtomsEditor(const std::string& startupStructurePath)
     while (!glfwWindowShouldClose(window))
     {
         camera.allowPan = !state.fileBrowser.isBoxSelectModeEnabled();
+        camera.allowOrbit = !state.grabState.active;
 
         glfwPollEvents();
         processDroppedFiles(state);
@@ -500,15 +501,24 @@ int runAtomsEditor(const std::string& startupStructurePath)
                    state.fileBrowser.isOrthographicViewEnabled(),
                    frame);
 
-        handlePendingAtomPick(
-            camera,
-            state,
-            frame.cameraPosition,
-            frame.windowWidth,
-            frame.windowHeight,
-            frame.projection,
-            frame.view);
-        handleRightClick(camera, state);
+        // Suppress camera orbit and atom picking during grab mode
+        if (state.grabState.active)
+        {
+            camera.pendingClick = false;
+            camera.pendingRightClick = false;
+        }
+        else
+        {
+            handlePendingAtomPick(
+                camera,
+                state,
+                frame.cameraPosition,
+                frame.windowWidth,
+                frame.windowHeight,
+                frame.projection,
+                frame.view);
+            handleRightClick(camera, state);
+        }
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -516,6 +526,14 @@ int runAtomsEditor(const std::string& startupStructurePath)
 
         FrameActionRequests requests = beginFrameActionRequests(state);
         applyKeyboardShortcuts(state, requests);
+
+        handleGrabMode(
+            state,
+            camera,
+            frame.projection,
+            frame.view,
+            frame.windowWidth,
+            frame.windowHeight);
 
         state.fileBrowser.draw(
             state.structure,
@@ -642,6 +660,15 @@ int runAtomsEditor(const std::string& startupStructurePath)
                 frame.framebufferWidth,
                 frame.framebufferHeight);
         }
+
+        // Draw grab mode overlay with real-time atom coordinates
+        drawGrabOverlay(
+            state,
+            drawList,
+            frame.projection,
+            frame.view,
+            frame.windowWidth,
+            frame.windowHeight);
 
         ImGui::Render();
 

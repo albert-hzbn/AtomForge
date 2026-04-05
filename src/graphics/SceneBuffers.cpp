@@ -617,3 +617,17 @@ void SceneBuffers::restoreAtomColor(int idx)
                     sizeof(glm::vec4),
                     &packed);
 }
+
+void SceneBuffers::updateAtomPosition(int idx, const glm::vec3& position)
+{
+    if (idx < 0 || (size_t)idx >= atomCount)
+        return;
+    glm::vec4 packed(position, 1.0f);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+    glBufferSubData(GL_ARRAY_BUFFER,
+                    (GLintptr)(idx * (GLintptr)sizeof(glm::vec4)),
+                    sizeof(glm::vec4),
+                    &packed);
+    if ((size_t)idx < atomPositions.size())
+        atomPositions[idx] = position;
+}
