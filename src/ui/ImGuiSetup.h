@@ -8,3 +8,7 @@ void initImGui(GLFWwindow* window);
 
 // Detach backends and destroy the ImGui context.
 void shutdownImGui();
+
+// Apply the dark (default) or light theme.  Safe to call at any time.
+void applyDarkTheme();
+void applyLightTheme();

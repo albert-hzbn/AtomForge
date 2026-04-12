@@ -17,9 +17,10 @@ enum class NanoShape
     Octahedron,
     TruncatedOctahedron,
     Cuboctahedron,
+    MeshModel,
 };
 
-constexpr int kNumShapes = 7;
+constexpr int kNumShapes = 8;
 
 const char* shapeLabel(NanoShape s);
 
@@ -47,6 +48,12 @@ struct NanoParams
     float truncOctTrunc  = 12.0f;
 
     float cuboRadius = 15.0f;
+
+    // Bounds of a loaded 3D model after centering at origin; maintained by UI.
+    float modelHx = 15.0f;
+    float modelHy = 15.0f;
+    float modelHz = 15.0f;
+    float modelScale = 1.0f;
 
     bool  autoCenterFromAtoms = true;
     float cx = 0.0f;
@@ -81,7 +88,9 @@ struct HalfExtents { float hx, hy, hz; };
 
 float computeBoundingRadius(const NanoParams& p);
 HalfExtents computeShapeHalfExtents(const NanoParams& p);
-bool isInsideShape(const glm::vec3& p, const NanoParams& params);
+bool isInsideShape(const glm::vec3& p, const NanoParams& params,
+                   const std::vector<glm::vec3>& modelVertices = {},
+                   const std::vector<unsigned int>& modelIndices = {});
 glm::vec3 computeAtomCentroid(const std::vector<AtomSite>& atoms);
 
 // -- Builder -----------------------------------------------------------------
@@ -89,4 +98,6 @@ glm::vec3 computeAtomCentroid(const std::vector<AtomSite>& atoms);
 NanoBuildResult buildNanocrystal(Structure& structure,
                                  const Structure& reference,
                                  const NanoParams& params,
-                                 const std::vector<glm::vec3>& elementColors);
+                                 const std::vector<glm::vec3>& elementColors,
+                                 const std::vector<glm::vec3>& modelVertices,
+                                 const std::vector<unsigned int>& modelIndices);

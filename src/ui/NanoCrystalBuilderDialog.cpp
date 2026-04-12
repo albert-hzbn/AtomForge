@@ -20,6 +20,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -45,7 +47,8 @@ namespace
 bool nanoIsSupportedFile(const std::string& name)
 {
     static const char* exts[] = {
-        ".cif",".mol",".pdb",".xyz",".sdf",".vasp",".mol2",".pwi",".gjf",nullptr
+        ".cif",".mol",".pdb",".xyz",".sdf",".vasp",".mol2",".pwi",".gjf",
+        ".obj",".stl",nullptr
     };
     std::string low = name;
     for (char& c : low) c = (char)std::tolower((unsigned char)c);
@@ -56,6 +59,232 @@ bool nanoIsSupportedFile(const std::string& name)
             return true;
     }
     return false;
+}
+
+bool hasExtCaseInsensitive(const std::string& path, const char* ext)
+{
+    if (!ext)
+        return false;
+    std::string lowPath = path;
+    std::string lowExt = ext;
+    for (char& c : lowPath) c = (char)std::tolower((unsigned char)c);
+    for (char& c : lowExt) c = (char)std::tolower((unsigned char)c);
+    return lowPath.size() >= lowExt.size()
+        && lowPath.compare(lowPath.size() - lowExt.size(), lowExt.size(), lowExt) == 0;
+}
+
+bool isModelFilePath(const std::string& path)
+{
+    return hasExtCaseInsensitive(path, ".obj") || hasExtCaseInsensitive(path, ".stl");
+}
+
+bool parseObjMesh(const std::string& path,
+                  std::vector<glm::vec3>& outVertices,
+                  std::vector<unsigned int>& outIndices,
+                  std::string& error)
+{
+    std::ifstream in(path.c_str());
+    if (!in)
+    {
+        error = "Cannot open OBJ file.";
+        return false;
+    }
+
+    outVertices.clear();
+    outIndices.clear();
+    std::string line;
+    while (std::getline(in, line))
+    {
+        if (line.empty())
+            continue;
+        std::istringstream ls(line);
+        std::string tag;
+        ls >> tag;
+        if (tag == "v")
+        {
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            if (ls >> x >> y >> z)
+                outVertices.push_back(glm::vec3(x, y, z));
+        }
+        else if (tag == "f")
+        {
+            std::vector<unsigned int> face;
+            std::string token;
+            while (ls >> token)
+            {
+                const size_t slashPos = token.find('/');
+                const std::string idStr = (slashPos == std::string::npos) ? token : token.substr(0, slashPos);
+                if (idStr.empty())
+                    continue;
+                const int idx = std::atoi(idStr.c_str());
+                if (idx <= 0)
+                    continue;
+                face.push_back((unsigned int)(idx - 1));
+            }
+
+            if (face.size() >= 3)
+            {
+                for (size_t i = 1; i + 1 < face.size(); ++i)
+                {
+                    outIndices.push_back(face[0]);
+                    outIndices.push_back(face[i]);
+                    outIndices.push_back(face[i + 1]);
+                }
+            }
+        }
+    }
+
+    if (outVertices.empty() || outIndices.empty())
+    {
+        error = "OBJ has no usable vertices/faces.";
+        return false;
+    }
+
+    for (unsigned int idx : outIndices)
+    {
+        if (idx >= outVertices.size())
+        {
+            error = "OBJ face index out of range.";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool parseStlMesh(const std::string& path,
+                  std::vector<glm::vec3>& outVertices,
+                  std::vector<unsigned int>& outIndices,
+                  std::string& error)
+{
+    std::ifstream in(path.c_str(), std::ios::binary);
+    if (!in)
+    {
+        error = "Cannot open STL file.";
+        return false;
+    }
+
+    in.seekg(0, std::ios::end);
+    const std::streamoff fileSize = in.tellg();
+    in.seekg(0, std::ios::beg);
+
+    char header[80] = {0};
+    in.read(header, 80);
+    unsigned int triCount = 0;
+    in.read(reinterpret_cast<char*>(&triCount), sizeof(unsigned int));
+
+    const std::streamoff expectedBinarySize = 84 + (std::streamoff)triCount * 50;
+    const bool looksBinary = (fileSize == expectedBinarySize);
+
+    outVertices.clear();
+    outIndices.clear();
+
+    if (looksBinary)
+    {
+        outVertices.reserve((size_t)triCount * 3);
+        outIndices.reserve((size_t)triCount * 3);
+        for (unsigned int t = 0; t < triCount; ++t)
+        {
+            float data[12] = {0.0f};
+            unsigned short attr = 0;
+            in.read(reinterpret_cast<char*>(data), sizeof(data));
+            in.read(reinterpret_cast<char*>(&attr), sizeof(attr));
+            if (!in)
+            {
+                error = "Binary STL parse failed.";
+                return false;
+            }
+
+            const unsigned int base = (unsigned int)outVertices.size();
+            outVertices.push_back(glm::vec3(data[3], data[4], data[5]));
+            outVertices.push_back(glm::vec3(data[6], data[7], data[8]));
+            outVertices.push_back(glm::vec3(data[9], data[10], data[11]));
+            outIndices.push_back(base + 0);
+            outIndices.push_back(base + 1);
+            outIndices.push_back(base + 2);
+        }
+        return !outVertices.empty();
+    }
+
+    in.clear();
+    in.seekg(0, std::ios::beg);
+
+    std::string line;
+    std::vector<glm::vec3> triVerts;
+    triVerts.reserve(3);
+    while (std::getline(in, line))
+    {
+        std::istringstream ls(line);
+        std::string tag;
+        ls >> tag;
+        if (tag == "vertex")
+        {
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            if (ls >> x >> y >> z)
+            {
+                triVerts.push_back(glm::vec3(x, y, z));
+                if (triVerts.size() == 3)
+                {
+                    const unsigned int base = (unsigned int)outVertices.size();
+                    outVertices.push_back(triVerts[0]);
+                    outVertices.push_back(triVerts[1]);
+                    outVertices.push_back(triVerts[2]);
+                    outIndices.push_back(base + 0);
+                    outIndices.push_back(base + 1);
+                    outIndices.push_back(base + 2);
+                    triVerts.clear();
+                }
+            }
+        }
+    }
+
+    if (outVertices.empty() || outIndices.empty())
+    {
+        error = "ASCII STL has no usable triangles.";
+        return false;
+    }
+
+    return true;
+}
+
+bool loadModelMesh(const std::string& path,
+                   std::vector<glm::vec3>& outVertices,
+                   std::vector<unsigned int>& outIndices,
+                   glm::vec3& outHalfExtents,
+                   std::string& outName,
+                   std::string& error)
+{
+    std::vector<glm::vec3> rawVerts;
+    std::vector<unsigned int> rawIndices;
+    bool ok = false;
+
+    if (hasExtCaseInsensitive(path, ".obj"))
+        ok = parseObjMesh(path, rawVerts, rawIndices, error);
+    else if (hasExtCaseInsensitive(path, ".stl"))
+        ok = parseStlMesh(path, rawVerts, rawIndices, error);
+    else
+        error = "Unsupported 3D model format (use OBJ or STL).";
+
+    if (!ok)
+        return false;
+
+    glm::vec3 minP(1e30f), maxP(-1e30f);
+    for (const glm::vec3& v : rawVerts)
+    {
+        minP = glm::min(minP, v);
+        maxP = glm::max(maxP, v);
+    }
+    const glm::vec3 center = 0.5f * (minP + maxP);
+    outHalfExtents = 0.5f * (maxP - minP);
+
+    outVertices.resize(rawVerts.size());
+    for (size_t i = 0; i < rawVerts.size(); ++i)
+        outVertices[i] = rawVerts[i] - center;
+    outIndices.swap(rawIndices);
+
+    const size_t slash = path.find_last_of("/\\");
+    outName = (slash == std::string::npos) ? path : path.substr(slash + 1);
+    return true;
 }
 
 void nanoLoadDirEntries(const std::string& dir,
@@ -183,6 +412,10 @@ void drawShapeParameters(NanoParams& params)
             ImGui::TextDisabled("|x|+|y|, |y|+|z|, |x|+|z|  <= R");
             if (params.cuboRadius < 0.1f) params.cuboRadius = 0.1f;
             break;
+
+        case NanoShape::MeshModel:
+            ImGui::TextDisabled("Mesh parameters are set in the 3D model section below.");
+            break;
     }
 }
 
@@ -308,6 +541,32 @@ bool NanoCrystalBuilderDialog::tryLoadFile(const std::string& path,
                                             const std::vector<float>& radii,
                                             const std::vector<float>& shininess)
 {
+    if (isModelFilePath(path))
+    {
+        glm::vec3 halfExtents(0.0f);
+        std::string modelName;
+        std::vector<glm::vec3> modelVertices;
+        std::vector<unsigned int> modelIndices;
+        std::string err;
+        if (!loadModelMesh(path, modelVertices, modelIndices, halfExtents, modelName, err))
+        {
+            std::snprintf(m_browsStatusMsg, sizeof(m_browsStatusMsg),
+                          "Model load failed: %s", err.c_str());
+            return false;
+        }
+
+        m_modelVertices.swap(modelVertices);
+        m_modelIndices.swap(modelIndices);
+        m_modelName = modelName;
+        m_modelHalfExtents = halfExtents;
+        std::snprintf(m_browsStatusMsg, sizeof(m_browsStatusMsg),
+                      "Model loaded: %s (%zu triangles)",
+                      m_modelName.c_str(), m_modelIndices.size() / 3);
+        std::cout << "[NanoCrystalBuilder] Model loaded: " << path
+                  << " (tris=" << (m_modelIndices.size() / 3) << ")" << std::endl;
+        return true;
+    }
+
     Structure loaded;
     std::string err;
     if (!loadStructureFromFile(path, loaded, err)) {
@@ -316,6 +575,9 @@ bool NanoCrystalBuilderDialog::tryLoadFile(const std::string& path,
         return false;
     }
     m_reference = std::move(loaded);
+    m_modelVertices.clear();
+    m_modelIndices.clear();
+    m_modelName.clear();
     std::snprintf(m_browsStatusMsg, sizeof(m_browsStatusMsg),
                   "Loaded: %d atoms", (int)m_reference.atoms.size());
     m_previewBufDirty = true;
@@ -484,6 +746,10 @@ void NanoCrystalBuilderDialog::drawDialog(
     if (m_openRequested) {
         ImGui::OpenPopup("Build Nanocrystal");
         lastResult      = {};
+        if (m_reference.atoms.empty() && !structure.atoms.empty()) {
+            m_reference = structure;
+            m_previewBufDirty = true;
+        }
         m_openRequested = false;
     }
 
@@ -498,8 +764,8 @@ void NanoCrystalBuilderDialog::drawDialog(
     m_isOpen = true;
 
     ImGui::TextWrapped(
-        "Load a reference crystal structure via drag and drop, then choose a shape to carve from it. "
-        "The reference unit cell is tiled automatically to fill the requested shape.");
+        "Use the loaded crystal as a reference lattice, then carve by primitive shapes or fill a dragged OBJ/STL model volume. "
+        "Drag-and-drop supports both reference structures and 3D model files.");
     ImGui::Separator();
 
     // =========================================================================
@@ -545,7 +811,7 @@ void NanoCrystalBuilderDialog::drawDialog(
         dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
                     ImVec2(dropMid.x - 90.0f, dropMid.y - 20.0f),
                     ImGui::GetColorU32(ImGuiCol_TextDisabled),
-                    "Drop a structure file here");
+                    "Drop structure or OBJ/STL here");
     } else {
         // Show 3D preview
         if (m_glReady) {
@@ -627,7 +893,8 @@ void NanoCrystalBuilderDialog::drawDialog(
     ImGui::Text("Shape");
     const char* shapeLabels[kNumShapes] = {
         "Sphere","Ellipsoid","Box","Cylinder",
-        "Octahedron","Truncated Octahedron","Cuboctahedron"
+        "Octahedron","Truncated Octahedron","Cuboctahedron",
+        "3D Model Fill"
     };
     int shapeInt = (int)params.shape;
     ImGui::SetNextItemWidth(-1.0f);
@@ -641,6 +908,27 @@ void NanoCrystalBuilderDialog::drawDialog(
     ImGui::BeginChild("##nanoParamsScroll", ImVec2(-1, -50), true, ImGuiWindowFlags_HorizontalScrollbar);
     
     drawShapeParameters(params);
+
+    if (params.shape == NanoShape::MeshModel)
+    {
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Text("3D model volume");
+        ImGui::TextDisabled("Status: %s", m_modelIndices.empty() ? "not loaded" : "loaded");
+        if (!m_modelName.empty())
+            ImGui::TextWrapped("Model: %s", m_modelName.c_str());
+        ImGui::SetNextItemWidth(140.0f);
+        ImGui::InputFloat("Model scale##nano", &params.modelScale, 0.0f, 0.0f, "%.3f");
+        if (params.modelScale < 1e-4f)
+            params.modelScale = 1e-4f;
+        if (ImGui::Button("Clear Model##nano"))
+        {
+            m_modelVertices.clear();
+            m_modelIndices.clear();
+            m_modelName.clear();
+        }
+        ImGui::TextDisabled("Drop OBJ/STL onto the reference panel to set fill volume.");
+    }
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -684,6 +972,10 @@ void NanoCrystalBuilderDialog::drawDialog(
         ImGui::InputFloat("Vacuum (A)##nano",
                           &params.vacuumPadding, 0.f, 0.f, "%.2f");
         if (params.vacuumPadding < 0.f) params.vacuumPadding = 0.f;
+
+        params.modelHx = m_modelHalfExtents.x;
+        params.modelHy = m_modelHalfExtents.y;
+        params.modelHz = m_modelHalfExtents.z;
         const HalfExtents he = computeShapeHalfExtents(params);
         ImGui::TextDisabled("%.2fx%.2fx%.2f A",
                             2.f*(he.hx+params.vacuumPadding),
@@ -704,13 +996,24 @@ void NanoCrystalBuilderDialog::drawDialog(
     // =========================================================================
 
     const bool canBuild = !m_reference.atoms.empty();
-    if (!canBuild) ImGui::BeginDisabled();
+    const bool needsModel = params.shape == NanoShape::MeshModel;
+    const bool hasModel = !m_modelVertices.empty() && !m_modelIndices.empty();
+    const bool canBuildNow = canBuild && (!needsModel || hasModel);
+    if (!canBuildNow) ImGui::BeginDisabled();
     if (ImGui::Button("Build##nano", ImVec2(100.0f, 0.0f))) {
-        lastResult = buildNanocrystal(structure, m_reference, params, elementColors);
+        params.modelHx = m_modelHalfExtents.x;
+        params.modelHy = m_modelHalfExtents.y;
+        params.modelHz = m_modelHalfExtents.z;
+        lastResult = buildNanocrystal(structure,
+                                      m_reference,
+                                      params,
+                                      elementColors,
+                                      m_modelVertices,
+                                      m_modelIndices);
         if (lastResult.success)
             updateBuffers(structure);
     }
-    if (!canBuild) ImGui::EndDisabled();
+    if (!canBuildNow) ImGui::EndDisabled();
 
     ImGui::SameLine();
     if (ImGui::Button("Close##nano", ImVec2(80.0f, 0.0f))) {

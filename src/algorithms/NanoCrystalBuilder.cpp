@@ -5,6 +5,80 @@
 #include <algorithm>
 #include <cmath>
 #include <sstream>
+#include <unordered_map>
+
+namespace
+{
+bool rayIntersectsTriangle(const glm::vec3& orig,
+                           const glm::vec3& dir,
+                           const glm::vec3& v0,
+                           const glm::vec3& v1,
+                           const glm::vec3& v2)
+{
+    const float eps = 1e-8f;
+    const glm::vec3 e1 = v1 - v0;
+    const glm::vec3 e2 = v2 - v0;
+    const glm::vec3 p = glm::cross(dir, e2);
+    const float det = glm::dot(e1, p);
+    if (std::abs(det) < eps)
+        return false;
+
+    const float invDet = 1.0f / det;
+    const glm::vec3 t = orig - v0;
+    const float u = glm::dot(t, p) * invDet;
+    if (u < 0.0f || u > 1.0f)
+        return false;
+
+    const glm::vec3 q = glm::cross(t, e1);
+    const float v = glm::dot(dir, q) * invDet;
+    if (v < 0.0f || (u + v) > 1.0f)
+        return false;
+
+    const float hitT = glm::dot(e2, q) * invDet;
+    return hitT > eps;
+}
+
+bool isInsideMeshModel(const glm::vec3& p,
+                       const NanoParams& params,
+                       const std::vector<glm::vec3>& modelVertices,
+                       const std::vector<unsigned int>& modelIndices)
+{
+    if (modelVertices.empty() || modelIndices.size() < 3)
+        return false;
+
+    const float invScale = (params.modelScale > 1e-8f) ? (1.0f / params.modelScale) : 1.0f;
+    const glm::vec3 pm = p * invScale;
+
+    // Use 3 ray directions and take majority vote for robustness
+    // against meshes with edge/vertex coincidence along a single axis.
+    static const glm::vec3 rayDirs[3] = {
+        glm::vec3(1.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f),
+        glm::vec3(0.0f, 0.0f, 1.0f),
+    };
+
+    int insideVotes = 0;
+    for (int r = 0; r < 3; ++r)
+    {
+        int hitCount = 0;
+        for (size_t i = 0; i + 2 < modelIndices.size(); i += 3)
+        {
+            const unsigned int i0 = modelIndices[i + 0];
+            const unsigned int i1 = modelIndices[i + 1];
+            const unsigned int i2 = modelIndices[i + 2];
+            if (i0 >= modelVertices.size() || i1 >= modelVertices.size() || i2 >= modelVertices.size())
+                continue;
+
+            if (rayIntersectsTriangle(pm, rayDirs[r], modelVertices[i0], modelVertices[i1], modelVertices[i2]))
+                ++hitCount;
+        }
+        if ((hitCount % 2) == 1)
+            ++insideVotes;
+    }
+
+    return insideVotes >= 2;
+}
+}
 
 // -- Shape label -------------------------------------------------------------
 
@@ -18,6 +92,7 @@ const char* shapeLabel(NanoShape s)
         case NanoShape::Octahedron:          return "Octahedron";
         case NanoShape::TruncatedOctahedron: return "Truncated Octahedron";
         case NanoShape::Cuboctahedron:       return "Cuboctahedron";
+        case NanoShape::MeshModel:           return "3D Model Fill";
     }
     return "Unknown";
 }
@@ -42,6 +117,8 @@ float computeBoundingRadius(const NanoParams& p)
             return std::max(p.truncOctRadius, p.truncOctTrunc * std::sqrt(3.0f));
         case NanoShape::Cuboctahedron:
             return p.cuboRadius;
+        case NanoShape::MeshModel:
+            return p.modelScale * std::sqrt(p.modelHx*p.modelHx + p.modelHy*p.modelHy + p.modelHz*p.modelHz);
     }
     return 10.0f;
 }
@@ -67,11 +144,18 @@ HalfExtents computeShapeHalfExtents(const NanoParams& p)
         }
         case NanoShape::Cuboctahedron:
             return {p.cuboRadius, p.cuboRadius, p.cuboRadius};
+        case NanoShape::MeshModel:
+            return {p.modelHx * p.modelScale,
+                    p.modelHy * p.modelScale,
+                    p.modelHz * p.modelScale};
     }
     return {10.0f, 10.0f, 10.0f};
 }
 
-bool isInsideShape(const glm::vec3& p, const NanoParams& params)
+bool isInsideShape(const glm::vec3& p,
+                   const NanoParams& params,
+                   const std::vector<glm::vec3>& modelVertices,
+                   const std::vector<unsigned int>& modelIndices)
 {
     switch (params.shape) {
         case NanoShape::Sphere:
@@ -105,6 +189,8 @@ bool isInsideShape(const glm::vec3& p, const NanoParams& params)
             return std::abs(p.x) + std::abs(p.y) <= params.cuboRadius &&
                    std::abs(p.y) + std::abs(p.z) <= params.cuboRadius &&
                    std::abs(p.x) + std::abs(p.z) <= params.cuboRadius;
+        case NanoShape::MeshModel:
+            return isInsideMeshModel(p, params, modelVertices, modelIndices);
     }
     return false;
 }
@@ -128,11 +214,27 @@ static float safeLen3(const glm::vec3& v)
 NanoBuildResult buildNanocrystal(Structure& structure,
                                  const Structure& reference,
                                  const NanoParams& params,
-                                 const std::vector<glm::vec3>& elementColors)
+                                 const std::vector<glm::vec3>& elementColors,
+                                 const std::vector<glm::vec3>& modelVertices,
+                                 const std::vector<unsigned int>& modelIndices)
 {
     NanoBuildResult result;
     result.shape      = params.shape;
     result.inputAtoms = (int)reference.atoms.size();
+
+    if (params.shape == NanoShape::MeshModel)
+    {
+        if (modelVertices.empty() || modelIndices.size() < 3)
+        {
+            result.message = "No 3D model loaded. Drop an OBJ/STL file in the builder first.";
+            return result;
+        }
+        if (params.modelScale <= 0.0f)
+        {
+            result.message = "Model scale must be positive.";
+            return result;
+        }
+    }
 
     if (reference.atoms.empty()) {
         result.message = "Reference structure has no atoms.";
@@ -205,7 +307,7 @@ NanoBuildResult buildNanocrystal(Structure& structure,
                     (float)atom.x + offset.x,
                     (float)atom.y + offset.y,
                     (float)atom.z + offset.z);
-                if (!isInsideShape(pos - center, params)) continue;
+                if (!isInsideShape(pos - center, params, modelVertices, modelIndices)) continue;
 
                 AtomSite out = atom;
                 out.x = (double)pos.x;
@@ -227,7 +329,7 @@ NanoBuildResult buildNanocrystal(Structure& structure,
         generatedAtoms.reserve(reference.atoms.size());
         for (const AtomSite& atom : reference.atoms) {
             const glm::vec3 pos((float)atom.x, (float)atom.y, (float)atom.z);
-            if (!isInsideShape(pos - center, params)) continue;
+            if (!isInsideShape(pos - center, params, modelVertices, modelIndices)) continue;
             AtomSite out = atom;
             int z = out.atomicNumber;
             if (z >= 0 && z < (int)elementColors.size()) {
@@ -244,13 +346,87 @@ NanoBuildResult buildNanocrystal(Structure& structure,
     if (generatedAtoms.empty()) {
         result.message =
             "No atoms within the specified shape. "
-            "Try increasing the size parameter(s).";
+            "Try increasing the size parameter(s) or adjusting Model Scale.";
         return result;
+    }
+
+    // Remove duplicate atoms at unit-cell boundary overlaps using spatial hash.
+    {
+        const float dedupTol = 0.01f; // 0.01 A tolerance
+        const float cellSize = 0.5f;  // hash cell size in A
+        const float invCell  = 1.0f / cellSize;
+
+        struct Vec3Hash {
+            float invC;
+            Vec3Hash(float ic) : invC(ic) {}
+            size_t operator()(const glm::ivec3& v) const {
+                size_t h = (size_t)(v.x * 73856093u);
+                h ^= (size_t)(v.y * 19349663u);
+                h ^= (size_t)(v.z * 83492791u);
+                return h;
+            }
+        };
+        struct Vec3Eq {
+            bool operator()(const glm::ivec3& a, const glm::ivec3& b) const {
+                return a.x == b.x && a.y == b.y && a.z == b.z;
+            }
+        };
+        std::unordered_map<glm::ivec3, std::vector<size_t>, Vec3Hash, Vec3Eq> grid(
+            generatedAtoms.size(), Vec3Hash(invCell));
+
+        std::vector<AtomSite> unique;
+        unique.reserve(generatedAtoms.size());
+        const float dedupTol2 = dedupTol * dedupTol;
+
+        for (size_t i = 0; i < generatedAtoms.size(); ++i)
+        {
+            const glm::vec3 pi((float)generatedAtoms[i].x,
+                               (float)generatedAtoms[i].y,
+                               (float)generatedAtoms[i].z);
+            const glm::ivec3 cell((int)std::floor(pi.x * invCell),
+                                  (int)std::floor(pi.y * invCell),
+                                  (int)std::floor(pi.z * invCell));
+            bool isDup = false;
+            // Check 3x3x3 neighborhood of hash cells
+            for (int dx = -1; dx <= 1 && !isDup; ++dx)
+            for (int dy = -1; dy <= 1 && !isDup; ++dy)
+            for (int dz = -1; dz <= 1 && !isDup; ++dz)
+            {
+                const glm::ivec3 nc(cell.x + dx, cell.y + dy, cell.z + dz);
+                auto it = grid.find(nc);
+                if (it == grid.end()) continue;
+                for (size_t idx : it->second)
+                {
+                    const glm::vec3 pj((float)unique[idx].x,
+                                       (float)unique[idx].y,
+                                       (float)unique[idx].z);
+                    const glm::vec3 d = pi - pj;
+                    if (glm::dot(d, d) < dedupTol2)
+                    {
+                        isDup = true;
+                        break;
+                    }
+                }
+            }
+            if (!isDup)
+            {
+                const size_t uid = unique.size();
+                unique.push_back(generatedAtoms[i]);
+                grid[cell].push_back(uid);
+            }
+        }
+        generatedAtoms.swap(unique);
     }
 
     result.estimatedDiameter = 2.0f * maxR;
     result.outputAtoms = (int)generatedAtoms.size();
     structure.atoms.swap(generatedAtoms);
+
+    // Clear stale per-atom metadata from any previous structure.
+    structure.grainColors.clear();
+    structure.grainRegionIds.clear();
+    structure.pbcBoundaryTol = 0.0f;
+    structure.ipfLoadStatus.clear();
 
     if (params.setOutputCell) {
         const HalfExtents he = computeShapeHalfExtents(params);
@@ -269,6 +445,17 @@ NanoBuildResult buildNanocrystal(Structure& structure,
     }
 
     result.success = true;
-    result.message = "Nanocrystal built successfully.";
+    if (params.shape == NanoShape::MeshModel)
+    {
+        std::ostringstream msg;
+        msg << "Custom structure built: " << result.outputAtoms << " atoms";
+        if (result.tilingUsed)
+            msg << " (reps=" << result.repA << "x" << result.repB << "x" << result.repC << ")";
+        result.message = msg.str();
+    }
+    else
+    {
+        result.message = "Nanocrystal built successfully.";
+    }
     return result;
 }

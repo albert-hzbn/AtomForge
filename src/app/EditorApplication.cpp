@@ -34,7 +34,8 @@
 
 namespace
 {
-const glm::vec4 kSceneBackgroundColor(0.09f, 0.11f, 0.15f, 1.0f);
+const glm::vec4 kDarkBackground(0.09f, 0.11f, 0.15f, 1.0f);
+const glm::vec4 kLightBackground(0.92f, 0.93f, 0.94f, 1.0f);
 
 // Dynamically selects rendering mode based on measured frame performance.
 // Starts from an initial estimate (set by SceneBuffers::upload based on atom
@@ -280,7 +281,8 @@ void drawScene(Renderer& renderer,
                const BillboardMesh& billboardMesh,
                const CylinderMesh& cylinder,
                const SceneBuffers& sceneBuffers,
-               bool showBonds)
+               bool showBonds,
+               bool lightTheme)
 {
     // Shadow passes first (render into shadow FBO at shadow resolution)
     switch (sceneBuffers.renderMode)
@@ -301,10 +303,8 @@ void drawScene(Renderer& renderer,
 
     // Restore viewport to screen size after shadow passes
     glViewport(0, 0, frame.framebufferWidth, frame.framebufferHeight);
-    glClearColor(kSceneBackgroundColor.r,
-                 kSceneBackgroundColor.g,
-                 kSceneBackgroundColor.b,
-                 kSceneBackgroundColor.a);
+    const glm::vec4& bg = lightTheme ? kLightBackground : kDarkBackground;
+    glClearColor(bg.r, bg.g, bg.b, bg.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (showBonds)
@@ -390,7 +390,7 @@ void handleImageExportIfRequested(bool hasImageExportRequest,
     const bool exportOk = exportStructureImage(
         imageExportRequest,
         exportView,
-        kSceneBackgroundColor,
+        state.fileBrowser.isLightThemeEnabled() ? kLightBackground : kDarkBackground,
         state.fileBrowser.isShowBondsEnabled(),
         state.sceneBuffers,
         renderer,
@@ -471,6 +471,7 @@ int runAtomsEditor(const std::string& startupStructurePath)
     Renderer renderer;
     renderer.init();
     state.fileBrowser.initNanoCrystalRenderResources(renderer);
+    state.fileBrowser.initSingleCrystalFillRenderResources(renderer);
     state.fileBrowser.initInterfaceBuilderRenderResources(renderer);
     state.fileBrowser.initCSLGrainBoundaryRenderResources(renderer);
     state.fileBrowser.initPolyCrystalRenderResources(renderer);
@@ -684,7 +685,8 @@ int runAtomsEditor(const std::string& startupStructurePath)
             billboardMesh,
             cylinder,
             state.sceneBuffers,
-            state.fileBrowser.isShowBondsEnabled());
+            state.fileBrowser.isShowBondsEnabled(),
+            state.fileBrowser.isLightThemeEnabled());
 
         handleImageExportIfRequested(
             hasImageExportRequest,

@@ -1,5 +1,6 @@
 #include "FileBrowser.h"
 #include "ElementData.h"
+#include "ImGuiSetup.h"
 #include "util/PathUtils.h"
 #include "app/StructureFileService.h"
 #include "ui/PeriodicTableDialog.h"
@@ -48,7 +49,8 @@ static constexpr int kNumImageExportFormats = (int)(sizeof(kImageExportFormats) 
 static constexpr double kNotificationLifetimeSeconds = 3.5;
 
 FileBrowser::FileBrowser()
-        : showAbout(false),
+        : useLightTheme(false),
+            showAbout(false),
             showManual(false),
             showEditColors(false),
             showElementLabels(false),
@@ -68,7 +70,7 @@ FileBrowser::FileBrowser()
             requestViewAxisY(false),
             requestViewAxisZ(false),
             requestViewLatticeA(false),
-            rotateCrystalAngle(90.0f),
+            rotateCrystalAngle(5.0f),
             requestRotateCrystalX(false),
             requestRotateCrystalY(false),
             requestRotateCrystalZ(false),
@@ -266,6 +268,7 @@ void FileBrowser::draw(Structure& structure,
             bulkCrystalDialog.drawMenuItem(true);
             cslDialog.drawMenuItem(true);
             nanoCrystalDialog.drawMenuItem(true);
+            singleCrystalFillDialog.drawMenuItem(true);
             interfaceBuilderDialog.drawMenuItem(true);
             polyCrystalDialog.drawMenuItem(true);
             ImGui::EndMenu();
@@ -362,6 +365,14 @@ void FileBrowser::draw(Structure& structure,
                 requestAtomInfo = true;
             if (ImGui::MenuItem("Reset Default View"))
                 requestResetDefaultView = true;
+            ImGui::Separator();
+            if (ImGui::MenuItem("Light Theme", nullptr, &useLightTheme))
+            {
+                if (useLightTheme)
+                    applyLightTheme();
+                else
+                    applyDarkTheme();
+            }
             ImGui::EndMenu();
         }
 
@@ -472,6 +483,9 @@ void FileBrowser::draw(Structure& structure,
     nanoCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                  editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
                                  updateBuffers);
+    singleCrystalFillDialog.drawDialog(structure, editMenuDialogs.elementColors,
+                                        editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
+                                        updateBuffers);
     interfaceBuilderDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                       editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
                                       updateBuffers);
@@ -1354,6 +1368,21 @@ bool FileBrowser::isNanoCrystalDialogOpen() const
 void FileBrowser::feedDropToNanoCrystalDialog(const std::string& path)
 {
     nanoCrystalDialog.feedDroppedFile(path);
+}
+
+bool FileBrowser::isSingleCrystalFillDialogOpen() const
+{
+    return singleCrystalFillDialog.isOpen();
+}
+
+void FileBrowser::feedDropToSingleCrystalFillDialog(const std::string& path)
+{
+    singleCrystalFillDialog.feedDroppedFile(path);
+}
+
+void FileBrowser::initSingleCrystalFillRenderResources(Renderer& renderer)
+{
+    singleCrystalFillDialog.initRenderResources(renderer);
 }
 
 void FileBrowser::initInterfaceBuilderRenderResources(Renderer& renderer)

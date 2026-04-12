@@ -40,11 +40,21 @@ void processDroppedFiles(EditorState& state)
     if (state.pendingDroppedFiles.empty())
         return;
 
+    // Custom Structure dialog accepts multiple files (structure + model).
+    if (state.fileBrowser.isSingleCrystalFillDialogOpen())
+    {
+        for (const auto& f : state.pendingDroppedFiles)
+            state.fileBrowser.feedDropToSingleCrystalFillDialog(f);
+        state.pendingDroppedFiles.clear();
+        return;
+    }
+
     const std::string droppedFile = state.pendingDroppedFiles.back();
     state.pendingDroppedFiles.clear();
 
     if (state.fileBrowser.isNanoCrystalDialogOpen())
     {
+        // Nano dialog accepts both structure references and OBJ/STL model volumes.
         state.fileBrowser.feedDropToNanoCrystalDialog(droppedFile);
         return;
     }

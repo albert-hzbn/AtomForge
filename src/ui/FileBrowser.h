@@ -4,6 +4,7 @@
 #include "ui/BulkCrystalBuilderDialog.h"
 #include "ui/CSLGrainBoundaryDialog.h"
 #include "ui/NanoCrystalBuilderDialog.h"
+#include "ui/SingleCrystalFillDialog.h"
 #include "ui/InterfaceBuilderDialog.h"
 #include "ui/PolyCrystalBuilderDialog.h"
 #include "ui/CommonNeighbourAnalysis.h"
@@ -84,6 +85,7 @@ struct FileBrowser
     void clearTransformMatrix() { transformDialog.clearTransform(); }
     bool isShowElementEnabled() const { return showElementLabels; }
     bool isShowBondsEnabled() const { return showBonds; }
+    bool isLightThemeEnabled() const { return useLightTheme; }
     bool isBondElementFilterEnabled() const { return bondElementFilterEnabled; }
     const std::array<bool, 119>& getBondElementFilterMask() const { return bondElementFilterMask; }
     bool isOrthographicViewEnabled() const { return viewMode == ViewMode::Orthographic; }
@@ -225,6 +227,11 @@ struct FileBrowser
     bool isNanoCrystalDialogOpen() const;
     void feedDropToNanoCrystalDialog(const std::string& path);
 
+    // Single crystal fill dialog GL resources and drop routing.
+    void initSingleCrystalFillRenderResources(Renderer& renderer);
+    bool isSingleCrystalFillDialogOpen() const;
+    void feedDropToSingleCrystalFillDialog(const std::string& path);
+
     // CSL grain boundary dialog GL resources and drop routing.
     void initCSLGrainBoundaryRenderResources(Renderer& renderer);
     bool isCSLGrainBoundaryDialogOpen() const;
@@ -254,6 +261,7 @@ private:
     bool isAllowedFile(const std::string& name) const;
     void drawNotifications();
 
+    bool useLightTheme;
     bool showAbout;
     bool showManual;
     bool showEditColors;
@@ -340,6 +348,7 @@ private:
     BulkCrystalBuilderDialog bulkCrystalDialog;
     CSLGrainBoundaryDialog cslDialog;
     NanoCrystalBuilderDialog nanoCrystalDialog;
+    SingleCrystalFillDialog singleCrystalFillDialog;
     InterfaceBuilderDialog interfaceBuilderDialog;
     PolyCrystalBuilderDialog polyCrystalDialog;
     CommonNeighbourAnalysisDialog cnaDialog;

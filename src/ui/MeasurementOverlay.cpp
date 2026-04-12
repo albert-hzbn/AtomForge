@@ -15,6 +15,12 @@ namespace
 {
 constexpr float kPi = 3.14159265358979323846f;
 
+static bool isLightTheme()
+{
+    const ImVec4& bg = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+    return (bg.x + bg.y + bg.z) / 3.0f > 0.5f;
+}
+
 struct BondStats
 {
     int coordinationNumber = 0;
@@ -231,7 +237,8 @@ void draw3DAxis(ImDrawList* drawList,
 
     const float endpointRadius = 2.5f + 2.0f * depth01;
     drawList->AddCircleFilled(p1.screen, endpointRadius, axis.color, 16);
-    drawList->AddCircle(p1.screen, endpointRadius + 1.0f, IM_COL32(245, 245, 250, 200), 16, 1.0f);
+    drawList->AddCircle(p1.screen, endpointRadius + 1.0f,
+                        isLightTheme() ? IM_COL32(30, 30, 40, 200) : IM_COL32(245, 245, 250, 200), 16, 1.0f);
 
     drawList->AddText(ImVec2(p1.screen.x + 5.5f, p1.screen.y + 4.0f), axis.color, axis.label);
 }
@@ -284,7 +291,8 @@ void draw3DWireCube(ImDrawList* drawList,
         const float zMid = 0.5f * (a.depth + b.depth);
         const float alphaFactor = glm::clamp(0.45f + 0.35f * ((zMid + 1.0f) * 0.5f), 0.25f, 0.9f);
         const int alpha = (int)(alphaFactor * 255.0f);
-        drawList->AddLine(a.screen, b.screen, IM_COL32(205, 215, 230, alpha), 1.0f);
+        drawList->AddLine(a.screen, b.screen,
+                          isLightTheme() ? IM_COL32(60, 50, 40, alpha) : IM_COL32(205, 215, 230, alpha), 1.0f);
     }
 }
 
@@ -311,14 +319,19 @@ void draw3DOrientationGizmo(ImDrawList* drawList,
 void drawGizmoBackdrop(ImDrawList* drawList, ImVec2 origin)
 {
     const float backgroundRadius = 53.0f;
-    drawList->AddCircleFilled(origin, backgroundRadius, IM_COL32(18, 22, 28, 190), 48);
-    drawList->AddCircle(origin, backgroundRadius, IM_COL32(255, 255, 255, 55), 48, 1.0f);
-    drawList->AddCircle(origin, backgroundRadius - 7.0f, IM_COL32(255, 255, 255, 20), 48, 1.0f);
+    const bool light = isLightTheme();
+    drawList->AddCircleFilled(origin, backgroundRadius,
+                              light ? IM_COL32(235, 238, 242, 200) : IM_COL32(18, 22, 28, 190), 48);
+    drawList->AddCircle(origin, backgroundRadius,
+                        light ? IM_COL32(0, 0, 0, 55) : IM_COL32(255, 255, 255, 55), 48, 1.0f);
+    drawList->AddCircle(origin, backgroundRadius - 7.0f,
+                        light ? IM_COL32(0, 0, 0, 20) : IM_COL32(255, 255, 255, 20), 48, 1.0f);
 }
 
 void drawGizmoCenter(ImDrawList* drawList, ImVec2 origin)
 {
-    drawList->AddCircleFilled(origin, 3.2f, IM_COL32(240, 240, 245, 240), 16);
+    drawList->AddCircleFilled(origin, 3.2f,
+                              isLightTheme() ? IM_COL32(20, 20, 25, 240) : IM_COL32(240, 240, 245, 240), 16);
 }
 
 void drawOrientationAxesGizmo(ImDrawList* drawList,
@@ -789,7 +802,7 @@ void drawElementLabelsOverlay(ImDrawList* drawList,
             continue;
 
         drawList->AddText(ImVec2(rect.x + kLabelPadding, rect.y + kLabelPadding),
-                          IM_COL32(255, 255, 255, 255),
+                          isLightTheme() ? IM_COL32(15, 15, 15, 255) : IM_COL32(255, 255, 255, 255),
                           label.c_str());
         occupiedRects.push_back(rect);
 
@@ -967,36 +980,39 @@ void drawIPFTriangleLegend(ImDrawList* drawList,
     }
 
     // Draw border
-    drawList->AddTriangle(v0, v1, v2, IM_COL32(200, 200, 200, 255), 2.0f);
+    const bool light = isLightTheme();
+    drawList->AddTriangle(v0, v1, v2, light ? IM_COL32(60, 60, 60, 255) : IM_COL32(200, 200, 200, 255), 2.0f);
 
     // Draw vertex labels
     ImVec2 pos111(v2.x - sz111.x * 0.5f, v2.y - sz111.y - labelGap);
     ImVec2 titlePos(ox + triSize * 0.5f - titleSize.x * 0.5f,
                     pos111.y - titleSize.y - labelGap);
+    const ImU32 labelBg = light ? IM_COL32(240, 240, 240, 210) : IM_COL32(30, 30, 30, 200);
+    const ImU32 labelFg = light ? IM_COL32(30, 30, 30, 255) : IM_COL32(220, 220, 220, 255);
     drawList->AddRectFilled(
         ImVec2(titlePos.x - 4, titlePos.y - 2),
         ImVec2(titlePos.x + titleSize.x + 4, titlePos.y + titleSize.y + 2),
-        IM_COL32(30, 30, 30, 200), 3.0f);
-    drawList->AddText(titlePos, IM_COL32(220, 220, 220, 255), title);
+        labelBg, 3.0f);
+    drawList->AddText(titlePos, labelFg, title);
 
     // Keep the bottom labels above the base edge so they stay inside the legend area.
     ImVec2 pos001(v0.x, v0.y - sz001.y - labelGap);
     drawList->AddRectFilled(
         ImVec2(pos001.x - boxPadX, pos001.y - boxPadY),
         ImVec2(pos001.x + sz001.x + boxPadX, pos001.y + sz001.y + boxPadY),
-        IM_COL32(30, 30, 30, 200), 2.0f);
+        labelBg, 2.0f);
     drawList->AddText(pos001, IM_COL32(255, 80, 80, 255), lbl001);
 
     ImVec2 pos011(v1.x - sz011.x, v1.y - sz011.y - labelGap);
     drawList->AddRectFilled(
         ImVec2(pos011.x - boxPadX, pos011.y - boxPadY),
         ImVec2(pos011.x + sz011.x + boxPadX, pos011.y + sz011.y + boxPadY),
-        IM_COL32(30, 30, 30, 200), 2.0f);
+        labelBg, 2.0f);
     drawList->AddText(pos011, IM_COL32(80, 255, 80, 255), lbl011);
 
     drawList->AddRectFilled(
         ImVec2(pos111.x - boxPadX, pos111.y - boxPadY),
         ImVec2(pos111.x + sz111.x + boxPadX, pos111.y + sz111.y + boxPadY),
-        IM_COL32(30, 30, 30, 200), 2.0f);
+        labelBg, 2.0f);
     drawList->AddText(pos111, IM_COL32(100, 100, 255, 255), lbl111);
 }

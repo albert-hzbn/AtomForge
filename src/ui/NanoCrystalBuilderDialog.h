@@ -52,6 +52,12 @@ private:
     // Path queued by feedDroppedFile(); consumed at the start of drawDialog().
     std::string m_pendingDropPath;
 
+    // Optional 3D model volume used by mesh-fill mode (centered at origin).
+    std::vector<glm::vec3> m_modelVertices;
+    std::vector<unsigned int> m_modelIndices;
+    std::string m_modelName;
+    glm::vec3 m_modelHalfExtents = glm::vec3(15.0f);
+
     // -----------------------------------------------------------------------
     // Embedded file-browser state
     // -----------------------------------------------------------------------

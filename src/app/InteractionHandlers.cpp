@@ -13,6 +13,11 @@
 
 namespace
 {
+static bool isLightTheme()
+{
+    const ImVec4& bg = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+    return (bg.x + bg.y + bg.z) / 3.0f > 0.5f;
+}
 bool isInsideSelectionRect(const ImVec2& p, const ImVec2& a, const ImVec2& b)
 {
     const float minX = std::min(a.x, b.x);
@@ -695,7 +700,7 @@ void drawGrabOverlay(
 
     // Header overlay showing grab mode status
     const char* axisLabel = "";
-    ImU32 axisColor = IM_COL32(255, 255, 255, 220);
+    ImU32 axisColor = isLightTheme() ? IM_COL32(30, 30, 30, 220) : IM_COL32(255, 255, 255, 220);
     switch (grab.axisConstraint)
     {
         case GrabAxisConstraint::X: axisLabel = " [X axis]"; axisColor = IM_COL32(255, 80, 80, 220); break;
@@ -715,7 +720,7 @@ void drawGrabOverlay(
     drawList->AddRectFilled(
         ImVec2(headerX - 8.0f, headerY - 4.0f),
         ImVec2(headerX + headerSize.x + 8.0f, headerY + headerSize.y + 4.0f),
-        IM_COL32(20, 20, 20, 200), 4.0f);
+        isLightTheme() ? IM_COL32(240, 240, 240, 210) : IM_COL32(20, 20, 20, 200), 4.0f);
     drawList->AddText(ImVec2(headerX, headerY), axisColor, headerBuf);
 
     // Draw 3D arrows and coordinate info for each selected atom (up to 8 to avoid clutter)
@@ -756,7 +761,8 @@ void drawGrabOverlay(
                 }
 
                 // Draw dashed origin marker (small circle at original position)
-                drawList->AddCircle(origScreen, 5.0f, IM_COL32(180, 180, 180, 150), 12, 1.5f);
+                drawList->AddCircle(origScreen, 5.0f,
+                                    isLightTheme() ? IM_COL32(100, 100, 100, 150) : IM_COL32(180, 180, 180, 150), 12, 1.5f);
 
                 // Draw arrow shaft
                 drawList->AddLine(origScreen, curScreen, arrowColor, 2.5f);
@@ -795,13 +801,15 @@ void drawGrabOverlay(
         drawList->AddRectFilled(
             ImVec2(labelX - 4.0f, labelY - 4.0f),
             ImVec2(labelX + bgWidth, labelY + bgHeight),
-            IM_COL32(10, 10, 10, 200), 3.0f);
+            isLightTheme() ? IM_COL32(240, 240, 240, 210) : IM_COL32(10, 10, 10, 200), 3.0f);
 
-        drawList->AddText(ImVec2(labelX, labelY), IM_COL32(255, 255, 180, 255), cartBuf);
+        drawList->AddText(ImVec2(labelX, labelY),
+                          isLightTheme() ? IM_COL32(120, 100, 20, 255) : IM_COL32(255, 255, 180, 255), cartBuf);
         labelY += cartSize.y + 2.0f;
 
         if (fracBuf[0])
-            drawList->AddText(ImVec2(labelX, labelY), IM_COL32(180, 220, 255, 255), fracBuf);
+            drawList->AddText(ImVec2(labelX, labelY),
+                              isLightTheme() ? IM_COL32(30, 80, 150, 255) : IM_COL32(180, 220, 255, 255), fracBuf);
     }
 
     // Draw arrows for remaining atoms beyond maxLabels (no coordinate labels)
@@ -837,7 +845,8 @@ void drawGrabOverlay(
                     case GrabAxisConstraint::Z: arrowColor = IM_COL32(80, 130, 255, 140); break;
                     default:                    arrowColor = IM_COL32(255, 200, 50, 140); break;
                 }
-                drawList->AddCircle(origScreen, 4.0f, IM_COL32(150, 150, 150, 100), 12, 1.0f);
+                drawList->AddCircle(origScreen, 4.0f,
+                                    isLightTheme() ? IM_COL32(100, 100, 100, 100) : IM_COL32(150, 150, 150, 100), 12, 1.0f);
                 drawList->AddLine(origScreen, curScreen, arrowColor, 1.5f);
                 drawArrowhead(drawList, curScreen, origScreen, arrowColor, 9.0f);
             }
@@ -855,7 +864,8 @@ void drawGrabOverlay(
         drawList->AddRectFilled(
             ImVec2(moreX - 4.0f, moreY - 2.0f),
             ImVec2(moreX + moreSize.x + 4.0f, moreY + moreSize.y + 2.0f),
-            IM_COL32(10, 10, 10, 180), 3.0f);
-        drawList->AddText(ImVec2(moreX, moreY), IM_COL32(200, 200, 200, 200), moreBuf);
+            isLightTheme() ? IM_COL32(240, 240, 240, 200) : IM_COL32(10, 10, 10, 180), 3.0f);
+        drawList->AddText(ImVec2(moreX, moreY),
+                          isLightTheme() ? IM_COL32(60, 60, 60, 200) : IM_COL32(200, 200, 200, 200), moreBuf);
     }
 }
