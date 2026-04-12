@@ -99,6 +99,12 @@ void drawSceneToCurrentFramebuffer(const ImageExportView& view,
                                    const CylinderMesh& cylinder)
 {
     // Shadow passes first (render into shadow FBO)
+    // Save the currently-bound framebuffer so we can restore it after the shadow
+    // passes (endShadowPass() binds FBO 0, which is wrong when we're rendering
+    // into an off-screen export FBO).
+    GLint exportFBO = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &exportFBO);
+
     switch (sceneBuffers.renderMode)
     {
         case RenderingMode::StandardInstancing:
@@ -115,7 +121,8 @@ void drawSceneToCurrentFramebuffer(const ImageExportView& view,
     if (showBonds)
         renderer.drawBondShadowPass(shadow, cylinder, view.lightMVP, sceneBuffers.bondCount);
 
-    // Restore viewport to export size after shadow passes
+    // Restore the export FBO and set viewport to export dimensions
+    glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)exportFBO);
     glViewport(0, 0, view.width, view.height);
     glEnable(GL_DEPTH_TEST);
     glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);

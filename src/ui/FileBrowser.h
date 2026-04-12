@@ -52,6 +52,7 @@ struct ImageExportRequest
     std::string outputPath;
     ImageExportFormat format = ImageExportFormat::Png;
     bool includeBackground = true;
+    int resolutionScale = 1;
 };
 
 struct LatticePlane
@@ -315,6 +316,7 @@ private:
     int exportHistoryIndex;
     int selectedExportFormat;
     bool exportIncludeBackground;
+    int exportResolutionScale;
     ImageExportRequest pendingImageExport;
 
     char openStatusMsg[256];

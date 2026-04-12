@@ -95,6 +95,7 @@ FileBrowser::FileBrowser()
         exportHistoryIndex(-1),
         selectedExportFormat(0),
         exportIncludeBackground(true),
+        exportResolutionScale(1),
             selectedAtomicNumber(1),
             latticePlaneInputH(1),
             latticePlaneInputK(0),
@@ -894,6 +895,10 @@ void FileBrowser::draw(Structure& structure,
         if (kImageExportFormats[selectedExportFormat].fmt == ImageExportFormat::Jpg && !exportIncludeBackground)
             ImGui::TextDisabled("JPEG has no transparency; transparent areas will be blended on white.");
 
+        ImGui::SliderInt("Resolution scale", &exportResolutionScale, 1, 8, "%dx");
+        if (exportResolutionScale > 1)
+            ImGui::TextDisabled("Output will be %dx the current window size.", exportResolutionScale);
+
         if (exportStatusMsg[0] != '\0')
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", exportStatusMsg);
 
@@ -928,11 +933,13 @@ void FileBrowser::draw(Structure& structure,
                 pendingImageExport.outputPath = joinPath(exportDir, finalName);
                 pendingImageExport.format = kImageExportFormats[selectedExportFormat].fmt;
                 pendingImageExport.includeBackground = exportIncludeBackground;
+                pendingImageExport.resolutionScale = exportResolutionScale;
                 requestImageExport = true;
 
                 std::cout << "[Operation] Image export requested: " << pendingImageExport.outputPath
                           << " (format=" << selectedExt << ", background="
-                          << (exportIncludeBackground ? "on" : "off") << ")" << std::endl;
+                          << (exportIncludeBackground ? "on" : "off")
+                          << ", scale=" << exportResolutionScale << "x)" << std::endl;
 
                 showNotification(std::string("Image export started: ") + finalName, false);
                 exportStatusMsg[0] = '\0';

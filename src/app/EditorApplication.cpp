@@ -379,8 +379,9 @@ void handleImageExportIfRequested(bool hasImageExportRequest,
         return;
 
     ImageExportView exportView;
-    exportView.width = frame.framebufferWidth;
-    exportView.height = frame.framebufferHeight;
+    const int scale = std::max(1, imageExportRequest.resolutionScale);
+    exportView.width = frame.framebufferWidth * scale;
+    exportView.height = frame.framebufferHeight * scale;
     exportView.projection = frame.projection;
     exportView.view = frame.view;
     exportView.lightMVP = frame.lightMVP;
