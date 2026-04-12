@@ -1104,6 +1104,7 @@ void FileBrowser::draw(Structure& structure,
             ImGui::BulletText("Open a structure from File -> Open or press Ctrl+O.");
             ImGui::BulletText("Use left-drag to rotate the scene and the scroll wheel to zoom.");
             ImGui::BulletText("Use View -> Reset Default View to restore the fitted isometric camera.");
+            ImGui::BulletText("The interface scales automatically on HiDPI / high-resolution displays so text and controls remain readable.");
 
             ImGui::Spacing();
             ImGui::Text("Selection and Editing");
@@ -1125,7 +1126,7 @@ void FileBrowser::draw(Structure& structure,
             ImGui::Text("File Menu");
             ImGui::BulletText("Open loads supported structure formats such as CIF, MOL, PDB, XYZ, SDF, VASP, MOL2, PWI, and GJF.");
             ImGui::BulletText("Save As exports the current structure to supported chemistry and crystal formats.");
-            ImGui::BulletText("Export Image writes PNG, JPG, or SVG output with optional background.");
+            ImGui::BulletText("Export Image writes PNG, JPG, or SVG output with optional background and adjustable resolution scale for high-resolution output.");
             ImGui::BulletText("Close unloads the current structure.");
 
             ImGui::Spacing();
@@ -1142,6 +1143,7 @@ void FileBrowser::draw(Structure& structure,
             ImGui::BulletText("CSL Grain Boundary builds cubic bicrystals from ideal sc, bcc, fcc, or diamond source lattices.");
             ImGui::BulletText("Nanocrystal carves a finite particle from a loaded reference structure using sphere, ellipsoid, box, cylinder, octahedron, truncated octahedron, or cuboctahedron shapes.");
             ImGui::BulletText("Polycrystal builds a Voronoi-based polycrystalline microstructure from a loaded reference single crystal with controllable box size, grain count, seed, and grain orientations.");
+            ImGui::BulletText("Custom Structure fills an imported 3D mesh volume with atoms from a reference crystal using the dedicated dialog.");
 
             ImGui::Spacing();
             ImGui::Text("Bulk Crystal Builder");
@@ -1169,10 +1171,18 @@ void FileBrowser::draw(Structure& structure,
             ImGui::BulletText("Generated structures include per-atom IPF-Z orientation colors for crystal-orientation visualization.");
 
             ImGui::Spacing();
+            ImGui::Text("Custom Structure Builder");
+            ImGui::BulletText("Accepts drag-and-drop input for both the source crystal and the target 3D model.");
+            ImGui::BulletText("Displays live 3D previews of the reference crystal and the imported model side by side.");
+            ImGui::BulletText("The model preview is rendered as a shaded surface instead of a wireframe for easier inspection.");
+            ImGui::BulletText("Use it to generate finite atomistic structures constrained by imported mesh geometry.");
+
+            ImGui::Spacing();
             ImGui::Text("View Menu");
             ImGui::BulletText("Show Element toggles element labels.");
             ImGui::BulletText("Show Bonds toggles bond-cylinder rendering.");
             ImGui::BulletText("Isometric View and Orthographic View switch the camera projection mode.");
+            ImGui::BulletText("Select Theme switches between the default dark theme and the light theme.");
             ImGui::BulletText("Color Structure By switches between element-type colors and crystal-orientation IPF coloring.");
             ImGui::BulletText("Structure Info shows composition, lattice metrics, positions, and symmetry when available.");
             ImGui::BulletText("Measure Distance, Measure Angle, and Atom Info open the corresponding dialogs for the current selection.");
@@ -1200,6 +1210,7 @@ void FileBrowser::draw(Structure& structure,
             ImGui::BulletText("Bonds are inferred from covalent radii and rendered with split element colors.");
             ImGui::BulletText("Selected atoms are highlighted and helper overlays are drawn for distance and angle tools.");
             ImGui::BulletText("Periodic boundary visualization includes duplicated boundary atoms and transformed supercell views when applicable.");
+            ImGui::BulletText("Overlay, gizmo, and bounding-box colors adapt automatically to the selected dark or light theme.");
 
             ImGui::EndChild();
         }
@@ -1223,7 +1234,7 @@ void FileBrowser::draw(Structure& structure,
     if (ImGui::BeginPopupModal("About", &aboutOpen, ImGuiWindowFlags_NoResize))
     {
         ImGui::Text("AtomForge");
-        ImGui::TextDisabled("Molecular structure viewer and editor with periodic-cell tools");
+        ImGui::TextDisabled("Atomistic structure builder, viewer, and editor with periodic-cell and finite-geometry workflows");
         ImGui::Separator();
 
         if (ImGui::BeginChild("##about-scroll", ImVec2(0.0f, 440.0f), false))
@@ -1256,8 +1267,12 @@ void FileBrowser::draw(Structure& structure,
             ImGui::BulletText("Full undo/redo support for all editing operations");
             ImGui::BulletText("Multi-format structure loading and exporting");
             ImGui::BulletText("Crystallographic analysis: space groups, symmetry, cell metrics");
+            ImGui::BulletText("Bulk crystal, CSL grain boundary, nanocrystal, polycrystal, and custom mesh-filled structure builders");
             ImGui::BulletText("Customizable atom colors, sizes, and materials");
+            ImGui::BulletText("Crystal-orientation IPF coloring with in-view legend and saved sidecar metadata");
             ImGui::BulletText("Distance and angle measurement tools");
+            ImGui::BulletText("Light and dark UI themes with matching overlay rendering");
+            ImGui::BulletText("High-resolution image export with adjustable scale and HiDPI-aware interface scaling");
             ImGui::BulletText("Supercell transformation with periodic boundary visualization");
 
             ImGui::EndChild();

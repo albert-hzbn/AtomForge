@@ -5,12 +5,15 @@ AtomForge is an atomic structure builder for metallurgical simulation and atomis
 ## Core capabilities
 
 - **Build structures from scratch** using crystal-system-aware builders for bulk crystals, cubic grain boundaries, and nanocrystals.
+- **Create custom finite structures** by filling imported 3D mesh volumes with atoms from a reference crystal in the Custom Structure workflow.
 - **Edit and refine** atoms and lattice parameters interactively, with real-time visualization.
 - **Generate polycrystalline microstructures** with Voronoi-based grain construction from a reference single crystal.
 - **Create metallurgical defects** such as grain boundaries with explicit Sigma selection and in-plane replication.
 - **Carve finite nanostructures** from any loaded reference structure using geometric shapes.
 - **Analyze local order** with common-neighbour analysis and radial distribution functions.
-- **Export for simulation** in VASP, LAMMPS, and other popular MD and DFT formats.
+- **Export for simulation** in VASP and other supported atomistic structure formats.
+- **Export publication-ready images** to PNG, JPEG, or SVG with optional background and resolution scaling above the live viewport size.
+- **Adapt the interface to dark/light themes and HiDPI displays** so overlays, previews, and text remain legible on high-resolution screens.
 - **Inspect structure quality** through coordination statistics, symmetry detection, and lattice metrics.
 
 ## Platform support
@@ -205,6 +208,7 @@ Box selection is available through Edit -> Box Select Mode. When enabled, right-
 - **CSL Grain Boundary**: Construct cubic bicrystals with explicit Sigma selection from sc, bcc, fcc, or diamond source lattices. Control GB plane, in-plane replication, rigid translation, and overlap removal.
 - **Nanocrystal**: Carve finite particles from any loaded reference structure using sphere, ellipsoid, box, cylinder, octahedron, truncated octahedron, or cuboctahedron geometry. Apply auto-centering and optional unit-cell padding.
 - **Polycrystal**: Build a polycrystalline box from a loaded reference single crystal using Voronoi grain partitioning. Control box size, grain count, random seed, and grain orientations.
+- **Custom Structure**: Import a reference crystal and a triangulated 3D model, preview both side-by-side, then fill the model volume with atoms from the crystal. The model preview is rendered as a shaded surface for easier inspection.
 
 ## Structure builders and analysis
 
@@ -215,7 +219,7 @@ AtomForge's builder system is designed to prepare structures for atomistic simul
 - Organizes space groups by crystal system (triclinic through cubic).
 - Applies system-specific lattice constraints and trigonal settings.
 - Expands asymmetric-unit atoms using symmetry operations to build the full unit cell.
-- Perfect for creating supercells and preparing input for vasp, LAMMPS, and quantum espresso.
+- Perfect for creating supercells and preparing input for VASP, Quantum ESPRESSO, and other supported structure workflows.
 
 ### CSL grain boundary builder
 
@@ -239,6 +243,13 @@ AtomForge's builder system is designed to prepare structures for atomistic simul
 - Shows a live 3D preview of the reference crystal inside the builder dialog.
 - Writes per-atom IPF-Z orientation colors for visualization and export-side metadata.
 
+### Custom structure builder
+
+- Accepts drag-and-drop input for both the source crystal and the target 3D mesh model.
+- Shows live 3D previews for the reference crystal and the imported model inside the dialog.
+- Renders the model as a shaded surface to make volume and orientation easier to inspect before generation.
+- Produces a finite atomistic structure constrained by the imported model geometry.
+
 ### Crystal orientation coloring
 
 - View -> Color Structure By -> Crystal Orientation switches atom colors from element colors to cubic IPF-Z colors.
@@ -258,6 +269,15 @@ AtomForge's builder system is designed to prepare structures for atomistic simul
 - Periodic image atoms are drawn at cell boundaries for periodic visualization.
 - Distance and angle tools draw helper overlays in the scene.
 - Atom Info reports element data, Cartesian and direct coordinates, and bond statistics.
+- View -> Select Theme switches between the default dark theme and a light theme with matching gizmo, overlay, and bounding-box colors.
+- The interface scales automatically on high-resolution / HiDPI displays so text and controls remain readable.
+
+## Image export
+
+- Export Image supports PNG, JPEG, and SVG output.
+- Background can be included or omitted depending on the target format.
+- Resolution scale can be increased above the current viewport size (for example 2x, 3x, and higher) for high-resolution screenshots.
+- Export rendering follows the active theme so light-theme captures use a light background and matching overlay colors.
 
 ## Menus at a glance
 
