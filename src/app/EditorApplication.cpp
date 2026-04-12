@@ -523,6 +523,7 @@ int runAtomsEditor(const std::string& startupStructurePath)
             handleRightClick(camera, state);
         }
 
+        updateImGuiScale(window);
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();

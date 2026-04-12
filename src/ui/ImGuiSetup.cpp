@@ -4,8 +4,86 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
+#include <GLFW/glfw3.h>
+
+#include <algorithm>
+
 namespace
 {
+constexpr float kBaseFontSizePixels = 16.0f;
+
+ImGuiStyle gBaseStyle;
+float gUiScale = 1.0f;
+bool gBaseStyleCaptured = false;
+bool gImGuiBackendsReady = false;
+
+float clampUiScale(float scale)
+{
+    return std::max(1.0f, std::min(scale, 4.0f));
+}
+
+float computeUiScale(GLFWwindow* window)
+{
+    if (!window)
+        return 1.0f;
+
+    float contentScaleX = 1.0f;
+    float contentScaleY = 1.0f;
+    glfwGetWindowContentScale(window, &contentScaleX, &contentScaleY);
+
+    int windowWidth = 0;
+    int windowHeight = 0;
+    int framebufferWidth = 0;
+    int framebufferHeight = 0;
+    glfwGetWindowSize(window, &windowWidth, &windowHeight);
+    glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+
+    float framebufferScaleX = 1.0f;
+    float framebufferScaleY = 1.0f;
+    if (windowWidth > 0)
+        framebufferScaleX = (float)framebufferWidth / (float)windowWidth;
+    if (windowHeight > 0)
+        framebufferScaleY = (float)framebufferHeight / (float)windowHeight;
+
+    const float scale = std::max(
+        std::max(contentScaleX, contentScaleY),
+        std::max(framebufferScaleX, framebufferScaleY));
+    return clampUiScale(scale);
+}
+
+void captureBaseStyle()
+{
+    gBaseStyle = ImGui::GetStyle();
+    gBaseStyleCaptured = true;
+}
+
+void applyScaledStyle()
+{
+    ImGuiStyle scaled = gBaseStyle;
+    scaled.ScaleAllSizes(gUiScale);
+    scaled.DisplayWindowPadding = ImVec2(0.0f, 0.0f);
+    scaled.DisplaySafeAreaPadding = ImVec2(0.0f, 0.0f);
+    ImGui::GetStyle() = scaled;
+}
+
+void rebuildFonts()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    io.Fonts->Clear();
+
+    ImFontConfig fontConfig;
+    fontConfig.SizePixels = kBaseFontSizePixels * gUiScale;
+    io.Fonts->AddFontDefault(&fontConfig);
+    io.FontGlobalScale = 1.0f;
+
+    if (gImGuiBackendsReady)
+    {
+        ImGui_ImplOpenGL3_DestroyDeviceObjects();
+        io.Fonts->Build();
+        ImGui_ImplOpenGL3_CreateDeviceObjects();
+    }
+}
+
 void applyCommonStyle()
 {
     ImGuiStyle& style = ImGui::GetStyle();
@@ -72,6 +150,9 @@ void applyDarkTheme()
     colors[ImGuiCol_CheckMark]            = ImVec4(0.89f, 0.73f, 0.31f, 1.00f);
     colors[ImGuiCol_SliderGrab]           = ImVec4(0.31f, 0.74f, 0.77f, 0.95f);
     colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.42f, 0.82f, 0.84f, 1.00f);
+
+    captureBaseStyle();
+    applyScaledStyle();
 }
 
 void applyLightTheme()
@@ -112,6 +193,9 @@ void applyLightTheme()
     colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.18f, 0.45f, 0.52f, 1.00f);
 
     style.FrameBorderSize = 1.0f;
+
+    captureBaseStyle();
+    applyScaledStyle();
 }
 
 void initImGui(GLFWwindow* window)
@@ -120,21 +204,36 @@ void initImGui(GLFWwindow* window)
     ImGui::CreateContext();
 
     ImGuiIO& io = ImGui::GetIO();
-    io.FontGlobalScale = 1.05f;
     io.ConfigWindowsMoveFromTitleBarOnly = true;
 
     applyDarkTheme();
 
-    ImGuiStyle& style = ImGui::GetStyle();
-    style.DisplayWindowPadding = ImVec2(0.0f, 0.0f);
-    style.DisplaySafeAreaPadding = ImVec2(0.0f, 0.0f);
-
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
+    gImGuiBackendsReady = true;
+
+    updateImGuiScale(window);
+}
+
+void updateImGuiScale(GLFWwindow* window)
+{
+    if (!gBaseStyleCaptured)
+        return;
+
+    const float newScale = computeUiScale(window);
+    if (newScale == gUiScale)
+        return;
+
+    gUiScale = newScale;
+    applyScaledStyle();
+    rebuildFonts();
 }
 
 void shutdownImGui()
 {
+    gImGuiBackendsReady = false;
+    gBaseStyleCaptured = false;
+    gUiScale = 1.0f;
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
