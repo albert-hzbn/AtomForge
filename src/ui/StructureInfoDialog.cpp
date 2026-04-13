@@ -8,7 +8,11 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <future>
 #include <map>
 #include <sstream>
 #include <string>
@@ -32,6 +36,37 @@ struct SymmetryInfo
     std::string pointGroup;
     std::string error;
 };
+
+std::size_t hashCombine(std::size_t seed, std::size_t value)
+{
+    return seed ^ (value + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2));
+}
+
+std::size_t structureFingerprint(const Structure& structure)
+{
+    std::size_t fp = 0;
+    fp = hashCombine(fp, static_cast<std::size_t>(structure.atoms.size()));
+    fp = hashCombine(fp, structure.hasUnitCell ? 1u : 0u);
+
+    if (structure.hasUnitCell)
+    {
+        for (int r = 0; r < 3; ++r)
+            for (int c = 0; c < 3; ++c)
+                fp = hashCombine(fp, std::hash<double>{}(structure.cellVectors[r][c]));
+    }
+
+    const std::size_t sampleCount = std::min<std::size_t>(structure.atoms.size(), 64u);
+    for (std::size_t i = 0; i < sampleCount; ++i)
+    {
+        const AtomSite& atom = structure.atoms[i];
+        fp = hashCombine(fp, std::hash<int>{}(atom.atomicNumber));
+        fp = hashCombine(fp, std::hash<double>{}(atom.x));
+        fp = hashCombine(fp, std::hash<double>{}(atom.y));
+        fp = hashCombine(fp, std::hash<double>{}(atom.z));
+    }
+
+    return fp;
+}
 
 std::map<int, int> buildElementCounts(const Structure& structure)
 {
@@ -216,37 +251,45 @@ void drawElementCountsTable(const std::map<int, int>& counts)
     ImGui::EndTable();
 }
 
-void drawSymmetrySection(const Structure& structure)
+StructureInfoComputedData computeStructureInfo(const Structure& structure)
+{
+    StructureInfoComputedData data;
+    data.ready = true;
+    data.atomCount = structure.atoms.size();
+    data.elementCounts = buildElementCounts(structure);
+    data.formula = buildFormula(data.elementCounts);
+
+    const SymmetryInfo symmetry = analyzeSymmetryWithSpglib(structure);
+    data.symmetryAttempted = symmetry.attempted;
+    data.symmetrySuccess = symmetry.success;
+    data.symmetrySpaceGroupNumber = symmetry.spaceGroupNumber;
+    data.symmetryInternationalSymbol = symmetry.internationalSymbol;
+    data.symmetryHallSymbol = symmetry.hallSymbol;
+    data.symmetryPointGroup = symmetry.pointGroup;
+    data.symmetryError = symmetry.error;
+    return data;
+}
+
+void drawSymmetrySection(const StructureInfoComputedData& data)
 {
     ImGui::Separator();
     ImGui::Text("Symmetry (spglib)");
 
-    // Cache result so spglib is only called once per structure, not every frame.
-    static SymmetryInfo cachedSymmetry;
-    static int cachedAtomCount = -1;
-    static double cachedCellTrace = 0.0;
-
-    int atomCount = (int)structure.atoms.size();
-    double cellTrace = 0.0;
-    if (structure.hasUnitCell)
-        cellTrace = structure.cellVectors[0][0] + structure.cellVectors[1][1] + structure.cellVectors[2][2];
-
-    if (atomCount != cachedAtomCount || std::abs(cellTrace - cachedCellTrace) > 1e-8)
+    if (!data.ready)
     {
-        cachedSymmetry = analyzeSymmetryWithSpglib(structure);
-        cachedAtomCount = atomCount;
-        cachedCellTrace = cellTrace;
-    }
-
-    if (!cachedSymmetry.success)
-    {
-        ImGui::TextWrapped("Space group: unavailable (%s)", cachedSymmetry.error.c_str());
+        ImGui::Text("Computing symmetry...");
         return;
     }
 
-    ImGui::Text("Space group: %d (%s)", cachedSymmetry.spaceGroupNumber, cachedSymmetry.internationalSymbol.c_str());
-    ImGui::Text("Hall symbol: %s", cachedSymmetry.hallSymbol.c_str());
-    ImGui::Text("Point group: %s", cachedSymmetry.pointGroup.c_str());
+    if (!data.symmetrySuccess)
+    {
+        ImGui::TextWrapped("Space group: unavailable (%s)", data.symmetryError.c_str());
+        return;
+    }
+
+    ImGui::Text("Space group: %d (%s)", data.symmetrySpaceGroupNumber, data.symmetryInternationalSymbol.c_str());
+    ImGui::Text("Hall symbol: %s", data.symmetryHallSymbol.c_str());
+    ImGui::Text("Point group: %s", data.symmetryPointGroup.c_str());
 }
 
 void drawAtomicPositionsTable(const Structure& structure, bool hasValidLattice)
@@ -304,8 +347,32 @@ void drawStructureInfoDialog(StructureInfoDialogState& state,
                              bool requestOpen,
                              const Structure& structure)
 {
+    const std::size_t currentFingerprint = structureFingerprint(structure);
+    const bool dialogRequestedOrOpen = requestOpen || state.openRequested || ImGui::IsPopupOpen("Structure Info");
+
     if (requestOpen)
         state.openRequested = true;
+
+    if (state.workerRunning)
+    {
+        const auto status = state.workerFuture.wait_for(std::chrono::milliseconds(0));
+        if (status == std::future_status::ready)
+        {
+            state.cachedData = state.workerFuture.get();
+            state.cachedFingerprint = state.pendingFingerprint;
+            state.workerRunning = false;
+        }
+    }
+
+    if (dialogRequestedOrOpen && !state.workerRunning && state.cachedFingerprint != currentFingerprint)
+    {
+        const Structure structureSnapshot = structure;
+        state.pendingFingerprint = currentFingerprint;
+        state.workerFuture = std::async(std::launch::async, [structureSnapshot]() {
+            return computeStructureInfo(structureSnapshot);
+        });
+        state.workerRunning = true;
+    }
 
     if (state.openRequested)
     {
@@ -320,11 +387,24 @@ void drawStructureInfoDialog(StructureInfoDialogState& state,
         ImGui::Text("Structure Summary");
         ImGui::Separator();
 
-        const std::map<int, int> counts = buildElementCounts(structure);
+        const bool hasComputedData = state.cachedData.ready && state.cachedFingerprint == currentFingerprint;
 
-        ImGui::Text("Total atoms: %d", (int)structure.atoms.size());
-        ImGui::Text("Unique elements: %d", (int)counts.size());
-        ImGui::Text("Formula: %s", buildFormula(counts).c_str());
+        const int totalAtoms = static_cast<int>(structure.atoms.size());
+        const int uniqueElements = hasComputedData
+                                       ? static_cast<int>(state.cachedData.elementCounts.size())
+                                       : 0;
+
+        ImGui::Text("Total atoms: %d", totalAtoms);
+        if (hasComputedData)
+        {
+            ImGui::Text("Unique elements: %d", uniqueElements);
+            ImGui::Text("Formula: %s", state.cachedData.formula.c_str());
+        }
+        else
+        {
+            ImGui::Text("Unique elements: computing...");
+            ImGui::Text("Formula: computing...");
+        }
         ImGui::Text("Has unit cell: %s", structure.hasUnitCell ? "Yes" : "No");
 
         if (structure.hasUnitCell)
@@ -332,19 +412,33 @@ void drawStructureInfoDialog(StructureInfoDialogState& state,
 
         ImGui::Separator();
         ImGui::Text("Element Counts");
-        drawElementCountsTable(counts);
-        drawSymmetrySection(structure);
+        if (hasComputedData)
+            drawElementCountsTable(state.cachedData.elementCounts);
+        else
+            ImGui::Text("Computing element counts...");
+
+        drawSymmetrySection(hasComputedData ? state.cachedData : StructureInfoComputedData{});
 
         ImGui::Separator();
         ImGui::Text("Atomic Positions");
 
-        glm::mat3 lattice(1.0f);
-        glm::vec3 origin(0.0f);
-        bool hasValidLattice = buildLatticeMatrix(structure, lattice, origin);
+        constexpr std::size_t kMaxAtomsForPositionsTable = 500;
+        if (structure.atoms.size() > kMaxAtomsForPositionsTable)
+        {
+            ImGui::TextWrapped(
+                "Atomic position table is disabled for structures larger than %d atoms to keep the UI stable.",
+                static_cast<int>(kMaxAtomsForPositionsTable));
+        }
+        else
+        {
+            glm::mat3 lattice(1.0f);
+            glm::vec3 origin(0.0f);
+            bool hasValidLattice = buildLatticeMatrix(structure, lattice, origin);
 
-        ImGui::BeginChild("##positions", ImVec2(940.0f, 250.0f), true);
-        drawAtomicPositionsTable(structure, hasValidLattice);
-        ImGui::EndChild();
+            ImGui::BeginChild("##positions", ImVec2(940.0f, 250.0f), true);
+            drawAtomicPositionsTable(structure, hasValidLattice);
+            ImGui::EndChild();
+        }
 
         ImGui::EndPopup();
     }
