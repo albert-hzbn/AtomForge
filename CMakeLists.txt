@@ -42,6 +42,7 @@ set(ATOMFORGE_SOURCES
     src/camera/Camera.cpp
     src/graphics/BillboardMesh.cpp
     src/graphics/CylinderMesh.cpp
+    src/graphics/CustomStructureShaders.cpp
     src/graphics/LowPolyMesh.cpp
     src/graphics/Renderer.cpp
     src/graphics/Picking.cpp
@@ -70,6 +71,7 @@ set(ATOMFORGE_SOURCES
     src/ui/TransformAtomsDialog.cpp
     src/util/PathUtils.cpp
     src/algorithms/CSLComputation.cpp
+    src/algorithms/MeshLoader.cpp
     src/algorithms/NanoCrystalBuilder.cpp
     src/algorithms/PolyCrystalBuilder.cpp
     src/algorithms/BulkCrystalBuilder.cpp

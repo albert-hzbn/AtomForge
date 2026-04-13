@@ -1,7 +1,9 @@
 #include "ui/CustomStructureDialog.h"
 
+#include "algorithms/MeshLoader.h"
 #include "algorithms/NanoCrystalBuilder.h"
 #include "graphics/CylinderMesh.h"
+#include "graphics/CustomStructureShaders.h"
 #include "graphics/Renderer.h"
 #include "graphics/SphereMesh.h"
 #include "graphics/StructureInstanceBuilder.h"
@@ -9,6 +11,7 @@
 #include "graphics/Shader.h"
 #include "app/SceneView.h"
 #include "camera/Camera.h"
+#include "util/PathUtils.h"
 
 #include "imgui.h"
 
@@ -17,204 +20,11 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
-#include <cstdlib>
-#include <fstream>
 #include <iostream>
-#include <sstream>
 
 namespace
 {
-bool hasExtCaseInsensitive(const std::string& path, const char* ext)
-{
-    if (!ext)
-        return false;
-    std::string lowPath = path;
-    std::string lowExt = ext;
-    for (char& c : lowPath) c = (char)std::tolower((unsigned char)c);
-    for (char& c : lowExt) c = (char)std::tolower((unsigned char)c);
-    return lowPath.size() >= lowExt.size()
-        && lowPath.compare(lowPath.size() - lowExt.size(), lowExt.size(), lowExt) == 0;
-}
-
-bool parseObjMesh(const std::string& path,
-                  std::vector<glm::vec3>& outVertices,
-                  std::vector<unsigned int>& outIndices,
-                  std::string& error)
-{
-    std::ifstream in(path.c_str());
-    if (!in)
-    {
-        error = "Cannot open OBJ file.";
-        return false;
-    }
-
-    outVertices.clear();
-    outIndices.clear();
-
-    std::string line;
-    while (std::getline(in, line))
-    {
-        if (line.empty())
-            continue;
-
-        std::istringstream ls(line);
-        std::string tag;
-        ls >> tag;
-
-        if (tag == "v")
-        {
-            float x = 0.0f, y = 0.0f, z = 0.0f;
-            if (ls >> x >> y >> z)
-                outVertices.push_back(glm::vec3(x, y, z));
-        }
-        else if (tag == "f")
-        {
-            std::vector<unsigned int> face;
-            std::string token;
-            while (ls >> token)
-            {
-                const size_t slashPos = token.find('/');
-                const std::string idStr = (slashPos == std::string::npos) ? token : token.substr(0, slashPos);
-                if (idStr.empty())
-                    continue;
-
-                const int idx = std::atoi(idStr.c_str());
-                if (idx <= 0)
-                    continue;
-
-                face.push_back((unsigned int)(idx - 1));
-            }
-
-            if (face.size() >= 3)
-            {
-                for (size_t i = 1; i + 1 < face.size(); ++i)
-                {
-                    outIndices.push_back(face[0]);
-                    outIndices.push_back(face[i]);
-                    outIndices.push_back(face[i + 1]);
-                }
-            }
-        }
-    }
-
-    if (outVertices.empty() || outIndices.empty())
-    {
-        error = "OBJ has no usable vertices/faces.";
-        return false;
-    }
-
-    for (unsigned int idx : outIndices)
-    {
-        if (idx >= outVertices.size())
-        {
-            error = "OBJ face index out of range.";
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool parseStlMesh(const std::string& path,
-                  std::vector<glm::vec3>& outVertices,
-                  std::vector<unsigned int>& outIndices,
-                  std::string& error)
-{
-    std::ifstream in(path.c_str(), std::ios::binary);
-    if (!in)
-    {
-        error = "Cannot open STL file.";
-        return false;
-    }
-
-    in.seekg(0, std::ios::end);
-    const std::streamoff fileSize = in.tellg();
-    in.seekg(0, std::ios::beg);
-
-    char header[80] = {0};
-    in.read(header, 80);
-    unsigned int triCount = 0;
-    in.read(reinterpret_cast<char*>(&triCount), sizeof(unsigned int));
-
-    const std::streamoff expectedBinarySize = 84 + (std::streamoff)triCount * 50;
-    const bool looksBinary = (fileSize == expectedBinarySize);
-
-    outVertices.clear();
-    outIndices.clear();
-
-    if (looksBinary)
-    {
-        outVertices.reserve((size_t)triCount * 3);
-        outIndices.reserve((size_t)triCount * 3);
-
-        for (unsigned int t = 0; t < triCount; ++t)
-        {
-            float data[12] = {0.0f};
-            unsigned short attr = 0;
-            in.read(reinterpret_cast<char*>(data), sizeof(data));
-            in.read(reinterpret_cast<char*>(&attr), sizeof(attr));
-            if (!in)
-            {
-                error = "Binary STL parse failed.";
-                return false;
-            }
-
-            const unsigned int base = (unsigned int)outVertices.size();
-            outVertices.push_back(glm::vec3(data[3], data[4], data[5]));
-            outVertices.push_back(glm::vec3(data[6], data[7], data[8]));
-            outVertices.push_back(glm::vec3(data[9], data[10], data[11]));
-            outIndices.push_back(base + 0);
-            outIndices.push_back(base + 1);
-            outIndices.push_back(base + 2);
-        }
-
-        return !outVertices.empty();
-    }
-
-    in.clear();
-    in.seekg(0, std::ios::beg);
-
-    std::string line;
-    std::vector<glm::vec3> triVerts;
-    triVerts.reserve(3);
-
-    while (std::getline(in, line))
-    {
-        std::istringstream ls(line);
-        std::string tag;
-        ls >> tag;
-        if (tag == "vertex")
-        {
-            float x = 0.0f, y = 0.0f, z = 0.0f;
-            if (ls >> x >> y >> z)
-            {
-                triVerts.push_back(glm::vec3(x, y, z));
-                if (triVerts.size() == 3)
-                {
-                    const unsigned int base = (unsigned int)outVertices.size();
-                    outVertices.push_back(triVerts[0]);
-                    outVertices.push_back(triVerts[1]);
-                    outVertices.push_back(triVerts[2]);
-                    outIndices.push_back(base + 0);
-                    outIndices.push_back(base + 1);
-                    outIndices.push_back(base + 2);
-                    triVerts.clear();
-                }
-            }
-        }
-    }
-
-    if (outVertices.empty() || outIndices.empty())
-    {
-        error = "ASCII STL has no usable triangles.";
-        return false;
-    }
-
-    return true;
-}
-
 void drawDropRegion(const char* id, const char* title,
                     const char* bodyLine1, const char* bodyLine2,
                     float height, bool loaded, bool highlight)
@@ -258,51 +68,6 @@ void drawDropRegion(const char* id, const char* title,
 // Construction / Destruction / GL init
 // ---------------------------------------------------------------------------
 
-static const char* kMeshVS = R"(
-    #version 130
-    in vec3 position;
-    in vec3 normal;
-    uniform mat4 projection;
-    uniform mat4 view;
-    out vec3 vNormal;
-    out vec3 vFragPos;
-    void main()
-    {
-        vFragPos = position;
-        vNormal  = normal;
-        gl_Position = projection * view * vec4(position, 1.0);
-    }
-)";
-
-static const char* kMeshFS = R"(
-    #version 130
-    in vec3 vNormal;
-    in vec3 vFragPos;
-    uniform vec3 uLightDir;
-    uniform vec3 uViewPos;
-    uniform vec3 uColor;
-    out vec4 fragColor;
-    void main()
-    {
-        vec3 n = normalize(vNormal);
-        // Two-sided lighting
-        vec3 lightDir = normalize(uLightDir);
-        float diff = max(dot(n, lightDir), 0.0);
-        float diffBack = max(dot(-n, lightDir), 0.0);
-        diff = max(diff, diffBack * 0.7);
-
-        vec3 viewDir = normalize(uViewPos - vFragPos);
-        vec3 halfDir = normalize(lightDir + viewDir);
-        float spec = pow(max(dot(n, halfDir), 0.0), 32.0) * 0.3;
-        float specBack = pow(max(dot(-n, halfDir), 0.0), 32.0) * 0.15;
-        spec = max(spec, specBack);
-
-        float ambient = 0.15;
-        vec3 color = uColor * (ambient + diff * 0.75) + vec3(spec);
-        fragColor = vec4(color, 1.0);
-    }
-)";
-
 CustomStructureDialog::CustomStructureDialog() = default;
 
 CustomStructureDialog::~CustomStructureDialog()
@@ -331,7 +96,8 @@ void CustomStructureDialog::initRenderResources(Renderer& renderer)
     m_previewCylinder = new CylinderMesh(16);
     m_previewBuffers.init(m_previewSphere->vao, m_previewCylinder->vao);
     m_previewShadow = createShadowMap(1, 1);
-    m_meshProgram = createProgram(kMeshVS, kMeshFS);
+    m_meshProgram = createProgram(customStructureMeshVertexShader(),
+                                  customStructureMeshFragmentShader());
     glBindAttribLocation(m_meshProgram, 0, "position");
     glBindAttribLocation(m_meshProgram, 1, "normal");
     glLinkProgram(m_meshProgram);
@@ -577,7 +343,19 @@ void CustomStructureDialog::renderModelPreviewToFBO(int w, int h)
 
     // Build view/projection manually for the model
     float aspect = (h > 0) ? (float)w / (float)h : 1.0f;
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 10000.0f);
+    const float verticalFov = glm::radians(45.0f);
+    const float sceneRadius = std::max(1.0f, glm::length(m_modelHalfExtents));
+    const float depthPadding = std::max(10.0f, sceneRadius * 0.25f);
+    const float halfHeight = std::max(0.1f, m_modelCamDistance * std::tan(verticalFov * 0.5f));
+    const float halfWidth = halfHeight * aspect;
+    const float depthRange = std::max(1000.0f, m_modelCamDistance + sceneRadius + depthPadding);
+    glm::mat4 projection = glm::ortho(
+        -halfWidth,
+        halfWidth,
+        -halfHeight,
+        halfHeight,
+        -depthRange,
+        depthRange);
 
     float yawRad   = glm::radians(m_modelCamYaw);
     float pitchRad = glm::radians(m_modelCamPitch);
@@ -657,9 +435,9 @@ bool CustomStructureDialog::loadModelMesh(const std::string& path)
     std::string error;
 
     bool ok = false;
-    if (hasExtCaseInsensitive(path, ".obj"))
+    if (hasExtension(toLowerStr(path), ".obj"))
         ok = parseObjMesh(path, verts, idx, error);
-    else if (hasExtCaseInsensitive(path, ".stl"))
+    else if (hasExtension(toLowerStr(path), ".stl"))
         ok = parseStlMesh(path, verts, idx, error);
 
     if (!ok)
@@ -717,7 +495,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     bool justDroppedModel = false;
     for (const auto& dropPath : m_pendingDropPaths)
     {
-        if (hasExtCaseInsensitive(dropPath, ".obj") || hasExtCaseInsensitive(dropPath, ".stl"))
+        if (hasExtension(toLowerStr(dropPath), ".obj") || hasExtension(toLowerStr(dropPath), ".stl"))
         {
             if (loadModelMesh(dropPath))
                 justDroppedModel = true;

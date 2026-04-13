@@ -119,6 +119,15 @@ void applyKeyboardShortcuts(EditorState& state, FrameActionRequests& requests)
     if (ImGui::IsKeyPressed(ImGuiKey_W) && ctrlHeld)
         state.fileBrowser.closeStructure();
 
+    if (ImGui::IsKeyPressed(ImGuiKey_R)
+        && !ctrlHeld
+        && !ImGui::GetIO().WantTextInput
+        && !ImGui::GetIO().KeyAlt
+        && !ImGui::GetIO().KeySuper)
+    {
+        state.pendingDefaultViewReset = true;
+    }
+
     if (ImGui::IsKeyPressed(ImGuiKey_Z) && ctrlHeld && !ImGui::GetIO().KeyShift)
         requests.requestUndo = true;
 

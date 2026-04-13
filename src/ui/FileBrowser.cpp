@@ -482,22 +482,28 @@ void FileBrowser::draw(Structure& structure,
     editMenuDialogs.drawPopups(structure, updateBuffers);
 
     transformDialog.drawDialog([&]() { updateBuffers(structure); });
-    bulkCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors, updateBuffers);
+
+    auto updateFromBuilder = [&](Structure& updatedStructure) {
+        updateBuffers(updatedStructure);
+        requestResetDefaultView = true;
+    };
+
+    bulkCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors, updateFromBuilder);
     cslDialog.drawDialog(structure, editMenuDialogs.elementColors,
                          editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                         updateBuffers);
+                         updateFromBuilder);
     nanoCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                  editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                                 updateBuffers);
+                                 updateFromBuilder);
     customStructureDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                       editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                                      updateBuffers);
+                                      updateFromBuilder);
     interfaceBuilderDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                       editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                                      updateBuffers);
+                                      updateFromBuilder);
     polyCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                  editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                                 updateBuffers);
+                                 updateFromBuilder);
     cnaDialog.drawDialog(structure);
     rdfDialog.drawDialog(structure);
 
