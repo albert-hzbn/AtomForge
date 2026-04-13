@@ -17,6 +17,9 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <thread>
+#include <memory>
+#include <atomic>
 
 namespace
 {
@@ -461,6 +464,22 @@ void drawCnaDetails(const CnaResult& result)
 
 } // namespace
 
+// Deleter function for the opaque result pointer
+void deleteCnaResult(void* ptr)
+{
+    if (ptr)
+    {
+        delete static_cast<CnaResult*>(ptr);
+    }
+}
+
+CommonNeighbourAnalysisDialog::~CommonNeighbourAnalysisDialog()
+{
+    if (m_computeThread && m_computeThread->joinable())
+        m_computeThread->join();
+    deleteCnaResult(m_result);
+}
+
 void CommonNeighbourAnalysisDialog::drawMenuItem(bool enabled)
 {
     if (ImGui::MenuItem("Common Neighbour Analysis", NULL, false, enabled))
@@ -469,16 +488,13 @@ void CommonNeighbourAnalysisDialog::drawMenuItem(bool enabled)
 
 void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
 {
-    static bool requestRecompute = true;
     static bool usePbc = true;
     static float cutoffScale = kDefaultCutoffScale;
-    static CnaResult result;
 
     if (m_openRequested)
     {
         ImGui::OpenPopup("Common Neighbour Analysis");
         m_openRequested = false;
-        requestRecompute = true;
     }
 
     ImGui::SetNextWindowSize(ImVec2(1100.0f, 760.0f), ImGuiCond_FirstUseEver);
@@ -489,20 +505,60 @@ void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
         changed |= ImGui::Checkbox("Use PBC when unit cell is available", &usePbc);
         changed |= ImGui::SliderFloat("Bond cutoff scale", &cutoffScale, 1.00f, 1.60f, "%.2f");
         ImGui::SameLine();
-        if (ImGui::Button("Run CNA"))
-            requestRecompute = true;
+        
+        bool computeRequested = false;
+        if (ImGui::Button("Run CNA") && !m_isComputing)
+            computeRequested = true;
+        
+        ImGui::SameLine();
+        if (m_isComputing)
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Computing...");
+        else if (m_computeCompleted)
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Done");
 
-        if (changed)
-            requestRecompute = true;
-
-        if (requestRecompute)
+        // Launch computation in background thread
+        if (computeRequested && !m_isComputing)
         {
-            result = runCna(structure, cutoffScale, usePbc);
-            requestRecompute = false;
+            // Store current parameters
+            m_lastStructure = structure;
+            m_lastCutoffScale = cutoffScale;
+            m_lastUsePbc = usePbc;
+            
+            // Join previous thread if it exists
+            if (m_computeThread && m_computeThread->joinable())
+                m_computeThread->join();
+            
+            // Clean up old result
+            deleteCnaResult(m_result);
+            m_result = nullptr;
+            
+            // Start new computation thread
+            m_isComputing = true;
+            m_computeCompleted = false;
+            m_computeThread = std::make_unique<std::thread>([this]() {
+                CnaResult* result = new CnaResult();
+                *result = runCna(m_lastStructure, m_lastCutoffScale, m_lastUsePbc);
+                m_result = result;
+                m_isComputing = false;
+                m_computeCompleted = true;
+            });
         }
 
-        drawCnaSummary(result);
-        drawCnaDetails(result);
+        if (changed && !m_isComputing)
+        {
+            // Clear results if parameters change while not computing
+            deleteCnaResult(m_result);
+            m_result = nullptr;
+            m_computeCompleted = false;
+        }
+
+        // Display results if available
+        if (m_result)
+        {
+            CnaResult* resultPtr = static_cast<CnaResult*>(m_result);
+            drawCnaSummary(*resultPtr);
+            drawCnaDetails(*resultPtr);
+        }
 
         ImGui::EndPopup();
     }

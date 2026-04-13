@@ -14,6 +14,9 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <thread>
+#include <memory>
+#include <atomic>
 
 namespace
 {
@@ -581,6 +584,22 @@ void drawDistortionSummary(const RdfResult& result)
 
 } // namespace
 
+// Deleter function for the opaque result pointer
+void deleteRdfResult(void* ptr)
+{
+    if (ptr)
+    {
+        delete static_cast<RdfResult*>(ptr);
+    }
+}
+
+RadialDistributionAnalysisDialog::~RadialDistributionAnalysisDialog()
+{
+    if (m_computeThread && m_computeThread->joinable())
+        m_computeThread->join();
+    deleteRdfResult(m_result);
+}
+
 void RadialDistributionAnalysisDialog::drawMenuItem(bool enabled)
 {
     if (ImGui::MenuItem("Radial Distribution Function", NULL, false, enabled))
@@ -589,7 +608,6 @@ void RadialDistributionAnalysisDialog::drawMenuItem(bool enabled)
 
 void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
 {
-    static bool requestRecompute = true;
     static bool usePbc = true;
     static bool normalize = true;
     static bool showRawCounts = false;
@@ -604,13 +622,11 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
     static int smoothingPasses = 0;
     static int refSpeciesIndex = 0;
     static int targetSpeciesIndex = 0;
-    static RdfResult result;
 
     if (m_openRequested)
     {
         ImGui::OpenPopup("Radial Distribution Function");
         m_openRequested = false;
-        requestRecompute = true;
     }
 
     std::vector<std::pair<int, std::string> > speciesOptions = buildSpeciesOptions(structure);
@@ -654,40 +670,85 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
                 ImGui::TextWrapped("Use pair-resolved RDF (for example A-B) to track bond-length disorder and local distortion in multicomponent systems.");
             }
 
-            if (ImGui::Button("Run RDF", ImVec2(140.0f, 0.0f)))
-                requestRecompute = true;
+            bool computeRequested = false;
+            if (ImGui::Button("Run RDF", ImVec2(140.0f, 0.0f)) && !m_isComputing)
+                computeRequested = true;
             ImGui::SameLine();
             if (ImGui::Button("Close", ImVec2(120.0f, 0.0f)))
                 dialogOpen = false;
+            ImGui::SameLine();
+            if (m_isComputing)
+                ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Computing...");
+            else if (m_computeCompleted)
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Done");
+            
             if (changed)
-                requestRecompute = true;
+                m_computeCompleted = false;
+            
             ImGui::EndChild();
+
+            // Launch computation in background thread
+            if (computeRequested && !m_isComputing)
+            {
+                // Store current parameters
+                m_lastStructure = structure;
+                m_lastRefZ = speciesOptions[refSpeciesIndex].first;
+                m_lastTargetZ = speciesOptions[targetSpeciesIndex].first;
+                m_lastUsePbc = usePbc;
+                m_lastNormalize = normalize;
+                m_lastRmin = rMin;
+                m_lastRmax = rMax;
+                m_lastBinCount = binCount;
+                m_lastSmoothingPasses = smoothingPasses;
+                m_lastEnableDistortionAnalysis = enableDistortionAnalysis;
+                m_lastAutoDistortionWindow = autoDistortionWindow;
+                m_lastManualDistortionMin = manualDistortionMin;
+                m_lastManualDistortionMax = manualDistortionMax;
+                
+                // Join previous thread if it exists
+                if (m_computeThread && m_computeThread->joinable())
+                    m_computeThread->join();
+                
+                // Clean up old result
+                deleteRdfResult(m_result);
+                m_result = nullptr;
+                
+                // Start new computation thread
+                m_isComputing = true;
+                m_computeCompleted = false;
+                m_computeThread = std::make_unique<std::thread>([this]() {
+                    RdfResult* result = new RdfResult();
+                    *result = runRdf(m_lastStructure,
+                                     m_lastRefZ,
+                                     m_lastTargetZ,
+                                     m_lastUsePbc,
+                                     m_lastNormalize,
+                                     m_lastRmin,
+                                     m_lastRmax,
+                                     m_lastBinCount,
+                                     m_lastSmoothingPasses,
+                                     m_lastEnableDistortionAnalysis,
+                                     m_lastAutoDistortionWindow,
+                                     m_lastManualDistortionMin,
+                                     m_lastManualDistortionMax);
+                    m_result = result;
+                    m_isComputing = false;
+                    m_computeCompleted = true;
+                });
+            }
 
             ImGui::TableSetColumnIndex(1);
             ImGui::BeginChild("##rdf-results-child", ImVec2(0.0f, 0.0f), true);
-            if (requestRecompute)
+            
+            // Display results if available
+            if (m_result)
             {
-                int refZ = speciesOptions[refSpeciesIndex].first;
-                int targetZ = speciesOptions[targetSpeciesIndex].first;
-                result = runRdf(structure,
-                                refZ,
-                                targetZ,
-                                usePbc,
-                                normalize,
-                                rMin,
-                                rMax,
-                                binCount,
-                                smoothingPasses,
-                                enableDistortionAnalysis,
-                                autoDistortionWindow,
-                                manualDistortionMin,
-                                manualDistortionMax);
-                requestRecompute = false;
+                RdfResult* resultPtr = static_cast<RdfResult*>(m_result);
+                drawRdfSummary(*resultPtr);
+                drawPlot(*resultPtr, showRawCounts, showCumulative);
+                drawDistortionSummary(*resultPtr);
             }
-
-            drawRdfSummary(result);
-            drawPlot(result, showRawCounts, showCumulative);
-            drawDistortionSummary(result);
+            
             ImGui::EndChild();
 
             ImGui::EndTable();
