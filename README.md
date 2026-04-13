@@ -24,7 +24,7 @@ AtomForge is an interactive atomic structure builder for metallurgical simulatio
 ```bash
 sudo apt update
 sudo apt install build-essential cmake pkg-config libglfw3-dev libglew-dev libglm-dev \
-                 libopenbabel-dev libopenbabel3 libsymspg-dev
+                 libopenbabel-dev libsymspg-dev
 
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j

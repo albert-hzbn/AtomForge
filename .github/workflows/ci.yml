@@ -27,8 +27,7 @@ jobs:
             libglfw3-dev \
             libglew-dev \
             libglm-dev \
-            libopenbabel-dev \
-            libopenbabel3
+            libopenbabel-dev
 
       - name: Install optional dependencies (spglib)
         # spglib is optional – build proceeds without it if the package is absent
