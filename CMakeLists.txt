@@ -38,7 +38,7 @@ set(ATOMFORGE_SOURCES
     src/app/SceneView.cpp
     src/app/StructureFileService.cpp
     src/app/WindowSetup.cpp
-    src/ElementData.cpp
+    src/util/ElementData.cpp
     src/camera/Camera.cpp
     src/graphics/BillboardMesh.cpp
     src/graphics/CylinderMesh.cpp
@@ -88,6 +88,7 @@ add_executable(AtomForge ${ATOMFORGE_SOURCES})
 
 target_include_directories(AtomForge PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/app
     ${CMAKE_CURRENT_SOURCE_DIR}/src/camera
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics
     ${CMAKE_CURRENT_SOURCE_DIR}/src/math
