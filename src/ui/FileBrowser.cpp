@@ -1145,6 +1145,7 @@ void FileBrowser::draw(Structure& structure,
             ImGui::BulletText("Atomic Sizes adjusts per-element radii used for display and some builders.");
             ImGui::BulletText("Element Colors adjusts per-element color and shininess.");
             ImGui::BulletText("Transform Structure applies a 3x3 transformation matrix to periodic structures.");
+            ImGui::BulletText("Merge Structures opens a 3D arrangement dialog to load, place, rotate, and merge multiple structures.");
 
             ImGui::Spacing();
             ImGui::Text("Build Menu");
@@ -1182,6 +1183,12 @@ void FileBrowser::draw(Structure& structure,
             ImGui::BulletText("Displays live 3D previews of the reference crystal and the imported model side by side.");
             ImGui::BulletText("The model preview is rendered as a shaded surface instead of a wireframe for easier inspection.");
             ImGui::BulletText("Use it to generate finite atomistic structures constrained by imported mesh geometry.");
+
+            ImGui::Spacing();
+            ImGui::Text("Merge Structures");
+            ImGui::BulletText("Located in Edit -> Merge Structures.");
+            ImGui::BulletText("Provides a large 3D preview with per-structure selection and translate/rotate gizmo controls.");
+            ImGui::BulletText("Supports drag-and-drop loading and optional bounding-box display before committing merge output.");
 
             ImGui::Spacing();
             ImGui::Text("View Menu");
@@ -1274,6 +1281,7 @@ void FileBrowser::draw(Structure& structure,
             ImGui::BulletText("Multi-format structure loading and exporting");
             ImGui::BulletText("Crystallographic analysis: space groups, symmetry, cell metrics");
             ImGui::BulletText("Bulk crystal, CSL grain boundary, nanocrystal, polycrystal, and custom mesh-filled structure builders");
+            ImGui::BulletText("Interactive Merge Structures workflow with per-structure 3D gizmo transforms");
             ImGui::BulletText("Customizable atom colors, sizes, and materials");
             ImGui::BulletText("Crystal-orientation IPF coloring with in-view legend and saved sidecar metadata");
             ImGui::BulletText("Distance and angle measurement tools");

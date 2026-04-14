@@ -6,6 +6,7 @@ AtomForge is an interactive atomic structure builder for metallurgical simulatio
 
 - Build structures from scratch using crystal-aware workflows for bulk crystals, cubic grain boundaries, and nanocrystals.
 - Generate custom finite structures by filling imported 3D mesh volumes with atoms from a reference crystal.
+- Combine multiple loaded structures in a dedicated 3D Merge Structures workflow with per-structure transform gizmos.
 - Create polycrystalline microstructures via Voronoi grain construction.
 - Analyze local order with common neighbour analysis (CNA) and radial distribution function (RDF) tools.
 - Export structures for simulation (VASP and other supported formats).
@@ -199,6 +200,7 @@ Box selection is available from Edit -> Box Select Mode. When enabled, right-dra
 - Use Edit -> Edit Structure to modify lattice vectors and atom positions.
 - Use Edit -> Atomic Sizes and Edit -> Element Colors to adjust visual properties.
 - Use Edit -> Transform Structure to apply a 3x3 matrix to periodic structures.
+- Use Edit -> Merge Structures to load, arrange, and merge multiple structures in an interactive 3D preview.
 
 ### Build structures
 
@@ -208,6 +210,13 @@ Box selection is available from Edit -> Box Select Mode. When enabled, right-dra
 - **Custom Structure**: Fill imported mesh volumes (OBJ/STL) with atoms from a reference crystal, with side-by-side 3D previews.
 - **Interface Builder**: Build interfaces from two input structures with candidate matching and preview.
 - **Polycrystal**: Generate Voronoi-based polycrystalline structures from a reference crystal.
+
+### Merge structures
+
+- Open **Edit -> Merge Structures** to combine multiple structures into one.
+- Drag-and-drop supported structure files while the dialog is open.
+- Select individual structures in the list or preview, then use the 3D gizmo for translate/rotate.
+- Orbit and zoom the preview, optionally show/hide the merged bounding box, then apply **Merge Structures**.
 
 ## Builder and analysis details
 
