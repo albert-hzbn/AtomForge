@@ -485,6 +485,9 @@ void CustomStructureDialog::drawDialog(Structure& structure,
 {
     static NanoParams params;
     static NanoBuildResult lastResult;
+    static int orientationType = 1;
+    static float rotationAngles[3] = {0.0f, 0.0f, 0.0f};
+    static int millerIndices[3] = {1, 0, 0};
 
     params.shape = NanoShape::MeshModel;
     if (params.modelScale <= 0.0f)
@@ -756,6 +759,42 @@ void CustomStructureDialog::drawDialog(Structure& structure,
         ImGui::InputFloat("Center Z", &params.cz, 0.0f, 0.0f, "%.3f");
     }
 
+    ImGui::SeparatorText("Crystal Orientation");
+    ImGui::Checkbox("Apply crystal orientation", &params.applyCrystalOrientation);
+    if (params.applyCrystalOrientation)
+    {
+        ImGui::TextUnformatted("Orientation Type");
+        ImGui::SameLine();
+        ImGui::RadioButton("1", &orientationType, 1);
+        ImGui::SameLine();
+        ImGui::RadioButton("2", &orientationType, 2);
+
+        if (orientationType == 1)
+        {
+            ImGui::SetNextItemWidth(110.0f);
+            ImGui::InputFloat("Rot X (deg)", &rotationAngles[0], 1.0f, 10.0f, "%.2f");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(110.0f);
+            ImGui::InputFloat("Rot Y (deg)", &rotationAngles[1], 1.0f, 10.0f, "%.2f");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(110.0f);
+            ImGui::InputFloat("Rot Z (deg)", &rotationAngles[2], 1.0f, 10.0f, "%.2f");
+            ImGui::TextDisabled("Type 1: manual rotation about X/Y/Z axes.");
+        }
+        else
+        {
+            ImGui::SetNextItemWidth(90.0f);
+            ImGui::InputInt("h", &millerIndices[0]);
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(90.0f);
+            ImGui::InputInt("k", &millerIndices[1]);
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(90.0f);
+            ImGui::InputInt("l", &millerIndices[2]);
+            ImGui::TextDisabled("Type 2: align crystal direction [h k l] with model +Z axis.");
+        }
+    }
+
     if (m_reference.hasUnitCell)
     {
         ImGui::Checkbox("Auto-replicate reference cell", &params.autoReplicate);
@@ -808,6 +847,27 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     }
     if (ImGui::Button("Build Fill", ImVec2(140.0f, 0.0f)))
     {
+        if (params.applyCrystalOrientation)
+        {
+            params.useMillerOrientation = (orientationType == 2);
+            if (params.useMillerOrientation)
+            {
+                params.millerH = millerIndices[0];
+                params.millerK = millerIndices[1];
+                params.millerL = millerIndices[2];
+            }
+            else
+            {
+                params.orientXDeg = rotationAngles[0];
+                params.orientYDeg = rotationAngles[1];
+                params.orientZDeg = rotationAngles[2];
+            }
+        }
+        else
+        {
+            params.useMillerOrientation = false;
+        }
+
         std::cout << "[CustomStructure] Building: refAtoms=" << m_reference.atoms.size()
                   << ", unitCell=" << (m_reference.hasUnitCell ? "yes" : "no")
                   << ", modelTris=" << (m_modelIndices.size() / 3)

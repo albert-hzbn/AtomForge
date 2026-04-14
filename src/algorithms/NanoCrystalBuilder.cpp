@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/gtc/matrix_transform.hpp>
 #include <sstream>
 #include <unordered_map>
 
@@ -209,6 +210,35 @@ static float safeLen3(const glm::vec3& v)
     return std::sqrt(glm::dot(v, v));
 }
 
+static glm::mat3 rotationAligningDirectionToZ(const glm::vec3& fromDir)
+{
+    const glm::vec3 source = glm::normalize(fromDir);
+    const glm::vec3 target(0.0f, 0.0f, 1.0f);
+    const float dotST = glm::dot(source, target);
+
+    if (dotST > 0.999999f)
+        return glm::mat3(1.0f);
+
+    if (dotST < -0.999999f)
+    {
+        glm::vec3 axis = glm::cross(source, glm::vec3(1.0f, 0.0f, 0.0f));
+        if (glm::length(axis) < 1e-6f)
+            axis = glm::cross(source, glm::vec3(0.0f, 1.0f, 0.0f));
+        axis = glm::normalize(axis);
+        return glm::mat3(glm::rotate(glm::mat4(1.0f), 3.14159265358979323846f, axis));
+    }
+
+    glm::vec3 axis = glm::cross(source, target);
+    const float axisLen = glm::length(axis);
+    if (axisLen < 1e-6f)
+        return glm::mat3(1.0f);
+
+    axis /= axisLen;
+    const float clampedDot = std::max(-1.0f, std::min(1.0f, dotST));
+    const float angle = std::acos(clampedDot);
+    return glm::mat3(glm::rotate(glm::mat4(1.0f), angle, axis));
+}
+
 // -- Builder -----------------------------------------------------------------
 
 NanoBuildResult buildNanocrystal(Structure& structure,
@@ -250,11 +280,38 @@ NanoBuildResult buildNanocrystal(Structure& structure,
     const float maxR = computeBoundingRadius(params);
     std::vector<AtomSite> generatedAtoms;
 
+    glm::mat3 orientation(1.0f);
+    if (params.applyCrystalOrientation)
+    {
+        if (params.useMillerOrientation)
+        {
+            const glm::vec3 millerDir((float)params.millerH,
+                                      (float)params.millerK,
+                                      (float)params.millerL);
+            if (glm::length(millerDir) < 1e-6f)
+            {
+                result.message = "Miller indices [h k l] cannot all be zero.";
+                return result;
+            }
+            orientation = rotationAligningDirectionToZ(millerDir);
+        }
+        else
+        {
+            const float rx = glm::radians(params.orientXDeg);
+            const float ry = glm::radians(params.orientYDeg);
+            const float rz = glm::radians(params.orientZDeg);
+            const glm::mat4 rot4 = glm::rotate(glm::mat4(1.0f), rz, glm::vec3(0.0f, 0.0f, 1.0f))
+                                 * glm::rotate(glm::mat4(1.0f), ry, glm::vec3(0.0f, 1.0f, 0.0f))
+                                 * glm::rotate(glm::mat4(1.0f), rx, glm::vec3(1.0f, 0.0f, 0.0f));
+            orientation = glm::mat3(rot4);
+        }
+    }
+
     if (reference.hasUnitCell) {
         const auto& cv = reference.cellVectors;
-        const glm::vec3 a((float)cv[0][0], (float)cv[0][1], (float)cv[0][2]);
-        const glm::vec3 b((float)cv[1][0], (float)cv[1][1], (float)cv[1][2]);
-        const glm::vec3 c((float)cv[2][0], (float)cv[2][1], (float)cv[2][2]);
+        const glm::vec3 a = orientation * glm::vec3((float)cv[0][0], (float)cv[0][1], (float)cv[0][2]);
+        const glm::vec3 b = orientation * glm::vec3((float)cv[1][0], (float)cv[1][1], (float)cv[1][2]);
+        const glm::vec3 c = orientation * glm::vec3((float)cv[2][0], (float)cv[2][1], (float)cv[2][2]);
         const float la = safeLen3(a), lb = safeLen3(b), lc = safeLen3(c);
 
         if (la < 1e-8f || lb < 1e-8f || lc < 1e-8f) {
@@ -303,10 +360,10 @@ NanoBuildResult buildNanocrystal(Structure& structure,
         for (int ic = -nC; ic <= nC; ++ic) {
             const glm::vec3 offset = (float)ia*a + (float)ib*b + (float)ic*c;
             for (const AtomSite& atom : reference.atoms) {
-                const glm::vec3 pos(
-                    (float)atom.x + offset.x,
-                    (float)atom.y + offset.y,
-                    (float)atom.z + offset.z);
+                const glm::vec3 localPos((float)atom.x - center.x,
+                                         (float)atom.y - center.y,
+                                         (float)atom.z - center.z);
+                const glm::vec3 pos = center + (orientation * localPos) + offset;
                 if (!isInsideShape(pos - center, params, modelVertices, modelIndices)) continue;
 
                 AtomSite out = atom;
@@ -328,9 +385,15 @@ NanoBuildResult buildNanocrystal(Structure& structure,
         result.tilingUsed = false;
         generatedAtoms.reserve(reference.atoms.size());
         for (const AtomSite& atom : reference.atoms) {
-            const glm::vec3 pos((float)atom.x, (float)atom.y, (float)atom.z);
+            const glm::vec3 localPos((float)atom.x - center.x,
+                                     (float)atom.y - center.y,
+                                     (float)atom.z - center.z);
+            const glm::vec3 pos = center + (orientation * localPos);
             if (!isInsideShape(pos - center, params, modelVertices, modelIndices)) continue;
             AtomSite out = atom;
+            out.x = (double)pos.x;
+            out.y = (double)pos.y;
+            out.z = (double)pos.z;
             int z = out.atomicNumber;
             if (z >= 0 && z < (int)elementColors.size()) {
                 out.r = elementColors[z].r;

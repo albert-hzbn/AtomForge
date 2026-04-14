@@ -60,6 +60,16 @@ struct NanoParams
     float cy = 0.0f;
     float cz = 0.0f;
 
+    // Optional crystal orientation applied before shape clipping.
+    bool  applyCrystalOrientation = false;
+    bool  useMillerOrientation = false;
+    float orientXDeg = 0.0f;
+    float orientYDeg = 0.0f;
+    float orientZDeg = 0.0f;
+    int   millerH = 1;
+    int   millerK = 0;
+    int   millerL = 0;
+
     bool autoReplicate = true;
     int  repA = 5;
     int  repB = 5;
