@@ -59,6 +59,8 @@ FileBrowser::FileBrowser()
             showBonds(false),
             showLatticePlanes(false),
             showLatticePlanesDialog(false),
+            showMillerDirections(false),
+            showMillerDirectionsDialog(false),
             showVoronoi(false),
             bondElementFilterEnabled(false),
             viewMode(ViewMode::Orthographic),
@@ -103,7 +105,11 @@ FileBrowser::FileBrowser()
             latticePlaneInputK(0),
             latticePlaneInputL(0),
             latticePlaneInputOffset(1.0f),
-            latticePlaneInputOpacity(0.20f)
+            latticePlaneInputOpacity(0.20f),
+            millerDirInputU(1),
+            millerDirInputV(0),
+            millerDirInputW(0),
+            millerDirInputLength(5.0f)
 {
     allowedExtensions = {".cif", ".mol", ".pdb", ".xyz", ".sdf", ".vasp", ".mol2", ".pwi", ".gjf"};
 
@@ -150,6 +156,9 @@ FileBrowser::FileBrowser()
     latticePlaneInputColor[0] = 0.95f;
     latticePlaneInputColor[1] = 0.62f;
     latticePlaneInputColor[2] = 0.20f;
+    millerDirInputColor[0] = 0.25f;
+    millerDirInputColor[1] = 0.75f;
+    millerDirInputColor[2] = 1.00f;
     bondElementFilterMask.fill(false);
     updateBondElementFilterMask();
 }
@@ -341,6 +350,10 @@ void FileBrowser::draw(Structure& structure,
             ImGui::MenuItem("Show Lattice Planes", nullptr, &showLatticePlanes, structure.hasUnitCell);
             if (ImGui::MenuItem("Lattice Planes", nullptr, false, structure.hasUnitCell))
                 showLatticePlanesDialog = true;
+
+            ImGui::MenuItem("Show Miller Directions", nullptr, &showMillerDirections, structure.hasUnitCell);
+            if (ImGui::MenuItem("Miller Directions", nullptr, false, structure.hasUnitCell))
+                showMillerDirectionsDialog = true;
 
             ImGui::Separator();
 
@@ -707,6 +720,8 @@ void FileBrowser::draw(Structure& structure,
                 structure = std::move(newStructure);
                 latticePlanes.clear();
                 showLatticePlanes = false;
+                millerDirections.clear();
+                showMillerDirections = false;
                 applyElementColorOverrides(structure);
                 showLoadInfo(std::string("Structure loaded. ") + structure.ipfLoadStatus);
 
@@ -1287,6 +1302,129 @@ void FileBrowser::draw(Structure& structure,
     }
     if (!latticePlanesOpen)
         ImGui::CloseCurrentPopup();
+
+    // ---- Miller Directions dialog ----------------------------------------
+    if (showMillerDirectionsDialog)
+    {
+        ImGui::OpenPopup("Miller Directions");
+        showMillerDirectionsDialog = false;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(680.0f, 480.0f), ImGuiCond_FirstUseEver);
+    bool millerDirOpen = true;
+    if (ImGui::BeginPopupModal("Miller Directions", &millerDirOpen, ImGuiWindowFlags_NoResize))
+    {
+        if (!structure.hasUnitCell)
+        {
+            ImGui::TextDisabled("Current structure has no unit cell. Miller directions are unavailable.");
+            if (ImGui::Button("Close", ImVec2(120, 0)))
+                ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+        }
+        else
+        {
+            ImGui::Checkbox("Show Miller directions", &showMillerDirections);
+            ImGui::TextDisabled("Arrows are drawn from the cell origin along the [uvw] direction.");
+            ImGui::Separator();
+
+            ImGui::Text("New direction:");
+            ImGui::SetNextItemWidth(85.0f);
+            ImGui::DragInt("U##dir", &millerDirInputU, 0.2f, -50, 50);
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(85.0f);
+            ImGui::DragInt("V##dir", &millerDirInputV, 0.2f, -50, 50);
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(85.0f);
+            ImGui::DragInt("W##dir", &millerDirInputW, 0.2f, -50, 50);
+
+            ImGui::SetNextItemWidth(210.0f);
+            ImGui::DragFloat("Length (A)##dir", &millerDirInputLength, 0.1f, 0.5f, 100.0f, "%.1f");
+            ImGui::SameLine();
+            ImGui::ColorEdit3("Color##dir", millerDirInputColor, ImGuiColorEditFlags_NoInputs);
+
+            const bool invalidDir =
+                (millerDirInputU == 0 && millerDirInputV == 0 && millerDirInputW == 0);
+            if (invalidDir)
+                ImGui::TextDisabled("(u, v, w) cannot all be zero.");
+
+            if (ImGui::Button("Add Direction", ImVec2(140.0f, 0.0f)) && !invalidDir)
+            {
+                MillerDirection md;
+                md.u = millerDirInputU;
+                md.v = millerDirInputV;
+                md.w = millerDirInputW;
+                md.length = millerDirInputLength;
+                md.color = { millerDirInputColor[0], millerDirInputColor[1], millerDirInputColor[2] };
+                md.visible = true;
+                millerDirections.push_back(md);
+                showMillerDirections = true;
+            }
+
+            ImGui::Separator();
+            ImGui::Text("Saved directions:");
+
+            if (millerDirections.empty())
+            {
+                ImGui::TextDisabled("No Miller directions added.");
+            }
+            else if (ImGui::BeginChild("##miller-dir-list", ImVec2(0.0f, 200.0f), true))
+            {
+                int deleteIndex = -1;
+                for (size_t i = 0; i < millerDirections.size(); ++i)
+                {
+                    ImGui::PushID((int)i + 40000);
+                    MillerDirection& md = millerDirections[i];
+
+                    ImGui::Checkbox("##vis", &md.visible);
+                    ImGui::SameLine();
+                    ImGui::Text("Dir %d", (int)i + 1);
+
+                    ImGui::SetNextItemWidth(80.0f);
+                    ImGui::DragInt("U##du", &md.u, 0.2f, -50, 50);
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(80.0f);
+                    ImGui::DragInt("V##dv", &md.v, 0.2f, -50, 50);
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(80.0f);
+                    ImGui::DragInt("W##dw", &md.w, 0.2f, -50, 50);
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(100.0f);
+                    ImGui::DragFloat("L##dl", &md.length, 0.1f, 0.5f, 100.0f, "%.1f");
+
+                    if (md.u == 0 && md.v == 0 && md.w == 0)
+                        md.u = 1;
+
+                    float col[3] = { md.color[0], md.color[1], md.color[2] };
+                    ImGui::SameLine();
+                    if (ImGui::ColorEdit3("##dc", col, ImGuiColorEditFlags_NoInputs))
+                    {
+                        md.color[0] = col[0];
+                        md.color[1] = col[1];
+                        md.color[2] = col[2];
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Delete##ddel"))
+                        deleteIndex = (int)i;
+
+                    ImGui::Separator();
+                    ImGui::PopID();
+                }
+
+                if (deleteIndex >= 0)
+                    millerDirections.erase(millerDirections.begin() + deleteIndex);
+
+                ImGui::EndChild();
+            }
+
+            ImGui::Spacing();
+            if (ImGui::Button("Close##dclose", ImVec2(120, 0)))
+                ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+        }
+    }
+    if (!millerDirOpen)
+        ImGui::CloseCurrentPopup();
+    // ---- end Miller Directions dialog ------------------------------------
 
     if (showManual)
     {

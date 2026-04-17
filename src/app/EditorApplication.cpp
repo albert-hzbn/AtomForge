@@ -24,6 +24,7 @@
 #include "BillboardMesh.h"
 #include "ui/ImGuiSetup.h"
 #include "ui/LatticePlaneOverlay.h"
+#include "ui/MillerDirectionOverlay.h"
 #include "ui/VoronoiOverlay.h"
 
 #include <glm/glm.hpp>
@@ -176,6 +177,7 @@ void handleStructureResetRequests(EditorState& state)
         clearSelection(state);
         state.structure = Structure();
         state.fileBrowser.clearLatticePlanes();
+        state.fileBrowser.clearMillerDirections();
         updateBuffers(state);
         state.pendingDefaultViewReset = true;
 
@@ -621,6 +623,16 @@ int runAtomsEditor(const std::string& startupStructurePath)
             state.structure,
             state.fileBrowser.getLatticePlanes(),
             state.fileBrowser.isShowLatticePlanesEnabled());
+
+        drawMillerDirectionsOverlay(
+            drawList,
+            frame.projection,
+            frame.view,
+            frame.framebufferWidth,
+            frame.framebufferHeight,
+            state.structure,
+            state.fileBrowser.getMillerDirections(),
+            state.fileBrowser.isShowMillerDirectionsEnabled());
 
         if (state.fileBrowser.isShowVoronoiEnabled())
         {

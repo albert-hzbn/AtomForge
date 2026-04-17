@@ -68,6 +68,16 @@ struct LatticePlane
     bool visible = true;
 };
 
+struct MillerDirection
+{
+    int u = 1;
+    int v = 0;
+    int w = 0;
+    float length = 5.0f;  // display length in Angstroms
+    std::array<float, 3> color = {0.25f, 0.75f, 1.0f};
+    bool visible = true;
+};
+
 struct FileBrowser
 {
     FileBrowser();
@@ -99,6 +109,9 @@ struct FileBrowser
     bool isShowLatticePlanesEnabled() const { return showLatticePlanes; }
     const std::vector<LatticePlane>& getLatticePlanes() const { return latticePlanes; }
     void clearLatticePlanes() { latticePlanes.clear(); }
+    bool isShowMillerDirectionsEnabled() const { return showMillerDirections; }
+    const std::vector<MillerDirection>& getMillerDirections() const { return millerDirections; }
+    void clearMillerDirections() { millerDirections.clear(); }
     bool isShowVoronoiEnabled() const { return showVoronoi; }
     bool consumeMeasureDistanceRequest()
     {
@@ -282,6 +295,8 @@ private:
     bool showBonds;
     bool showLatticePlanes;
     bool showLatticePlanesDialog;
+    bool showMillerDirections;
+    bool showMillerDirectionsDialog;
     bool showVoronoi;
     bool bondElementFilterEnabled;
     ViewMode viewMode;
@@ -358,6 +373,13 @@ private:
     float latticePlaneInputOpacity;
     float latticePlaneInputColor[3];
     std::vector<LatticePlane> latticePlanes;
+
+    int millerDirInputU;
+    int millerDirInputV;
+    int millerDirInputW;
+    float millerDirInputLength;
+    float millerDirInputColor[3];
+    std::vector<MillerDirection> millerDirections;
 
     BulkCrystalBuilderDialog bulkCrystalDialog;
     CSLGrainBoundaryDialog cslDialog;

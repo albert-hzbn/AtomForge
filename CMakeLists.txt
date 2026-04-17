@@ -64,6 +64,7 @@ set(ATOMFORGE_SOURCES
     src/ui/FileBrowser.cpp
     src/ui/ImGuiSetup.cpp
     src/ui/LatticePlaneOverlay.cpp
+    src/ui/MillerDirectionOverlay.cpp
     src/ui/VoronoiOverlay.cpp
     src/ui/MeasurementOverlay.cpp
     src/ui/PeriodicTableDialog.cpp
