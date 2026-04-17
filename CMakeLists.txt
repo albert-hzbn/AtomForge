@@ -249,7 +249,7 @@ endif()
 # CPack Configuration
 # ============================================================================
 set(CPACK_PACKAGE_NAME "AtomForge")
-set(CPACK_PACKAGE_VERSION "1.0.0")
+set(CPACK_PACKAGE_VERSION "0.1.0")
 set(CPACK_PACKAGE_DESCRIPTION "Atomic structure builder for metallurgical simulation and atomistic modeling")
 set(CPACK_PACKAGE_VENDOR "AtomForge")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/albert-hzbn/AtomForge")

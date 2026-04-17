@@ -123,15 +123,14 @@ Portable packaging bundles runtime libraries and Open Babel plugins into a redis
 
 ```bash
 # In the MSYS2 UCRT64 shell:
-cmake -S . -B build-mingw -G "MinGW Makefiles" \
-      -DCMAKE_BUILD_TYPE=Release -DBUILD_PORTABLE=ON
+cmake -S . -B build-mingw -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_PORTABLE=ON
 cmake --build build-mingw -- -j1
 
 # Create the package:
 cpack --config build-mingw/CPackConfig.cmake -B build-mingw/package
 ```
 
-Output: `build-mingw/package/AtomForge-1.0.0-win64.zip`
+Output: `build-mingw/package/AtomForge-0.1.0-win64.zip`
 
 Contents:
 - `AtomForge.exe`
