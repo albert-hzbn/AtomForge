@@ -4,7 +4,7 @@ AtomForge is an interactive atomic structure builder for metallurgical simulatio
 
 ## Highlights
 
-- Build structures from scratch using crystal-aware workflows for bulk crystals, cubic grain boundaries, and nanocrystals.
+- Build structures from scratch using crystal-aware workflows for bulk crystals, substitutional solid solutions, cubic grain boundaries, and nanocrystals.
 - Generate custom finite structures by filling imported 3D mesh volumes with atoms from a reference crystal.
 - Combine multiple loaded structures in a dedicated 3D Merge Structures workflow with per-structure transform gizmos.
 - Create polycrystalline microstructures via Voronoi grain construction.
@@ -205,6 +205,7 @@ Box selection is available from Edit -> Box Select Mode. When enabled, right-dra
 ### Build structures
 
 - **Bulk Crystal**: Create periodic cells from crystal system, space group, lattice parameters, and asymmetric-unit atoms.
+- **Substitutional Solid Solution**: Randomly substitute element species on the lattice sites of a host structure to match a user-defined target composition, specified in atomic percent with live integer-count feedback.
 - **CSL Grain Boundary**: Build cubic bicrystals with explicit Sigma selection and control over GB plane, in-plane replication, translation, and overlap handling.
 - **Nanocrystal**: Carve finite particles from loaded reference structures (sphere, ellipsoid, box, cylinder, octahedron, truncated octahedron, cuboctahedron).
 - **Custom Structure**: Fill imported mesh volumes (OBJ/STL) with atoms from a reference crystal, with side-by-side 3D previews.
@@ -225,6 +226,14 @@ Box selection is available from Edit -> Box Select Mode. When enabled, right-dra
 - Organizes space groups by crystal system (triclinic to cubic).
 - Applies system-specific lattice constraints and trigonal settings.
 - Expands asymmetric-unit atoms using symmetry operations to produce full unit cells.
+
+### Substitutional solid solution builder
+
+- Accepts a host structure from the current scene or by drag-and-drop file.
+- Composition is specified per element in atomic percent (at%) with a draggable field; Ctrl+click to type exact values.
+- Adjusting one element scales all others proportionally so the total always remains 100 at%.
+- Integer atom counts are derived via the largest-remainder method to guarantee they sum exactly to the total.
+- Atom positions and the unit cell are fully preserved; only element assignments are randomised.
 
 ### CSL grain boundary builder
 

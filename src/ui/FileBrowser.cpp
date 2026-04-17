@@ -1475,7 +1475,7 @@ void FileBrowser::draw(Structure& structure,
             ImGui::BulletText("Full undo/redo support for all editing operations");
             ImGui::BulletText("Multi-format structure loading and exporting");
             ImGui::BulletText("Crystallographic analysis: space groups, symmetry, cell metrics");
-            ImGui::BulletText("Bulk crystal, CSL grain boundary, nanocrystal, polycrystal, and custom mesh-filled structure builders");
+            ImGui::BulletText("Bulk crystal, CSL grain boundary, nanocrystal, polycrystal, substitutional solid solution, and custom mesh-filled structure builders");
             ImGui::BulletText("Interactive Merge Structures workflow with per-structure 3D gizmo transforms");
             ImGui::BulletText("Customizable atom colors, sizes, and materials");
             ImGui::BulletText("Crystal-orientation IPF coloring with in-view legend and saved sidecar metadata");
