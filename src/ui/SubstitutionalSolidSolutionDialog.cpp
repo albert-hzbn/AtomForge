@@ -463,7 +463,10 @@ void SubstitutionalSolidSolutionDialog::renderPreviewToFBO(int w, int h)
     glBindFramebuffer(GL_FRAMEBUFFER, m_previewFBO);
     glViewport(0, 0, w, h);
     glEnable(GL_DEPTH_TEST);
-    glClearColor(0.09f, 0.11f, 0.15f, 1.0f);
+    {
+        const ImVec4& bg = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+        glClearColor(bg.x, bg.y, bg.z, bg.w);
+    }
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     m_renderer->drawBonds(frame.projection, frame.view,
@@ -574,10 +577,15 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
 
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
-        // Dark background.
-        dl->AddRectFilled(previewMin, previewMax, IM_COL32(23, 28, 38, 255));
+        // Background and border — follow the active theme.
+        {
+            const ImVec4& bg = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+            dl->AddRectFilled(previewMin, previewMax,
+                              IM_COL32((int)(bg.x * 255), (int)(bg.y * 255),
+                                       (int)(bg.z * 255), 255));
+        }
         dl->AddRect(previewMin, previewMax,
-                    IM_COL32(80, 80, 100, 180), 3.0f);
+                    ImGui::GetColorU32(ImGuiCol_Separator), 3.0f);
 
         if (!m_sourceLoaded)
         {
@@ -589,7 +597,7 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
                              (previewMin.y + previewMax.y) * 0.5f);
             const float w1 = ImGui::CalcTextSize(hint1).x;
             const float w2 = ImGui::CalcTextSize(hint2).x;
-            const ImU32 hintCol = IM_COL32(130, 140, 160, 200);
+            const ImU32 hintCol = ImGui::GetColorU32(ImGuiCol_TextDisabled);
             dl->AddText(ImVec2(mid.x - w1 * 0.5f, mid.y - lh * 1.1f), hintCol, hint1);
             dl->AddText(ImVec2(mid.x - w2 * 0.5f, mid.y + lh * 0.1f), hintCol, hint2);
         }
@@ -634,7 +642,7 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
             const float hw = ImGui::CalcTextSize(orbitHint).x;
             dl->AddText(ImVec2(previewMin.x + (previewAreaW - hw) * 0.5f,
                                previewMax.y - ImGui::GetTextLineHeight() - 6.0f),
-                        IM_COL32(160, 160, 180, 180), orbitHint);
+                        ImGui::GetColorU32(ImGuiCol_TextDisabled), orbitHint);
         }
     }
     ImGui::EndChild(); // ##sss_left
