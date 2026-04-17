@@ -70,6 +70,7 @@ set(ATOMFORGE_SOURCES
     src/ui/RadialDistributionAnalysis.cpp
     src/ui/StructureInfoDialog.cpp
     src/ui/TransformAtomsDialog.cpp
+    src/ui/SubstitutionalSolidSolutionDialog.cpp
     src/util/PathUtils.cpp
     src/algorithms/CSLComputation.cpp
     src/algorithms/MeshLoader.cpp
@@ -78,6 +79,7 @@ set(ATOMFORGE_SOURCES
     src/algorithms/BulkCrystalBuilder.cpp
     src/algorithms/InterfaceBuilder.cpp
     src/algorithms/VoronoiComputation.cpp
+    src/algorithms/SubstitutionalSolidSolutionBuilder.cpp
     src/io/StructureLoader.cpp
     imgui/imgui.cpp
     imgui/imgui_draw.cpp

@@ -85,6 +85,12 @@ void processDroppedFiles(EditorState& state)
         return;
     }
 
+    if (state.fileBrowser.isSubstitutionalSolidSolutionDialogOpen())
+    {
+        state.fileBrowser.feedDropToSubstitutionalSolidSolutionDialog(droppedFile);
+        return;
+    }
+
     Structure loadedStructure;
     std::string loadError;
     if (!loadStructureFromFile(droppedFile, loadedStructure, loadError))

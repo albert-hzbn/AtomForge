@@ -271,6 +271,7 @@ void FileBrowser::draw(Structure& structure,
         if (ImGui::BeginMenu("Build"))
         {
             bulkCrystalDialog.drawMenuItem(true);
+            substitutionalSolidSolutionDialog.drawMenuItem(true);
             cslDialog.drawMenuItem(true);
             nanoCrystalDialog.drawMenuItem(true);
             customStructureDialog.drawMenuItem(true);
@@ -509,6 +510,10 @@ void FileBrowser::draw(Structure& structure,
     polyCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                  editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
                                  updateFromBuilder);
+    substitutionalSolidSolutionDialog.drawDialog(structure, editMenuDialogs.elementColors,
+                                                  editMenuDialogs.elementRadii,
+                                                  editMenuDialogs.elementShininess,
+                                                  updateFromBuilder);
     cnaDialog.drawDialog(structure);
     rdfDialog.drawDialog(structure);
 
@@ -1674,6 +1679,21 @@ bool FileBrowser::isPolyCrystalDialogOpen() const
 void FileBrowser::feedDropToPolyCrystalDialog(const std::string& path)
 {
     polyCrystalDialog.feedDroppedFile(path);
+}
+
+void FileBrowser::initSubstitutionalSolidSolutionRenderResources(Renderer& renderer)
+{
+    substitutionalSolidSolutionDialog.initRenderResources(renderer);
+}
+
+bool FileBrowser::isSubstitutionalSolidSolutionDialogOpen() const
+{
+    return substitutionalSolidSolutionDialog.isOpen();
+}
+
+void FileBrowser::feedDropToSubstitutionalSolidSolutionDialog(const std::string& path)
+{
+    substitutionalSolidSolutionDialog.feedDroppedFile(path);
 }
 
 void FileBrowser::showLoadError(const std::string& message)

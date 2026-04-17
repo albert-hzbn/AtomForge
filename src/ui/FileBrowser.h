@@ -8,6 +8,7 @@
 #include "ui/MergeStructuresDialog.h"
 #include "ui/InterfaceBuilderDialog.h"
 #include "ui/PolyCrystalBuilderDialog.h"
+#include "ui/SubstitutionalSolidSolutionDialog.h"
 #include "ui/CommonNeighbourAnalysis.h"
 #include "ui/RadialDistributionAnalysis.h"
 #include "ui/TransformAtomsDialog.h"
@@ -254,6 +255,11 @@ struct FileBrowser
     bool isPolyCrystalDialogOpen() const;
     void feedDropToPolyCrystalDialog(const std::string& path);
 
+    // Substitutional solid solution dialog GL resources and drop routing.
+    void initSubstitutionalSolidSolutionRenderResources(Renderer& renderer);
+    bool isSubstitutionalSolidSolutionDialogOpen() const;
+    void feedDropToSubstitutionalSolidSolutionDialog(const std::string& path);
+
     // Show a modal error popup for file-load failures.
     void showLoadError(const std::string& message);
     // Show a modal informational popup for successful load status.
@@ -360,6 +366,7 @@ private:
     MergeStructuresDialog mergeStructuresDialog;
     InterfaceBuilderDialog interfaceBuilderDialog;
     PolyCrystalBuilderDialog polyCrystalDialog;
+    SubstitutionalSolidSolutionDialog substitutionalSolidSolutionDialog;
     CommonNeighbourAnalysisDialog cnaDialog;
     RadialDistributionAnalysisDialog rdfDialog;
     TransformAtomsDialog transformDialog;
