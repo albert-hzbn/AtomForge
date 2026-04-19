@@ -101,6 +101,7 @@ private:
     bool m_glReady           = false;
     bool m_previewBufDirty   = true; // rebuild SceneBuffers from m_reference
     bool m_wulffPreviewDirty = true;
+    bool m_wulffPreviewCameraNeedsFit = true;
 
     WulffPreview m_wulffPreviewData;
     std::vector<WulffPreviewBatch> m_wulffPreviewBatches;

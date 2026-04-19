@@ -585,6 +585,7 @@ bool NanoCrystalBuilderDialog::tryLoadFile(const std::string& path,
                   "Loaded: %d atoms", (int)m_reference.atoms.size());
     m_previewBufDirty = true;
     m_wulffPreviewDirty = true;
+    m_wulffPreviewCameraNeedsFit = true;
     if (m_glReady) {
         rebuildPreviewBuffers(radii, shininess);
         autoFitPreviewCamera();
@@ -944,6 +945,7 @@ void NanoCrystalBuilderDialog::drawDialog(
             m_reference = structure;
             m_previewBufDirty = true;
             m_wulffPreviewDirty = true;
+            m_wulffPreviewCameraNeedsFit = true;
         }
         m_openRequested = false;
     }
@@ -955,7 +957,11 @@ void NanoCrystalBuilderDialog::drawDialog(
         {
             m_wulffPreviewData = computeWulffPreview(m_reference, params);
             rebuildWulffPreviewGeometry(m_wulffPreviewData);
-            autoFitWulffPreviewCamera();
+            if (m_wulffPreviewData.success && m_wulffPreviewCameraNeedsFit)
+            {
+                autoFitWulffPreviewCamera();
+                m_wulffPreviewCameraNeedsFit = false;
+            }
             m_wulffPreviewSignature = signature;
             m_wulffPreviewDirty = false;
         }
@@ -1010,6 +1016,7 @@ void NanoCrystalBuilderDialog::drawDialog(
             m_reference       = {};
             m_previewBufDirty = true;
             m_wulffPreviewDirty = true;
+            m_wulffPreviewCameraNeedsFit = true;
             m_wulffPreviewData = {};
             m_wulffPreviewBatches.clear();
             m_wulffPreviewSignature = 0;
@@ -1196,6 +1203,8 @@ void NanoCrystalBuilderDialog::drawDialog(
     {
         params.generationMode = (NanoGenerationMode)generationMode;
         m_wulffPreviewDirty = true;
+        if (params.generationMode == NanoGenerationMode::WulffConstruction)
+            m_wulffPreviewCameraNeedsFit = true;
         lastResult = {};
     }
 
