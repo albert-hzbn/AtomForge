@@ -1574,15 +1574,23 @@ void FileBrowser::draw(Structure& structure,
         showAbout = false;
     }
 
-    ImGui::SetNextWindowSize(ImVec2(760.0f, 520.0f), ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize(ImVec2(860.0f, 620.0f), ImGuiCond_Appearing);
     bool aboutOpen = true;
     if (ImGui::BeginPopupModal("About", &aboutOpen, ImGuiWindowFlags_NoResize))
     {
+        auto wrappedBullet = [](const char* text) {
+            ImGui::Bullet();
+            ImGui::SameLine();
+            ImGui::PushTextWrapPos(0.0f);
+            ImGui::TextWrapped("%s", text);
+            ImGui::PopTextWrapPos();
+        };
+
         ImGui::Text("AtomForge");
         ImGui::TextDisabled("Version " ATOMFORGE_VERSION "  –  Atomistic structure builder, viewer, and editor with periodic-cell and finite-geometry workflows");
         ImGui::Separator();
 
-        if (ImGui::BeginChild("##about-scroll", ImVec2(0.0f, 440.0f), false))
+        if (ImGui::BeginChild("##about-scroll", ImVec2(0.0f, -ImGui::GetFrameHeightWithSpacing() - 6.0f), false))
         {
             ImGui::Text("Creator");
             ImGui::BulletText("Albert Linda");
@@ -1607,6 +1615,11 @@ void FileBrowser::draw(Structure& structure,
             ImGui::BulletText("Standard crystallographic conventions for cell vectors and positions");
 
             ImGui::Spacing();
+            ImGui::Text("Algorithm References");
+            wrappedBullet("CSL Grain Boundary Builder: Jianli Cheng, Jian Luo, and Kesong Yang, Aimsgb: An Algorithm and Open-Source Python Library to Generate Periodic Grain Boundary Structures, Comput. Mater. Sci. 155, 92-103 (2018).");
+            wrappedBullet("Nanocrystal Builder (Wulff construction): Georgios D. Barmparis, Zbigniew Lodziana, Nuria Lopez, and Ioannis N. Remediakis, Nanoparticle shapes by using Wulff constructions and first-principles calculations, Beilstein J. Nanotechnol. 6, 361-368 (2015).");
+
+            ImGui::Spacing();
             ImGui::Text("Features");
             ImGui::BulletText("Interactive 3D visualization with real-time rendering");
             ImGui::BulletText("Full undo/redo support for all editing operations");
@@ -1623,6 +1636,9 @@ void FileBrowser::draw(Structure& structure,
 
             ImGui::EndChild();
         }
+
+        if (ImGui::Button("Close##about", ImVec2(120.0f, 0.0f)))
+            ImGui::CloseCurrentPopup();
 
         ImGui::EndPopup();
     }

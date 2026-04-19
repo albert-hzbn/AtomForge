@@ -1,5 +1,10 @@
 #include "algorithms/CSLComputation.h"
 
+// CSL grain-boundary generation in AtomForge follows the AIMSGB workflow
+// described in: Jianli Cheng, Jian Luo, and Kesong Yang, "Aimsgb: An
+// Algorithm and Open-Source Python Library to Generate Periodic Grain
+// Boundary Structures," Comput. Mater. Sci. 155, 92-103 (2018).
+
 #include "ElementData.h"
 
 #ifdef ATOMS_ENABLE_SPGLIB

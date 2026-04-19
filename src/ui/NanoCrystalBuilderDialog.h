@@ -1,5 +1,6 @@
 #pragma once
 
+#include "algorithms/NanoCrystalBuilder.h"
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
 #include "io/StructureLoader.h"
@@ -15,6 +16,14 @@
 struct Renderer;
 struct SphereMesh;
 struct CylinderMesh;
+
+struct WulffPreviewBatch
+{
+    glm::vec3 color = glm::vec3(1.0f);
+    glm::vec3 normal = glm::vec3(0.0f, 0.0f, 1.0f);
+    std::vector<glm::vec3> triangleVertices;
+    std::vector<glm::vec3> vertices;
+};
 
 struct NanoCrystalBuilderDialog
 {
@@ -77,14 +86,35 @@ private:
     int    m_previewW        = 0;
     int    m_previewH        = 0;
 
+    GLuint m_wulffPreviewFBO      = 0;
+    GLuint m_wulffPreviewColorTex = 0;
+    GLuint m_wulffPreviewDepthRbo = 0;
+    int    m_wulffPreviewW        = 0;
+    int    m_wulffPreviewH        = 0;
+
+    GLuint m_wulffLineVAO = 0;
+    GLuint m_wulffLineVBO = 0;
+    GLuint m_wulffPlaneProgram = 0;
+    GLuint m_wulffPlaneVAO = 0;
+    GLuint m_wulffPlaneVBO = 0;
+
     bool m_glReady           = false;
     bool m_previewBufDirty   = true; // rebuild SceneBuffers from m_reference
+    bool m_wulffPreviewDirty = true;
+
+    WulffPreview m_wulffPreviewData;
+    std::vector<WulffPreviewBatch> m_wulffPreviewBatches;
+    std::vector<glm::vec3> m_wulffFamilyColors;
+    std::size_t m_wulffPreviewSignature = 0;
 
     // Preview orbit camera
     float m_camYaw      = 45.0f;
     float m_camPitch    = 35.0f;
     float m_camDistance = 10.0f;
 
+    float m_wulffCamYaw      = 35.0f;
+    float m_wulffCamPitch    = 30.0f;
+    float m_wulffCamDistance = 18.0f;
     // -----------------------------------------------------------------------
     // Private helpers
     // -----------------------------------------------------------------------
@@ -92,7 +122,12 @@ private:
     void rebuildPreviewBuffers(const std::vector<float>& radii,
                                const std::vector<float>& shininess);
     void renderPreviewToFBO(int w, int h);
+    void ensureWulffPreviewFBO(int w, int h);
+    void ensureWulffFamilyColors(std::size_t familyCount);
+    void rebuildWulffPreviewGeometry(const WulffPreview& preview);
+    void renderWulffPreviewToFBO(int w, int h);
     void autoFitPreviewCamera();
+    void autoFitWulffPreviewCamera();
     void refreshBrowserEntries();
     bool tryLoadFile(const std::string& path,
                      const std::vector<float>& radii,

@@ -22,10 +22,59 @@ enum class NanoShape
 
 constexpr int kNumShapes = 8;
 
+enum class NanoGenerationMode
+{
+    Shape = 0,
+    WulffConstruction,
+};
+
+struct WulffPlaneInput
+{
+    int   h = 1;
+    int   k = 0;
+    int   l = 0;
+    float surfaceEnergy = 1.0f;
+};
+
+struct WulffPlane
+{
+    int familyIndex = -1;
+    int h = 0;
+    int k = 0;
+    int l = 0;
+    float distance = 0.0f;
+    glm::vec3 normal = glm::vec3(0.0f, 0.0f, 1.0f);
+};
+
+struct WulffFace
+{
+    int familyIndex = -1;
+    int h = 0;
+    int k = 0;
+    int l = 0;
+    float distance = 0.0f;
+    glm::vec3 normal = glm::vec3(0.0f, 0.0f, 1.0f);
+    std::vector<glm::vec3> vertices;
+};
+
+struct WulffPreview
+{
+    bool success = false;
+    std::string message;
+    glm::vec3 center = glm::vec3(0.0f);
+    glm::vec3 minPoint = glm::vec3(0.0f);
+    glm::vec3 maxPoint = glm::vec3(0.0f);
+    float maxPlaneDistance = 0.0f;
+    float boundingRadius = 0.0f;
+    std::vector<WulffPlane> planes;
+    std::vector<WulffFace> faces;
+};
+
 const char* shapeLabel(NanoShape s);
 
 struct NanoParams
 {
+    NanoGenerationMode generationMode = NanoGenerationMode::Shape;
     NanoShape shape = NanoShape::Sphere;
 
     float sphereRadius = 15.0f;
@@ -77,12 +126,16 @@ struct NanoParams
 
     bool  setOutputCell = true;
     float vacuumPadding = 5.0f;
+
+    std::vector<WulffPlaneInput> wulffPlanes;
+    float wulffMaxRadius = 20.0f;
 };
 
 struct NanoBuildResult
 {
     bool        success           = false;
     std::string message;
+    NanoGenerationMode mode       = NanoGenerationMode::Shape;
     int         inputAtoms        = 0;
     int         outputAtoms       = 0;
     NanoShape   shape             = NanoShape::Sphere;
@@ -90,6 +143,8 @@ struct NanoBuildResult
     int         repA = 0, repB = 0, repC = 0;
     bool        tilingUsed  = false;
     bool        repClamped  = false;
+    int         wulffFamilyCount = 0;
+    int         wulffFaceCount = 0;
 };
 
 struct HalfExtents { float hx, hy, hz; };
@@ -102,6 +157,8 @@ bool isInsideShape(const glm::vec3& p, const NanoParams& params,
                    const std::vector<glm::vec3>& modelVertices = {},
                    const std::vector<unsigned int>& modelIndices = {});
 glm::vec3 computeAtomCentroid(const std::vector<AtomSite>& atoms);
+[[nodiscard]] WulffPreview computeWulffPreview(const Structure& reference,
+                                               const NanoParams& params);
 
 // -- Builder -----------------------------------------------------------------
 

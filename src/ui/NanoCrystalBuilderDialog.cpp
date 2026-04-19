@@ -5,6 +5,7 @@
 #include "ElementData.h"
 #include "graphics/CylinderMesh.h"
 #include "graphics/Renderer.h"
+#include "graphics/Shader.h"
 #include "graphics/SphereMesh.h"
 #include "graphics/StructureInstanceBuilder.h"
 #include "graphics/ShadowMap.h"
@@ -18,14 +19,16 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
+#include <array>
+#include <cstdint>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
-#include <fstream>
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <vector>
+
+#include <glm/gtc/type_ptr.hpp>
 
 #ifndef _WIN32
 #include <dirent.h>
@@ -59,175 +62,6 @@ bool nanoIsSupportedFile(const std::string& name)
             return true;
     }
     return false;
-}
-
-bool parseObjMesh_unused(const std::string& path,
-                  std::vector<glm::vec3>& outVertices,
-                  std::vector<unsigned int>& outIndices,
-                  std::string& error)
-{
-    std::ifstream in(path.c_str());
-    if (!in)
-    {
-        error = "Cannot open OBJ file.";
-        return false;
-    }
-
-    outVertices.clear();
-    outIndices.clear();
-    std::string line;
-    while (std::getline(in, line))
-    {
-        if (line.empty())
-            continue;
-        std::istringstream ls(line);
-        std::string tag;
-        ls >> tag;
-        if (tag == "v")
-        {
-            float x = 0.0f, y = 0.0f, z = 0.0f;
-            if (ls >> x >> y >> z)
-                outVertices.push_back(glm::vec3(x, y, z));
-        }
-        else if (tag == "f")
-        {
-            std::vector<unsigned int> face;
-            std::string token;
-            while (ls >> token)
-            {
-                const size_t slashPos = token.find('/');
-                const std::string idStr = (slashPos == std::string::npos) ? token : token.substr(0, slashPos);
-                if (idStr.empty())
-                    continue;
-                const int idx = std::atoi(idStr.c_str());
-                if (idx <= 0)
-                    continue;
-                face.push_back((unsigned int)(idx - 1));
-            }
-
-            if (face.size() >= 3)
-            {
-                for (size_t i = 1; i + 1 < face.size(); ++i)
-                {
-                    outIndices.push_back(face[0]);
-                    outIndices.push_back(face[i]);
-                    outIndices.push_back(face[i + 1]);
-                }
-            }
-        }
-    }
-
-    if (outVertices.empty() || outIndices.empty())
-    {
-        error = "OBJ has no usable vertices/faces.";
-        return false;
-    }
-
-    for (unsigned int idx : outIndices)
-    {
-        if (idx >= outVertices.size())
-        {
-            error = "OBJ face index out of range.";
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool parseStlMesh_unused(const std::string& path,
-                  std::vector<glm::vec3>& outVertices,
-                  std::vector<unsigned int>& outIndices,
-                  std::string& error)
-{
-    std::ifstream in(path.c_str(), std::ios::binary);
-    if (!in)
-    {
-        error = "Cannot open STL file.";
-        return false;
-    }
-
-    in.seekg(0, std::ios::end);
-    const std::streamoff fileSize = in.tellg();
-    in.seekg(0, std::ios::beg);
-
-    char header[80] = {0};
-    in.read(header, 80);
-    unsigned int triCount = 0;
-    in.read(reinterpret_cast<char*>(&triCount), sizeof(unsigned int));
-
-    const std::streamoff expectedBinarySize = 84 + (std::streamoff)triCount * 50;
-    const bool looksBinary = (fileSize == expectedBinarySize);
-
-    outVertices.clear();
-    outIndices.clear();
-
-    if (looksBinary)
-    {
-        outVertices.reserve((size_t)triCount * 3);
-        outIndices.reserve((size_t)triCount * 3);
-        for (unsigned int t = 0; t < triCount; ++t)
-        {
-            float data[12] = {0.0f};
-            unsigned short attr = 0;
-            in.read(reinterpret_cast<char*>(data), sizeof(data));
-            in.read(reinterpret_cast<char*>(&attr), sizeof(attr));
-            if (!in)
-            {
-                error = "Binary STL parse failed.";
-                return false;
-            }
-
-            const unsigned int base = (unsigned int)outVertices.size();
-            outVertices.push_back(glm::vec3(data[3], data[4], data[5]));
-            outVertices.push_back(glm::vec3(data[6], data[7], data[8]));
-            outVertices.push_back(glm::vec3(data[9], data[10], data[11]));
-            outIndices.push_back(base + 0);
-            outIndices.push_back(base + 1);
-            outIndices.push_back(base + 2);
-        }
-        return !outVertices.empty();
-    }
-
-    in.clear();
-    in.seekg(0, std::ios::beg);
-
-    std::string line;
-    std::vector<glm::vec3> triVerts;
-    triVerts.reserve(3);
-    while (std::getline(in, line))
-    {
-        std::istringstream ls(line);
-        std::string tag;
-        ls >> tag;
-        if (tag == "vertex")
-        {
-            float x = 0.0f, y = 0.0f, z = 0.0f;
-            if (ls >> x >> y >> z)
-            {
-                triVerts.push_back(glm::vec3(x, y, z));
-                if (triVerts.size() == 3)
-                {
-                    const unsigned int base = (unsigned int)outVertices.size();
-                    outVertices.push_back(triVerts[0]);
-                    outVertices.push_back(triVerts[1]);
-                    outVertices.push_back(triVerts[2]);
-                    outIndices.push_back(base + 0);
-                    outIndices.push_back(base + 1);
-                    outIndices.push_back(base + 2);
-                    triVerts.clear();
-                }
-            }
-        }
-    }
-
-    if (outVertices.empty() || outIndices.empty())
-    {
-        error = "ASCII STL has no usable triangles.";
-        return false;
-    }
-
-    return true;
 }
 
 void nanoLoadDirEntries(const std::string& dir,
@@ -280,6 +114,200 @@ void nanoLoadDirEntries(const std::string& dir,
 static float safeLen3(const glm::vec3& v)
 {
     return std::sqrt(glm::dot(v, v));
+}
+
+std::size_t hashCombine(std::size_t seed, std::size_t value)
+{
+    return seed ^ (value + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2));
+}
+
+std::size_t structurePreviewHash(const Structure& structure)
+{
+    std::size_t seed = 0;
+    seed = hashCombine(seed, std::hash<std::size_t>{}(structure.atoms.size()));
+    seed = hashCombine(seed, std::hash<bool>{}(structure.hasUnitCell));
+    if (structure.hasUnitCell)
+    {
+        for (int row = 0; row < 3; ++row)
+            for (int col = 0; col < 3; ++col)
+                seed = hashCombine(seed, std::hash<double>{}(structure.cellVectors[row][col]));
+    }
+    const std::size_t sampleCount = std::min<std::size_t>(structure.atoms.size(), 32u);
+    for (std::size_t index = 0; index < sampleCount; ++index)
+    {
+        const AtomSite& atom = structure.atoms[index];
+        seed = hashCombine(seed, std::hash<int>{}(atom.atomicNumber));
+        seed = hashCombine(seed, std::hash<double>{}(atom.x));
+        seed = hashCombine(seed, std::hash<double>{}(atom.y));
+        seed = hashCombine(seed, std::hash<double>{}(atom.z));
+    }
+    return seed;
+}
+
+std::size_t wulffParamsHash(const NanoParams& params)
+{
+    std::size_t seed = 0;
+    seed = hashCombine(seed, std::hash<int>{}((int)params.generationMode));
+    seed = hashCombine(seed, std::hash<float>{}(params.wulffMaxRadius));
+    seed = hashCombine(seed, std::hash<bool>{}(params.autoCenterFromAtoms));
+    seed = hashCombine(seed, std::hash<float>{}(params.cx));
+    seed = hashCombine(seed, std::hash<float>{}(params.cy));
+    seed = hashCombine(seed, std::hash<float>{}(params.cz));
+    seed = hashCombine(seed, std::hash<bool>{}(params.applyCrystalOrientation));
+    seed = hashCombine(seed, std::hash<bool>{}(params.useMillerOrientation));
+    seed = hashCombine(seed, std::hash<float>{}(params.orientXDeg));
+    seed = hashCombine(seed, std::hash<float>{}(params.orientYDeg));
+    seed = hashCombine(seed, std::hash<float>{}(params.orientZDeg));
+    seed = hashCombine(seed, std::hash<int>{}(params.millerH));
+    seed = hashCombine(seed, std::hash<int>{}(params.millerK));
+    seed = hashCombine(seed, std::hash<int>{}(params.millerL));
+    seed = hashCombine(seed, std::hash<std::size_t>{}(params.wulffPlanes.size()));
+    for (const WulffPlaneInput& plane : params.wulffPlanes)
+    {
+        seed = hashCombine(seed, std::hash<int>{}(plane.h));
+        seed = hashCombine(seed, std::hash<int>{}(plane.k));
+        seed = hashCombine(seed, std::hash<int>{}(plane.l));
+        seed = hashCombine(seed, std::hash<float>{}(plane.surfaceEnergy));
+    }
+    return seed;
+}
+
+glm::vec3 wulffFamilyColor(int familyIndex)
+{
+    static const std::array<glm::vec3, 10> palette = {{
+        glm::vec3(0.92f, 0.33f, 0.29f),
+        glm::vec3(0.18f, 0.63f, 0.58f),
+        glm::vec3(0.24f, 0.45f, 0.86f),
+        glm::vec3(0.96f, 0.73f, 0.20f),
+        glm::vec3(0.72f, 0.38f, 0.82f),
+        glm::vec3(0.13f, 0.64f, 0.28f),
+        glm::vec3(0.89f, 0.52f, 0.16f),
+        glm::vec3(0.35f, 0.73f, 0.87f),
+        glm::vec3(0.82f, 0.23f, 0.47f),
+        glm::vec3(0.62f, 0.65f, 0.19f)
+    }};
+    return palette[(std::size_t)std::max(0, familyIndex) % palette.size()];
+}
+
+const char* generationModeLabel(NanoGenerationMode mode)
+{
+    switch (mode)
+    {
+        case NanoGenerationMode::Shape:
+            return "Shape Cut";
+        case NanoGenerationMode::WulffConstruction:
+            return "Wulff Construction";
+    }
+    return "Unknown";
+}
+
+static const char* kWulffPlaneVS = R"(
+    #version 130
+
+    in vec3 position;
+
+    uniform mat4 projection;
+    uniform mat4 view;
+
+    out vec3 fragWorldPos;
+
+    void main()
+    {
+        fragWorldPos = position;
+        gl_Position = projection * view * vec4(position, 1.0);
+    }
+)";
+
+static const char* kWulffPlaneFS = R"(
+    #version 130
+
+    uniform vec3 faceColor;
+    uniform vec3 faceNormal;
+    uniform vec3 lightPos;
+    uniform vec3 viewPos;
+
+    in vec3 fragWorldPos;
+
+    out vec4 color;
+
+    void main()
+    {
+        vec3 norm = normalize(faceNormal);
+        if (!gl_FrontFacing)
+            norm = -norm;
+
+        vec3 viewDir = normalize(viewPos - fragWorldPos);
+        vec3 lightDir = normalize(lightPos - fragWorldPos);
+        vec3 halfVec = normalize(lightDir + viewDir);
+
+        float diffuse = max(dot(norm, lightDir), 0.0);
+        diffuse = max(diffuse, 0.34);
+
+        float specular = pow(max(dot(norm, halfVec), 0.0), 20.0);
+        float fresnel = pow(1.0 - max(dot(norm, viewDir), 0.0), 2.6);
+
+        vec3 reflected = reflect(-viewDir, norm);
+        float skyMix = clamp(reflected.y * 0.5 + 0.5, 0.0, 1.0);
+        vec3 envColor = mix(vec3(0.10, 0.11, 0.13), vec3(0.72, 0.78, 0.86), pow(skyMix, 1.35));
+
+        vec3 baseLit = faceColor * (0.30 + 0.70 * diffuse);
+        vec3 reflectedColor = mix(baseLit, envColor, 0.14 * fresnel);
+        vec3 finalColor = reflectedColor + vec3(0.12 * specular + 0.08 * fresnel);
+        color = vec4(finalColor, 1.0);
+    }
+)";
+
+void drawWulffParameters(NanoParams& params)
+{
+    ImGui::SetNextItemWidth(180.0f);
+    ImGui::DragFloat("Max radius (A)##wulffRadius", &params.wulffMaxRadius, 0.25f, 0.1f, 1000.0f, "%.2f");
+    if (params.wulffMaxRadius < 0.1f)
+        params.wulffMaxRadius = 0.1f;
+
+    if (params.wulffPlanes.empty())
+        params.wulffPlanes.push_back(WulffPlaneInput{});
+
+    ImGui::Spacing();
+    ImGui::Text("Facet families");
+    ImGui::PushTextWrapPos(0.0f);
+    ImGui::TextDisabled("Distances follow energy ratios; the highest-energy family sits at the max radius.");
+    ImGui::PopTextWrapPos();
+
+    for (std::size_t index = 0; index < params.wulffPlanes.size(); ++index)
+    {
+        WulffPlaneInput& plane = params.wulffPlanes[index];
+        ImGui::PushID((int)index);
+        ImGui::Separator();
+        const glm::vec3 familyColor = wulffFamilyColor((int)index);
+        ImGui::ColorButton("##familyColor", ImVec4(familyColor.r, familyColor.g, familyColor.b, 1.0f), ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoDragDrop, ImVec2(18.0f, 18.0f));
+        ImGui::SameLine();
+        ImGui::Text("Family %d", (int)index + 1);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Remove") && params.wulffPlanes.size() > 1)
+        {
+            params.wulffPlanes.erase(params.wulffPlanes.begin() + (long)index);
+            ImGui::PopID();
+            break;
+        }
+
+        ImGui::SetNextItemWidth(70.0f);
+        ImGui::DragInt("h", &plane.h, 0.2f, -12, 12);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(70.0f);
+        ImGui::DragInt("k", &plane.k, 0.2f, -12, 12);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(70.0f);
+        ImGui::DragInt("l", &plane.l, 0.2f, -12, 12);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(120.0f);
+        ImGui::DragFloat("Energy", &plane.surfaceEnergy, 0.01f, 0.001f, 1000.0f, "%.4f");
+        if (plane.surfaceEnergy < 0.001f)
+            plane.surfaceEnergy = 0.001f;
+        ImGui::PopID();
+    }
+
+    if (ImGui::Button("Add Facet Family##wulffAdd", ImVec2(150.0f, 0.0f)))
+        params.wulffPlanes.push_back(WulffPlaneInput{});
 }
 
 // ---------------------------------------------------------------------------
@@ -406,16 +434,39 @@ void drawNanoBuildResult(const NanoBuildResult& result)
     ImGui::TextWrapped("Status: %s", result.message.c_str());
     if (!result.success) return;
     ImGui::Separator();
-    ImGui::Text("Shape:          %s", shapeLabel(result.shape));
-    ImGui::Text("Input atoms:    %d", result.inputAtoms);
-    ImGui::Text("Output atoms:   %d", result.outputAtoms);
-    ImGui::Text("Est. diameter:  %.2f A", result.estimatedDiameter);
-    if (result.tilingUsed)
-        ImGui::Text("Tiling: %dx%dx%d (%s)",
-                    2*result.repA+1, 2*result.repB+1, 2*result.repC+1,
-                    result.repClamped ? "clamped" : "auto");
-    else
-        ImGui::Text("Tiling: none (no unit cell in reference)");
+    if (ImGui::BeginTable("##nanoResultSummary", 2, ImGuiTableFlags_SizingStretchProp))
+    {
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+
+        auto row = [](const char* label, const char* fmt, ...) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextDisabled("%s", label);
+            ImGui::TableNextColumn();
+            va_list args;
+            va_start(args, fmt);
+            ImGui::TextWrappedV(fmt, args);
+            va_end(args);
+        };
+
+        row("Mode", "%s", generationModeLabel(result.mode));
+        if (result.mode == NanoGenerationMode::Shape)
+            row("Shape", "%s", shapeLabel(result.shape));
+        row("Input atoms", "%d", result.inputAtoms);
+        row("Output atoms", "%d", result.outputAtoms);
+        row("Est. diameter", "%.2f A", result.estimatedDiameter);
+        if (result.mode == NanoGenerationMode::WulffConstruction)
+            row("Wulff faces", "%d", result.wulffFaceCount);
+        if (result.tilingUsed)
+            row("Tiling", "%dx%dx%d (%s)",
+                2 * result.repA + 1, 2 * result.repB + 1, 2 * result.repC + 1,
+                result.repClamped ? "clamped" : "auto");
+        else
+            row("Tiling", "%s", "none (no unit cell in reference)");
+
+        ImGui::EndTable();
+    }
 }
 
 } // anonymous namespace
@@ -443,14 +494,35 @@ NanoCrystalBuilderDialog::~NanoCrystalBuilderDialog()
     if (m_previewFBO)      { glDeleteFramebuffers(1,  &m_previewFBO);    m_previewFBO = 0; }
     if (m_previewColorTex) { glDeleteTextures(1,      &m_previewColorTex); m_previewColorTex = 0; }
     if (m_previewDepthRbo) { glDeleteRenderbuffers(1, &m_previewDepthRbo); m_previewDepthRbo = 0; }
+    if (m_wulffPreviewFBO)      { glDeleteFramebuffers(1,  &m_wulffPreviewFBO);    m_wulffPreviewFBO = 0; }
+    if (m_wulffPreviewColorTex) { glDeleteTextures(1,      &m_wulffPreviewColorTex); m_wulffPreviewColorTex = 0; }
+    if (m_wulffPreviewDepthRbo) { glDeleteRenderbuffers(1, &m_wulffPreviewDepthRbo); m_wulffPreviewDepthRbo = 0; }
+    if (m_wulffLineVAO) { glDeleteVertexArrays(1, &m_wulffLineVAO); m_wulffLineVAO = 0; }
+    if (m_wulffLineVBO) { glDeleteBuffers(1, &m_wulffLineVBO); m_wulffLineVBO = 0; }
+    if (m_wulffPlaneVAO) { glDeleteVertexArrays(1, &m_wulffPlaneVAO); m_wulffPlaneVAO = 0; }
+    if (m_wulffPlaneVBO) { glDeleteBuffers(1, &m_wulffPlaneVBO); m_wulffPlaneVBO = 0; }
+    if (m_wulffPlaneProgram) { glDeleteProgram(m_wulffPlaneProgram); m_wulffPlaneProgram = 0; }
 
     if (m_previewShadow.depthFBO)
         glDeleteFramebuffers(1, &m_previewShadow.depthFBO);
     if (m_previewShadow.depthTexture)
         glDeleteTextures(1, &m_previewShadow.depthTexture);
-
     delete m_previewSphere;
     delete m_previewCylinder;
+}
+
+void NanoCrystalBuilderDialog::ensureWulffFamilyColors(std::size_t familyCount)
+{
+    if (m_wulffFamilyColors.size() >= familyCount)
+    {
+        m_wulffFamilyColors.resize(familyCount);
+        return;
+    }
+
+    const std::size_t oldSize = m_wulffFamilyColors.size();
+    m_wulffFamilyColors.resize(familyCount);
+    for (std::size_t index = oldSize; index < familyCount; ++index)
+        m_wulffFamilyColors[index] = wulffFamilyColor((int)index);
 }
 
 void NanoCrystalBuilderDialog::initRenderResources(Renderer& renderer)
@@ -465,6 +537,23 @@ void NanoCrystalBuilderDialog::initRenderResources(Renderer& renderer)
 
     // A 1×1 shadow map satisfies the sampler binding without drawing shadows.
     m_previewShadow = createShadowMap(1, 1);
+
+    glGenVertexArrays(1, &m_wulffLineVAO);
+    glGenBuffers(1, &m_wulffLineVBO);
+    glBindVertexArray(m_wulffLineVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_wulffLineVBO);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glBindVertexArray(0);
+
+    m_wulffPlaneProgram = createProgram(kWulffPlaneVS, kWulffPlaneFS);
+    glGenVertexArrays(1, &m_wulffPlaneVAO);
+    glGenBuffers(1, &m_wulffPlaneVBO);
+    glBindVertexArray(m_wulffPlaneVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_wulffPlaneVBO);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glBindVertexArray(0);
 
     m_glReady = true;
 }
@@ -495,6 +584,7 @@ bool NanoCrystalBuilderDialog::tryLoadFile(const std::string& path,
     std::snprintf(m_browsStatusMsg, sizeof(m_browsStatusMsg),
                   "Loaded: %d atoms", (int)m_reference.atoms.size());
     m_previewBufDirty = true;
+    m_wulffPreviewDirty = true;
     if (m_glReady) {
         rebuildPreviewBuffers(radii, shininess);
         autoFitPreviewCamera();
@@ -537,6 +627,39 @@ void NanoCrystalBuilderDialog::ensurePreviewFBO(int w, int h)
     m_previewH = h;
 }
 
+void NanoCrystalBuilderDialog::ensureWulffPreviewFBO(int w, int h)
+{
+    if (w == m_wulffPreviewW && h == m_wulffPreviewH && m_wulffPreviewFBO != 0)
+        return;
+
+    if (m_wulffPreviewFBO)      { glDeleteFramebuffers(1,  &m_wulffPreviewFBO);    m_wulffPreviewFBO = 0; }
+    if (m_wulffPreviewColorTex) { glDeleteTextures(1,      &m_wulffPreviewColorTex); m_wulffPreviewColorTex = 0; }
+    if (m_wulffPreviewDepthRbo) { glDeleteRenderbuffers(1, &m_wulffPreviewDepthRbo); m_wulffPreviewDepthRbo = 0; }
+
+    glGenTextures(1, &m_wulffPreviewColorTex);
+    glBindTexture(GL_TEXTURE_2D, m_wulffPreviewColorTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    glGenRenderbuffers(1, &m_wulffPreviewDepthRbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, m_wulffPreviewDepthRbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w, h);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    glGenFramebuffers(1, &m_wulffPreviewFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_wulffPreviewFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                           GL_TEXTURE_2D, m_wulffPreviewColorTex, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                              GL_RENDERBUFFER, m_wulffPreviewDepthRbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    m_wulffPreviewW = w;
+    m_wulffPreviewH = h;
+}
+
 void NanoCrystalBuilderDialog::rebuildPreviewBuffers(const std::vector<float>& radii,
                                                       const std::vector<float>& shininess)
 {
@@ -576,6 +699,65 @@ void NanoCrystalBuilderDialog::autoFitPreviewCamera()
     float dist = maxR / std::sin(halfFov) * 1.15f;
     dist = std::max(Camera::kMinDistance, std::min(Camera::kMaxDistance, dist));
     m_camDistance = dist;
+}
+
+void NanoCrystalBuilderDialog::rebuildWulffPreviewGeometry(const WulffPreview& preview)
+{
+    m_wulffPreviewBatches.clear();
+    if (!preview.success)
+        return;
+
+    std::size_t familyCount = 0;
+    for (const WulffFace& face : preview.faces)
+        if (face.familyIndex >= 0)
+            familyCount = std::max(familyCount, (std::size_t)face.familyIndex + 1);
+    ensureWulffFamilyColors(familyCount);
+
+    m_wulffPreviewBatches.resize(preview.faces.size());
+    for (std::size_t faceIndex = 0; faceIndex < preview.faces.size(); ++faceIndex)
+    {
+        const WulffFace& face = preview.faces[faceIndex];
+        WulffPreviewBatch& batch = m_wulffPreviewBatches[faceIndex];
+        if (face.familyIndex >= 0 && (std::size_t)face.familyIndex < m_wulffFamilyColors.size())
+            batch.color = m_wulffFamilyColors[(std::size_t)face.familyIndex];
+        else
+            batch.color = wulffFamilyColor(face.familyIndex);
+        batch.normal = face.normal;
+        batch.triangleVertices.clear();
+        if (face.vertices.size() >= 3)
+        {
+            batch.triangleVertices.reserve((face.vertices.size() - 2) * 3);
+            for (std::size_t vertexIndex = 1; vertexIndex + 1 < face.vertices.size(); ++vertexIndex)
+            {
+                batch.triangleVertices.push_back(face.vertices[0]);
+                batch.triangleVertices.push_back(face.vertices[vertexIndex]);
+                batch.triangleVertices.push_back(face.vertices[vertexIndex + 1]);
+            }
+        }
+        batch.vertices.clear();
+        if (face.vertices.size() < 2)
+            continue;
+
+        batch.vertices.reserve(face.vertices.size() * 2);
+        for (std::size_t vertexIndex = 0; vertexIndex < face.vertices.size(); ++vertexIndex)
+        {
+            const glm::vec3& a = face.vertices[vertexIndex];
+            const glm::vec3& b = face.vertices[(vertexIndex + 1) % face.vertices.size()];
+            batch.vertices.push_back(a);
+            batch.vertices.push_back(b);
+        }
+    }
+}
+
+void NanoCrystalBuilderDialog::autoFitWulffPreviewCamera()
+{
+    m_wulffCamYaw = 35.0f;
+    m_wulffCamPitch = 30.0f;
+    const float radius = std::max(m_wulffPreviewData.boundingRadius, 1.0f);
+    const float halfFov = glm::radians(22.5f);
+    float distance = radius / std::sin(halfFov) * 1.2f;
+    distance = std::max(Camera::kMinDistance, std::min(Camera::kMaxDistance, distance));
+    m_wulffCamDistance = distance;
 }
 
 void NanoCrystalBuilderDialog::renderPreviewToFBO(int w, int h)
@@ -627,6 +809,95 @@ void NanoCrystalBuilderDialog::renderPreviewToFBO(int w, int h)
     glViewport(prevVP[0], prevVP[1], prevVP[2], prevVP[3]);
 }
 
+void NanoCrystalBuilderDialog::renderWulffPreviewToFBO(int w, int h)
+{
+    if (!m_glReady || !m_renderer || !m_wulffPreviewData.success)
+        return;
+
+    ensureWulffPreviewFBO(w, h);
+
+    GLint prevFbo = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
+    GLint prevVP[4];
+    glGetIntegerv(GL_VIEWPORT, prevVP);
+
+    SceneBuffers linesOnly;
+    linesOnly.orbitCenter = m_wulffPreviewData.center;
+    for (const WulffPreviewBatch& batch : m_wulffPreviewBatches)
+        linesOnly.boxLines.insert(linesOnly.boxLines.end(), batch.vertices.begin(), batch.vertices.end());
+
+    Camera cam;
+    cam.yaw = m_wulffCamYaw;
+    cam.pitch = m_wulffCamPitch;
+    cam.distance = m_wulffCamDistance;
+
+    FrameView frame;
+    frame.framebufferWidth = w;
+    frame.framebufferHeight = h;
+    buildFrameView(cam, linesOnly, true, frame);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, m_wulffPreviewFBO);
+    glViewport(0, 0, w, h);
+    glEnable(GL_DEPTH_TEST);
+    glClearColor(0.08f, 0.10f, 0.13f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    if (m_wulffPlaneProgram != 0)
+    {
+        glUseProgram(m_wulffPlaneProgram);
+        glUniformMatrix4fv(glGetUniformLocation(m_wulffPlaneProgram, "projection"),
+                           1, GL_FALSE, glm::value_ptr(frame.projection));
+        glUniformMatrix4fv(glGetUniformLocation(m_wulffPlaneProgram, "view"),
+                           1, GL_FALSE, glm::value_ptr(frame.view));
+        glUniform3f(glGetUniformLocation(m_wulffPlaneProgram, "lightPos"),
+                    frame.lightPosition.x, frame.lightPosition.y, frame.lightPosition.z);
+        glUniform3f(glGetUniformLocation(m_wulffPlaneProgram, "viewPos"),
+                    frame.cameraPosition.x, frame.cameraPosition.y, frame.cameraPosition.z);
+        glDisable(GL_CULL_FACE);
+
+        glBindVertexArray(m_wulffPlaneVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, m_wulffPlaneVBO);
+        for (const WulffPreviewBatch& batch : m_wulffPreviewBatches)
+        {
+            if (batch.triangleVertices.empty())
+                continue;
+
+            glBufferData(GL_ARRAY_BUFFER,
+                         (GLsizeiptr)(batch.triangleVertices.size() * sizeof(glm::vec3)),
+                         batch.triangleVertices.data(),
+                         GL_DYNAMIC_DRAW);
+            glUniform3f(glGetUniformLocation(m_wulffPlaneProgram, "faceColor"),
+                        batch.color.r, batch.color.g, batch.color.b);
+            glUniform3f(glGetUniformLocation(m_wulffPlaneProgram, "faceNormal"),
+                        batch.normal.x, batch.normal.y, batch.normal.z);
+            glDrawArrays(GL_TRIANGLES, 0, (GLsizei)batch.triangleVertices.size());
+        }
+        glBindVertexArray(0);
+        glUseProgram(0);
+    }
+
+    glBindVertexArray(m_wulffLineVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_wulffLineVBO);
+    const glm::vec3 edgeColor(0.0f, 0.0f, 0.0f);
+    for (const WulffPreviewBatch& batch : m_wulffPreviewBatches)
+    {
+        if (batch.vertices.empty())
+            continue;
+        glBufferData(GL_ARRAY_BUFFER,
+                     (GLsizeiptr)(batch.vertices.size() * sizeof(glm::vec3)),
+                     batch.vertices.data(),
+                     GL_DYNAMIC_DRAW);
+        m_renderer->drawBoxLines(frame.projection, frame.view,
+                                 m_wulffLineVAO,
+                                 batch.vertices.size(),
+                                 edgeColor);
+    }
+    glBindVertexArray(0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prevFbo);
+    glViewport(prevVP[0], prevVP[1], prevVP[2], prevVP[3]);
+}
+
 // ---------------------------------------------------------------------------
 // drawMenuItem
 // ---------------------------------------------------------------------------
@@ -648,8 +919,17 @@ void NanoCrystalBuilderDialog::drawDialog(
     const std::vector<float>& elementShininess,
     const std::function<void(Structure&)>& updateBuffers)
 {
-    static NanoParams      params;
+    static NanoParams      params = []() {
+        NanoParams defaults;
+        defaults.generationMode = NanoGenerationMode::WulffConstruction;
+        return defaults;
+    }();
     static NanoBuildResult lastResult;
+
+    if (params.wulffPlanes.empty())
+        params.wulffPlanes.push_back(WulffPlaneInput{});
+
+    ensureWulffFamilyColors(params.wulffPlanes.size());
 
     // Consume any pending file drop
     if (!m_pendingDropPath.empty()) {
@@ -663,13 +943,27 @@ void NanoCrystalBuilderDialog::drawDialog(
         if (m_reference.atoms.empty() && !structure.atoms.empty()) {
             m_reference = structure;
             m_previewBufDirty = true;
+            m_wulffPreviewDirty = true;
         }
         m_openRequested = false;
     }
 
+    if (!m_reference.atoms.empty())
+    {
+        const std::size_t signature = hashCombine(structurePreviewHash(m_reference), wulffParamsHash(params));
+        if (m_wulffPreviewDirty || signature != m_wulffPreviewSignature)
+        {
+            m_wulffPreviewData = computeWulffPreview(m_reference, params);
+            rebuildWulffPreviewGeometry(m_wulffPreviewData);
+            autoFitWulffPreviewCamera();
+            m_wulffPreviewSignature = signature;
+            m_wulffPreviewDirty = false;
+        }
+    }
+
     m_isOpen = ImGui::IsPopupOpen("Build Nanocrystal");
 
-    ImGui::SetNextWindowSize(ImVec2(950.0f, 840.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(1160.0f, 900.0f), ImGuiCond_FirstUseEver);
     bool dialogOpen = true;
     if (!ImGui::BeginPopupModal("Build Nanocrystal", &dialogOpen, 0)) {
         m_isOpen = false;
@@ -677,54 +971,62 @@ void NanoCrystalBuilderDialog::drawDialog(
     }
     m_isOpen = true;
 
-    ImGui::TextDisabled("Load a reference crystal, choose a shape, then click Build."
-        "  Drag-and-drop .cif/.xyz/.pdb/.vasp/etc. onto the preview panel.");
+    ImGui::TextWrapped("Drop a reference crystal into the left panel or use the currently loaded structure, then build the nanocrystal.");
     ImGui::Separator();
 
     // =========================================================================
-    // Layout: Left = Structure view | Right = Builder options
+    // Layout: Left = stacked previews (reference top, Wulff bottom)
+    //         Right = Builder options
     // =========================================================================
 
-    constexpr float kPrevW   = 420.0f;
-    constexpr float kPrevH   = 360.0f;
-    constexpr float kSideH   = 500.0f;
+    constexpr float kLeftW          = 460.0f;
+    constexpr float kColumnH        = 700.0f;
+    constexpr float kTopPanelH      = 360.0f;
+    const float     kBottomPanelH   = kColumnH - kTopPanelH - ImGui::GetStyle().ItemSpacing.y;
+    constexpr float kStructureViewH = 284.0f;
+    constexpr float kWulffViewH     = 250.0f;
 
-    // ---- LEFT: Structure view with drag-and-drop ----
-    ImGui::BeginChild("##nanoStructureView", ImVec2(kPrevW, kSideH), true);
+    ImGui::BeginGroup();
+
+    // ---- TOP-LEFT: Structure view with drag-and-drop ----
+    ImGui::BeginChild("##nanoStructureView", ImVec2(kLeftW, kTopPanelH), true);
 
     ImGui::Text("Reference Structure");
     ImGui::Separator();
 
-    // Show the actual load status message (set by tryLoadFile)
-    if (m_browsStatusMsg[0] != '\0')
-        ImGui::TextWrapped("%s", m_browsStatusMsg);
+    if (m_reference.atoms.empty())
+    {
+        ImGui::TextWrapped("Drop a supported structure file into this panel.");
+    }
     else
-        ImGui::TextDisabled("No reference loaded");
+    {
+        if (m_browsStatusMsg[0] != '\0')
+            ImGui::TextWrapped("%s", m_browsStatusMsg);
+        else
+            ImGui::TextDisabled("Using the current structure as reference.");
 
-    ImGui::Spacing();
-    if (ImGui::Button("Load File...##nanoLoadBtn", ImVec2(120.0f, 0.0f)))
-        m_browsShowPanel = !m_browsShowPanel;
-    if (!m_reference.atoms.empty()) {
         ImGui::SameLine();
         if (ImGui::Button("Clear##nanoClearRef", ImVec2(70.0f, 0.0f))) {
             m_reference       = {};
             m_previewBufDirty = true;
+            m_wulffPreviewDirty = true;
+            m_wulffPreviewData = {};
+            m_wulffPreviewBatches.clear();
+            m_wulffPreviewSignature = 0;
             m_browsStatusMsg[0] = '\0';
         }
     }
     ImGui::Spacing();
 
     // Drag-and-drop target using InvisibleButton
-    const float dropH = kPrevH - ImGui::GetCursorPosY() + ImGui::GetStyle().WindowPadding.y + 6.0f;
+    const float dropH = kStructureViewH - ImGui::GetCursorPosY() + ImGui::GetStyle().WindowPadding.y + 6.0f;
     ImGui::InvisibleButton("##nanoRefDropZone", ImVec2(-1.0f, dropH > 60.0f ? dropH : 60.0f));
 
-    // Draw drop zone border
     ImDrawList* dl = ImGui::GetWindowDrawList();
     ImVec2 dropMin = ImGui::GetItemRectMin();
     ImVec2 dropMax = ImGui::GetItemRectMax();
     const bool dropZoneHovered = ImGui::IsItemHovered();
     const bool dropZoneActive = ImGui::IsItemActive();
-    dl->AddRect(dropMin, dropMax, ImGui::GetColorU32(ImGuiCol_Border), 2.0f);
 
     if (m_reference.atoms.empty()) {
         if (ImGui::BeginDragDropTarget()) {
@@ -792,57 +1094,139 @@ void NanoCrystalBuilderDialog::drawDialog(
                 }
             }
 
-            ImGui::TextDisabled("Left-drag = orbit   Scroll = zoom");
+            ImGui::TextDisabled("Drag to orbit, scroll to zoom");
         }
     }
 
     // Reference info bar
     if (!m_reference.atoms.empty()) {
-        ImGui::Spacing();
         ImGui::Separator();
         if (m_reference.hasUnitCell) {
             const auto& cv = m_reference.cellVectors;
             float la = safeLen3(glm::vec3((float)cv[0][0],(float)cv[0][1],(float)cv[0][2]));
             float lb = safeLen3(glm::vec3((float)cv[1][0],(float)cv[1][1],(float)cv[1][2]));
             float lc = safeLen3(glm::vec3((float)cv[2][0],(float)cv[2][1],(float)cv[2][2]));
-            ImGui::TextDisabled("%d atoms  |  a=%.3f  b=%.3f  c=%.3f A",
+            ImGui::TextDisabled("%d atoms | a=%.3f  b=%.3f  c=%.3f A | periodic",
                                 (int)m_reference.atoms.size(), la, lb, lc);
-            ImGui::TextDisabled("Periodic crystal -- supercell tiling available");
         } else {
-            ImGui::TextDisabled("%d atoms  |  No unit cell -- shape carving only",
+            ImGui::TextDisabled("%d atoms | no unit cell | shape carving only",
                                 (int)m_reference.atoms.size());
         }
     }
 
     ImGui::EndChild(); // ##nanoStructureView
 
+    // ---- BOTTOM-LEFT: Wulff plane preview ----
+    ImGui::BeginChild("##nanoWulffPreview", ImVec2(kLeftW, kBottomPanelH), true);
+
+    ImGui::Text("Wulff Plane View");
+    ImGui::Separator();
+    if (params.generationMode != NanoGenerationMode::WulffConstruction)
+    {
+        ImGui::TextWrapped("Switch generation mode to Wulff Construction to preview symmetry-expanded planes.");
+    }
+    else if (m_reference.atoms.empty())
+    {
+        ImGui::TextWrapped("Load a periodic reference structure to generate the Wulff plane preview.");
+    }
+    else if (!m_wulffPreviewData.success)
+    {
+        ImGui::TextWrapped("%s", m_wulffPreviewData.message.c_str());
+    }
+    else
+    {
+        ImGui::TextDisabled("%d faces from %d symmetry-expanded planes",
+                            (int)m_wulffPreviewData.faces.size(),
+                            (int)m_wulffPreviewData.planes.size());
+        ImGui::Spacing();
+
+        ImGui::InvisibleButton("##nanoWulffDropZone", ImVec2(-1.0f, kWulffViewH));
+        ImDrawList* wulffDl = ImGui::GetWindowDrawList();
+        ImVec2 previewMin = ImGui::GetItemRectMin();
+        ImVec2 previewMax = ImGui::GetItemRectMax();
+        wulffDl->AddRect(previewMin, previewMax, ImGui::GetColorU32(ImGuiCol_Border), 2.0f);
+
+        const ImVec2 previewSize(previewMax.x - previewMin.x - 10.0f,
+                                 previewMax.y - previewMin.y - 10.0f);
+        const int previewW = std::max(1, (int)previewSize.x);
+        const int previewH = std::max(1, (int)previewSize.y);
+        renderWulffPreviewToFBO(previewW, previewH);
+
+        wulffDl->AddImage((ImTextureID)(intptr_t)m_wulffPreviewColorTex,
+                  ImVec2(previewMin.x + 5.0f, previewMin.y + 5.0f),
+                  ImVec2(previewMin.x + 5.0f + previewSize.x, previewMin.y + 5.0f + previewSize.y),
+                  ImVec2(0, 1), ImVec2(1, 0));
+
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f))
+        {
+            const ImVec2 delta = ImGui::GetIO().MouseDelta;
+            m_wulffCamYaw -= delta.x * 0.5f;
+            m_wulffCamPitch += delta.y * 0.5f;
+        }
+        if (ImGui::IsItemHovered())
+        {
+            const float wheel = ImGui::GetIO().MouseWheel;
+            if (wheel != 0.0f)
+            {
+                m_wulffCamDistance -= wheel * m_wulffCamDistance * 0.1f;
+                m_wulffCamDistance = std::max(Camera::kMinDistance,
+                                              std::min(Camera::kMaxDistance, m_wulffCamDistance));
+            }
+        }
+
+        ImGui::TextDisabled("Left-drag = orbit   Scroll = zoom");
+    }
+
+    ImGui::EndChild(); // ##nanoWulffPreview
+
+    ImGui::EndGroup();
+
     ImGui::SameLine();
 
     // ---- RIGHT: Builder options ----
-    ImGui::BeginChild("##nanoBuilderOptions", ImVec2(0, kSideH), true);
+    ImGui::BeginChild("##nanoBuilderOptions", ImVec2(0.0f, kColumnH), true);
 
     ImGui::Text("Builder Options");
     ImGui::Separator();
 
-    ImGui::Text("Shape");
-    static const char* kShapeLabels[] = {
-        "Sphere","Ellipsoid","Box","Cylinder",
-        "Octahedron","Truncated Octahedron","Cuboctahedron"
-    };
-    constexpr int kNumShapeOptions = 7;
-    int shapeInt = (int)params.shape;
-    if (shapeInt >= kNumShapeOptions) { shapeInt = 0; params.shape = NanoShape::Sphere; }
+    int generationMode = (int)params.generationMode;
+    const char* generationLabels[] = {"Shape Cut", "Wulff Construction"};
     ImGui::SetNextItemWidth(-1.0f);
-    if (ImGui::Combo("##nanoShapeCombo", &shapeInt, kShapeLabels, kNumShapeOptions))
-        params.shape = (NanoShape)shapeInt;
+    if (ImGui::Combo("##nanoGenMode", &generationMode, generationLabels, 2))
+    {
+        params.generationMode = (NanoGenerationMode)generationMode;
+        m_wulffPreviewDirty = true;
+        lastResult = {};
+    }
 
     ImGui::Spacing();
     ImGui::Separator();
 
+    if (params.generationMode == NanoGenerationMode::Shape)
+    {
+        ImGui::Text("Shape");
+        static const char* kShapeLabels[] = {
+            "Sphere","Ellipsoid","Box","Cylinder",
+            "Octahedron","Truncated Octahedron","Cuboctahedron"
+        };
+        constexpr int kNumShapeOptions = 7;
+        int shapeInt = (int)params.shape;
+        if (shapeInt >= kNumShapeOptions) { shapeInt = 0; params.shape = NanoShape::Sphere; }
+        ImGui::SetNextItemWidth(-1.0f);
+        if (ImGui::Combo("##nanoShapeCombo", &shapeInt, kShapeLabels, kNumShapeOptions))
+            params.shape = (NanoShape)shapeInt;
+
+        ImGui::Spacing();
+        ImGui::Separator();
+    }
+
     // Scrollable parameters area
     ImGui::BeginChild("##nanoParamsScroll", ImVec2(-1, -50), true);
-    
-    drawShapeParameters(params);
+
+    if (params.generationMode == NanoGenerationMode::Shape)
+        drawShapeParameters(params);
+    else
+        drawWulffParameters(params);
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -863,7 +1247,7 @@ void NanoCrystalBuilderDialog::drawDialog(
         ImGui::Text("Supercell replication");
         ImGui::Checkbox("Auto-replicate##nano", &params.autoReplicate);
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Automatically tile the unit cell to fully cover the shape");
+            ImGui::SetTooltip("Automatically tile the unit cell to fully cover the generated shape");
         if (!params.autoReplicate) {
             ImGui::SetNextItemWidth(80.0f);
             ImGui::DragInt("Along a##nano", &params.repA, 0.2f, 1, 40);
@@ -888,11 +1272,53 @@ void NanoCrystalBuilderDialog::drawDialog(
                           &params.vacuumPadding, 0.f, 0.f, "%.2f");
         if (params.vacuumPadding < 0.f) params.vacuumPadding = 0.f;
 
-        const HalfExtents he = computeShapeHalfExtents(params);
-        ImGui::TextDisabled("%.2fx%.2fx%.2f A",
-                            2.f*(he.hx+params.vacuumPadding),
-                            2.f*(he.hy+params.vacuumPadding),
-                            2.f*(he.hz+params.vacuumPadding));
+        if (params.generationMode == NanoGenerationMode::Shape)
+        {
+            const HalfExtents he = computeShapeHalfExtents(params);
+            ImGui::TextDisabled("%.2fx%.2fx%.2f A",
+                                2.f*(he.hx+params.vacuumPadding),
+                                2.f*(he.hy+params.vacuumPadding),
+                                2.f*(he.hz+params.vacuumPadding));
+        }
+        else if (m_wulffPreviewData.success)
+        {
+            const glm::vec3 extents = m_wulffPreviewData.maxPoint - m_wulffPreviewData.minPoint;
+            ImGui::TextDisabled("%.2fx%.2fx%.2f A",
+                                extents.x + 2.0f*params.vacuumPadding,
+                                extents.y + 2.0f*params.vacuumPadding,
+                                extents.z + 2.0f*params.vacuumPadding);
+        }
+    }
+
+    if (params.generationMode == NanoGenerationMode::WulffConstruction)
+    {
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Text("Facet colors");
+        for (std::size_t index = 0; index < params.wulffPlanes.size(); ++index)
+        {
+            const WulffPlaneInput& plane = params.wulffPlanes[index];
+            glm::vec3& familyColor = m_wulffFamilyColors[index];
+            float color[3] = { familyColor.r, familyColor.g, familyColor.b };
+            ImGui::PushID((int)index + 1000);
+            ImGui::SetNextItemWidth(120.0f);
+            if (ImGui::ColorEdit3("##wulffLegendColor", color,
+                                  ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel))
+            {
+                familyColor = glm::vec3(color[0], color[1], color[2]);
+                rebuildWulffPreviewGeometry(m_wulffPreviewData);
+            }
+            ImGui::SameLine();
+            ImGui::PushTextWrapPos(0.0f);
+            ImGui::TextWrapped("(%d %d %d)  E = %.4f", plane.h, plane.k, plane.l, plane.surfaceEnergy);
+            ImGui::PopTextWrapPos();
+            ImGui::PopID();
+        }
+        if (!m_wulffPreviewData.message.empty())
+        {
+            ImGui::Spacing();
+            ImGui::TextWrapped("Preview: %s", m_wulffPreviewData.message.c_str());
+        }
     }
 
     ImGui::EndChild(); // ##nanoParamsScroll
@@ -904,96 +1330,16 @@ void NanoCrystalBuilderDialog::drawDialog(
     ImGui::EndChild(); // ##nanoBuilderOptions
 
     // =========================================================================
-    // Embedded file browser (shown when Load File... button pressed)
-    // =========================================================================
-    if (m_browsShowPanel)
-    {
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Text("Load Reference File");
-        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 60.0f);
-        if (ImGui::SmallButton("Close##nanoCloseBrows"))
-            m_browsShowPanel = false;
-
-        // Nav bar
-        const float nb = 28.0f;
-        if (ImGui::Button("^##nanoUp", ImVec2(nb, 0.0f))) {
-            m_browsDir = parentPath(m_browsDir);
-            m_browsEntryDirty = true;
-        }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Up one level");
-        ImGui::SameLine(0.0f, 4.0f);
-        if (ImGui::Button("Home##nanoBrowsHome", ImVec2(0.0f, 0.0f))) {
-            m_browsDir = detectHomePath();
-            m_browsEntryDirty = true;
-        }
-        ImGui::SameLine(0.0f, 8.0f);
-        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-        {
-            static char s_nanoDirBuf[2048] = {};
-            static std::string s_prevNanoDir;
-            if (s_prevNanoDir != m_browsDir) {
-                std::snprintf(s_nanoDirBuf, sizeof(s_nanoDirBuf), "%s", m_browsDir.c_str());
-                s_prevNanoDir = m_browsDir;
-            }
-            if (ImGui::InputText("##nanoDirBar", s_nanoDirBuf, sizeof(s_nanoDirBuf),
-                                 ImGuiInputTextFlags_EnterReturnsTrue)) {
-                m_browsDir = normalizePathSeparators(std::string(s_nanoDirBuf));
-                m_browsEntryDirty = true;
-            }
-        }
-
-        if (m_browsEntryDirty)
-            refreshBrowserEntries();
-
-        if (ImGui::BeginChild("##nanoBrowsList", ImVec2(-1.0f, 200.0f), true)) {
-            bool fileDoubleClicked = false;
-            drawDirectoryEntries(m_browsEntries, m_browsFilename, 50000,
-                [&](const std::string& name) {
-                    m_browsDir = joinPath(m_browsDir, name);
-                    m_browsEntryDirty = true;
-                }, &fileDoubleClicked);
-            if (fileDoubleClicked) {
-                tryLoadFile(joinPath(m_browsDir, m_browsFilename), elementRadii, elementShininess);
-                m_browsShowPanel = false;
-            }
-            ImGui::EndChild();
-        }
-
-        static const char* kNanoExtHint = ".cif  .xyz  .pdb  .sdf  .mol  .vasp  .mol2";
-        const float extHintW = ImGui::CalcTextSize(kNanoExtHint).x;
-        const float labelW   = ImGui::CalcTextSize("Filename").x + ImGui::GetStyle().ItemInnerSpacing.x * 2.0f;
-        const float inW      = ImGui::GetContentRegionAvail().x - labelW - extHintW - ImGui::GetStyle().ItemSpacing.x * 2.0f;
-        ImGui::SetNextItemWidth(inW > 100.0f ? inW : 100.0f);
-        bool enterPressed = ImGui::InputText("Filename##nanoBrowsInput", m_browsFilename,
-                                             sizeof(m_browsFilename),
-                                             ImGuiInputTextFlags_EnterReturnsTrue);
-        ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x);
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", kNanoExtHint);
-
-        if (enterPressed)
-        {
-            tryLoadFile(joinPath(m_browsDir, m_browsFilename), elementRadii, elementShininess);
-            m_browsShowPanel = false;
-        }
-        if (ImGui::Button("Load##nanoBrowsGo", ImVec2(110.0f, 0.0f)))
-        {
-            tryLoadFile(joinPath(m_browsDir, m_browsFilename), elementRadii, elementShininess);
-            m_browsShowPanel = false;
-        }
-        ImGui::SameLine(0.0f, 8.0f);
-        if (ImGui::Button("Cancel##nanoBrowsCancel", ImVec2(90.0f, 0.0f)))
-            m_browsShowPanel = false;
-    }
-
-    // =========================================================================
     // Action bar
     // =========================================================================
 
-    const bool canBuild = !m_reference.atoms.empty();
+    ImGui::Spacing();
+    ImGui::Separator();
+    const bool canBuild = !m_reference.atoms.empty()
+                       && (params.generationMode != NanoGenerationMode::WulffConstruction
+                           || m_wulffPreviewData.success);
     if (!canBuild) ImGui::BeginDisabled();
-    if (ImGui::Button("Build##nano", ImVec2(100.0f, 0.0f))) {
+    if (ImGui::Button("Build Nanocrystal##nano", ImVec2(160.0f, 0.0f))) {
         static const std::vector<glm::vec3>       kNoVerts;
         static const std::vector<unsigned int>    kNoIdx;
         lastResult = buildNanocrystal(structure,
@@ -1007,7 +1353,7 @@ void NanoCrystalBuilderDialog::drawDialog(
     }
     if (!canBuild) ImGui::EndDisabled();
 
-    ImGui::SameLine();
+    ImGui::SameLine(0.0f, 8.0f);
     if (ImGui::Button("Close##nano", ImVec2(80.0f, 0.0f))) {
         lastResult  = {};
         m_isOpen    = false;
