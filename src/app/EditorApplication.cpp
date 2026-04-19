@@ -452,12 +452,20 @@ void loadStartupStructureIfRequested(EditorState& state, const std::string& star
 
 int runAtomsEditor(const std::string& startupStructurePath)
 {
+    SplashScreen* splash = createSplashScreen();
+    updateSplashScreen(splash, 0.15f, "Creating window");
+
     GLFWwindow* window = createMainWindow();
     if (!window)
+    {
+        destroySplashScreen(splash);
+        glfwTerminate();
         return -1;
+    }
 
     Camera camera;
     configureCameraCallbacks(window, camera);
+    updateSplashScreen(splash, 0.28f, "Initializing UI");
 
     initImGui(window);
 
@@ -465,8 +473,10 @@ int runAtomsEditor(const std::string& startupStructurePath)
     LowPolyMesh lowPolyMesh;      // 12-facet icosahedron for 100k-10M atoms
     BillboardMesh billboardMesh;  // Quad billboard for 10M+ atoms
     CylinderMesh cylinder(32);
+    updateSplashScreen(splash, 0.42f, "Preparing scene");
 
     EditorState state;
+    updateSplashScreen(splash, 0.52f, startupStructurePath.empty() ? "Preparing workspace" : "Loading structure");
     loadStartupStructureIfRequested(state, startupStructurePath);
     installDropFileCallback(window, state);
 
@@ -474,6 +484,7 @@ int runAtomsEditor(const std::string& startupStructurePath)
 
     Renderer renderer;
     renderer.init();
+    updateSplashScreen(splash, 0.68f, "Loading tools");
     state.fileBrowser.initNanoCrystalRenderResources(renderer);
     state.fileBrowser.initCustomStructureRenderResources(renderer);
     state.fileBrowser.initMergeStructuresRenderResources(renderer);
@@ -486,6 +497,11 @@ int runAtomsEditor(const std::string& startupStructurePath)
 
     updateBuffers(state);
     state.undoRedo.reset(captureSnapshot(state));
+    updateSplashScreen(splash, 0.92f, "Finalizing");
+
+    showMainWindow(window);
+    updateSplashScreen(splash, 1.0f, "Ready");
+    destroySplashScreen(splash);
 
     AdaptiveRenderState adaptiveRender;
 

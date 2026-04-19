@@ -402,6 +402,18 @@ fooProgram = createProgram(fooVertSrc, fooFragSrc);
 
 ---
 
+## Version control
+
+- Prefer small, focused commits that address one logical change at a time; avoid mixing refactors, feature work, formatting churn, and generated-file updates in the same commit.
+- Before concluding a task, review the working tree (`git status`, `git diff --stat`, `git diff`) and ensure the change set matches the requested scope.
+- Do not rewrite, discard, or revert user-authored changes unless explicitly asked. If the worktree contains unrelated edits, leave them intact and work around them.
+- Treat `build/`, `build-portable/`, `package/`, and other generated outputs as non-source artifacts. Do not edit or commit them unless the task is explicitly about packaging, build-system output, or generated assets.
+- When source changes alter behavior, keep documentation and citations in sync in the same branch or commit when practical.
+- If a change requires multiple commits, split them by concern: infrastructure/setup first, core implementation next, and documentation or cleanup last.
+- Prefer non-destructive git workflows. Avoid history rewrites (`reset --hard`, force pushes, rebases that drop commits) unless the user explicitly requests them.
+
+---
+
 ## What NOT to do
 
 - Do not add C++20 or later features (project targets C++17 strictly).
