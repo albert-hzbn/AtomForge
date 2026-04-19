@@ -11,14 +11,16 @@
 
 #include "Camera.h"
 
-namespace {
-
 struct SplashScreen
 {
     GLFWwindow* window = nullptr;
     int width = 560;
     int height = 320;
 };
+
+namespace {
+
+void renderSplash(SplashScreen* splash, float progress);
 
 bool ensureGlfwInitialized()
 {
