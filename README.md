@@ -5,6 +5,7 @@ AtomForge is an interactive atomic structure builder for metallurgical simulatio
 ## Highlights
 
 - Build structures from scratch using crystal-aware workflows for bulk crystals, substitutional solid solutions, cubic grain boundaries, and nanocrystals.
+- Generate Wulff-construction nanocrystals from periodic reference structures, including non-cubic systems, with symmetry-expanded facet previews.
 - Generate custom finite structures by filling imported 3D mesh volumes with atoms from a reference crystal.
 - Combine multiple loaded structures in a dedicated 3D Merge Structures workflow with per-structure transform gizmos.
 - Create polycrystalline microstructures via Voronoi grain construction.
@@ -87,6 +88,7 @@ Box selection is available from Edit -> Box Select Mode. When enabled, right-dra
 - **Substitutional Solid Solution**: Randomly substitute element species on the lattice sites of a host structure to match a user-defined target composition, specified in atomic percent with live integer-count feedback.
 - **CSL Grain Boundary**: Build cubic bicrystals with explicit Sigma selection and control over GB plane, in-plane replication, translation, and overlap handling.
 - **Nanocrystal**: Carve finite particles from loaded reference structures (sphere, ellipsoid, box, cylinder, octahedron, truncated octahedron, cuboctahedron).
+- **Nanocrystal (Wulff)**: Build equilibrium-shape nanocrystals from user-supplied Miller-index / surface-energy families with an interactive 3D facet preview.
 - **Custom Structure**: Fill imported mesh volumes (OBJ/STL) with atoms from a reference crystal, with side-by-side 3D previews.
 - **Polycrystal**: Generate Voronoi-based polycrystalline structures from a reference crystal.
 
@@ -123,7 +125,15 @@ Box selection is available from Edit -> Box Select Mode. When enabled, right-dra
 
 - Carves finite structures from loaded references.
 - Supports sphere, ellipsoid, box, cylinder, octahedron, truncated octahedron, and cuboctahedron geometries.
+- Supports Wulff construction from Miller-index facet families and relative surface energies.
+- Uses spglib symmetry expansion for Wulff families and supports non-cubic periodic reference cells.
+- Includes a dedicated 3D Wulff preview with editable facet colors and black face-boundary lines for readability.
 - Can auto-replicate periodic inputs and apply vacuum padding.
+
+### Algorithm references
+
+- **CSL Grain Boundary Builder**: Jianli Cheng, Jian Luo, and Kesong Yang, *Aimsgb: An Algorithm and Open-Source Python Library to Generate Periodic Grain Boundary Structures*, Comput. Mater. Sci. 155, 92-103 (2018).
+- **Nanocrystal Builder (Wulff construction)**: Georgios D. Barmparis, Zbigniew Lodziana, Nuria Lopez, and Ioannis N. Remediakis, *Nanoparticle shapes by using Wulff constructions and first-principles calculations*, Beilstein J. Nanotechnol. 6, 361-368 (2015).
 
 ### Polycrystal builder
 
