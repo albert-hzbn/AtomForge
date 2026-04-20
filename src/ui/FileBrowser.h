@@ -273,6 +273,9 @@ struct FileBrowser
     bool isSubstitutionalSolidSolutionDialogOpen() const;
     void feedDropToSubstitutionalSolidSolutionDialog(const std::string& path);
 
+    // Returns true if any builder/analysis/file dialog is currently open.
+    bool isAnyDialogOpen() const;
+
     // Show a modal error popup for file-load failures.
     void showLoadError(const std::string& message);
     // Show a modal informational popup for successful load status.

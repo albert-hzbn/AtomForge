@@ -164,35 +164,10 @@ GLFWwindow* createInitialWindow(int contextMajor, int contextMinor, int profile)
 #endif
 
     glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
-    glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
+    glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
-    GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
-    if (!primaryMonitor)
-        return glfwCreateWindow(1280, 800, "AtomForge", nullptr, nullptr);
-
-    int workX = 0;
-    int workY = 0;
-    int workWidth = 1280;
-    int workHeight = 800;
-    glfwGetMonitorWorkarea(primaryMonitor, &workX, &workY, &workWidth, &workHeight);
-
-    if (workWidth <= 0 || workHeight <= 0)
-    {
-        const GLFWvidmode* videoMode = glfwGetVideoMode(primaryMonitor);
-        if (!videoMode)
-            return glfwCreateWindow(1280, 800, "AtomForge", nullptr, nullptr);
-
-        workWidth = videoMode->width;
-        workHeight = videoMode->height;
-    }
-
-    GLFWwindow* window = glfwCreateWindow(workWidth, workHeight, "AtomForge", nullptr, nullptr);
-    if (!window)
-        return glfwCreateWindow(1280, 800, "AtomForge", nullptr, nullptr);
-
-    glfwSetWindowPos(window, workX, workY);
-    return window;
+    return glfwCreateWindow(1280, 800, "AtomForge", nullptr, nullptr);
 }
 
 } // namespace

@@ -1850,6 +1850,26 @@ bool FileBrowser::isSubstitutionalSolidSolutionDialogOpen() const
     return substitutionalSolidSolutionDialog.isOpen();
 }
 
+bool FileBrowser::isAnyDialogOpen() const
+{
+    return openStructurePopup
+        || saveStructurePopup
+        || exportImagePopup
+        || loadErrorPopupRequested
+        || isNanoCrystalDialogOpen()
+        || isCustomStructureDialogOpen()
+        || isMergeStructuresDialogOpen()
+        || isCSLGrainBoundaryDialogOpen()
+        || isInterfaceBuilderDialogOpen()
+        || isPolyCrystalDialogOpen()
+        || isSubstitutionalSolidSolutionDialogOpen()
+        || showAbout
+        || showManual
+        || showEditColors
+        || showLatticePlanesDialog
+        || showMillerDirectionsDialog;
+}
+
 void FileBrowser::feedDropToSubstitutionalSolidSolutionDialog(const std::string& path)
 {
     substitutionalSolidSolutionDialog.feedDroppedFile(path);

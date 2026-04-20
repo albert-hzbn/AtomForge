@@ -113,7 +113,9 @@ void applyKeyboardShortcuts(EditorState& state, FrameActionRequests& requests)
         state.fileBrowser.saveFileDialog();
 
     if (ImGui::IsKeyPressed(ImGuiKey_S) && !ctrlHeld && !state.selectedInstanceIndices.empty()
-        && !state.sceneBuffers.cpuCachesDisabled)
+        && !state.sceneBuffers.cpuCachesDisabled
+        && !state.fileBrowser.isAnyDialogOpen()
+        && !ImGui::GetIO().WantTextInput)
         state.contextMenu.openSubstitute();
 
     if (ImGui::IsKeyPressed(ImGuiKey_W) && ctrlHeld)
