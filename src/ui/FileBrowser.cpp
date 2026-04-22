@@ -285,6 +285,7 @@ void FileBrowser::draw(Structure& structure,
         {
             bulkCrystalDialog.drawMenuItem(true);
             substitutionalSolidSolutionDialog.drawMenuItem(true);
+            stackingFaultDialog.drawMenuItem(true);
             cslDialog.drawMenuItem(true);
             nanoCrystalDialog.drawMenuItem(true);
             customStructureDialog.drawMenuItem(true);
@@ -526,6 +527,10 @@ void FileBrowser::draw(Structure& structure,
     polyCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                  editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
                                  updateFromBuilder);
+    stackingFaultDialog.drawDialog(structure, editMenuDialogs.elementColors,
+                                   editMenuDialogs.elementRadii,
+                                   editMenuDialogs.elementShininess,
+                                   updateFromBuilder);
     substitutionalSolidSolutionDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                                   editMenuDialogs.elementRadii,
                                                   editMenuDialogs.elementShininess,
@@ -1845,6 +1850,21 @@ void FileBrowser::feedDropToPolyCrystalDialog(const std::string& path)
     polyCrystalDialog.feedDroppedFile(path);
 }
 
+void FileBrowser::initStackingFaultRenderResources(Renderer& renderer)
+{
+    stackingFaultDialog.initRenderResources(renderer);
+}
+
+bool FileBrowser::isStackingFaultDialogOpen() const
+{
+    return stackingFaultDialog.isOpen();
+}
+
+void FileBrowser::feedDropToStackingFaultDialog(const std::string& path)
+{
+    stackingFaultDialog.feedDroppedFile(path);
+}
+
 void FileBrowser::initSubstitutionalSolidSolutionRenderResources(Renderer& renderer)
 {
     substitutionalSolidSolutionDialog.initRenderResources(renderer);
@@ -1867,6 +1887,7 @@ bool FileBrowser::isAnyDialogOpen() const
         || isCSLGrainBoundaryDialogOpen()
         || isInterfaceBuilderDialogOpen()
         || isPolyCrystalDialogOpen()
+        || isStackingFaultDialogOpen()
         || isSubstitutionalSolidSolutionDialogOpen()
         || showAbout
         || showManual

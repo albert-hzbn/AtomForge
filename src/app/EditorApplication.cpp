@@ -491,6 +491,7 @@ int runAtomsEditor(const std::string& startupStructurePath)
     state.fileBrowser.initInterfaceBuilderRenderResources(renderer);
     state.fileBrowser.initCSLGrainBoundaryRenderResources(renderer);
     state.fileBrowser.initPolyCrystalRenderResources(renderer);
+    state.fileBrowser.initStackingFaultRenderResources(renderer);
     state.fileBrowser.initSubstitutionalSolidSolutionRenderResources(renderer);
 
     ShadowMap shadow = createShadowMap(1024, 1024);

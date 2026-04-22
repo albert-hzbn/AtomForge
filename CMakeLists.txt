@@ -69,6 +69,7 @@ set(ATOMFORGE_SOURCES
     src/ui/MeasurementOverlay.cpp
     src/ui/PeriodicTableDialog.cpp
     src/ui/RadialDistributionAnalysis.cpp
+    src/ui/StackingFaultBuilderDialog.cpp
     src/ui/StructureInfoDialog.cpp
     src/ui/TransformAtomsDialog.cpp
     src/ui/SubstitutionalSolidSolutionDialog.cpp
@@ -79,6 +80,7 @@ set(ATOMFORGE_SOURCES
     src/algorithms/PolyCrystalBuilder.cpp
     src/algorithms/BulkCrystalBuilder.cpp
     src/algorithms/InterfaceBuilder.cpp
+    src/algorithms/StackingFaultBuilder.cpp
     src/algorithms/VoronoiComputation.cpp
     src/algorithms/SubstitutionalSolidSolutionBuilder.cpp
     src/io/StructureLoader.cpp

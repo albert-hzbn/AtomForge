@@ -8,6 +8,7 @@
 #include "ui/MergeStructuresDialog.h"
 #include "ui/InterfaceBuilderDialog.h"
 #include "ui/PolyCrystalBuilderDialog.h"
+#include "ui/StackingFaultBuilderDialog.h"
 #include "ui/SubstitutionalSolidSolutionDialog.h"
 #include "ui/CommonNeighbourAnalysis.h"
 #include "ui/RadialDistributionAnalysis.h"
@@ -269,6 +270,11 @@ struct FileBrowser
     bool isPolyCrystalDialogOpen() const;
     void feedDropToPolyCrystalDialog(const std::string& path);
 
+    // Stacking faults builder dialog GL resources and drop routing.
+    void initStackingFaultRenderResources(Renderer& renderer);
+    bool isStackingFaultDialogOpen() const;
+    void feedDropToStackingFaultDialog(const std::string& path);
+
     // Substitutional solid solution dialog GL resources and drop routing.
     void initSubstitutionalSolidSolutionRenderResources(Renderer& renderer);
     bool isSubstitutionalSolidSolutionDialogOpen() const;
@@ -393,6 +399,7 @@ private:
     MergeStructuresDialog mergeStructuresDialog;
     InterfaceBuilderDialog interfaceBuilderDialog;
     PolyCrystalBuilderDialog polyCrystalDialog;
+    StackingFaultBuilderDialog stackingFaultDialog;
     SubstitutionalSolidSolutionDialog substitutionalSolidSolutionDialog;
     CommonNeighbourAnalysisDialog cnaDialog;
     RadialDistributionAnalysisDialog rdfDialog;

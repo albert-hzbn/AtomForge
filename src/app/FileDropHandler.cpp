@@ -85,6 +85,12 @@ void processDroppedFiles(EditorState& state)
         return;
     }
 
+    if (state.fileBrowser.isStackingFaultDialogOpen())
+    {
+        state.fileBrowser.feedDropToStackingFaultDialog(droppedFile);
+        return;
+    }
+
     if (state.fileBrowser.isSubstitutionalSolidSolutionDialogOpen())
     {
         state.fileBrowser.feedDropToSubstitutionalSolidSolutionDialog(droppedFile);
