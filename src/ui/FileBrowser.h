@@ -118,6 +118,7 @@ struct FileBrowser
     bool isShowAtomsEnabled() const { return showAtoms; }
     bool isShowBoundingBoxEnabled() const { return showBoundingBox; }
     bool isLightThemeEnabled() const { return useLightTheme; }
+    void setLightTheme(bool v) { useLightTheme = v; }
     bool isBondElementFilterEnabled() const { return bondElementFilterEnabled; }
     const std::array<bool, 119>& getBondElementFilterMask() const { return bondElementFilterMask; }
     bool isOrthographicViewEnabled() const { return viewMode == ViewMode::Orthographic; }

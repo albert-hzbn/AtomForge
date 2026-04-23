@@ -576,6 +576,19 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
     updateSplashScreen(splash, 1.0f, "Ready");
     destroySplashScreen(splash);
 
+    // Propagate display settings (lighting, material, theme) from source tab to a new tab.
+    auto copyDisplaySettings = [](const EditorState& src, EditorState& dst)
+    {
+        dst.editMenuDialogs.lightAmbient              = src.editMenuDialogs.lightAmbient;
+        dst.editMenuDialogs.lightSaturation           = src.editMenuDialogs.lightSaturation;
+        dst.editMenuDialogs.lightContrast             = src.editMenuDialogs.lightContrast;
+        dst.editMenuDialogs.lightShadowStrength       = src.editMenuDialogs.lightShadowStrength;
+        dst.editMenuDialogs.materialSpecularIntensity = src.editMenuDialogs.materialSpecularIntensity;
+        dst.editMenuDialogs.materialShininessScale    = src.editMenuDialogs.materialShininessScale;
+        dst.editMenuDialogs.materialShininessFloor    = src.editMenuDialogs.materialShininessFloor;
+        dst.fileBrowser.setLightTheme(src.fileBrowser.isLightThemeEnabled());
+    };
+
     while (!glfwWindowShouldClose(window))
     {
         // --- Active-tab alias ---
@@ -618,6 +631,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                 targetIdx = (int)tabs.size() - 1;
                 initTabResources(*tabs[targetIdx], sphere, lowPolyMesh,
                                  billboardMesh, cylinder, renderer);
+                copyDisplaySettings(tabs[activeTabIdx]->state, tabs[targetIdx]->state);
                 activeTabIdx     = targetIdx;
                 pendingTabSwitch = targetIdx;
                 restoreCameraFromTab(camera, *tabs[activeTabIdx]);
@@ -656,6 +670,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                 tabs.push_back(std::make_unique<StructureTab>());
                 int newIdx = (int)tabs.size() - 1;
                 initTabResources(*tabs[newIdx], sphere, lowPolyMesh, billboardMesh, cylinder, renderer);
+                copyDisplaySettings(tabs[activeTabIdx]->state, tabs[newIdx]->state);
                 EditorState& t = tabs[newIdx]->state;
                 t.structure = std::move(newStruct);
                 updateBuffers(t);
