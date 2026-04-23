@@ -924,7 +924,8 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                               activeState.sceneBuffers.atomIndices,
                               activeState.fileBrowser.getPolyhedralOverlaySettings(),
                               activeState.editMenuDialogs.elementColors,
-                              activeState.fileBrowser.isShowPolyhedralViewerEnabled());
+                              activeState.fileBrowser.isShowPolyhedralViewerEnabled()
+                              && (int)activeState.structure.atoms.size() <= 5000);
 
         if (activeState.fileBrowser.isShowElementEnabled())
             drawElementLabelsOverlay(drawList, frame.projection, frame.view,

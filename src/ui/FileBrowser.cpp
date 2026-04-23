@@ -467,13 +467,20 @@ void FileBrowser::draw(Structure& structure,
                         updateBuffers(structure);
                     }
                 }
-                if (ImGui::MenuItem("Polyhedral", nullptr, atomDisplayMode == AtomDisplayMode::Polyhedral))
                 {
-                    if (atomDisplayMode != AtomDisplayMode::Polyhedral)
+                    const bool polyhedralAllowed = (int)structure.atoms.size() <= 5000;
+                    if (!polyhedralAllowed && atomDisplayMode == AtomDisplayMode::Polyhedral)
+                        atomDisplayMode = AtomDisplayMode::BallAndStick;
+                    if (ImGui::MenuItem("Polyhedral", nullptr, atomDisplayMode == AtomDisplayMode::Polyhedral, polyhedralAllowed))
                     {
-                        atomDisplayMode = AtomDisplayMode::Polyhedral;
-                        updateBuffers(structure);
+                        if (atomDisplayMode != AtomDisplayMode::Polyhedral)
+                        {
+                            atomDisplayMode = AtomDisplayMode::Polyhedral;
+                            updateBuffers(structure);
+                        }
                     }
+                    if (!polyhedralAllowed && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                        ImGui::SetTooltip("Polyhedral view is disabled for structures with more than 5\u202f000 atoms.");
                 }
                 ImGui::EndMenu();
             }
@@ -646,11 +653,6 @@ void FileBrowser::draw(Structure& structure,
     editMenuDialogs.drawPopups(structure, updateBuffers);
 
     transformDialog.drawDialog([&]() { updateBuffers(structure); });
-
-    auto updateFromBuilder = [&](Structure& updatedStructure) {
-        updateBuffers(updatedStructure);
-        requestResetDefaultView = true;
-    };
 
     // Callback for builder dialogs: captures the built result and opens it in a new tab,
     // restoring the current tab's structure to its pre-build state.
