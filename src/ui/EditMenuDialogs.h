@@ -21,6 +21,10 @@ struct EditMenuDialogs
     // Call inside an already-open "Edit" ImGui menu to add the Edit items.
     void drawMenuItems();
 
+    // Call inside an already-open "Settings" ImGui menu to add Atomic Sizes
+    // and Element Colors items (without Edit Structure).
+    void drawSettingsMenuItems();
+
     // Call once per ImGui frame (outside any menu) to service the modal popups.
     // Calls updateBuffers(structure) when the user changes a value.
     void drawPopups(Structure& structure,

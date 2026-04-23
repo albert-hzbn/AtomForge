@@ -36,14 +36,17 @@ EditMenuDialogs::EditMenuDialogs()
 
 void EditMenuDialogs::drawMenuItems()
 {
+    if (ImGui::MenuItem("Edit Structure"))
+        m_openEditStructure = true;
+}
+
+void EditMenuDialogs::drawSettingsMenuItems()
+{
     if (ImGui::MenuItem("Atomic Sizes"))
         m_openAtomicSize = true;
 
     if (ImGui::MenuItem("Element Colors"))
         m_openElementColor = true;
-
-    if (ImGui::MenuItem("Edit Structure"))
-        m_openEditStructure = true;
 }
 
 void EditMenuDialogs::drawPopups(Structure& structure,

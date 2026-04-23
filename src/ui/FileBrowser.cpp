@@ -480,8 +480,6 @@ void FileBrowser::draw(Structure& structure,
             ImGui::Separator();
             ImGui::MenuItem("Show Voronoi Volume", nullptr, &showVoronoi, !structure.atoms.empty());
             ImGui::MenuItem("Polyhedral Viewer", nullptr, &showPolyhedralViewer, !structure.atoms.empty());
-            if (ImGui::MenuItem("Polyhedral Settings", nullptr, false, !structure.atoms.empty()))
-                showPolyhedralSettingsDialog = true;
             ImGui::Separator();
             if (ImGui::MenuItem("Structure Info"))
                 requestStructureInfo = true;
@@ -513,6 +511,15 @@ void FileBrowser::draw(Structure& structure,
         {
             cnaDialog.drawMenuItem(!structure.atoms.empty());
             rdfDialog.drawMenuItem(!structure.atoms.empty());
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Settings"))
+        {
+            editMenuDialogs.drawSettingsMenuItems();
+            ImGui::Separator();
+            if (ImGui::MenuItem("Polyhedral Settings"))
+                showPolyhedralSettingsDialog = true;
             ImGui::EndMenu();
         }
 
