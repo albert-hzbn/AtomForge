@@ -158,8 +158,10 @@ void StackingFaultBuilderDialog::initRenderResources(Renderer& renderer)
     m_sourcePreview.cylinder = new CylinderMesh(16);
     m_outputPreview.sphere   = new SphereMesh(24, 24);
     m_outputPreview.cylinder = new CylinderMesh(16);
-    m_sourcePreview.buffers.init(m_sourcePreview.sphere->vao, m_sourcePreview.cylinder->vao);
-    m_outputPreview.buffers.init(m_outputPreview.sphere->vao, m_outputPreview.cylinder->vao);
+    m_sourcePreview.buffers.init(m_sourcePreview.sphere->vbo, m_sourcePreview.sphere->ebo, m_sourcePreview.sphere->indexCount,
+                                  m_sourcePreview.cylinder->vbo, m_sourcePreview.cylinder->vertexCount);
+    m_outputPreview.buffers.init(m_outputPreview.sphere->vbo, m_outputPreview.sphere->ebo, m_outputPreview.sphere->indexCount,
+                                  m_outputPreview.cylinder->vbo, m_outputPreview.cylinder->vertexCount);
     m_sourcePreview.shadow = createShadowMap(1, 1);
     m_outputPreview.shadow = createShadowMap(1, 1);
     m_glReady = true;
@@ -459,10 +461,12 @@ void StackingFaultBuilderDialog::renderPreviewToFBO(PreviewState& preview, int w
 
     m_renderer->drawBonds(frame.projection, frame.view,
                           frame.lightPosition, frame.cameraPosition,
-                          *preview.cylinder, preview.buffers.bondCount);
+                          preview.buffers.tabCylinderVAO, preview.buffers.tabCylinderVertexCount,
+                          preview.buffers.bondCount);
     m_renderer->drawAtoms(frame.projection, frame.view,
                           frame.lightMVP, frame.lightPosition, frame.cameraPosition,
-                          preview.shadow, *preview.sphere,
+                          preview.shadow,
+                          preview.buffers.tabSphereVAO, preview.buffers.tabSphereIndexCount,
                           preview.buffers.atomCount);
     m_renderer->drawBoxLines(frame.projection, frame.view,
                              preview.buffers.lineVAO,

@@ -550,7 +550,8 @@ void NanoCrystalBuilderDialog::initRenderResources(Renderer& renderer)
     // SceneBuffers.
     m_previewSphere   = new SphereMesh(24, 24);
     m_previewCylinder = new CylinderMesh(16);
-    m_previewBuffers.init(m_previewSphere->vao, m_previewCylinder->vao);
+    m_previewBuffers.init(m_previewSphere->vbo, m_previewSphere->ebo, m_previewSphere->indexCount,
+                          m_previewCylinder->vbo, m_previewCylinder->vertexCount);
 
     // A 1×1 shadow map satisfies the sampler binding without drawing shadows.
     m_previewShadow = createShadowMap(1, 1);
@@ -811,11 +812,13 @@ void NanoCrystalBuilderDialog::renderPreviewToFBO(int w, int h)
 
     m_renderer->drawBonds(frame.projection, frame.view,
                           frame.lightPosition, frame.cameraPosition,
-                          *m_previewCylinder, m_previewBuffers.bondCount);
+                          m_previewBuffers.tabCylinderVAO, m_previewBuffers.tabCylinderVertexCount,
+                          m_previewBuffers.bondCount);
 
     m_renderer->drawAtoms(frame.projection, frame.view,
                           frame.lightMVP, frame.lightPosition, frame.cameraPosition,
-                          m_previewShadow, *m_previewSphere,
+                          m_previewShadow,
+                          m_previewBuffers.tabSphereVAO, m_previewBuffers.tabSphereIndexCount,
                           m_previewBuffers.atomCount);
 
     m_renderer->drawBoxLines(frame.projection, frame.view,
@@ -958,12 +961,6 @@ void NanoCrystalBuilderDialog::drawDialog(
     if (m_openRequested) {
         ImGui::OpenPopup("Build Nanocrystal");
         lastResult      = {};
-        if (m_reference.atoms.empty() && !structure.atoms.empty()) {
-            m_reference = structure;
-            m_previewBufDirty = true;
-            m_wulffPreviewDirty = true;
-            m_wulffPreviewCameraNeedsFit = true;
-        }
         m_openRequested = false;
     }
 
@@ -994,7 +991,7 @@ void NanoCrystalBuilderDialog::drawDialog(
     }
     m_isOpen = true;
 
-    ImGui::TextWrapped("Drop a reference crystal into the left panel or use the currently loaded structure, then build the nanocrystal.");
+    ImGui::TextWrapped("Drop a reference crystal into the left panel, then build the nanocrystal.");
     ImGui::Separator();
 
     // =========================================================================
@@ -1025,8 +1022,6 @@ void NanoCrystalBuilderDialog::drawDialog(
     {
         if (m_browsStatusMsg[0] != '\0')
             ImGui::TextWrapped("%s", m_browsStatusMsg);
-        else
-            ImGui::TextDisabled("Using the current structure as reference.");
 
         ImGui::SameLine();
         if (ImGui::Button("Clear##nanoClearRef", ImVec2(70.0f, 0.0f))) {

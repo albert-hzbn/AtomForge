@@ -115,7 +115,8 @@ void CSLGrainBoundaryDialog::initRenderResources(Renderer& renderer)
     m_renderer        = &renderer;
     m_previewSphere   = new SphereMesh(24, 24);
     m_previewCylinder = new CylinderMesh(16);
-    m_previewBuffers.init(m_previewSphere->vao, m_previewCylinder->vao);
+    m_previewBuffers.init(m_previewSphere->vbo, m_previewSphere->ebo, m_previewSphere->indexCount,
+                          m_previewCylinder->vbo, m_previewCylinder->vertexCount);
     m_previewShadow   = createShadowMap(1, 1);
     m_glReady         = true;
 }
@@ -199,11 +200,13 @@ void CSLGrainBoundaryDialog::renderPreviewToFBO(int w, int h)
 
     m_renderer->drawBonds(frame.projection, frame.view,
                           frame.lightPosition, frame.cameraPosition,
-                          *m_previewCylinder, m_previewBuffers.bondCount);
+                          m_previewBuffers.tabCylinderVAO, m_previewBuffers.tabCylinderVertexCount,
+                          m_previewBuffers.bondCount);
 
     m_renderer->drawAtoms(frame.projection, frame.view,
                           frame.lightMVP, frame.lightPosition, frame.cameraPosition,
-                          m_previewShadow, *m_previewSphere,
+                          m_previewShadow,
+                          m_previewBuffers.tabSphereVAO, m_previewBuffers.tabSphereIndexCount,
                           m_previewBuffers.atomCount);
 
     m_renderer->drawBoxLines(frame.projection, frame.view,

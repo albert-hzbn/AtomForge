@@ -205,8 +205,17 @@ bool uploadInstancesWithCompute(GLuint instanceVBO,
 }
 }
 
-void SceneBuffers::init(GLuint sphereVAO, GLuint lowPolyVAO, GLuint billboardVAO, GLuint cylinderVAO)
+void SceneBuffers::init(GLuint sphereVbo,    GLuint sphereEbo,    int sphereIdxCount,
+                        GLuint lowPolyVbo,   GLuint lowPolyEbo,   int lowPolyIdxCount,
+                        GLuint billboardVbo, GLuint billboardEbo, int billboardIdxCount,
+                        GLuint cylinderVbo,  int cylVertCount)
 {
+    tabSphereIndexCount    = sphereIdxCount;
+    tabLowPolyIndexCount   = lowPolyIdxCount;
+    tabBillboardIndexCount = billboardIdxCount;
+    tabCylinderVertexCount = cylVertCount;
+
+    // Per-tab instance VBOs (unique to this tab; never shared with other tabs).
     glGenBuffers(1, &instanceVBO);
     glGenBuffers(1, &colorVBO);
     glGenBuffers(1, &scaleVBO);
@@ -221,77 +230,103 @@ void SceneBuffers::init(GLuint sphereVAO, GLuint lowPolyVAO, GLuint billboardVAO
     glGenVertexArrays(1, &lineVAO);
     glGenBuffers(1, &lineVBO);
 
-    // Wire instance buffers into all atom mesh VAOs (sphere, low-poly, billboard)
-    GLuint atomVAOs[] = { sphereVAO, lowPolyVAO, billboardVAO };
-    for (GLuint vao : atomVAOs)
+    // Helper: create a per-tab atom VAO that combines a shared geometry VBO/EBO
+    // (slot 0, read-only) with this tab's own instance VBOs (slots 1-4).
+    // Each tab gets its own VAO so tab N never overwrites tab M's attribute state.
+    auto setupAtomVAO = [&](GLuint& vaoOut, GLuint geomVbo, GLuint ebo)
     {
-        if (vao == 0) continue;  // skip when not provided (preview renderers)
+        if (geomVbo == 0) return;
+        glGenVertexArrays(1, &vaoOut);
+        glBindVertexArray(vaoOut);
 
-        glBindVertexArray(vao);
+        // Geometry (slot 0: position, xyz float)
+        glBindBuffer(GL_ARRAY_BUFFER, geomVbo);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
+        if (ebo != 0)
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+
+        // Instance position (slot 1)
         glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), (void*)0);
         glVertexAttribDivisor(1, 1);
 
+        // Instance color (slot 2)
         glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
         glEnableVertexAttribArray(2);
         glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), (void*)0);
         glVertexAttribDivisor(2, 1);
 
+        // Instance scale (slot 3)
         glBindBuffer(GL_ARRAY_BUFFER, scaleVBO);
         glEnableVertexAttribArray(3);
         glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
         glVertexAttribDivisor(3, 1);
 
+        // Instance shininess (slot 4)
         glBindBuffer(GL_ARRAY_BUFFER, shininessVBO);
         glEnableVertexAttribArray(4);
         glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
         glVertexAttribDivisor(4, 1);
 
         glBindVertexArray(0);
+    };
+
+    setupAtomVAO(tabSphereVAO,    sphereVbo,    sphereEbo);
+    setupAtomVAO(tabLowPolyVAO,   lowPolyVbo,   lowPolyEbo);
+    setupAtomVAO(tabBillboardVAO, billboardVbo, billboardEbo);
+
+    // Per-tab cylinder VAO (geometry slot 0 + bond instance slots 1-7)
+    if (cylinderVbo != 0)
+    {
+        glGenVertexArrays(1, &tabCylinderVAO);
+        glBindVertexArray(tabCylinderVAO);
+
+        glBindBuffer(GL_ARRAY_BUFFER, cylinderVbo);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+        glBindBuffer(GL_ARRAY_BUFFER, bondStartVBO);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glVertexAttribDivisor(1, 1);
+
+        glBindBuffer(GL_ARRAY_BUFFER, bondEndVBO);
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glVertexAttribDivisor(2, 1);
+
+        glBindBuffer(GL_ARRAY_BUFFER, bondColorAVBO);
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glVertexAttribDivisor(3, 1);
+
+        glBindBuffer(GL_ARRAY_BUFFER, bondColorBVBO);
+        glEnableVertexAttribArray(4);
+        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glVertexAttribDivisor(4, 1);
+
+        glBindBuffer(GL_ARRAY_BUFFER, bondRadiusVBO);
+        glEnableVertexAttribArray(5);
+        glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
+        glVertexAttribDivisor(5, 1);
+
+        glBindBuffer(GL_ARRAY_BUFFER, bondShininessAVBO);
+        glEnableVertexAttribArray(6);
+        glVertexAttribPointer(6, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
+        glVertexAttribDivisor(6, 1);
+
+        glBindBuffer(GL_ARRAY_BUFFER, bondShininessBVBO);
+        glEnableVertexAttribArray(7);
+        glVertexAttribPointer(7, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
+        glVertexAttribDivisor(7, 1);
+
+        glBindVertexArray(0);
     }
 
-    glBindVertexArray(cylinderVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, bondStartVBO);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glVertexAttribDivisor(1, 1);
-
-    glBindBuffer(GL_ARRAY_BUFFER, bondEndVBO);
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glVertexAttribDivisor(2, 1);
-
-    glBindBuffer(GL_ARRAY_BUFFER, bondColorAVBO);
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glVertexAttribDivisor(3, 1);
-
-    glBindBuffer(GL_ARRAY_BUFFER, bondColorBVBO);
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glVertexAttribDivisor(4, 1);
-
-    glBindBuffer(GL_ARRAY_BUFFER, bondRadiusVBO);
-    glEnableVertexAttribArray(5);
-    glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
-    glVertexAttribDivisor(5, 1);
-
-    glBindBuffer(GL_ARRAY_BUFFER, bondShininessAVBO);
-    glEnableVertexAttribArray(6);
-    glVertexAttribPointer(6, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
-    glVertexAttribDivisor(6, 1);
-
-    glBindBuffer(GL_ARRAY_BUFFER, bondShininessBVBO);
-    glEnableVertexAttribArray(7);
-    glVertexAttribPointer(7, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
-    glVertexAttribDivisor(7, 1);
-
-    glBindVertexArray(0);
-
-    // Wire the line VBO into the dedicated line VAO.
+    // Per-tab line VAO
     glBindVertexArray(lineVAO);
     glBindBuffer(GL_ARRAY_BUFFER, lineVBO);
     glEnableVertexAttribArray(0);
@@ -299,9 +334,32 @@ void SceneBuffers::init(GLuint sphereVAO, GLuint lowPolyVAO, GLuint billboardVAO
     glBindVertexArray(0);
 }
 
-void SceneBuffers::init(GLuint sphereVAO, GLuint cylinderVAO)
+void SceneBuffers::init(GLuint sphereVbo, GLuint sphereEbo, int sphereIdxCount,
+                        GLuint cylinderVbo, int cylVertCount)
 {
-    init(sphereVAO, 0, 0, cylinderVAO);
+    init(sphereVbo, sphereEbo, sphereIdxCount,
+         0, 0, 0,
+         0, 0, 0,
+         cylinderVbo, cylVertCount);
+}
+
+void SceneBuffers::destroy()
+{
+    if (tabSphereVAO)    { glDeleteVertexArrays(1, &tabSphereVAO);    tabSphereVAO = 0; }
+    if (tabLowPolyVAO)   { glDeleteVertexArrays(1, &tabLowPolyVAO);   tabLowPolyVAO = 0; }
+    if (tabBillboardVAO) { glDeleteVertexArrays(1, &tabBillboardVAO); tabBillboardVAO = 0; }
+    if (tabCylinderVAO)  { glDeleteVertexArrays(1, &tabCylinderVAO);  tabCylinderVAO = 0; }
+    if (lineVAO)         { glDeleteVertexArrays(1, &lineVAO);         lineVAO = 0; }
+
+    GLuint vbos[] = {
+        instanceVBO, colorVBO, scaleVBO, shininessVBO,
+        bondStartVBO, bondEndVBO, bondColorAVBO, bondColorBVBO,
+        bondRadiusVBO, bondShininessAVBO, bondShininessBVBO, lineVBO
+    };
+    for (GLuint& vbo : vbos)
+    {
+        if (vbo) { glDeleteBuffers(1, &vbo); vbo = 0; }
+    }
 }
 
 void SceneBuffers::upload(const StructureInstanceData& data,

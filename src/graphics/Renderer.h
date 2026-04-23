@@ -33,23 +33,23 @@ struct Renderer
 
     // Render all atoms into the shadow map (depth-only pass).
     void drawShadowPass(const ShadowMap& shadow,
-                        const SphereMesh& sphere,
+                        GLuint sphereVAO, int sphereIndexCount,
                         const glm::mat4& lightMVP,
                         size_t atomCount);
 
     void drawShadowPassLowPoly(const ShadowMap& shadow,
-                               const LowPolyMesh& mesh,
+                               GLuint lowPolyVAO, int lowPolyIndexCount,
                                const glm::mat4& lightMVP,
                                size_t atomCount);
 
     void drawShadowPassBillboard(const ShadowMap& shadow,
-                                 const BillboardMesh& mesh,
+                                 GLuint billboardVAO, int billboardIndexCount,
                                  const glm::mat4& lightMVP,
                                  const glm::mat4& view,
                                  size_t atomCount);
 
     void drawBondShadowPass(const ShadowMap& shadow,
-                            const CylinderMesh& cylinder,
+                            GLuint cylinderVAO, int cylinderVertexCount,
                             const glm::mat4& lightMVP,
                             size_t bondCount);
 
@@ -60,7 +60,7 @@ struct Renderer
                    const glm::vec3& lightPos,
                    const glm::vec3& viewPos,
                    const ShadowMap& shadow,
-                   const SphereMesh& sphere,
+                   GLuint sphereVAO, int sphereIndexCount,
                    size_t atomCount);
 
     void drawAtomsLowPoly(const glm::mat4& projection,
@@ -69,7 +69,7 @@ struct Renderer
                           const glm::vec3& lightPos,
                           const glm::vec3& viewPos,
                           const ShadowMap& shadow,
-                          const LowPolyMesh& mesh,
+                          GLuint lowPolyVAO, int lowPolyIndexCount,
                           size_t atomCount);
 
     void drawAtomsBillboard(const glm::mat4& projection,
@@ -78,14 +78,14 @@ struct Renderer
                             const glm::vec3& lightPos,
                             const glm::vec3& viewPos,
                             const ShadowMap& shadow,
-                            const BillboardMesh& mesh,
+                            GLuint billboardVAO, int billboardIndexCount,
                             size_t atomCount);
 
     void drawBonds(const glm::mat4& projection,
                    const glm::mat4& view,
                    const glm::vec3& lightPos,
                    const glm::vec3& viewPos,
-                   const CylinderMesh& cylinder,
+                   GLuint cylinderVAO, int cylinderVertexCount,
                    size_t bondCount);
 
     // Render the bounding-box / lattice wireframe.

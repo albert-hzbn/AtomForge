@@ -2,13 +2,13 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 
 int main(int argc, char* argv[])
 {
-    if (argc > 2)
-        std::cout << "[Startup] Ignoring extra command-line arguments after the first structure path." << std::endl;
-
-    const std::string startupStructurePath = (argc > 1) ? argv[1] : std::string();
-    return runAtomsEditor(startupStructurePath);
+    std::vector<std::string> startupPaths;
+    for (int i = 1; i < argc; ++i)
+        startupPaths.emplace_back(argv[i]);
+    return runAtomsEditor(startupPaths);
 }
 

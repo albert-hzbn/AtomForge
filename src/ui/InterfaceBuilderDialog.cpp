@@ -84,9 +84,12 @@ void InterfaceBuilderDialog::initRenderResources(Renderer& renderer)
     m_previewCylinderB  = new CylinderMesh(16);
     m_previewSphereR    = new SphereMesh(24, 24);
     m_previewCylinderR  = new CylinderMesh(16);
-    m_previewBufA.init(m_previewSphereA->vao, m_previewCylinderA->vao);
-    m_previewBufB.init(m_previewSphereB->vao, m_previewCylinderB->vao);
-    m_previewBufResult.init(m_previewSphereR->vao, m_previewCylinderR->vao);
+    m_previewBufA.init(m_previewSphereA->vbo, m_previewSphereA->ebo, m_previewSphereA->indexCount,
+                       m_previewCylinderA->vbo, m_previewCylinderA->vertexCount);
+    m_previewBufB.init(m_previewSphereB->vbo, m_previewSphereB->ebo, m_previewSphereB->indexCount,
+                       m_previewCylinderB->vbo, m_previewCylinderB->vertexCount);
+    m_previewBufResult.init(m_previewSphereR->vbo, m_previewSphereR->ebo, m_previewSphereR->indexCount,
+                            m_previewCylinderR->vbo, m_previewCylinderR->vertexCount);
     m_previewShadow = createShadowMap(1, 1);
     m_glReady = true;
 }
@@ -170,8 +173,6 @@ void InterfaceBuilderDialog::autoFitCamera(const SceneBuffers& buf, float& dist)
 
 void InterfaceBuilderDialog::renderToFBO(GLuint fbo, int w, int h,
                                           SceneBuffers& buf,
-                                          const SphereMesh& sphere,
-                                          const CylinderMesh& cylinder,
                                           float yaw, float pitch, float dist)
 {
     if (!m_glReady || !m_renderer || buf.atomCount == 0)
@@ -200,10 +201,11 @@ void InterfaceBuilderDialog::renderToFBO(GLuint fbo, int w, int h,
 
     m_renderer->drawBonds(frame.projection, frame.view,
                           frame.lightPosition, frame.cameraPosition,
-                          cylinder, buf.bondCount);
+                          buf.tabCylinderVAO, buf.tabCylinderVertexCount, buf.bondCount);
     m_renderer->drawAtoms(frame.projection, frame.view,
                           frame.lightMVP, frame.lightPosition, frame.cameraPosition,
-                          m_previewShadow, sphere, buf.atomCount);
+                          m_previewShadow,
+                          buf.tabSphereVAO, buf.tabSphereIndexCount, buf.atomCount);
     m_renderer->drawBoxLines(frame.projection, frame.view,
                              buf.lineVAO, buf.boxLines.size());
 
@@ -459,13 +461,11 @@ void InterfaceBuilderDialog::drawDropZone(
         GLuint* texPtr;
         GLuint* rboPtr;
         int *wPtr, *hPtr;
-        const SphereMesh* sphPtr;
-        const CylinderMesh* cylPtr;
-        if (slot == 0) { fboPtr = &m_fboA; texPtr = &m_texA; rboPtr = &m_rboA; wPtr = &m_fboAW; hPtr = &m_fboAH; sphPtr = m_previewSphereA; cylPtr = m_previewCylinderA; }
-        else           { fboPtr = &m_fboB; texPtr = &m_texB; rboPtr = &m_rboB; wPtr = &m_fboBW; hPtr = &m_fboBH; sphPtr = m_previewSphereB; cylPtr = m_previewCylinderB; }
+        if (slot == 0) { fboPtr = &m_fboA; texPtr = &m_texA; rboPtr = &m_rboA; wPtr = &m_fboAW; hPtr = &m_fboAH; }
+        else           { fboPtr = &m_fboB; texPtr = &m_texB; rboPtr = &m_rboB; wPtr = &m_fboBW; hPtr = &m_fboBH; }
 
         ensureFBO(*fboPtr, *texPtr, *rboPtr, *wPtr, *hPtr, pw, ph);
-        renderToFBO(*fboPtr, pw, ph, buf, *sphPtr, *cylPtr, yaw, pitch, dist);
+        renderToFBO(*fboPtr, pw, ph, buf, yaw, pitch, dist);
 
         ImVec2 prevMin(dropMin.x + pad, dropMin.y + pad);
         ImVec2 prevMax(prevMin.x + prevSize.x, prevMin.y + prevSize.y);
@@ -1066,7 +1066,6 @@ void InterfaceBuilderDialog::drawDialog(
             int rh = std::max(1, (int)(rMax.y - rMin.y - 10));
             ensureFBO(m_fboResult, m_texResult, m_rboResult, m_fboRW, m_fboRH, rw, rh);
             renderToFBO(m_fboResult, rw, rh, m_previewBufResult,
-                        *m_previewSphereR, *m_previewCylinderR,
                         m_camRYaw, m_camRPitch, m_camRDist);
 
             dl->AddImage((ImTextureID)(intptr_t)m_texResult,

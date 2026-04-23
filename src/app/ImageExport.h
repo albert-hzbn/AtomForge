@@ -8,10 +8,6 @@
 
 struct Renderer;
 struct ShadowMap;
-struct SphereMesh;
-struct LowPolyMesh;
-struct BillboardMesh;
-struct CylinderMesh;
 struct SceneBuffers;
 
 struct ImageExportView
@@ -29,11 +25,9 @@ bool exportStructureImage(const ImageExportRequest& request,
                           const ImageExportView& view,
                           const glm::vec4& backgroundColor,
                           bool showBonds,
+                          bool showAtoms,
+                          bool showBoundingBox,
                           const SceneBuffers& sceneBuffers,
                           Renderer& renderer,
                           const ShadowMap& shadow,
-                          const SphereMesh& sphere,
-                          const LowPolyMesh& lowPolyMesh,
-                          const BillboardMesh& billboardMesh,
-                          const CylinderMesh& cylinder,
                           std::string& errorMessage);

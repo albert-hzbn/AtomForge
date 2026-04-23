@@ -61,6 +61,8 @@ FileBrowser::FileBrowser()
             showEditColors(false),
             showElementLabels(false),
             showBonds(false),
+            showAtoms(true),
+            showBoundingBox(true),
             showLatticePlanes(false),
             showLatticePlanesDialog(false),
             showMillerDirections(false),
@@ -312,11 +314,14 @@ void FileBrowser::initFromPath(const std::string& initialPath)
         initialOpenFilename = initialPath.substr(pos + 1);
 
     std::snprintf(openFilename, sizeof(openFilename), "%s", initialOpenFilename.c_str());
+    if (!initialPath.empty())
+        lastLoadedPath = initialPath;
 }
 
 void FileBrowser::draw(Structure& structure,
                        EditMenuDialogs& editMenuDialogs,
                        const std::function<void(Structure&)>& updateBuffers,
+                       const std::function<void(Structure)>& openInNewTab,
                        bool canUndo,
                        bool canRedo)
 {
@@ -503,6 +508,9 @@ void FileBrowser::draw(Structure& structure,
             ImGui::MenuItem("Show Voronoi Volume", nullptr, &showVoronoi, !structure.atoms.empty());
             ImGui::MenuItem("Polyhedral Viewer", nullptr, &showPolyhedralViewer, !structure.atoms.empty());
             ImGui::Separator();
+            ImGui::MenuItem("Show Atoms", nullptr, &showAtoms, !structure.atoms.empty());
+            ImGui::MenuItem("Show Bounding Box", nullptr, &showBoundingBox, structure.hasUnitCell);
+            ImGui::Separator();
             if (ImGui::MenuItem("Structure Info"))
                 requestStructureInfo = true;
             if (ImGui::MenuItem("Measure Distance"))
@@ -644,31 +652,40 @@ void FileBrowser::draw(Structure& structure,
         requestResetDefaultView = true;
     };
 
-    bulkCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors, updateFromBuilder);
+    // Callback for builder dialogs: captures the built result and opens it in a new tab,
+    // restoring the current tab's structure to its pre-build state.
+    Structure preBuilderState = structure;
+    auto updateFromBuilderToNewTab = [&](Structure& s) {
+        Structure result = std::move(s);
+        s = std::move(preBuilderState);
+        openInNewTab(std::move(result));
+    };
+
+    bulkCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors, updateFromBuilderToNewTab);
     cslDialog.drawDialog(structure, editMenuDialogs.elementColors,
                          editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                         updateFromBuilder);
+                         updateFromBuilderToNewTab);
     nanoCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                  editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                                 updateFromBuilder);
+                                 updateFromBuilderToNewTab);
     customStructureDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                       editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                                      updateFromBuilder);
-    mergeStructuresDialog.drawDialog(structure, updateFromBuilder);
+                                      updateFromBuilderToNewTab);
+    mergeStructuresDialog.drawDialog(structure, updateFromBuilderToNewTab);
     interfaceBuilderDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                       editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                                      updateFromBuilder);
+                                      updateFromBuilderToNewTab);
     polyCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                  editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                                 updateFromBuilder);
+                                 updateFromBuilderToNewTab);
     stackingFaultDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                    editMenuDialogs.elementRadii,
                                    editMenuDialogs.elementShininess,
-                                   updateFromBuilder);
+                                   updateFromBuilderToNewTab);
     substitutionalSolidSolutionDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                                   editMenuDialogs.elementRadii,
                                                   editMenuDialogs.elementShininess,
-                                                  updateFromBuilder);
+                                                  updateFromBuilderToNewTab);
     cnaDialog.drawDialog(structure);
     rdfDialog.drawDialog(structure);
 
@@ -855,34 +872,17 @@ void FileBrowser::draw(Structure& structure,
         if (doLoad)
         {
             std::string fullPath = joinPath(openDir, openFilename);
-            Structure newStructure;
-            std::string loadError;
-            if (loadStructureFromPath(fullPath, newStructure, loadError))
+            if (!isSupportedStructureFile(openFilename))
             {
-                structure = std::move(newStructure);
-                latticePlanes.clear();
-                showLatticePlanes = false;
-                millerDirections.clear();
-                showMillerDirections = false;
-                applyElementColorOverrides(structure);
-                showLoadInfo(std::string("Structure loaded. ") + structure.ipfLoadStatus);
-
-                updateBuffers(structure);
-                requestResetDefaultView = true;
-                openStatusMsg[0] = '\0';
-                std::cout << "[Operation] Loaded structure: " << fullPath
-                          << " (atoms=" << structure.atoms.size() << ")" << std::endl;
-                ImGui::CloseCurrentPopup();
+                std::snprintf(openStatusMsg, sizeof(openStatusMsg),
+                              "Unsupported file format.");
             }
             else
             {
-                std::snprintf(
-                    openStatusMsg,
-                    sizeof(openStatusMsg),
-                    "%s",
-                    loadError.empty() ? "Failed to load file." : loadError.c_str());
-                std::cout << "[Operation] Load failed: " << fullPath
-                          << " (" << (loadError.empty() ? "Failed to load file." : loadError) << ")" << std::endl;
+                // Signal the main loop to load this path into a new tab.
+                pendingOpenPath = fullPath;
+                openStatusMsg[0] = '\0';
+                ImGui::CloseCurrentPopup();
             }
         }
         ImGui::EndPopup();

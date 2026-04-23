@@ -67,6 +67,8 @@ struct EditorState
     StructureInfoDialogState structureInfoDialog;
     UndoRedoManager undoRedo;
     std::vector<std::string> pendingDroppedFiles;
+    std::vector<std::string> pendingExternalLoadPaths; // set by drop handler when structure files should be loaded into (possibly new) tabs
+    std::vector<Structure>   pendingNewTabStructures;  // structures built by dialogs that should open in a new tab
     bool suppressHistoryCommit = false;
     bool pendingDefaultViewReset = true;
     VoronoiDiagram voronoiDiagram;

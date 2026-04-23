@@ -11,27 +11,24 @@
 
 namespace
 {
-void dropFileCallback(GLFWwindow* window, int count, const char** paths)
-{
-    if (count <= 0 || paths == nullptr)
-        return;
+static std::vector<std::string>* s_pendingDrops = nullptr;
 
-    EditorState* state = static_cast<EditorState*>(glfwGetWindowUserPointer(window));
-    if (!state)
+void dropFileCallback(GLFWwindow*, int count, const char** paths)
+{
+    if (count <= 0 || paths == nullptr || !s_pendingDrops)
         return;
 
     for (int i = 0; i < count; ++i)
     {
-        if (paths[i] == nullptr || paths[i][0] == '\0')
-            continue;
-        state->pendingDroppedFiles.push_back(paths[i]);
+        if (paths[i] != nullptr && paths[i][0] != '\0')
+            s_pendingDrops->push_back(paths[i]);
     }
 }
 }
 
-void installDropFileCallback(GLFWwindow* window, EditorState& state)
+void installDropFileCallback(GLFWwindow* window, std::vector<std::string>& pendingDrops)
 {
-    glfwSetWindowUserPointer(window, &state);
+    s_pendingDrops = &pendingDrops;
     glfwSetDropCallback(window, dropFileCallback);
 }
 
@@ -57,63 +54,61 @@ void processDroppedFiles(EditorState& state)
         return;
     }
 
-    const std::string droppedFile = state.pendingDroppedFiles.back();
+    // No special dialog is open — process every dropped file.
+    std::vector<std::string> pendingFiles = std::move(state.pendingDroppedFiles);
     state.pendingDroppedFiles.clear();
 
-    if (state.fileBrowser.isNanoCrystalDialogOpen())
+    for (const auto& droppedFile : pendingFiles)
     {
-        // Nano dialog accepts both structure references and OBJ/STL model volumes.
-        state.fileBrowser.feedDropToNanoCrystalDialog(droppedFile);
-        return;
+        if (state.fileBrowser.isNanoCrystalDialogOpen())
+        {
+            // Nano dialog accepts both structure references and OBJ/STL model volumes.
+            state.fileBrowser.feedDropToNanoCrystalDialog(droppedFile);
+            continue;
+        }
+
+        if (state.fileBrowser.isCSLGrainBoundaryDialogOpen())
+        {
+            state.fileBrowser.feedDropToCSLGrainBoundaryDialog(droppedFile);
+            continue;
+        }
+
+        if (state.fileBrowser.isInterfaceBuilderDialogOpen())
+        {
+            state.fileBrowser.feedDropToInterfaceBuilderDialog(droppedFile);
+            continue;
+        }
+
+        if (state.fileBrowser.isPolyCrystalDialogOpen())
+        {
+            state.fileBrowser.feedDropToPolyCrystalDialog(droppedFile);
+            continue;
+        }
+
+        if (state.fileBrowser.isStackingFaultDialogOpen())
+        {
+            state.fileBrowser.feedDropToStackingFaultDialog(droppedFile);
+            continue;
+        }
+
+        if (state.fileBrowser.isSubstitutionalSolidSolutionDialogOpen())
+        {
+            state.fileBrowser.feedDropToSubstitutionalSolidSolutionDialog(droppedFile);
+            continue;
+        }
+
+        Structure loadedStructure;
+        std::string loadError;
+        if (!loadStructureFromFile(droppedFile, loadedStructure, loadError))
+        {
+            std::cout << "[Operation] Drop-load failed: " << droppedFile
+                      << " (" << loadError << ")" << std::endl;
+            state.fileBrowser.showLoadError(loadError);
+            continue;
+        }
+
+        // Signal the main loop to load this into a (possibly new) tab.
+        state.pendingExternalLoadPaths.push_back(droppedFile);
+        std::cout << "[Operation] Drop-queued for load: " << droppedFile << std::endl;
     }
-
-    if (state.fileBrowser.isCSLGrainBoundaryDialogOpen())
-    {
-        state.fileBrowser.feedDropToCSLGrainBoundaryDialog(droppedFile);
-        return;
-    }
-
-    if (state.fileBrowser.isInterfaceBuilderDialogOpen())
-    {
-        state.fileBrowser.feedDropToInterfaceBuilderDialog(droppedFile);
-        return;
-    }
-
-    if (state.fileBrowser.isPolyCrystalDialogOpen())
-    {
-        state.fileBrowser.feedDropToPolyCrystalDialog(droppedFile);
-        return;
-    }
-
-    if (state.fileBrowser.isStackingFaultDialogOpen())
-    {
-        state.fileBrowser.feedDropToStackingFaultDialog(droppedFile);
-        return;
-    }
-
-    if (state.fileBrowser.isSubstitutionalSolidSolutionDialogOpen())
-    {
-        state.fileBrowser.feedDropToSubstitutionalSolidSolutionDialog(droppedFile);
-        return;
-    }
-
-    Structure loadedStructure;
-    std::string loadError;
-    if (!loadStructureFromFile(droppedFile, loadedStructure, loadError))
-    {
-        std::cout << "[Operation] Drop-load failed: " << droppedFile
-                  << " (" << loadError << ")" << std::endl;
-        state.fileBrowser.showLoadError(loadError);
-        return;
-    }
-
-    state.structure = std::move(loadedStructure);
-    state.fileBrowser.initFromPath(droppedFile);
-    state.fileBrowser.applyElementColorOverrides(state.structure);
-    state.fileBrowser.showLoadInfo(std::string("Structure loaded. ") + state.structure.ipfLoadStatus);
-    updateBuffers(state);
-    state.pendingDefaultViewReset = true;
-
-    std::cout << "[Operation] Drop-loaded structure: " << droppedFile
-              << " (atoms=" << state.structure.atoms.size() << ")" << std::endl;
 }

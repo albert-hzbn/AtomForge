@@ -674,7 +674,7 @@ RenderingMode Renderer::selectRenderingMode(size_t atomCount) const
 }
 
 void Renderer::drawShadowPass(const ShadowMap& shadow,
-                               const SphereMesh& sphere,
+                               GLuint sphereVAO, int sphereIndexCount,
                                const glm::mat4& lightMVP,
                                size_t atomCount)
 {
@@ -684,14 +684,14 @@ void Renderer::drawShadowPass(const ShadowMap& shadow,
     glUniformMatrix4fv(glGetUniformLocation(shadowProgram, "lightMVP"),
                        1, GL_FALSE, glm::value_ptr(lightMVP));
 
-    glBindVertexArray(sphere.vao);
-    glDrawElementsInstanced(GL_TRIANGLES, sphere.indexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
+    glBindVertexArray(sphereVAO);
+    glDrawElementsInstanced(GL_TRIANGLES, sphereIndexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
 
     endShadowPass();
 }
 
 void Renderer::drawBondShadowPass(const ShadowMap& shadow,
-                                  const CylinderMesh& cylinder,
+                                  GLuint cylinderVAO, int cylinderVertexCount,
                                   const glm::mat4& lightMVP,
                                   size_t bondCount)
 {
@@ -704,8 +704,8 @@ void Renderer::drawBondShadowPass(const ShadowMap& shadow,
     glUniformMatrix4fv(glGetUniformLocation(bondShadowProgram, "lightMVP"),
                        1, GL_FALSE, glm::value_ptr(lightMVP));
 
-    glBindVertexArray(cylinder.vao);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, cylinder.vertexCount, (GLsizei)bondCount);
+    glBindVertexArray(cylinderVAO);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, cylinderVertexCount, (GLsizei)bondCount);
 
     endShadowPass();
 }
@@ -716,7 +716,7 @@ void Renderer::drawAtoms(const glm::mat4& projection,
                           const glm::vec3& lightPos,
                           const glm::vec3& viewPos,
                           const ShadowMap& shadow,
-                          const SphereMesh& sphere,
+                          GLuint sphereVAO, int sphereIndexCount,
                           size_t atomCount)
 {
     glUseProgram(atomProgram);
@@ -743,12 +743,12 @@ void Renderer::drawAtoms(const glm::mat4& projection,
     glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
     glUniform1i(glGetUniformLocation(atomProgram, "shadowMap"), 0);
 
-    glBindVertexArray(sphere.vao);
-    glDrawElementsInstanced(GL_TRIANGLES, sphere.indexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
+    glBindVertexArray(sphereVAO);
+    glDrawElementsInstanced(GL_TRIANGLES, sphereIndexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
 }
 
 void Renderer::drawShadowPassLowPoly(const ShadowMap& shadow,
-                                     const LowPolyMesh& mesh,
+                                     GLuint lowPolyVAO, int lowPolyIndexCount,
                                      const glm::mat4& lightMVP,
                                      size_t atomCount)
 {
@@ -758,14 +758,14 @@ void Renderer::drawShadowPassLowPoly(const ShadowMap& shadow,
     glUniformMatrix4fv(glGetUniformLocation(shadowLowPolyProgram, "lightMVP"),
                        1, GL_FALSE, glm::value_ptr(lightMVP));
 
-    glBindVertexArray(mesh.vao);
-    glDrawElementsInstanced(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
+    glBindVertexArray(lowPolyVAO);
+    glDrawElementsInstanced(GL_TRIANGLES, lowPolyIndexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
 
     endShadowPass();
 }
 
 void Renderer::drawShadowPassBillboard(const ShadowMap& shadow,
-                                       const BillboardMesh& mesh,
+                                       GLuint billboardVAO, int billboardIndexCount,
                                        const glm::mat4& lightMVP,
                                        const glm::mat4& view,
                                        size_t atomCount)
@@ -780,8 +780,8 @@ void Renderer::drawShadowPassBillboard(const ShadowMap& shadow,
     glUniformMatrix4fv(glGetUniformLocation(shadowBillboardProgram, "view"),
                        1, GL_FALSE, glm::value_ptr(view));
 
-    glBindVertexArray(mesh.vao);
-    glDrawElementsInstanced(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
+    glBindVertexArray(billboardVAO);
+    glDrawElementsInstanced(GL_TRIANGLES, billboardIndexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
 
     endShadowPass();
 }
@@ -792,7 +792,7 @@ void Renderer::drawAtomsLowPoly(const glm::mat4& projection,
                                 const glm::vec3& lightPos,
                                 const glm::vec3& viewPos,
                                 const ShadowMap& shadow,
-                                const LowPolyMesh& mesh,
+                                GLuint lowPolyVAO, int lowPolyIndexCount,
                                 size_t atomCount)
 {
     glUseProgram(atomLowPolyProgram);
@@ -819,8 +819,8 @@ void Renderer::drawAtomsLowPoly(const glm::mat4& projection,
     glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
     glUniform1i(glGetUniformLocation(atomLowPolyProgram, "shadowMap"), 0);
 
-    glBindVertexArray(mesh.vao);
-    glDrawElementsInstanced(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
+    glBindVertexArray(lowPolyVAO);
+    glDrawElementsInstanced(GL_TRIANGLES, lowPolyIndexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
 }
 
 void Renderer::drawAtomsBillboard(const glm::mat4& projection,
@@ -829,7 +829,7 @@ void Renderer::drawAtomsBillboard(const glm::mat4& projection,
                                   const glm::vec3& lightPos,
                                   const glm::vec3& viewPos,
                                   const ShadowMap& shadow,
-                                  const BillboardMesh& mesh,
+                                  GLuint billboardVAO, int billboardIndexCount,
                                   size_t atomCount)
 {
     glUseProgram(atomBillboardProgram);
@@ -856,15 +856,15 @@ void Renderer::drawAtomsBillboard(const glm::mat4& projection,
     glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
     glUniform1i(glGetUniformLocation(atomBillboardProgram, "shadowMap"), 0);
 
-    glBindVertexArray(mesh.vao);
-    glDrawElementsInstanced(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
+    glBindVertexArray(billboardVAO);
+    glDrawElementsInstanced(GL_TRIANGLES, billboardIndexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
 }
 
 void Renderer::drawBonds(const glm::mat4& projection,
                          const glm::mat4& view,
                          const glm::vec3& lightPos,
                          const glm::vec3& viewPos,
-                         const CylinderMesh& cylinder,
+                         GLuint cylinderVAO, int cylinderVertexCount,
                          size_t bondCount)
 {
     if (bondCount == 0)
@@ -881,8 +881,8 @@ void Renderer::drawBonds(const glm::mat4& projection,
     glUniform3fv(glGetUniformLocation(bondProgram, "viewPos"),
                  1, glm::value_ptr(viewPos));
 
-    glBindVertexArray(cylinder.vao);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, cylinder.vertexCount, (GLsizei)bondCount);
+    glBindVertexArray(cylinderVAO);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, cylinderVertexCount, (GLsizei)bondCount);
 }
 
 void Renderer::drawBoxLines(const glm::mat4& projection,

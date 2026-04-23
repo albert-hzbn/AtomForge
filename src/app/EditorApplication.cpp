@@ -14,6 +14,7 @@
 
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_glfw.h"
+#include "imgui_internal.h"
 
 #include "Camera.h"
 #include "CylinderMesh.h"
@@ -33,6 +34,7 @@
 #include <cmath>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -140,6 +142,76 @@ struct AdaptiveRenderState
     }
 };
 
+// ---- Per-tab state -------------------------------------------------------
+
+struct TabCameraState
+{
+    float     yaw      = 45.0f;
+    float     pitch    = 35.2643897f;
+    float     roll     = 0.0f;
+    float     distance = 10.0f;
+    glm::vec3 panOffset = glm::vec3(0.0f);
+};
+
+struct StructureTab
+{
+    EditorState         state;
+    TabCameraState      cameraState;
+    AdaptiveRenderState adaptiveRender;
+    char                title[256] = "Untitled";
+    bool                pendingClose = false;
+};
+
+void saveCameraToTab(const Camera& cam, StructureTab& tab)
+{
+    tab.cameraState.yaw       = cam.yaw;
+    tab.cameraState.pitch     = cam.pitch;
+    tab.cameraState.roll      = cam.roll;
+    tab.cameraState.distance  = cam.distance;
+    tab.cameraState.panOffset = cam.panOffset;
+}
+
+void restoreCameraFromTab(Camera& cam, const StructureTab& tab)
+{
+    cam.yaw       = tab.cameraState.yaw;
+    cam.pitch     = tab.cameraState.pitch;
+    cam.roll      = tab.cameraState.roll;
+    cam.distance  = tab.cameraState.distance;
+    cam.panOffset = tab.cameraState.panOffset;
+}
+
+void setTabTitleFromPath(StructureTab& tab, const std::string& path)
+{
+    if (path.empty()) { std::snprintf(tab.title, sizeof(tab.title), "Untitled"); return; }
+    const auto sep = path.find_last_of("/\\");
+    const std::string fn = (sep == std::string::npos) ? path : path.substr(sep + 1);
+    std::snprintf(tab.title, sizeof(tab.title), "%s", fn.c_str());
+}
+
+void initTabResources(StructureTab& tab,
+                      const SphereMesh& sphere,
+                      const LowPolyMesh& lowPolyMesh,
+                      const BillboardMesh& billboardMesh,
+                      const CylinderMesh& cylinder,
+                      Renderer& renderer)
+{
+    tab.state.sceneBuffers.init(
+        sphere.vbo,      sphere.ebo,      sphere.indexCount,
+        lowPolyMesh.vbo, lowPolyMesh.ebo, lowPolyMesh.indexCount,
+        billboardMesh.vbo, billboardMesh.ebo, billboardMesh.indexCount,
+        cylinder.vbo,    cylinder.vertexCount);
+    tab.state.fileBrowser.initNanoCrystalRenderResources(renderer);
+    tab.state.fileBrowser.initCustomStructureRenderResources(renderer);
+    tab.state.fileBrowser.initMergeStructuresRenderResources(renderer);
+    tab.state.fileBrowser.initInterfaceBuilderRenderResources(renderer);
+    tab.state.fileBrowser.initCSLGrainBoundaryRenderResources(renderer);
+    tab.state.fileBrowser.initPolyCrystalRenderResources(renderer);
+    tab.state.fileBrowser.initStackingFaultRenderResources(renderer);
+    tab.state.fileBrowser.initSubstitutionalSolidSolutionRenderResources(renderer);
+    updateBuffers(tab.state);
+    tab.state.undoRedo.reset(captureSnapshot(tab.state));
+}
+
 void applyPendingDefaultViewReset(Camera& camera, EditorState& state, const FrameView& frame)
 {
     if (!state.pendingDefaultViewReset)
@@ -169,24 +241,6 @@ void mergeFileBrowserRequests(EditorState& state,
     requests.requestRotateCrystalX = requests.requestRotateCrystalX || state.fileBrowser.consumeRotateCrystalXRequest();
     requests.requestRotateCrystalY = requests.requestRotateCrystalY || state.fileBrowser.consumeRotateCrystalYRequest();
     requests.requestRotateCrystalZ = requests.requestRotateCrystalZ || state.fileBrowser.consumeRotateCrystalZRequest();
-}
-
-void handleStructureResetRequests(EditorState& state)
-{
-    if (state.fileBrowser.consumeCloseStructureRequest())
-    {
-        clearSelection(state);
-        state.structure = Structure();
-        state.fileBrowser.clearLatticePlanes();
-        state.fileBrowser.clearMillerDirections();
-        updateBuffers(state);
-        state.pendingDefaultViewReset = true;
-
-        std::cout << "[Operation] Structure unloaded" << std::endl;
-    }
-
-    if (state.fileBrowser.consumeResetDefaultViewRequest())
-        state.pendingDefaultViewReset = true;
 }
 
 void handleUndoRedoRequest(EditorState& state, const FrameActionRequests& requests)
@@ -279,30 +333,39 @@ void mergeContextRequests(FrameActionRequests& requests, const AtomRequests& con
 void drawScene(Renderer& renderer,
                const FrameView& frame,
                const ShadowMap& shadow,
-               const SphereMesh& sphere,
-               const LowPolyMesh& lowPolyMesh,
-               const BillboardMesh& billboardMesh,
-               const CylinderMesh& cylinder,
                const SceneBuffers& sceneBuffers,
                bool showBonds,
+               bool showAtoms,
+               bool showBoundingBox,
                bool lightTheme)
 {
     // Shadow passes first (render into shadow FBO at shadow resolution)
+    if (showAtoms)
+    {
     switch (sceneBuffers.renderMode)
     {
         case RenderingMode::StandardInstancing:
-            renderer.drawShadowPass(shadow, sphere, frame.lightMVP, sceneBuffers.atomCount);
+            renderer.drawShadowPass(shadow,
+                sceneBuffers.tabSphereVAO, sceneBuffers.tabSphereIndexCount,
+                frame.lightMVP, sceneBuffers.atomCount);
             break;
         case RenderingMode::LowPolyInstancing:
-            renderer.drawShadowPassLowPoly(shadow, lowPolyMesh, frame.lightMVP, sceneBuffers.atomCount);
+            renderer.drawShadowPassLowPoly(shadow,
+                sceneBuffers.tabLowPolyVAO, sceneBuffers.tabLowPolyIndexCount,
+                frame.lightMVP, sceneBuffers.atomCount);
             break;
         case RenderingMode::BillboardImposters:
-            renderer.drawShadowPassBillboard(shadow, billboardMesh, frame.lightMVP, frame.view, sceneBuffers.atomCount);
+            renderer.drawShadowPassBillboard(shadow,
+                sceneBuffers.tabBillboardVAO, sceneBuffers.tabBillboardIndexCount,
+                frame.lightMVP, frame.view, sceneBuffers.atomCount);
             break;
     }
+    }
 
-    if (showBonds)
-        renderer.drawBondShadowPass(shadow, cylinder, frame.lightMVP, sceneBuffers.bondCount);
+    if (showBonds && showAtoms)
+        renderer.drawBondShadowPass(shadow,
+            sceneBuffers.tabCylinderVAO, sceneBuffers.tabCylinderVertexCount,
+            frame.lightMVP, sceneBuffers.bondCount);
 
     // Restore viewport to screen size after shadow passes
     glViewport(0, 0, frame.framebufferWidth, frame.framebufferHeight);
@@ -310,18 +373,20 @@ void drawScene(Renderer& renderer,
     glClearColor(bg.r, bg.g, bg.b, bg.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if (showBonds)
+    if (showBonds && showAtoms)
     {
         renderer.drawBonds(
             frame.projection,
             frame.view,
             frame.lightPosition,
             frame.cameraPosition,
-            cylinder,
+            sceneBuffers.tabCylinderVAO, sceneBuffers.tabCylinderVertexCount,
             sceneBuffers.bondCount);
     }
 
     // Draw atoms based on rendering mode
+    if (showAtoms)
+    {
     switch (sceneBuffers.renderMode)
     {
         case RenderingMode::StandardInstancing:
@@ -332,7 +397,7 @@ void drawScene(Renderer& renderer,
                 frame.lightPosition,
                 frame.cameraPosition,
                 shadow,
-                sphere,
+                sceneBuffers.tabSphereVAO, sceneBuffers.tabSphereIndexCount,
                 sceneBuffers.atomCount);
             break;
         case RenderingMode::LowPolyInstancing:
@@ -343,7 +408,7 @@ void drawScene(Renderer& renderer,
                 frame.lightPosition,
                 frame.cameraPosition,
                 shadow,
-                lowPolyMesh,
+                sceneBuffers.tabLowPolyVAO, sceneBuffers.tabLowPolyIndexCount,
                 sceneBuffers.atomCount);
             break;
         case RenderingMode::BillboardImposters:
@@ -354,17 +419,21 @@ void drawScene(Renderer& renderer,
                 frame.lightPosition,
                 frame.cameraPosition,
                 shadow,
-                billboardMesh,
+                sceneBuffers.tabBillboardVAO, sceneBuffers.tabBillboardIndexCount,
                 sceneBuffers.atomCount);
             break;
     }
+    }
 
+    if (showBoundingBox)
+    {
     renderer.drawBoxLines(
         frame.projection,
         frame.view,
         sceneBuffers.lineVAO,
         sceneBuffers.boxLines.size(),
         lightTheme ? glm::vec3(0.25f) : glm::vec3(0.85f));
+    }
 }
 
 void handleImageExportIfRequested(bool hasImageExportRequest,
@@ -372,11 +441,7 @@ void handleImageExportIfRequested(bool hasImageExportRequest,
                                   const FrameView& frame,
                                   EditorState& state,
                                   Renderer& renderer,
-                                  ShadowMap& shadow,
-                                  SphereMesh& sphere,
-                                  LowPolyMesh& lowPolyMesh,
-                                  BillboardMesh& billboardMesh,
-                                  CylinderMesh& cylinder)
+                                  ShadowMap& shadow)
 {
     if (!hasImageExportRequest)
         return;
@@ -397,13 +462,11 @@ void handleImageExportIfRequested(bool hasImageExportRequest,
         exportView,
         state.fileBrowser.isLightThemeEnabled() ? kLightBackground : kDarkBackground,
         state.fileBrowser.isShowBondsEnabled(),
+        state.fileBrowser.isShowAtomsEnabled(),
+        state.fileBrowser.isShowBoundingBoxEnabled(),
         state.sceneBuffers,
         renderer,
         shadow,
-        sphere,
-        lowPolyMesh,
-        billboardMesh,
-        cylinder,
         exportError);
 
     if (exportOk)
@@ -421,8 +484,9 @@ void handleImageExportIfRequested(bool hasImageExportRequest,
               << " (" << (exportError.empty() ? "Unknown error" : exportError) << ")" << std::endl;
 }
 
-void loadStartupStructureIfRequested(EditorState& state, const std::string& startupStructurePath)
+void loadStartupStructureIfRequested(StructureTab& tab, const std::string& startupStructurePath)
 {
+    EditorState& state = tab.state;
     if (startupStructurePath.empty())
     {
         state.fileBrowser.initFromPath("");
@@ -445,13 +509,14 @@ void loadStartupStructureIfRequested(EditorState& state, const std::string& star
     state.fileBrowser.applyElementColorOverrides(state.structure);
     state.fileBrowser.showLoadInfo(std::string("Structure loaded. ") + state.structure.ipfLoadStatus);
     state.pendingDefaultViewReset = true;
+    setTabTitleFromPath(tab, startupStructurePath);
 
     std::cout << "[Operation] Startup-loaded structure: " << startupStructurePath
               << " (atoms=" << state.structure.atoms.size() << ")" << std::endl;
 }
 } // namespace
 
-int runAtomsEditor(const std::string& startupStructurePath)
+int runAtomsEditor(const std::vector<std::string>& startupPaths)
 {
     SplashScreen* splash = createSplashScreen();
     updateSplashScreen(splash, 0.15f, "Creating window");
@@ -471,78 +536,161 @@ int runAtomsEditor(const std::string& startupStructurePath)
     initImGui(window);
 
     SphereMesh sphere(40, 40);
-    LowPolyMesh lowPolyMesh;      // 12-facet icosahedron for 100k-10M atoms
-    BillboardMesh billboardMesh;  // Quad billboard for 10M+ atoms
+    LowPolyMesh lowPolyMesh;
+    BillboardMesh billboardMesh;
     CylinderMesh cylinder(32);
     updateSplashScreen(splash, 0.42f, "Preparing scene");
 
-    EditorState state;
-    updateSplashScreen(splash, 0.52f, startupStructurePath.empty() ? "Preparing workspace" : "Loading structure");
-    loadStartupStructureIfRequested(state, startupStructurePath);
-    installDropFileCallback(window, state);
-
-    state.sceneBuffers.init(sphere.vao, lowPolyMesh.vao, billboardMesh.vao, cylinder.vao);
-
     Renderer renderer;
     renderer.init();
-    updateSplashScreen(splash, 0.68f, "Loading tools");
-    state.fileBrowser.initNanoCrystalRenderResources(renderer);
-    state.fileBrowser.initCustomStructureRenderResources(renderer);
-    state.fileBrowser.initMergeStructuresRenderResources(renderer);
-    state.fileBrowser.initInterfaceBuilderRenderResources(renderer);
-    state.fileBrowser.initCSLGrainBoundaryRenderResources(renderer);
-    state.fileBrowser.initPolyCrystalRenderResources(renderer);
-    state.fileBrowser.initStackingFaultRenderResources(renderer);
-    state.fileBrowser.initSubstitutionalSolidSolutionRenderResources(renderer);
+    updateSplashScreen(splash, 0.52f, startupPaths.empty() ? "Preparing workspace" : "Loading structure");
+
+    // Multi-tab state — unique_ptr because EditorState holds non-movable atomics/threads
+    std::vector<std::unique_ptr<StructureTab>> tabs;
+    tabs.push_back(std::make_unique<StructureTab>());
+    int activeTabIdx     = 0;
+    int pendingTabSwitch = -1;
+
+    // Pending file drops (shared; routed to active tab each frame)
+    std::vector<std::string> appPendingDrops;
+    installDropFileCallback(window, appPendingDrops);
+
+    // Initialise the first tab and load the first startup path (if any)
+    initTabResources(*tabs[0], sphere, lowPolyMesh, billboardMesh, cylinder, renderer);
+    loadStartupStructureIfRequested(*tabs[0], startupPaths.empty() ? std::string() : startupPaths[0]);
+    restoreCameraFromTab(camera, *tabs[0]);
+
+    // Load any additional startup paths each into their own tab
+    for (int si = 1; si < (int)startupPaths.size(); ++si)
+    {
+        tabs.push_back(std::make_unique<StructureTab>());
+        int newIdx = (int)tabs.size() - 1;
+        initTabResources(*tabs[newIdx], sphere, lowPolyMesh, billboardMesh, cylinder, renderer);
+        loadStartupStructureIfRequested(*tabs[newIdx], startupPaths[si]);
+    }
 
     ShadowMap shadow = createShadowMap(1024, 1024);
-
-    updateBuffers(state);
-    state.undoRedo.reset(captureSnapshot(state));
     updateSplashScreen(splash, 0.92f, "Finalizing");
 
     showMainWindow(window);
     updateSplashScreen(splash, 1.0f, "Ready");
     destroySplashScreen(splash);
 
-    AdaptiveRenderState adaptiveRender;
-
     while (!glfwWindowShouldClose(window))
     {
-        camera.allowPan = !state.fileBrowser.isBoxSelectModeEnabled()
-                         && !state.fileBrowser.isLassoSelectModeEnabled();
-        camera.allowOrbit = !state.grabState.active;
+        // --- Active-tab alias ---
+        EditorState& state = tabs[activeTabIdx]->state;
+
+        camera.allowPan    = !state.fileBrowser.isBoxSelectModeEnabled()
+                           && !state.fileBrowser.isLassoSelectModeEnabled();
+        camera.allowOrbit  = !state.grabState.active;
 
         glfwPollEvents();
+
+        // Route app-level drops to the active tab
+        for (auto& f : appPendingDrops)
+            state.pendingDroppedFiles.push_back(std::move(f));
+        appPendingDrops.clear();
         processDroppedFiles(state);
+
+        // Helper: load a structure file into a target tab (creates new tab when
+        // current tab already has atoms). Returns true on success.
+        auto loadPathIntoTab = [&](const std::string& path) -> bool
+        {
+            if (path.empty()) return false;
+
+            Structure newStructure;
+            std::string loadError;
+            if (!loadStructureFromPath(path, newStructure, loadError))
+            {
+                state.fileBrowser.showLoadError(loadError);
+                std::cout << "[Operation] Load failed: " << path
+                          << " (" << loadError << ")" << std::endl;
+                return false;
+            }
+
+            // Use current tab only when it is empty; otherwise open a new tab.
+            int targetIdx = activeTabIdx;
+            if (!tabs[activeTabIdx]->state.structure.atoms.empty())
+            {
+                saveCameraToTab(camera, *tabs[activeTabIdx]);
+                tabs.push_back(std::make_unique<StructureTab>());
+                targetIdx = (int)tabs.size() - 1;
+                initTabResources(*tabs[targetIdx], sphere, lowPolyMesh,
+                                 billboardMesh, cylinder, renderer);
+                activeTabIdx     = targetIdx;
+                pendingTabSwitch = targetIdx;
+                restoreCameraFromTab(camera, *tabs[activeTabIdx]);
+            }
+
+            EditorState& t = tabs[targetIdx]->state;
+            t.structure = std::move(newStructure);
+            t.fileBrowser.initFromPath(path);
+            t.fileBrowser.applyElementColorOverrides(t.structure);
+            t.fileBrowser.showLoadInfo(std::string("Structure loaded. ") + t.structure.ipfLoadStatus);
+            updateBuffers(t);
+            t.pendingDefaultViewReset = true;
+            setTabTitleFromPath(*tabs[targetIdx], path);
+            std::cout << "[Operation] Loaded structure: " << path
+                      << " (atoms=" << t.structure.atoms.size() << ")" << std::endl;
+            return true;
+        };
+
+        // Handle file drop load requests (one or more files dropped at once)
+        if (!state.pendingExternalLoadPaths.empty())
+        {
+            std::vector<std::string> dropPaths = std::move(state.pendingExternalLoadPaths);
+            state.pendingExternalLoadPaths.clear();
+            for (const auto& dropPath : dropPaths)
+                loadPathIntoTab(dropPath);
+        }
+
+        // Drain builder-created structures into new tabs
+        if (!state.pendingNewTabStructures.empty())
+        {
+            std::vector<Structure> newStructures = std::move(state.pendingNewTabStructures);
+            state.pendingNewTabStructures.clear();
+            for (auto& newStruct : newStructures)
+            {
+                saveCameraToTab(camera, *tabs[activeTabIdx]);
+                tabs.push_back(std::make_unique<StructureTab>());
+                int newIdx = (int)tabs.size() - 1;
+                initTabResources(*tabs[newIdx], sphere, lowPolyMesh, billboardMesh, cylinder, renderer);
+                EditorState& t = tabs[newIdx]->state;
+                t.structure = std::move(newStruct);
+                updateBuffers(t);
+                t.pendingDefaultViewReset = true;
+                std::snprintf(tabs[newIdx]->title, sizeof(tabs[newIdx]->title), "Untitled");
+                activeTabIdx = newIdx;
+                pendingTabSwitch = newIdx;
+                restoreCameraFromTab(camera, *tabs[newIdx]);
+            }
+        }
+
+        // Update tab title if any initFromPath was called this frame
+        {
+            const std::string newPath = state.fileBrowser.consumeLastLoadedPath();
+            if (!newPath.empty())
+                setTabTitleFromPath(*tabs[activeTabIdx], newPath);
+        }
 
         FrameView frame;
         if (!updateViewport(window, frame))
             continue;
 
         applyPendingDefaultViewReset(camera, state, frame);
+        buildFrameView(camera, state.sceneBuffers, state.fileBrowser.isOrthographicViewEnabled(), frame);
 
-        buildFrameView(camera,
-                   state.sceneBuffers,
-                   state.fileBrowser.isOrthographicViewEnabled(),
-                   frame);
-
-        // Suppress camera orbit and atom picking during grab mode
         if (state.grabState.active)
         {
-            camera.pendingClick = false;
+            camera.pendingClick      = false;
             camera.pendingRightClick = false;
         }
         else
         {
-            handlePendingAtomPick(
-                camera,
-                state,
-                frame.cameraPosition,
-                frame.windowWidth,
-                frame.windowHeight,
-                frame.projection,
-                frame.view);
+            handlePendingAtomPick(camera, state, frame.cameraPosition,
+                                  frame.windowWidth, frame.windowHeight,
+                                  frame.projection, frame.view);
             handleRightClick(camera, state);
         }
 
@@ -554,216 +702,260 @@ int runAtomsEditor(const std::string& startupStructurePath)
         FrameActionRequests requests = beginFrameActionRequests(state);
         applyKeyboardShortcuts(state, requests);
 
-        handleGrabMode(
-            state,
-            camera,
-            frame.projection,
-            frame.view,
-            frame.windowWidth,
-            frame.windowHeight);
+        handleGrabMode(state, camera, frame.projection, frame.view,
+                       frame.windowWidth, frame.windowHeight);
 
         state.fileBrowser.draw(
             state.structure,
             state.editMenuDialogs,
             [&](Structure& structure) { updateBuffers(state, structure); },
+            [&](Structure s) { state.pendingNewTabStructures.push_back(std::move(s)); },
             state.undoRedo.canUndo(),
             state.undoRedo.canRedo());
 
+        // Handle File > Open requests: load into current tab (if empty) or new tab
+        {
+            const std::string openPath = state.fileBrowser.consumePendingOpenPath();
+            if (!openPath.empty())
+                loadPathIntoTab(openPath);
+        }
+
+        // --- Tab bar window (positioned below toolbar) ---
+        // Only show the tab bar when at least one structure is loaded, or multiple tabs are open.
+        {
+            const bool anyTabHasStructure = [&]() {
+                for (const auto& t : tabs)
+                    if (!t->state.structure.atoms.empty()) return true;
+                return false;
+            }();
+            const bool showTabBar = anyTabHasStructure || (int)tabs.size() > 1;
+
+            float tabBarY = ImGui::GetFrameHeight();
+            if (ImGuiWindow* tbWin = ImGui::FindWindowByName("##ViewToolbar"))
+                tabBarY = tbWin->Pos.y + tbWin->Size.y;
+
+            const ImGuiIO& io = ImGui::GetIO();
+            if (showTabBar)
+            {
+            ImGui::SetNextWindowPos(ImVec2(0.0f, tabBarY));
+            ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, 0.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4.0f, 3.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   ImVec2(4.0f, 2.0f));
+            constexpr ImGuiWindowFlags kTabBarFlags =
+                ImGuiWindowFlags_NoTitleBar    | ImGuiWindowFlags_NoMove    |
+                ImGuiWindowFlags_NoResize      | ImGuiWindowFlags_NoCollapse |
+                ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar |
+                ImGuiWindowFlags_NoScrollWithMouse;
+
+            if (ImGui::Begin("##StructureTabBar", nullptr, kTabBarFlags))
+            {
+                constexpr ImGuiTabBarFlags kTBFlags =
+                    ImGuiTabBarFlags_Reorderable          |
+                    ImGuiTabBarFlags_AutoSelectNewTabs    |
+                    ImGuiTabBarFlags_FittingPolicyResizeDown;
+
+                if (ImGui::BeginTabBar("##StructureTabs", kTBFlags))
+                {
+                    for (int i = 0; i < (int)tabs.size(); ++i)
+                    {
+                        bool tabOpen = true;
+                        ImGuiTabItemFlags itemFlags = 0;
+                        if (pendingTabSwitch == i)
+                        {
+                            itemFlags |= ImGuiTabItemFlags_SetSelected;
+                            pendingTabSwitch = -1;
+                        }
+
+                        if (ImGui::BeginTabItem(tabs[i]->title, &tabOpen, itemFlags))
+                        {
+                            if (activeTabIdx != i)
+                            {
+                                saveCameraToTab(camera, *tabs[activeTabIdx]);
+                                activeTabIdx = i;
+                                restoreCameraFromTab(camera, *tabs[activeTabIdx]);
+                            }
+                            ImGui::EndTabItem();
+                        }
+
+                        if (!tabOpen)
+                            tabs[i]->pendingClose = true;
+                    }
+
+                    ImGui::EndTabBar();
+                }
+            }
+            ImGui::End();
+            ImGui::PopStyleVar(2);
+            } // if (showTabBar)
+        }
+
+        // Remove closed tabs
+        {
+            const int prevActive = activeTabIdx;
+            int removed = 0;
+            for (int i = 0; i < (int)tabs.size(); )
+            {
+                if (tabs[i]->pendingClose)
+                {
+                    tabs[i]->state.sceneBuffers.destroy();
+                    tabs.erase(tabs.begin() + i);
+                    if (i < prevActive) ++removed;
+                }
+                else { ++i; }
+            }
+            if (tabs.empty())
+            {
+                // Last tab closed: keep one empty tab instead of no tabs
+                tabs.push_back(std::make_unique<StructureTab>());
+                initTabResources(*tabs[0], sphere, lowPolyMesh,
+                                 billboardMesh, cylinder, renderer);
+                restoreCameraFromTab(camera, *tabs[0]);
+            }
+            activeTabIdx = std::max(0, std::min(prevActive - removed, (int)tabs.size() - 1));
+        }
+
+        // Re-alias after possible tab vector changes
+        EditorState& activeState = tabs[activeTabIdx]->state;
+
         ImageExportRequest imageExportRequest;
         bool hasImageExportRequest = false;
-        mergeFileBrowserRequests(state, requests, imageExportRequest, hasImageExportRequest);
-        handleStructureResetRequests(state);
-        handleUndoRedoRequest(state, requests);
-        handleAxisViewRequest(camera, requests, state.structure);
+        mergeFileBrowserRequests(activeState, requests, imageExportRequest, hasImageExportRequest);
+
+        // Close-structure: close tab if multiple, else clear structure
+        if (activeState.fileBrowser.consumeCloseStructureRequest())
+        {
+            if ((int)tabs.size() > 1)
+            {
+                tabs.erase(tabs.begin() + activeTabIdx);
+                activeTabIdx = std::max(0, activeTabIdx - 1);
+                restoreCameraFromTab(camera, *tabs[activeTabIdx]);
+            }
+            else
+            {
+                clearSelection(activeState);
+                activeState.structure = Structure();
+                activeState.fileBrowser.clearLatticePlanes();
+                activeState.fileBrowser.clearMillerDirections();
+                updateBuffers(activeState);
+                activeState.pendingDefaultViewReset = true;
+                std::snprintf(tabs[activeTabIdx]->title, sizeof(tabs[activeTabIdx]->title), "Untitled");
+                std::cout << "[Operation] Structure unloaded" << std::endl;
+            }
+        }
+        if (activeState.fileBrowser.consumeResetDefaultViewRequest())
+            activeState.pendingDefaultViewReset = true;
+
+        handleUndoRedoRequest(activeState, requests);
+        handleAxisViewRequest(camera, requests, activeState.structure);
 
         if (requests.requestRotateCrystalX || requests.requestRotateCrystalY || requests.requestRotateCrystalZ)
         {
-            const double angleDeg = (double)state.fileBrowser.getRotateCrystalAngle();
-            if (requests.requestRotateCrystalX)
-                rotateCrystalAroundAxis(camera, 0, angleDeg);
-            else if (requests.requestRotateCrystalY)
-                rotateCrystalAroundAxis(camera, 1, angleDeg);
-            else
-                rotateCrystalAroundAxis(camera, 2, angleDeg);
+            const double angleDeg = (double)activeState.fileBrowser.getRotateCrystalAngle();
+            if (requests.requestRotateCrystalX)      rotateCrystalAroundAxis(camera, 0, angleDeg);
+            else if (requests.requestRotateCrystalY) rotateCrystalAroundAxis(camera, 1, angleDeg);
+            else                                     rotateCrystalAroundAxis(camera, 2, angleDeg);
         }
 
-        // Keep scene overlays visible over the viewport but underneath UI popups/dialogs.
-        ImDrawList* drawList = ImGui::GetBackgroundDrawList();
-        handleBoxSelection(
-            state,
-            frame.windowWidth,
-            frame.windowHeight,
-            frame.projection,
-            frame.view,
-            drawList);
 
-        handleLassoSelection(
-            state,
-            frame.windowWidth,
-            frame.windowHeight,
-            frame.projection,
-            frame.view,
-            drawList);
+        ImDrawList* drawList = ImGui::GetBackgroundDrawList();
+
+        handleBoxSelection(activeState, frame.windowWidth, frame.windowHeight,
+                           frame.projection, frame.view, drawList);
+        handleLassoSelection(activeState, frame.windowWidth, frame.windowHeight,
+                             frame.projection, frame.view, drawList);
 
         AtomRequests contextRequests;
-        state.contextMenu.draw(
-            state.structure,
-            state.sceneBuffers,
-            state.editMenuDialogs.elementColors,
-            state.selectedInstanceIndices,
-            contextRequests,
-            [&](Structure& structure) { updateBuffers(state, structure); });
+        activeState.contextMenu.draw(
+            activeState.structure, activeState.sceneBuffers,
+            activeState.editMenuDialogs.elementColors,
+            activeState.selectedInstanceIndices, contextRequests,
+            [&](Structure& structure) { updateBuffers(activeState, structure); });
         mergeContextRequests(requests, contextRequests);
 
         processMeasurementRequests(
-            state.measurementState,
-            requests.requestMeasureDistance,
-            requests.requestMeasureAngle,
+            activeState.measurementState,
+            requests.requestMeasureDistance, requests.requestMeasureAngle,
             requests.requestAtomInfo,
-            state.selectedInstanceIndices,
-            state.sceneBuffers,
-            state.structure,
-            state.editMenuDialogs.elementRadii);
-        drawMeasurementPopups(state.measurementState);
-        drawStructureInfoDialog(state.structureInfoDialog, requests.requestStructureInfo, state.structure);
+            activeState.selectedInstanceIndices, activeState.sceneBuffers,
+            activeState.structure, activeState.editMenuDialogs.elementRadii);
+        drawMeasurementPopups(activeState.measurementState);
+        drawStructureInfoDialog(activeState.structureInfoDialog,
+                                requests.requestStructureInfo, activeState.structure);
 
         if (requests.doDeleteSelected)
-            deleteSelectedAtoms(state);
+            deleteSelectedAtoms(activeState);
 
-        refreshSelectionHighlights(state);
+        refreshSelectionHighlights(activeState);
 
-        drawSelectionOverlay(
-            state,
-            drawList,
-            frame.projection,
-            frame.view,
-            frame.windowWidth,
-            frame.windowHeight);
+        drawSelectionOverlay(activeState, drawList, frame.projection, frame.view,
+                             frame.windowWidth, frame.windowHeight);
+        drawMeasurementOverlays(activeState.measurementState, drawList,
+                                frame.projection, frame.view,
+                                frame.framebufferWidth, frame.framebufferHeight,
+                                activeState.sceneBuffers);
+        drawLatticePlanesOverlay(drawList, frame.projection, frame.view,
+                                 frame.framebufferWidth, frame.framebufferHeight,
+                                 activeState.structure,
+                                 activeState.fileBrowser.getLatticePlanes(),
+                                 activeState.fileBrowser.isShowLatticePlanesEnabled());
+        drawMillerDirectionsOverlay(drawList, frame.projection, frame.view,
+                                    frame.framebufferWidth, frame.framebufferHeight,
+                                    activeState.structure,
+                                    activeState.fileBrowser.getMillerDirections(),
+                                    activeState.fileBrowser.isShowMillerDirectionsEnabled());
 
-        drawMeasurementOverlays(
-            state.measurementState,
-            drawList,
-            frame.projection,
-            frame.view,
-            frame.framebufferWidth,
-            frame.framebufferHeight,
-            state.sceneBuffers);
-
-        drawLatticePlanesOverlay(
-            drawList,
-            frame.projection,
-            frame.view,
-            frame.framebufferWidth,
-            frame.framebufferHeight,
-            state.structure,
-            state.fileBrowser.getLatticePlanes(),
-            state.fileBrowser.isShowLatticePlanesEnabled());
-
-        drawMillerDirectionsOverlay(
-            drawList,
-            frame.projection,
-            frame.view,
-            frame.framebufferWidth,
-            frame.framebufferHeight,
-            state.structure,
-            state.fileBrowser.getMillerDirections(),
-            state.fileBrowser.isShowMillerDirectionsEnabled());
-
-        if (state.fileBrowser.isShowVoronoiEnabled())
+        if (activeState.fileBrowser.isShowVoronoiEnabled())
         {
-            if (state.voronoiDirty)
+            if (activeState.voronoiDirty)
             {
-                state.voronoiDiagram = computeVoronoi(state.structure);
-                state.voronoiDirty = false;
+                activeState.voronoiDiagram = computeVoronoi(activeState.structure);
+                activeState.voronoiDirty   = false;
             }
-            drawVoronoiOverlay(
-                drawList,
-                frame.projection,
-                frame.view,
-                frame.framebufferWidth,
-                frame.framebufferHeight,
-                state.voronoiDiagram,
-                state.selectedInstanceIndices,
-                true);
+            drawVoronoiOverlay(drawList, frame.projection, frame.view,
+                               frame.framebufferWidth, frame.framebufferHeight,
+                               activeState.voronoiDiagram,
+                               activeState.selectedInstanceIndices, true);
         }
 
-        drawPolyhedralOverlay(
-            drawList,
-            frame.projection,
-            frame.view,
-            frame.framebufferWidth,
-            frame.framebufferHeight,
-            state.structure,
-            state.selectedInstanceIndices,
-            state.sceneBuffers.atomIndices,
-            state.fileBrowser.getPolyhedralOverlaySettings(),
-            state.editMenuDialogs.elementColors,
-            state.fileBrowser.isShowPolyhedralViewerEnabled());
+        drawPolyhedralOverlay(drawList, frame.projection, frame.view,
+                              frame.framebufferWidth, frame.framebufferHeight,
+                              activeState.structure,
+                              activeState.selectedInstanceIndices,
+                              activeState.sceneBuffers.atomIndices,
+                              activeState.fileBrowser.getPolyhedralOverlaySettings(),
+                              activeState.editMenuDialogs.elementColors,
+                              activeState.fileBrowser.isShowPolyhedralViewerEnabled());
 
-        if (state.fileBrowser.isShowElementEnabled())
-        {
-            drawElementLabelsOverlay(
-                drawList,
-                frame.projection,
-                frame.view,
-                frame.framebufferWidth,
-                frame.framebufferHeight,
-                state.sceneBuffers,
-                state.structure);
-        }
+        if (activeState.fileBrowser.isShowElementEnabled())
+            drawElementLabelsOverlay(drawList, frame.projection, frame.view,
+                                     frame.framebufferWidth, frame.framebufferHeight,
+                                     activeState.sceneBuffers, activeState.structure);
 
-        drawOrientationAxesOverlay(
-            drawList,
-            frame.view,
-            frame.framebufferWidth,
-            frame.framebufferHeight);
+        drawOrientationAxesOverlay(drawList, frame.view,
+                                   frame.framebufferWidth, frame.framebufferHeight);
 
-        // Draw IPF triangle legend when Crystal Orientation coloring is active
-        if (state.fileBrowser.getAtomColorMode() == AtomColorMode::CrystalOrientation)
-        {
-            drawIPFTriangleLegend(
-                drawList,
-                frame.framebufferWidth,
-                frame.framebufferHeight);
-        }
+        if (activeState.fileBrowser.getAtomColorMode() == AtomColorMode::CrystalOrientation)
+            drawIPFTriangleLegend(drawList, frame.framebufferWidth, frame.framebufferHeight);
 
-        // Draw grab mode overlay with real-time atom coordinates
-        drawGrabOverlay(
-            state,
-            drawList,
-            frame.projection,
-            frame.view,
-            frame.windowWidth,
-            frame.windowHeight);
+        drawGrabOverlay(activeState, drawList, frame.projection, frame.view,
+                        frame.windowWidth, frame.windowHeight);
 
         ImGui::Render();
 
-        // Adaptive rendering: measure frame performance and adjust mode.
-        adaptiveRender.update(state.sceneBuffers);
+        // --- 3D scene rendering ---
+        tabs[activeTabIdx]->adaptiveRender.update(activeState.sceneBuffers);
+        drawScene(renderer, frame, shadow,
+                  activeState.sceneBuffers,
+                  activeState.fileBrowser.isShowBondsEnabled(),
+                  activeState.fileBrowser.isShowAtomsEnabled(),
+                  activeState.fileBrowser.isShowBoundingBoxEnabled(),
+                  activeState.fileBrowser.isLightThemeEnabled());
 
-        drawScene(
-            renderer,
-            frame,
-            shadow,
-            sphere,
-            lowPolyMesh,
-            billboardMesh,
-            cylinder,
-            state.sceneBuffers,
-            state.fileBrowser.isShowBondsEnabled(),
-            state.fileBrowser.isLightThemeEnabled());
+        handleImageExportIfRequested(hasImageExportRequest, imageExportRequest,
+                                     frame, activeState, renderer, shadow);
 
-        handleImageExportIfRequested(
-            hasImageExportRequest,
-            imageExportRequest,
-            frame,
-            state,
-            renderer,
-            shadow,
-            sphere,
-            lowPolyMesh,
-            billboardMesh,
-            cylinder);
+        // Save active tab camera back
+        saveCameraToTab(camera, *tabs[activeTabIdx]);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
@@ -774,3 +966,4 @@ int runAtomsEditor(const std::string& startupStructurePath)
     glfwTerminate();
     return 0;
 }
+

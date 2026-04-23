@@ -151,7 +151,6 @@ private:
                                const std::vector<float>& shininess);
     void renderToFBO(GLuint fbo, int w, int h,
                      SceneBuffers& buf,
-                     const SphereMesh& sphere, const CylinderMesh& cylinder,
                      float yaw, float pitch, float dist);
     void autoFitCamera(const SceneBuffers& buf, float& dist);
     bool tryLoadFile(const std::string& path, Structure& dest, std::string& status,

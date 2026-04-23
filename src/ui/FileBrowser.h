@@ -97,9 +97,11 @@ struct FileBrowser
 
     // Draw the unified menu bar (File / Edit / About) and all related popups.
     // updateBuffers is called whenever a new structure is loaded or edited.
+    // openInNewTab is called by builder dialogs to place results in a new tab.
     void draw(Structure& structure,
               EditMenuDialogs& editMenuDialogs,
               const std::function<void(Structure&)>& updateBuffers,
+              const std::function<void(Structure)>& openInNewTab,
               bool canUndo,
               bool canRedo);
 
@@ -113,6 +115,8 @@ struct FileBrowser
             return true;
         return showBonds;
     }
+    bool isShowAtomsEnabled() const { return showAtoms; }
+    bool isShowBoundingBoxEnabled() const { return showBoundingBox; }
     bool isLightThemeEnabled() const { return useLightTheme; }
     bool isBondElementFilterEnabled() const { return bondElementFilterEnabled; }
     const std::array<bool, 119>& getBondElementFilterMask() const { return bondElementFilterMask; }
@@ -142,6 +146,20 @@ struct FileBrowser
     bool isShowVoronoiEnabled() const { return showVoronoi; }
     bool isShowPolyhedralViewerEnabled() const { return showPolyhedralViewer || atomDisplayMode == AtomDisplayMode::Polyhedral; }
     const PolyhedralOverlaySettings& getPolyhedralOverlaySettings() const { return polyhedralSettings; }
+    // Returns the path of the most recently loaded structure (empty if no new load since last call).
+    std::string consumeLastLoadedPath()
+    {
+        std::string p = std::move(lastLoadedPath);
+        lastLoadedPath.clear();
+        return p;
+    }
+    // Returns a file path the user selected for opening (not yet loaded).
+    std::string consumePendingOpenPath()
+    {
+        std::string p = std::move(pendingOpenPath);
+        pendingOpenPath.clear();
+        return p;
+    }
     bool consumeMeasureDistanceRequest()
     {
         bool requested = requestMeasureDistance;
@@ -332,6 +350,8 @@ private:
     bool showEditColors;
     bool showElementLabels;
     bool showBonds;
+    bool showAtoms;
+    bool showBoundingBox;
     bool showLatticePlanes;
     bool showLatticePlanesDialog;
     bool showMillerDirections;
@@ -340,6 +360,7 @@ private:
     bool showPolyhedralViewer;
     bool showPolyhedralSettingsDialog;
     bool bondElementFilterEnabled;
+    std::string lastLoadedPath;
     ViewMode viewMode;
     AtomColorMode atomColorMode;
     bool atomColorModeJustChanged;
@@ -369,6 +390,7 @@ private:
     bool saveStructurePopup;
     bool exportImagePopup;
     bool loadErrorPopupRequested;
+    std::string pendingOpenPath;
 
     std::string openDir;
     std::vector<std::string> dirHistory;

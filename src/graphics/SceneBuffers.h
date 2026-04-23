@@ -57,11 +57,33 @@ struct SceneBuffers
     // Flag: if true, CPU caches are disabled (large structure)
     bool cpuCachesDisabled = false;
 
-    // Allocate GPU objects and wire instance attributes into mesh VAOs.
-    void init(GLuint sphereVAO, GLuint lowPolyVAO, GLuint billboardVAO, GLuint cylinderVAO);
+    // Per-tab geometry VAOs (owned by this SceneBuffers, NOT the shared mesh VAOs).
+    // Each tab builds its own VAOs by pairing shared mesh geometry VBOs with its own
+    // instance VBOs so that tabs never clobber each other's VAO attribute state.
+    GLuint tabSphereVAO    = 0;
+    GLuint tabLowPolyVAO   = 0;
+    GLuint tabBillboardVAO = 0;
+    GLuint tabCylinderVAO  = 0;
 
-    // Simplified init for preview renderers (standard instancing only).
-    void init(GLuint sphereVAO, GLuint cylinderVAO);
+    // Geometry draw counts (cached from the mesh objects at init time).
+    int tabSphereIndexCount    = 0;
+    int tabLowPolyIndexCount   = 0;
+    int tabBillboardIndexCount = 0;
+    int tabCylinderVertexCount = 0;
+
+    // Full init: creates per-tab VAOs by combining shared mesh geometry VBOs with
+    // this tab's own instance VBOs.  Call once after a valid GL context is ready.
+    void init(GLuint sphereVbo,    GLuint sphereEbo,    int sphereIndexCount,
+              GLuint lowPolyVbo,   GLuint lowPolyEbo,   int lowPolyIndexCount,
+              GLuint billboardVbo, GLuint billboardEbo, int billboardIndexCount,
+              GLuint cylinderVbo,  int cylinderVertexCount);
+
+    // Simplified init for preview renderers (standard instancing + bonds only).
+    void init(GLuint sphereVbo, GLuint sphereEbo, int sphereIndexCount,
+              GLuint cylinderVbo, int cylinderVertexCount);
+
+    // Release all GPU resources owned by this SceneBuffers.
+    void destroy();
 
     // Upload a new StructureInstanceData set to the GPU and cache derived data.
     void upload(const StructureInstanceData& data,
