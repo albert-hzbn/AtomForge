@@ -132,6 +132,11 @@ private:
     // then recompute integer counts.
     void redistributePercent(int changedIdx, float newPct);
 
+    // When the user changes entry changedIdx's percent to newPct (where
+    // changedIdx is NOT the last entry), keep all other non-last entries
+    // untouched and only adjust the last entry so the total stays at 100.
+    void redistributePercentLastFree(int changedIdx, float newPct);
+
     // When the user changes count of entry changedIdx to newCount,
     // adjust other entries proportionally so the total stays constant.
     void redistributeCount(int changedIdx, int newCount);

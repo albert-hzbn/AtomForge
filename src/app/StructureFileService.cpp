@@ -76,7 +76,7 @@ bool saveStructureWithOptionalSupercell(
         ? buildSupercell(structure, transformMatrix)
         : structure;
 
-    const Structure exportStructure = isXyzFormat(format)
+    Structure exportStructure = isXyzFormat(format)
         ? buildPeriodicXyzExportStructure(structureToSave)
         : structureToSave;
 

@@ -202,6 +202,51 @@ void SubstitutionalSolidSolutionDialog::recomputeCountsFromPercents()
         m_entries[i].count = floored[i];
 }
 
+void SubstitutionalSolidSolutionDialog::redistributePercentLastFree(int changedIdx, float newPct)
+{
+    const int n = (int)m_entries.size();
+    if (n <= 0) return;
+
+    if (n == 1)
+    {
+        m_entries[0].percent = 100.0f;
+        recomputeCountsFromPercents();
+        const int total = (int)m_source.atoms.size();
+        if (total > 0) m_entries[0].percent = (float)m_entries[0].count / (float)total * 100.0f;
+        return;
+    }
+
+    newPct = std::max(0.0f, newPct);
+
+    // Compute what the sum of all non-last entries would be after this edit.
+    float sumExceptLast = 0.0f;
+    for (int i = 0; i < n - 1; ++i)
+        sumExceptLast += (i == changedIdx) ? newPct : std::max(0.0f, m_entries[i].percent);
+
+    // Clamp so the last entry doesn't go negative.
+    if (sumExceptLast > 100.0f)
+    {
+        newPct -= (sumExceptLast - 100.0f);
+        newPct       = std::max(0.0f, newPct);
+        sumExceptLast = 100.0f;
+    }
+
+    m_entries[changedIdx].percent = newPct;
+    m_entries[n - 1].percent      = 100.0f - sumExceptLast;
+
+    recomputeCountsFromPercents();
+
+    // Snap all displayed percents to the nearest realizable composition
+    // (integer atom counts).  Without this the field shows e.g. 33.5 at%
+    // even though the actual count rounds to 34 atoms (34.0 at% for N=100).
+    const int total = (int)m_source.atoms.size();
+    if (total > 0)
+    {
+        for (auto& e : m_entries)
+            e.percent = (float)e.count / (float)total * 100.0f;
+    }
+}
+
 void SubstitutionalSolidSolutionDialog::redistributePercent(int changedIdx, float newPct)
 {
     const int n = (int)m_entries.size();
@@ -691,6 +736,7 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
 
             int  removeIdx  = -1;
             bool openPicker = false;
+            const int lastIdx = (int)m_entries.size() - 1;
 
             for (int i = 0; i < (int)m_entries.size(); ++i)
             {
@@ -711,15 +757,26 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
                 ImGui::SameLine(0.0f, 8.0f);
 
                 // -- at% drag-and-edit field --
-                // Drag left/right to adjust; Ctrl+click to type exact value.
-                // Changing this entry scales all other entries proportionally
-                // so the total always stays at 100 at%.
+                // The last entry is read-only: it auto-adjusts to keep the
+                // total at 100 at% whenever any other entry is changed.
                 float pct = entry.percent;
+                const bool isLast = (i == lastIdx);
                 ImGui::SetNextItemWidth(kPctW);
-                if (ImGui::DragFloat("##pct", &pct, 0.15f, 0.0f, 100.0f, "%.2f at%%"))
-                    redistributePercent(i, pct);
-                if (ImGui::IsItemHovered() && !ImGui::IsItemActive())
-                    ImGui::SetTooltip("Drag or Ctrl+click to edit.\nOther elements scale proportionally.");
+                if (isLast)
+                {
+                    ImGui::BeginDisabled();
+                    ImGui::DragFloat("##pct", &pct, 0.15f, 0.0f, 100.0f, "%.2f at%%");
+                    ImGui::EndDisabled();
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                        ImGui::SetTooltip("Auto-computed: 100 - sum of all other entries.");
+                }
+                else
+                {
+                    if (ImGui::DragFloat("##pct", &pct, 0.15f, 0.0f, 100.0f, "%.2f at%%"))
+                        redistributePercentLastFree(i, pct);
+                    if (ImGui::IsItemHovered() && !ImGui::IsItemActive())
+                        ImGui::SetTooltip("Drag or Ctrl+click to edit.\nThe last element adjusts automatically.");
+                }
 
                 ImGui::SameLine(0.0f, 8.0f);
 

@@ -18,6 +18,7 @@
 #include <cstring>
 #include <fstream>
 #include <iomanip>
+#include <numeric>
 #include <queue>
 #include <sstream>
 #include <unordered_map>
@@ -1514,22 +1515,61 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
 {
     ensureOpenBabelPlugins();
 
+    // Certain formats (VASP POSCAR, LAMMPS data) require all atoms of the
+    // same element to be contiguous.  If atoms are interleaved – as they are
+    // after substitutional-solid-solution or other random builders – the
+    // writer produces duplicate or malformed element headers.  Stable-sort
+    // a working copy by atomic number before building the OBMol.
+    const bool needsGrouping = (format == "vasp" || format == "VASP"
+                             || format == "lmpdat" || format == "lammps");
+
+    const Structure* src = &structure;
+    Structure grouped;
+    if (needsGrouping)
+    {
+        const std::size_t n = structure.atoms.size();
+        std::vector<std::size_t> order(n);
+        std::iota(order.begin(), order.end(), std::size_t(0));
+        std::stable_sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b)
+        {
+            return structure.atoms[a].atomicNumber < structure.atoms[b].atomicNumber;
+        });
+
+        grouped = structure;
+        for (std::size_t i = 0; i < n; ++i)
+            grouped.atoms[i] = structure.atoms[order[i]];
+
+        if (structure.grainColors.size() == n)
+        {
+            grouped.grainColors.resize(n);
+            for (std::size_t i = 0; i < n; ++i)
+                grouped.grainColors[i] = structure.grainColors[order[i]];
+        }
+        if (structure.grainRegionIds.size() == n)
+        {
+            grouped.grainRegionIds.resize(n);
+            for (std::size_t i = 0; i < n; ++i)
+                grouped.grainRegionIds[i] = structure.grainRegionIds[order[i]];
+        }
+        src = &grouped;
+    }
+
     OpenBabel::OBMol mol;
     mol.BeginModify();
 
-    for (const auto& site : structure.atoms)
+    for (const auto& site : src->atoms)
     {
         OpenBabel::OBAtom* atom = mol.NewAtom();
         atom->SetAtomicNum(site.atomicNumber);
         atom->SetVector(site.x, site.y, site.z);
     }
 
-    if (structure.hasUnitCell)
+    if (src->hasUnitCell)
     {
         OpenBabel::OBUnitCell* cell = new OpenBabel::OBUnitCell();
-        OpenBabel::vector3 va(structure.cellVectors[0][0], structure.cellVectors[0][1], structure.cellVectors[0][2]);
-        OpenBabel::vector3 vb(structure.cellVectors[1][0], structure.cellVectors[1][1], structure.cellVectors[1][2]);
-        OpenBabel::vector3 vc(structure.cellVectors[2][0], structure.cellVectors[2][1], structure.cellVectors[2][2]);
+        OpenBabel::vector3 va(src->cellVectors[0][0], src->cellVectors[0][1], src->cellVectors[0][2]);
+        OpenBabel::vector3 vb(src->cellVectors[1][0], src->cellVectors[1][1], src->cellVectors[1][2]);
+        OpenBabel::vector3 vc(src->cellVectors[2][0], src->cellVectors[2][1], src->cellVectors[2][2]);
         cell->SetData(va, vb, vc);
         mol.SetData(cell);
     }
@@ -1541,7 +1581,7 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
     // irrelevant for export; for all other formats (xyz, cif, vasp …) bonds
     // are not part of the file format at all.
     constexpr size_t kBondDetectionAtomLimit = 500;
-    if (!structure.hasUnitCell && structure.atoms.size() <= kBondDetectionAtomLimit)
+    if (!src->hasUnitCell && src->atoms.size() <= kBondDetectionAtomLimit)
     {
         mol.ConnectTheDots();
         mol.PerceiveBondOrders();
