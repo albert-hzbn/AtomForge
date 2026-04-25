@@ -467,6 +467,7 @@ void handleImageExportIfRequested(bool hasImageExportRequest,
         state.sceneBuffers,
         renderer,
         shadow,
+        state.structure,
         exportError);
 
     if (exportOk)
@@ -947,8 +948,10 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                                      frame.framebufferWidth, frame.framebufferHeight,
                                      activeState.sceneBuffers, activeState.structure);
 
-        drawOrientationAxesOverlay(drawList, frame.view,
-                                   frame.framebufferWidth, frame.framebufferHeight);
+        if (!activeState.structure.atoms.empty())
+            drawOrientationAxesOverlay(drawList, frame.view,
+                                       frame.framebufferWidth, frame.framebufferHeight,
+                                       activeState.structure);
 
         if (activeState.fileBrowser.getAtomColorMode() == AtomColorMode::CrystalOrientation)
             drawIPFTriangleLegend(drawList, frame.framebufferWidth, frame.framebufferHeight);

@@ -293,14 +293,10 @@ void draw3DWireCube(ImDrawList* drawList,
 
 void draw3DOrientationGizmo(ImDrawList* drawList,
                             ImVec2 origin,
-                            const std::array<AxisOverlayEntry, 3>& axes,
-                            const glm::mat3& viewRotation)
+                            const std::array<AxisOverlayEntry, 3>& axes)
 {
     const float projectionScale = 53.0f;
-    const float cubeHalfExtent = 0.38f;
     const float axisLength = 0.77f;
-
-    draw3DWireCube(drawList, origin, viewRotation, cubeHalfExtent, projectionScale);
 
     std::array<int, 3> axisOrder = {{0, 1, 2}};
     std::sort(axisOrder.begin(), axisOrder.end(), [&](int lhs, int rhs) {
@@ -331,23 +327,48 @@ void drawGizmoCenter(ImDrawList* drawList, ImVec2 origin)
 
 void drawOrientationAxesGizmo(ImDrawList* drawList,
                               const glm::mat4& view,
-                              int viewportHeight)
+                              int viewportHeight,
+                              const Structure& structure)
 {
     const ImVec2 origin(73.0f, (float)viewportHeight - 73.0f);
     drawGizmoBackdrop(drawList, origin);
 
     const bool light = isLightTheme();
     const glm::mat3 viewRotation(view);
+
+    glm::vec3 worldAxes[3];
+    const char* labels[3];
+    if (structure.hasUnitCell)
+    {
+        worldAxes[0] = glm::normalize(glm::vec3((float)structure.cellVectors[0][0],
+                                                 (float)structure.cellVectors[0][1],
+                                                 (float)structure.cellVectors[0][2]));
+        worldAxes[1] = glm::normalize(glm::vec3((float)structure.cellVectors[1][0],
+                                                 (float)structure.cellVectors[1][1],
+                                                 (float)structure.cellVectors[1][2]));
+        worldAxes[2] = glm::normalize(glm::vec3((float)structure.cellVectors[2][0],
+                                                 (float)structure.cellVectors[2][1],
+                                                 (float)structure.cellVectors[2][2]));
+        labels[0] = "a"; labels[1] = "b"; labels[2] = "c";
+    }
+    else
+    {
+        worldAxes[0] = glm::vec3(1.0f, 0.0f, 0.0f);
+        worldAxes[1] = glm::vec3(0.0f, 1.0f, 0.0f);
+        worldAxes[2] = glm::vec3(0.0f, 0.0f, 1.0f);
+        labels[0] = "X"; labels[1] = "Y"; labels[2] = "Z";
+    }
+
     std::array<AxisOverlayEntry, 3> axes = {{
-        { glm::normalize(viewRotation * glm::vec3(1.0f, 0.0f, 0.0f)), "X",
+        { glm::normalize(viewRotation * worldAxes[0]), labels[0],
           light ? IM_COL32(200, 50, 50, 255) : IM_COL32(235, 92, 92, 255) },
-        { glm::normalize(viewRotation * glm::vec3(0.0f, 1.0f, 0.0f)), "Y",
+        { glm::normalize(viewRotation * worldAxes[1]), labels[1],
           light ? IM_COL32(40, 160, 50, 255) : IM_COL32(110, 220, 120, 255) },
-        { glm::normalize(viewRotation * glm::vec3(0.0f, 0.0f, 1.0f)), "Z",
+        { glm::normalize(viewRotation * worldAxes[2]), labels[2],
           light ? IM_COL32(40, 110, 220, 255) : IM_COL32(110, 175, 255, 255) }
     }};
 
-    draw3DOrientationGizmo(drawList, origin, axes, viewRotation);
+    draw3DOrientationGizmo(drawList, origin, axes);
     drawGizmoCenter(drawList, origin);
 }
 } // namespace
@@ -814,12 +835,13 @@ void drawElementLabelsOverlay(ImDrawList* drawList,
 void drawOrientationAxesOverlay(ImDrawList* drawList,
                                 const glm::mat4& view,
                                 int viewportWidth,
-                                int viewportHeight)
+                                int viewportHeight,
+                                const Structure& structure)
 {
     if (!drawList || viewportWidth < 120 || viewportHeight < 120)
         return;
 
-    drawOrientationAxesGizmo(drawList, view, viewportHeight);
+    drawOrientationAxesGizmo(drawList, view, viewportHeight, structure);
 }
 
 // ---------------------------------------------------------------------------

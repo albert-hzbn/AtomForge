@@ -436,13 +436,24 @@ void drawGizmoOnPixels(std::vector<unsigned char>& pixels,
                        int width, int height,
                        const glm::mat4& view,
                        bool lightTheme,
-                       int scale)
+                       int scale,
+                       const Structure& structure)
 {
-    // 5x7 bitmap glyphs for X, Y, Z (row-major, MSB = left pixel)
+    // 5x7 bitmap glyphs for X, Y, Z (row-major, MSB = leftmost pixel)
     static const unsigned char kGlyphX[7] = { 0b10001, 0b10001, 0b01010, 0b00100, 0b01010, 0b10001, 0b10001 };
     static const unsigned char kGlyphY[7] = { 0b10001, 0b10001, 0b01010, 0b00100, 0b00100, 0b00100, 0b00100 };
     static const unsigned char kGlyphZ[7] = { 0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0b11111 };
-    static const unsigned char* kGlyphs[3] = { kGlyphX, kGlyphY, kGlyphZ };
+    // 5x7 bitmap glyphs for lowercase a, b, c (lattice vector mode)
+    static const unsigned char kGlyphA[7] = { 0b00000, 0b01110, 0b00001, 0b01111, 0b10001, 0b10001, 0b01111 };
+    static const unsigned char kGlyphB[7] = { 0b10000, 0b10000, 0b11110, 0b10001, 0b10001, 0b10001, 0b11110 };
+    static const unsigned char kGlyphC[7] = { 0b00000, 0b01110, 0b10000, 0b10000, 0b10000, 0b10001, 0b01110 };
+
+    const bool useLattice = structure.hasUnitCell;
+    const unsigned char* kGlyphs[3];
+    if (useLattice)
+    { kGlyphs[0] = kGlyphA; kGlyphs[1] = kGlyphB; kGlyphs[2] = kGlyphC; }
+    else
+    { kGlyphs[0] = kGlyphX; kGlyphs[1] = kGlyphY; kGlyphs[2] = kGlyphZ; }
 
     // Draw a 5x7 glyph at pixel position (ox, oy), each pixel rendered as a filled cellSize square
     auto drawGlyph = [&](float ox, float oy, const unsigned char* glyph,
@@ -505,11 +516,25 @@ void drawGizmoOnPixels(std::vector<unsigned char>& pixels,
     const unsigned char outlineG = lightTheme ?  30 : 245;
     const unsigned char outlineB = lightTheme ?  40 : 250;
 
-    const glm::vec3 worldAxes[3] = {
-        {1.0f, 0.0f, 0.0f},
-        {0.0f, 1.0f, 0.0f},
-        {0.0f, 0.0f, 1.0f}
-    };
+    glm::vec3 worldAxes[3];
+    if (useLattice)
+    {
+        worldAxes[0] = glm::normalize(glm::vec3((float)structure.cellVectors[0][0],
+                                                 (float)structure.cellVectors[0][1],
+                                                 (float)structure.cellVectors[0][2]));
+        worldAxes[1] = glm::normalize(glm::vec3((float)structure.cellVectors[1][0],
+                                                 (float)structure.cellVectors[1][1],
+                                                 (float)structure.cellVectors[1][2]));
+        worldAxes[2] = glm::normalize(glm::vec3((float)structure.cellVectors[2][0],
+                                                 (float)structure.cellVectors[2][1],
+                                                 (float)structure.cellVectors[2][2]));
+    }
+    else
+    {
+        worldAxes[0] = glm::vec3(1.0f, 0.0f, 0.0f);
+        worldAxes[1] = glm::vec3(0.0f, 1.0f, 0.0f);
+        worldAxes[2] = glm::vec3(0.0f, 0.0f, 1.0f);
+    }
 
     struct Axis2D { float sx, sy, depth; int ci; };
     Axis2D axes2D[3];
@@ -575,6 +600,7 @@ bool writeRasterImage(const ImageExportRequest& request,
                       const SceneBuffers& sceneBuffers,
                       Renderer& renderer,
                       const ShadowMap& shadow,
+                      const Structure& structure,
                       std::string& errorMessage)
 {
     const glm::vec4 clearColor = request.includeBackground
@@ -600,7 +626,7 @@ bool writeRasterImage(const ImageExportRequest& request,
     {
         const bool lightTheme = backgroundColor.r > 0.5f;
         drawGizmoOnPixels(rgbaPixels, view.width, view.height,
-                          view.view, lightTheme, request.resolutionScale);
+                          view.view, lightTheme, request.resolutionScale, structure);
     }
 
     if (request.format == ImageExportFormat::Png)
@@ -824,6 +850,7 @@ bool exportStructureImage(const ImageExportRequest& request,
                           const SceneBuffers& sceneBuffers,
                           Renderer& renderer,
                           const ShadowMap& shadow,
+                          const Structure& structure,
                           std::string& errorMessage)
 {
     if (request.format == ImageExportFormat::Svg)
@@ -846,5 +873,6 @@ bool exportStructureImage(const ImageExportRequest& request,
                             sceneBuffers,
                             renderer,
                             shadow,
+                            structure,
                             errorMessage);
 }

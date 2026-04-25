@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ui/FileBrowser.h"
+#include "io/StructureLoader.h"
 
 #include <glm/glm.hpp>
 
@@ -30,4 +31,5 @@ bool exportStructureImage(const ImageExportRequest& request,
                           const SceneBuffers& sceneBuffers,
                           Renderer& renderer,
                           const ShadowMap& shadow,
+                          const Structure& structure,
                           std::string& errorMessage);
