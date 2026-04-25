@@ -321,6 +321,251 @@ bool captureSceneToRgba(const ImageExportView& view,
     return true;
 }
 
+// ---------------------------------------------------------------------------
+// Software gizmo rasterizer
+// ---------------------------------------------------------------------------
+
+void blendPixelRgba(std::vector<unsigned char>& pixels, int width, int height,
+                    int px, int py,
+                    unsigned char r, unsigned char g, unsigned char b, unsigned char alpha)
+{
+    if (px < 0 || py < 0 || px >= width || py >= height)
+        return;
+    const size_t idx = ((size_t)py * (size_t)width + (size_t)px) * 4;
+    const float fa = alpha / 255.0f;
+    const float fb = 1.0f - fa;
+    pixels[idx + 0] = (unsigned char)(pixels[idx + 0] * fb + r * fa);
+    pixels[idx + 1] = (unsigned char)(pixels[idx + 1] * fb + g * fa);
+    pixels[idx + 2] = (unsigned char)(pixels[idx + 2] * fb + b * fa);
+    pixels[idx + 3] = 255;
+}
+
+void drawSoftCircleFilled(std::vector<unsigned char>& pixels, int width, int height,
+                          float cx, float cy, float radius,
+                          unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
+    const int x0 = std::max(0, (int)(cx - radius - 1.5f));
+    const int x1 = std::min(width - 1, (int)(cx + radius + 1.5f));
+    const int y0 = std::max(0, (int)(cy - radius - 1.5f));
+    const int y1 = std::min(height - 1, (int)(cy + radius + 1.5f));
+    for (int y = y0; y <= y1; ++y)
+    {
+        for (int x = x0; x <= x1; ++x)
+        {
+            const float dx = (float)x - cx;
+            const float dy = (float)y - cy;
+            const float dist = std::sqrt(dx * dx + dy * dy);
+            if (dist <= radius + 0.5f)
+            {
+                const float blend = std::min(1.0f, radius + 0.5f - dist);
+                blendPixelRgba(pixels, width, height, x, y, r, g, b,
+                               (unsigned char)((float)a * blend));
+            }
+        }
+    }
+}
+
+void drawSoftThickLine(std::vector<unsigned char>& pixels, int width, int height,
+                       float x0, float y0, float x1, float y1, float thickness,
+                       unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
+    const float dx = x1 - x0;
+    const float dy = y1 - y0;
+    const float len = std::sqrt(dx * dx + dy * dy);
+    if (len < 1e-3f)
+        return;
+    const float nx = -dy / len;
+    const float ny =  dx / len;
+    const float half = thickness * 0.5f;
+
+    const float xMin = std::min(x0, x1);
+    const float xMax = std::max(x0, x1);
+    const float yMin = std::min(y0, y1);
+    const float yMax = std::max(y0, y1);
+
+    const int bx0 = std::max(0, (int)(xMin - half - 1.5f));
+    const int bx1 = std::min(width  - 1, (int)(xMax + half + 1.5f));
+    const int by0 = std::max(0, (int)(yMin - half - 1.5f));
+    const int by1 = std::min(height - 1, (int)(yMax + half + 1.5f));
+
+    const float invLen2 = 1.0f / (len * len);
+    for (int y = by0; y <= by1; ++y)
+    {
+        for (int x = bx0; x <= bx1; ++x)
+        {
+            const float px = (float)x - x0;
+            const float py = (float)y - y0;
+            const float t = (px * dx + py * dy) * invLen2;
+            const float perp = std::abs(px * nx + py * ny);
+            if (t >= -0.01f && t <= 1.01f && perp <= half + 0.5f)
+            {
+                const float blend = std::min(1.0f, half + 0.5f - perp);
+                blendPixelRgba(pixels, width, height, x, y, r, g, b,
+                               (unsigned char)((float)a * blend));
+            }
+        }
+    }
+}
+
+void drawSoftRing(std::vector<unsigned char>& pixels, int width, int height,
+                  float cx, float cy, float radius, float ringThickness,
+                  unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
+    const int x0 = std::max(0, (int)(cx - radius - ringThickness - 1.5f));
+    const int x1 = std::min(width  - 1, (int)(cx + radius + ringThickness + 1.5f));
+    const int y0 = std::max(0, (int)(cy - radius - ringThickness - 1.5f));
+    const int y1 = std::min(height - 1, (int)(cy + radius + ringThickness + 1.5f));
+    for (int y = y0; y <= y1; ++y)
+    {
+        for (int x = x0; x <= x1; ++x)
+        {
+            const float dx = (float)x - cx;
+            const float dy = (float)y - cy;
+            const float dist = std::sqrt(dx * dx + dy * dy);
+            const float distFromRing = std::abs(dist - radius);
+            if (distFromRing <= ringThickness * 0.5f + 0.5f)
+            {
+                const float blend = std::min(1.0f, ringThickness * 0.5f + 0.5f - distFromRing);
+                blendPixelRgba(pixels, width, height, x, y, r, g, b, (unsigned char)((float)a * blend));
+            }
+        }
+    }
+}
+
+void drawGizmoOnPixels(std::vector<unsigned char>& pixels,
+                       int width, int height,
+                       const glm::mat4& view,
+                       bool lightTheme,
+                       int scale)
+{
+    // 5x7 bitmap glyphs for X, Y, Z (row-major, MSB = left pixel)
+    static const unsigned char kGlyphX[7] = { 0b10001, 0b10001, 0b01010, 0b00100, 0b01010, 0b10001, 0b10001 };
+    static const unsigned char kGlyphY[7] = { 0b10001, 0b10001, 0b01010, 0b00100, 0b00100, 0b00100, 0b00100 };
+    static const unsigned char kGlyphZ[7] = { 0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0b11111 };
+    static const unsigned char* kGlyphs[3] = { kGlyphX, kGlyphY, kGlyphZ };
+
+    // Draw a 5x7 glyph at pixel position (ox, oy), each pixel rendered as a filled cellSize square
+    auto drawGlyph = [&](float ox, float oy, const unsigned char* glyph,
+                         unsigned char r, unsigned char g, unsigned char b, float ps)
+    {
+        const float cellSize = std::max(1.0f, ps * 1.5f);
+        for (int row = 0; row < 7; ++row)
+        {
+            for (int col = 0; col < 5; ++col)
+            {
+                if (glyph[row] & (1 << (4 - col)))
+                {
+                    const float px = ox + (float)col * cellSize;
+                    const float py = oy + (float)row * cellSize;
+                    const int ix0 = (int)px;
+                    const int iy0 = (int)py;
+                    const int ix1 = std::min((int)(px + cellSize), ix0 + (int)cellSize + 1);
+                    const int iy1 = std::min((int)(py + cellSize), iy0 + (int)cellSize + 1);
+                    for (int y = iy0; y <= iy1; ++y)
+                        for (int x = ix0; x <= ix1; ++x)
+                            blendPixelRgba(pixels, width, height, x, y, r, g, b, 255);
+                }
+            }
+        }
+    };
+
+    const float s         = (float)std::max(1, scale);
+    const float bgRadius  = 53.0f * s;
+    const float cx        = 73.0f * s;
+    const float cy        = (float)height - 73.0f * s;
+    const float projScale = 53.0f * s;
+    const float axisLength = 0.77f;
+
+    // --- Backdrop: filled disk + 2 ring outlines (matching drawGizmoBackdrop) ---
+    const unsigned char bgR = lightTheme ? 235 : 18;
+    const unsigned char bgG = lightTheme ? 238 : 22;
+    const unsigned char bgB = lightTheme ? 242 : 28;
+    const unsigned char bgA = lightTheme ? 200 : 190;
+    drawSoftCircleFilled(pixels, width, height, cx, cy, bgRadius, bgR, bgG, bgB, bgA);
+
+    // Outer ring
+    const unsigned char ringA1 = lightTheme ? 55 : 55;
+    const unsigned char ringR1 = lightTheme ? 0 : 255;
+    drawSoftRing(pixels, width, height, cx, cy, bgRadius, s, ringR1, ringR1, ringR1, ringA1);
+
+    // Inner ring (radius - 7)
+    const unsigned char ringA2 = lightTheme ? 20 : 20;
+    const unsigned char ringR2 = lightTheme ? 0 : 255;
+    drawSoftRing(pixels, width, height, cx, cy, bgRadius - 7.0f * s, s, ringR2, ringR2, ringR2, ringA2);
+
+    // --- Axis colors ---
+    struct AxisColor { unsigned char r, g, b; };
+    const AxisColor axisColors[3] = {
+        lightTheme ? AxisColor{200,  50,  50} : AxisColor{235,  92,  92},  // X
+        lightTheme ? AxisColor{ 40, 160,  50} : AxisColor{110, 220, 120},  // Y
+        lightTheme ? AxisColor{ 40, 110, 220} : AxisColor{110, 175, 255}   // Z
+    };
+    // Ring outline color around endpoint dot (matching IM_COL32(30,30,40,200) / IM_COL32(245,245,250,200))
+    const unsigned char outlineR = lightTheme ?  30 : 245;
+    const unsigned char outlineG = lightTheme ?  30 : 245;
+    const unsigned char outlineB = lightTheme ?  40 : 250;
+
+    const glm::vec3 worldAxes[3] = {
+        {1.0f, 0.0f, 0.0f},
+        {0.0f, 1.0f, 0.0f},
+        {0.0f, 0.0f, 1.0f}
+    };
+
+    struct Axis2D { float sx, sy, depth; int ci; };
+    Axis2D axes2D[3];
+    const glm::mat3 viewRot(view);
+    for (int i = 0; i < 3; ++i)
+    {
+        const glm::vec3 dir = glm::normalize(viewRot * worldAxes[i]);
+        axes2D[i].sx    = cx + dir.x * axisLength * projScale;
+        axes2D[i].sy    = cy - dir.y * axisLength * projScale;
+        axes2D[i].depth = -dir.z;   // toGizmoDepth: negative Z = toward viewer
+        axes2D[i].ci    = i;
+    }
+
+    // Sort: most-positive depth (deepest) drawn first — painter's algorithm
+    int order[3] = {0, 1, 2};
+    std::sort(order, order + 3, [&](int a, int b) {
+        return axes2D[a].depth < axes2D[b].depth;
+    });
+
+    const float glyphScale = std::max(1.0f, s * 1.6f);
+    const float glyphW = 5.0f * glyphScale * 1.5f;
+    const float glyphH = 7.0f * glyphScale * 1.5f;
+
+    for (int o = 0; o < 3; ++o)
+    {
+        const int i = order[o];
+        const AxisColor& c = axisColors[axes2D[i].ci];
+        const float depth01    = glm::clamp((axes2D[i].depth + 1.0f) * 0.5f, 0.0f, 1.0f);
+        const float thickness  = (1.8f + 1.2f * depth01) * s;
+        const float dotRadius  = (2.5f + 2.0f * depth01) * s;
+
+        // Line from origin to endpoint
+        drawSoftThickLine(pixels, width, height, cx, cy, axes2D[i].sx, axes2D[i].sy,
+                          thickness, c.r, c.g, c.b, 255);
+
+        // Filled endpoint dot
+        drawSoftCircleFilled(pixels, width, height, axes2D[i].sx, axes2D[i].sy, dotRadius,
+                             c.r, c.g, c.b, 255);
+
+        // Ring outline around endpoint dot (matching draw3DAxis AddCircle at dotRadius+1)
+        drawSoftRing(pixels, width, height, axes2D[i].sx, axes2D[i].sy,
+                     dotRadius + 1.0f * s, s, outlineR, outlineG, outlineB, 200);
+
+        // Label at endpoint + (5.5, 4.0) screen pixels (matching draw3DAxis AddText offset)
+        const float lx = axes2D[i].sx + 5.5f * s - glyphW * 0.5f;
+        const float ly = axes2D[i].sy + 4.0f * s - glyphH * 0.5f;
+        drawGlyph(lx, ly, kGlyphs[axes2D[i].ci], c.r, c.g, c.b, glyphScale);
+    }
+
+    // Center dot (matching drawGizmoCenter)
+    const unsigned char cdR = lightTheme ?  20 : 240;
+    const unsigned char cdG = lightTheme ?  20 : 240;
+    const unsigned char cdB = lightTheme ?  25 : 245;
+    drawSoftCircleFilled(pixels, width, height, cx, cy, 3.2f * s, cdR, cdG, cdB, 240);
+}
+
 bool writeRasterImage(const ImageExportRequest& request,
                       const ImageExportView& view,
                       const glm::vec4& backgroundColor,
@@ -349,6 +594,13 @@ bool writeRasterImage(const ImageExportRequest& request,
                             errorMessage))
     {
         return false;
+    }
+
+    if (request.includeGizmo)
+    {
+        const bool lightTheme = backgroundColor.r > 0.5f;
+        drawGizmoOnPixels(rgbaPixels, view.width, view.height,
+                          view.view, lightTheme, request.resolutionScale);
     }
 
     if (request.format == ImageExportFormat::Png)

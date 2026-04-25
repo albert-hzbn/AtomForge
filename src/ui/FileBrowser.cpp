@@ -109,6 +109,7 @@ FileBrowser::FileBrowser()
         exportHistoryIndex(-1),
         selectedExportFormat(0),
         exportIncludeBackground(true),
+        exportIncludeGizmo(false),
         exportResolutionScale(1),
             selectedAtomicNumber(1),
             latticePlaneInputH(1),
@@ -1254,6 +1255,7 @@ void FileBrowser::draw(Structure& structure,
         ImGui::Checkbox("Include background", &exportIncludeBackground);
         if (kImageExportFormats[selectedExportFormat].fmt == ImageExportFormat::Jpg && !exportIncludeBackground)
             ImGui::TextDisabled("JPEG has no transparency; transparent areas will be blended on white.");
+        ImGui::Checkbox("Include orientation gizmo", &exportIncludeGizmo);
 
         ImGui::SliderInt("Resolution scale", &exportResolutionScale, 1, 8, "%dx");
         if (exportResolutionScale > 1)
@@ -1293,6 +1295,7 @@ void FileBrowser::draw(Structure& structure,
                 pendingImageExport.outputPath = joinPath(exportDir, finalName);
                 pendingImageExport.format = kImageExportFormats[selectedExportFormat].fmt;
                 pendingImageExport.includeBackground = exportIncludeBackground;
+                pendingImageExport.includeGizmo = exportIncludeGizmo;
                 pendingImageExport.resolutionScale = exportResolutionScale;
                 requestImageExport = true;
 

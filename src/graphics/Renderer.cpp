@@ -127,11 +127,11 @@ static const char* kAtomFS = R"(
         float bias = 0.003;
         float shadow = 0.0;
         vec2 texelSize = vec2(1.0 / 2048.0);
-        for (int x = -1; x <= 1; ++x)
-            for (int y = -1; y <= 1; ++y)
+        for (int x = -2; x <= 2; ++x)
+            for (int y = -2; y <= 2; ++y)
                 shadow += 1.0 - texture(shadowMap,
                     vec3(proj.xy + vec2(x, y) * texelSize, proj.z - bias));
-        return shadow / 9.0;
+        return shadow / 25.0;
     }
 
     void main()
@@ -504,11 +504,11 @@ static const char* kAtomBillboardFS = R"(
         float bias = 0.003;
         float shadow = 0.0;
         vec2 texelSize = vec2(1.0 / 2048.0);
-        for (int x = -1; x <= 1; ++x)
-            for (int y = -1; y <= 1; ++y)
+        for (int x = -2; x <= 2; ++x)
+            for (int y = -2; y <= 2; ++y)
                 shadow += 1.0 - texture(shadowMap,
                     vec3(proj.xy + vec2(x, y) * texelSize, proj.z - bias));
-        return shadow / 9.0;
+        return shadow / 25.0;
     }
 
     void main()
@@ -1068,7 +1068,7 @@ void Renderer::drawBoxLines(const glm::mat4& projection,
                        1, GL_FALSE, glm::value_ptr(view));
     glUniform3f(glGetUniformLocation(lineProgram, "uColor"), color.r, color.g, color.b);
 
-    glLineWidth(2.0f);
+    glLineWidth(3.5f);
     glBindVertexArray(lineVAO);
     glDrawArrays(GL_LINES, 0, (GLsizei)lineVertexCount);
 }

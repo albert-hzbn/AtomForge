@@ -65,6 +65,7 @@ struct ImageExportRequest
     ImageExportFormat format = ImageExportFormat::Png;
     bool includeBackground = true;
     int resolutionScale = 1;
+    bool includeGizmo = false;
 };
 
 struct LatticePlane
@@ -409,6 +410,7 @@ private:
     int exportHistoryIndex;
     int selectedExportFormat;
     bool exportIncludeBackground;
+    bool exportIncludeGizmo;
     int exportResolutionScale;
     ImageExportRequest pendingImageExport;
 
