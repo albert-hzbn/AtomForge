@@ -17,10 +17,10 @@
 struct Renderer
 {
     // Lighting parameters — set each frame before draw calls.
-    float lightAmbient           = 0.18f;
+    float lightAmbient           = 0.40f;
     float lightSaturation        = 1.55f;
     float lightContrast          = 1.25f;
-    float lightShadowStrength    = 0.75f;
+    float lightShadowStrength    = 0.20f;
 
     // Material parameters — set each frame before draw calls.
     float materialSpecularIntensity = 0.65f;

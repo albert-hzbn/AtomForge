@@ -138,33 +138,45 @@ static const char* kAtomFS = R"(
     {
         float shadow = computeShadow(FragPosLight);
         vec3 norm = normalize(fragNormal);
-        vec3 lightPosFillA = vec3(-lightPos.x, lightPos.y, lightPos.z);
-        vec3 lightPosFillB = vec3(lightPos.x, -lightPos.y, lightPos.z);
-        vec3 lightPosFillC = vec3(-lightPos.x, 0.65 * lightPos.y, -0.60 * lightPos.z);
+        // Six fill lights at symmetric cube-octant positions for uniform coverage.
+        // Key light is (+x,+y,+z); fills cover the remaining 5 distinct octants.
+        vec3 lightPosFillA = vec3(-lightPos.x,  lightPos.y,  lightPos.z); // (-++)
+        vec3 lightPosFillB = vec3( lightPos.x, -lightPos.y,  lightPos.z); // (+-+)
+        vec3 lightPosFillC = vec3(-lightPos.x, -lightPos.y,  lightPos.z); // (--+)
+        vec3 lightPosFillD = vec3( lightPos.x,  lightPos.y, -lightPos.z); // (++-)
+        vec3 lightPosFillE = vec3(-lightPos.x,  lightPos.y, -lightPos.z); // (-+-)
 
-        vec3 lightDir0 = normalize(lightPos - fragWorldPos);
+        vec3 lightDir0 = normalize(lightPos      - fragWorldPos);
         vec3 lightDir1 = normalize(lightPosFillA - fragWorldPos);
         vec3 lightDir2 = normalize(lightPosFillB - fragWorldPos);
         vec3 lightDir3 = normalize(lightPosFillC - fragWorldPos);
+        vec3 lightDir4 = normalize(lightPosFillD - fragWorldPos);
+        vec3 lightDir5 = normalize(lightPosFillE - fragWorldPos);
 
         vec3 viewDir = normalize(viewPos - fragWorldPos);
         vec3 halfDir0 = normalize(lightDir0 + viewDir);
         vec3 halfDir1 = normalize(lightDir1 + viewDir);
         vec3 halfDir2 = normalize(lightDir2 + viewDir);
         vec3 halfDir3 = normalize(lightDir3 + viewDir);
+        vec3 halfDir4 = normalize(lightDir4 + viewDir);
+        vec3 halfDir5 = normalize(lightDir5 + viewDir);
 
         float diff0 = max(dot(norm, lightDir0), 0.0);
         float diff1 = max(dot(norm, lightDir1), 0.0);
         float diff2 = max(dot(norm, lightDir2), 0.0);
         float diff3 = max(dot(norm, lightDir3), 0.0);
-        float diff = 0.55 * diff0 + 0.20 * diff1 + 0.15 * diff2 + 0.10 * diff3;
+        float diff4 = max(dot(norm, lightDir4), 0.0);
+        float diff5 = max(dot(norm, lightDir5), 0.0);
+        float diff = 0.22 * diff0 + 0.17 * diff1 + 0.17 * diff2 + 0.15 * diff3 + 0.15 * diff4 + 0.14 * diff5;
 
         float specPower = max(fragShininess * uShininessScale, uShininessFloor);
         float spec0 = pow(max(dot(norm, halfDir0), 0.0), specPower);
         float spec1 = pow(max(dot(norm, halfDir1), 0.0), specPower);
         float spec2 = pow(max(dot(norm, halfDir2), 0.0), specPower);
         float spec3 = pow(max(dot(norm, halfDir3), 0.0), specPower);
-        float spec = 0.55 * spec0 + 0.20 * spec1 + 0.15 * spec2 + 0.10 * spec3;
+        float spec4 = pow(max(dot(norm, halfDir4), 0.0), specPower);
+        float spec5 = pow(max(dot(norm, halfDir5), 0.0), specPower);
+        float spec = 0.22 * spec0 + 0.17 * spec1 + 0.17 * spec2 + 0.15 * spec3 + 0.15 * spec4 + 0.14 * spec5;
 
         vec3 baseColor = fragColor;
         float luma = dot(baseColor, vec3(0.2126, 0.7152, 0.0722));
@@ -274,26 +286,35 @@ static const char* kBondFS = R"(
     void main()
     {
         vec3 norm = normalize(fragNormal);
-        vec3 lightPosFillA = vec3(-lightPos.x, lightPos.y, lightPos.z);
-        vec3 lightPosFillB = vec3(lightPos.x, -lightPos.y, lightPos.z);
-        vec3 lightPosFillC = vec3(-lightPos.x, 0.65 * lightPos.y, -0.60 * lightPos.z);
+        // Six fill lights at symmetric cube-octant positions for uniform coverage.
+        vec3 lightPosFillA = vec3(-lightPos.x,  lightPos.y,  lightPos.z);
+        vec3 lightPosFillB = vec3( lightPos.x, -lightPos.y,  lightPos.z);
+        vec3 lightPosFillC = vec3(-lightPos.x, -lightPos.y,  lightPos.z);
+        vec3 lightPosFillD = vec3( lightPos.x,  lightPos.y, -lightPos.z);
+        vec3 lightPosFillE = vec3(-lightPos.x,  lightPos.y, -lightPos.z);
 
-        vec3 lightDir0 = normalize(lightPos - fragWorldPos);
+        vec3 lightDir0 = normalize(lightPos      - fragWorldPos);
         vec3 lightDir1 = normalize(lightPosFillA - fragWorldPos);
         vec3 lightDir2 = normalize(lightPosFillB - fragWorldPos);
         vec3 lightDir3 = normalize(lightPosFillC - fragWorldPos);
+        vec3 lightDir4 = normalize(lightPosFillD - fragWorldPos);
+        vec3 lightDir5 = normalize(lightPosFillE - fragWorldPos);
 
         vec3 viewDir = normalize(viewPos - fragWorldPos);
         vec3 halfDir0 = normalize(lightDir0 + viewDir);
         vec3 halfDir1 = normalize(lightDir1 + viewDir);
         vec3 halfDir2 = normalize(lightDir2 + viewDir);
         vec3 halfDir3 = normalize(lightDir3 + viewDir);
+        vec3 halfDir4 = normalize(lightDir4 + viewDir);
+        vec3 halfDir5 = normalize(lightDir5 + viewDir);
 
         float diff0 = max(dot(norm, lightDir0), 0.0);
         float diff1 = max(dot(norm, lightDir1), 0.0);
         float diff2 = max(dot(norm, lightDir2), 0.0);
         float diff3 = max(dot(norm, lightDir3), 0.0);
-        float diff = 0.55 * diff0 + 0.20 * diff1 + 0.15 * diff2 + 0.10 * diff3;
+        float diff4 = max(dot(norm, lightDir4), 0.0);
+        float diff5 = max(dot(norm, lightDir5), 0.0);
+        float diff = 0.22 * diff0 + 0.17 * diff1 + 0.17 * diff2 + 0.15 * diff3 + 0.15 * diff4 + 0.14 * diff5;
 
         vec3 baseColor = (fragAxis < 0.0) ? fragColorA : fragColorB;
         float luma = dot(baseColor, vec3(0.2126, 0.7152, 0.0722));
@@ -306,7 +327,9 @@ static const char* kBondFS = R"(
         float spec1 = pow(max(dot(norm, halfDir1), 0.0), specPower);
         float spec2 = pow(max(dot(norm, halfDir2), 0.0), specPower);
         float spec3 = pow(max(dot(norm, halfDir3), 0.0), specPower);
-        float spec = 0.55 * spec0 + 0.20 * spec1 + 0.15 * spec2 + 0.10 * spec3;
+        float spec4 = pow(max(dot(norm, halfDir4), 0.0), specPower);
+        float spec5 = pow(max(dot(norm, halfDir5), 0.0), specPower);
+        float spec = 0.22 * spec0 + 0.17 * spec1 + 0.17 * spec2 + 0.15 * spec3 + 0.15 * spec4 + 0.14 * spec5;
 
         float litFactor = uAmbient + (1.0 - uAmbient) * diff;
         vec3 diffuse = baseColor * litFactor;
@@ -535,34 +558,44 @@ static const char* kAtomBillboardFS = R"(
 
         float shadow = computeShadow(FragPosLight);
 
-        // Multi-light Blinn-Phong matching the standard atom shader.
-        vec3 lightPosFillA = vec3(-lightPos.x, lightPos.y, lightPos.z);
-        vec3 lightPosFillB = vec3(lightPos.x, -lightPos.y, lightPos.z);
-        vec3 lightPosFillC = vec3(-lightPos.x, 0.65 * lightPos.y, -0.60 * lightPos.z);
+        // Six fill lights at symmetric cube-octant positions for uniform coverage.
+        vec3 lightPosFillA = vec3(-lightPos.x,  lightPos.y,  lightPos.z);
+        vec3 lightPosFillB = vec3( lightPos.x, -lightPos.y,  lightPos.z);
+        vec3 lightPosFillC = vec3(-lightPos.x, -lightPos.y,  lightPos.z);
+        vec3 lightPosFillD = vec3( lightPos.x,  lightPos.y, -lightPos.z);
+        vec3 lightPosFillE = vec3(-lightPos.x,  lightPos.y, -lightPos.z);
 
-        vec3 lightDir0 = normalize(lightPos - fragWorldPos);
+        vec3 lightDir0 = normalize(lightPos      - fragWorldPos);
         vec3 lightDir1 = normalize(lightPosFillA - fragWorldPos);
         vec3 lightDir2 = normalize(lightPosFillB - fragWorldPos);
         vec3 lightDir3 = normalize(lightPosFillC - fragWorldPos);
+        vec3 lightDir4 = normalize(lightPosFillD - fragWorldPos);
+        vec3 lightDir5 = normalize(lightPosFillE - fragWorldPos);
 
         vec3 vDir = normalize(viewPos - fragWorldPos);
         vec3 halfDir0 = normalize(lightDir0 + vDir);
         vec3 halfDir1 = normalize(lightDir1 + vDir);
         vec3 halfDir2 = normalize(lightDir2 + vDir);
         vec3 halfDir3 = normalize(lightDir3 + vDir);
+        vec3 halfDir4 = normalize(lightDir4 + vDir);
+        vec3 halfDir5 = normalize(lightDir5 + vDir);
 
         float diff0 = max(dot(norm, lightDir0), 0.0);
         float diff1 = max(dot(norm, lightDir1), 0.0);
         float diff2 = max(dot(norm, lightDir2), 0.0);
         float diff3 = max(dot(norm, lightDir3), 0.0);
-        float diff = 0.55 * diff0 + 0.20 * diff1 + 0.15 * diff2 + 0.10 * diff3;
+        float diff4 = max(dot(norm, lightDir4), 0.0);
+        float diff5 = max(dot(norm, lightDir5), 0.0);
+        float diff = 0.22 * diff0 + 0.17 * diff1 + 0.17 * diff2 + 0.15 * diff3 + 0.15 * diff4 + 0.14 * diff5;
 
         float specPower = max(fragShininess * uShininessScale, uShininessFloor);
         float spec0 = pow(max(dot(norm, halfDir0), 0.0), specPower);
         float spec1 = pow(max(dot(norm, halfDir1), 0.0), specPower);
         float spec2 = pow(max(dot(norm, halfDir2), 0.0), specPower);
         float spec3 = pow(max(dot(norm, halfDir3), 0.0), specPower);
-        float spec = 0.55 * spec0 + 0.20 * spec1 + 0.15 * spec2 + 0.10 * spec3;
+        float spec4 = pow(max(dot(norm, halfDir4), 0.0), specPower);
+        float spec5 = pow(max(dot(norm, halfDir5), 0.0), specPower);
+        float spec = 0.22 * spec0 + 0.17 * spec1 + 0.17 * spec2 + 0.15 * spec3 + 0.15 * spec4 + 0.14 * spec5;
 
         vec3 baseColor = fragColor;
         float luma = dot(baseColor, vec3(0.2126, 0.7152, 0.0722));

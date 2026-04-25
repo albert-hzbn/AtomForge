@@ -55,7 +55,7 @@ static constexpr double kNotificationLifetimeSeconds = 3.5;
 static float s_sidebarW = 130.0f;
  
 FileBrowser::FileBrowser()
-        : useLightTheme(false),
+        : useLightTheme(true),
             showAbout(false),
             showManual(false),
             showEditColors(false),

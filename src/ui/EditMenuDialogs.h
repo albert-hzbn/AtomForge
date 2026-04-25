@@ -16,10 +16,10 @@ struct EditMenuDialogs
     std::vector<float>     elementShininess;
 
     // Lighting parameters (applied as shader uniforms each frame).
-    float lightAmbient           = 0.18f;
+    float lightAmbient           = 0.40f;
     float lightSaturation        = 1.55f;
     float lightContrast          = 1.25f;
-    float lightShadowStrength    = 0.75f;
+    float lightShadowStrength    = 0.20f;
 
     // Material parameters (applied as shader uniforms each frame).
     float materialSpecularIntensity = 0.65f;
