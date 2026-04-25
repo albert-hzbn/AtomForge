@@ -10,6 +10,7 @@
 #include "io/StructureLoader.h"
 #include "app/SceneView.h"
 #include "camera/Camera.h"
+#include "ui/ThemeUtils.h"
 #include "imgui.h"
 
 #include <GL/glew.h>
@@ -196,7 +197,10 @@ void InterfaceBuilderDialog::renderToFBO(GLuint fbo, int w, int h,
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glViewport(0, 0, w, h);
     glEnable(GL_DEPTH_TEST);
-    glClearColor(0.09f, 0.11f, 0.15f, 1.0f);
+    {
+        const ImVec4& bg = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+        glClearColor(bg.x, bg.y, bg.z, bg.w);
+    }
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     m_renderer->drawBonds(frame.projection, frame.view,
@@ -572,7 +576,13 @@ void InterfaceBuilderDialog::draw2DPlot(float width, float height)
     };
 
     // Background
-    dl->AddRectFilled(canvasMin, canvasMax, IM_COL32(20, 25, 35, 255));
+    const bool lightChart = isLightTheme();
+    dl->AddRectFilled(canvasMin, canvasMax,
+                      lightChart ? IM_COL32(245, 246, 248, 255) : IM_COL32(20, 25, 35, 255));
+
+    const ImU32 gridCol   = lightChart ? IM_COL32(180, 180, 190, 100) : IM_COL32(60, 60, 60, 80);
+    const ImU32 labelCol  = lightChart ? IM_COL32(50,  50,  60,  255) : IM_COL32(180, 180, 180, 255);
+    const ImU32 axisCol   = lightChart ? IM_COL32(80,  80,  90,  255) : IM_COL32(180, 180, 180, 255);
 
     // Grid lines and tick labels
     int nTicks = 5;
@@ -583,34 +593,30 @@ void InterfaceBuilderDialog::draw2DPlot(float width, float height)
         float gy = canvasMin.y + t * canvasSize.y;
 
         // Vertical grid line
-        dl->AddLine(ImVec2(gx, canvasMin.y), ImVec2(gx, canvasMax.y),
-                    IM_COL32(60, 60, 60, 80));
+        dl->AddLine(ImVec2(gx, canvasMin.y), ImVec2(gx, canvasMax.y), gridCol);
         // Horizontal grid line
-        dl->AddLine(ImVec2(canvasMin.x, gy), ImVec2(canvasMax.x, gy),
-                    IM_COL32(60, 60, 60, 80));
+        dl->AddLine(ImVec2(canvasMin.x, gy), ImVec2(canvasMax.x, gy), gridCol);
 
         char buf[64];
 
         // X-axis tick labels (bottom, centered)
         std::snprintf(buf, sizeof(buf), "%.2f", xMin + t * (xMax - xMin));
         ImVec2 txSz = ImGui::CalcTextSize(buf);
-        dl->AddText(ImVec2(gx - txSz.x * 0.5f, canvasMax.y + 4.0f),
-                    IM_COL32(180, 180, 180, 255), buf);
+        dl->AddText(ImVec2(gx - txSz.x * 0.5f, canvasMax.y + 4.0f), labelCol, buf);
 
         // Y-axis tick labels (left, right-aligned)
         std::snprintf(buf, sizeof(buf), "%.0f", yMax - t * (yMax - yMin));
         txSz = ImGui::CalcTextSize(buf);
-        dl->AddText(ImVec2(canvasMin.x - txSz.x - 6.0f, gy - txSz.y * 0.5f),
-                    IM_COL32(180, 180, 180, 255), buf);
+        dl->AddText(ImVec2(canvasMin.x - txSz.x - 6.0f, gy - txSz.y * 0.5f), labelCol, buf);
     }
 
     // Solid axis lines on left and bottom edges
     dl->AddLine(ImVec2(canvasMin.x, canvasMin.y),
                 ImVec2(canvasMin.x, canvasMax.y),
-                IM_COL32(180, 180, 180, 255), 2.0f);
+                axisCol, 2.0f);
     dl->AddLine(ImVec2(canvasMin.x, canvasMax.y),
                 ImVec2(canvasMax.x, canvasMax.y),
-                IM_COL32(180, 180, 180, 255), 2.0f);
+                axisCol, 2.0f);
 
     // Plot points
     ImVec2 mousePos = ImGui::GetIO().MousePos;

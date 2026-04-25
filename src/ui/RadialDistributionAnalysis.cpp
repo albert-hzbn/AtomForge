@@ -2,6 +2,7 @@
 
 #include "ElementData.h"
 #include "math/StructureMath.h"
+#include "ui/ThemeUtils.h"
 #include "imgui.h"
 
 #include <glm/glm.hpp>
@@ -103,12 +104,25 @@ void drawPlot(const RdfResult& result,
 
     ImVec2 pMin = origin;
     ImVec2 pMax(origin.x + avail.x, origin.y + avail.y);
-    drawList->AddRectFilled(pMin, pMax, IM_COL32(20, 24, 31, 255));
-    drawList->AddRect(pMin, pMax, IM_COL32(110, 125, 150, 255));
+    const bool lightRdf = isLightTheme();
+    drawList->AddRectFilled(pMin, pMax,
+                            lightRdf ? IM_COL32(245, 246, 248, 255) : IM_COL32(20, 24, 31, 255));
+    drawList->AddRect(pMin, pMax,
+                      lightRdf ? IM_COL32(140, 145, 160, 255) : IM_COL32(110, 125, 150, 255));
+
+    const ImU32 noDataCol = lightRdf ? IM_COL32(80, 80, 100, 255)  : IM_COL32(220, 220, 220, 255);
+    const ImU32 gridCol   = lightRdf ? IM_COL32(170, 175, 190, 180) : IM_COL32(50, 60, 75, 255);
+    const ImU32 labelCol  = lightRdf ? IM_COL32(50, 50, 65, 255)   : IM_COL32(200, 200, 200, 255);
+    const ImU32 rdfLineCol   = lightRdf ? IM_COL32(20,  120, 210, 255) : IM_COL32(80,  220, 255, 255);
+    const ImU32 rawLineCol   = lightRdf ? IM_COL32(200, 110,  20, 220) : IM_COL32(255, 180,  80, 220);
+    const ImU32 cumLineCol   = lightRdf ? IM_COL32( 30, 150,  40, 220) : IM_COL32(140, 255, 140, 220);
+    const ImU32 rdfLabelCol  = lightRdf ? IM_COL32(20,  120, 210, 255) : IM_COL32(80,  220, 255, 255);
+    const ImU32 rawLabelCol  = lightRdf ? IM_COL32(200, 110,  20, 255) : IM_COL32(255, 180,  80, 255);
+    const ImU32 cumLabelCol  = lightRdf ? IM_COL32( 30, 150,  40, 255) : IM_COL32(140, 255, 140, 255);
 
     if (!result.valid || result.bins.empty())
     {
-        drawList->AddText(ImVec2(pMin.x + 10.0f, pMin.y + 10.0f), IM_COL32(220, 220, 220, 255), "No RDF data.");
+        drawList->AddText(ImVec2(pMin.x + 10.0f, pMin.y + 10.0f), noDataCol, "No RDF data.");
         ImGui::EndChild();
         return;
     }
@@ -120,7 +134,7 @@ void drawPlot(const RdfResult& result,
     ImVec2 gMin(pMin.x + leftPad, pMin.y + topPad);
     ImVec2 gMax(pMax.x - rightPad, pMax.y - bottomPad);
 
-    drawList->AddRect(gMin, gMax, IM_COL32(80, 90, 110, 255));
+    drawList->AddRect(gMin, gMax, lightRdf ? IM_COL32(150, 155, 170, 255) : IM_COL32(80, 90, 110, 255));
 
     float maxY = 0.0f;
     for (int i = 0; i < (int)result.bins.size(); ++i)
@@ -137,21 +151,21 @@ void drawPlot(const RdfResult& result,
     {
         float t = (float)grid / 4.0f;
         float y = gMax.y + (gMin.y - gMax.y) * t;
-        drawList->AddLine(ImVec2(gMin.x, y), ImVec2(gMax.x, y), IM_COL32(50, 60, 75, 255));
+        drawList->AddLine(ImVec2(gMin.x, y), ImVec2(gMax.x, y), gridCol);
         char label[32];
         std::snprintf(label, sizeof(label), "%.2f", maxY * t);
-        drawList->AddText(ImVec2(pMin.x + 4.0f, y - 7.0f), IM_COL32(200, 200, 200, 255), label);
+        drawList->AddText(ImVec2(pMin.x + 4.0f, y - 7.0f), labelCol, label);
     }
 
     for (int grid = 0; grid <= 4; ++grid)
     {
         float t = (float)grid / 4.0f;
         float x = gMin.x + (gMax.x - gMin.x) * t;
-        drawList->AddLine(ImVec2(x, gMin.y), ImVec2(x, gMax.y), IM_COL32(50, 60, 75, 255));
+        drawList->AddLine(ImVec2(x, gMin.y), ImVec2(x, gMax.y), gridCol);
         float r = result.rMin + (result.rMax - result.rMin) * t;
         char label[32];
         std::snprintf(label, sizeof(label), "%.2f", r);
-        drawList->AddText(ImVec2(x - 10.0f, gMax.y + 6.0f), IM_COL32(200, 200, 200, 255), label);
+        drawList->AddText(ImVec2(x - 10.0f, gMax.y + 6.0f), labelCol, label);
     }
 
     std::vector<ImVec2> rdfPoints;
@@ -177,17 +191,17 @@ void drawPlot(const RdfResult& result,
     }
 
     if (rdfPoints.size() >= 2)
-        drawList->AddPolyline(&rdfPoints[0], (int)rdfPoints.size(), IM_COL32(80, 220, 255, 255), 0, 2.0f);
+        drawList->AddPolyline(&rdfPoints[0], (int)rdfPoints.size(), rdfLineCol, 0, 2.0f);
     if (showRawCounts && rawPoints.size() >= 2)
-        drawList->AddPolyline(&rawPoints[0], (int)rawPoints.size(), IM_COL32(255, 180, 80, 220), 0, 2.0f);
+        drawList->AddPolyline(&rawPoints[0], (int)rawPoints.size(), rawLineCol, 0, 2.0f);
     if (showCumulative && cumulativePoints.size() >= 2)
-        drawList->AddPolyline(&cumulativePoints[0], (int)cumulativePoints.size(), IM_COL32(140, 255, 140, 220), 0, 2.0f);
+        drawList->AddPolyline(&cumulativePoints[0], (int)cumulativePoints.size(), cumLineCol, 0, 2.0f);
 
-    drawList->AddText(ImVec2(gMin.x + 8.0f, gMin.y + 6.0f), IM_COL32(80, 220, 255, 255), result.normalized ? "g(r)" : "Histogram");
+    drawList->AddText(ImVec2(gMin.x + 8.0f, gMin.y + 6.0f), rdfLabelCol, result.normalized ? "g(r)" : "Histogram");
     if (showRawCounts)
-        drawList->AddText(ImVec2(gMin.x + 64.0f, gMin.y + 6.0f), IM_COL32(255, 180, 80, 255), "Counts");
+        drawList->AddText(ImVec2(gMin.x + 64.0f, gMin.y + 6.0f), rawLabelCol, "Counts");
     if (showCumulative)
-        drawList->AddText(ImVec2(gMin.x + 130.0f, gMin.y + 6.0f), IM_COL32(140, 255, 140, 255), "Cumulative CN");
+        drawList->AddText(ImVec2(gMin.x + 130.0f, gMin.y + 6.0f), cumLabelCol, "Cumulative CN");
 
     ImGui::EndChild();
 }

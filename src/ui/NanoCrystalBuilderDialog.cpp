@@ -12,6 +12,7 @@
 #include "io/StructureLoader.h"
 #include "app/SceneView.h"
 #include "camera/Camera.h"
+#include "ui/ThemeUtils.h"
 #include "imgui.h"
 
 #include <GL/glew.h>
@@ -807,7 +808,10 @@ void NanoCrystalBuilderDialog::renderPreviewToFBO(int w, int h)
     glBindFramebuffer(GL_FRAMEBUFFER, m_previewFBO);
     glViewport(0, 0, w, h);
     glEnable(GL_DEPTH_TEST);
-    glClearColor(0.09f, 0.11f, 0.15f, 1.0f);
+    {
+        const ImVec4& bg = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+        glClearColor(bg.x, bg.y, bg.z, bg.w);
+    }
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     m_renderer->drawBonds(frame.projection, frame.view,
@@ -860,7 +864,10 @@ void NanoCrystalBuilderDialog::renderWulffPreviewToFBO(int w, int h)
     glBindFramebuffer(GL_FRAMEBUFFER, m_wulffPreviewFBO);
     glViewport(0, 0, w, h);
     glEnable(GL_DEPTH_TEST);
-    glClearColor(0.08f, 0.10f, 0.13f, 1.0f);
+    {
+        const ImVec4& bg = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+        glClearColor(bg.x, bg.y, bg.z, bg.w);
+    }
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (m_wulffPlaneProgram != 0)
