@@ -667,19 +667,25 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             state.pendingNewTabStructures.clear();
             for (auto& newStruct : newStructures)
             {
-                saveCameraToTab(camera, *tabs[activeTabIdx]);
-                tabs.push_back(std::make_unique<StructureTab>());
-                int newIdx = (int)tabs.size() - 1;
-                initTabResources(*tabs[newIdx], sphere, lowPolyMesh, billboardMesh, cylinder, renderer);
-                copyDisplaySettings(tabs[activeTabIdx]->state, tabs[newIdx]->state);
-                EditorState& t = tabs[newIdx]->state;
+                // Reuse the current tab if it is empty; otherwise open a new one.
+                // This prevents a stale empty tab from remaining after a build.
+                int targetIdx = activeTabIdx;
+                if (!tabs[activeTabIdx]->state.structure.atoms.empty())
+                {
+                    saveCameraToTab(camera, *tabs[activeTabIdx]);
+                    tabs.push_back(std::make_unique<StructureTab>());
+                    targetIdx = (int)tabs.size() - 1;
+                    initTabResources(*tabs[targetIdx], sphere, lowPolyMesh, billboardMesh, cylinder, renderer);
+                    copyDisplaySettings(tabs[activeTabIdx]->state, tabs[targetIdx]->state);
+                    activeTabIdx     = targetIdx;
+                    pendingTabSwitch = targetIdx;
+                    restoreCameraFromTab(camera, *tabs[activeTabIdx]);
+                }
+                EditorState& t = tabs[targetIdx]->state;
                 t.structure = std::move(newStruct);
                 updateBuffers(t);
                 t.pendingDefaultViewReset = true;
-                std::snprintf(tabs[newIdx]->title, sizeof(tabs[newIdx]->title), "Untitled");
-                activeTabIdx = newIdx;
-                pendingTabSwitch = newIdx;
-                restoreCameraFromTab(camera, *tabs[newIdx]);
+                std::snprintf(tabs[targetIdx]->title, sizeof(tabs[targetIdx]->title), "Untitled");
             }
         }
 
@@ -783,7 +789,13 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                             pendingTabSwitch = -1;
                         }
 
-                        if (ImGui::BeginTabItem(tabs[i]->title, &tabOpen, itemFlags))
+                        // Append ##<index> so ImGui IDs are unique even when
+                        // multiple tabs share the same display title ("Untitled").
+                        char tabLabel[272];
+                        std::snprintf(tabLabel, sizeof(tabLabel), "%s##tab%d",
+                                      tabs[i]->title, i);
+
+                        if (ImGui::BeginTabItem(tabLabel, &tabOpen, itemFlags))
                         {
                             if (activeTabIdx != i)
                             {
