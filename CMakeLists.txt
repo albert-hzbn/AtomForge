@@ -74,6 +74,7 @@ set(ATOMFORGE_SOURCES
     src/ui/StructureInfoDialog.cpp
     src/ui/TransformAtomsDialog.cpp
     src/ui/SubstitutionalSolidSolutionDialog.cpp
+    src/ui/AmorphousBuilderDialog.cpp
     src/util/PathUtils.cpp
     src/algorithms/CSLComputation.cpp
     src/algorithms/MeshLoader.cpp
@@ -84,6 +85,7 @@ set(ATOMFORGE_SOURCES
     src/algorithms/StackingFaultBuilder.cpp
     src/algorithms/VoronoiComputation.cpp
     src/algorithms/SubstitutionalSolidSolutionBuilder.cpp
+    src/algorithms/AmorphousBuilder.cpp
     src/io/StructureLoader.cpp
     imgui/imgui.cpp
     imgui/imgui_draw.cpp

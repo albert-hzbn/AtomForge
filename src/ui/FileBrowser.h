@@ -10,6 +10,7 @@
 #include "ui/PolyCrystalBuilderDialog.h"
 #include "ui/StackingFaultBuilderDialog.h"
 #include "ui/SubstitutionalSolidSolutionDialog.h"
+#include "ui/AmorphousBuilderDialog.h"
 #include "ui/CommonNeighbourAnalysis.h"
 #include "ui/RadialDistributionAnalysis.h"
 #include "ui/PolyhedralOverlay.h"
@@ -327,6 +328,9 @@ struct FileBrowser
     bool isSubstitutionalSolidSolutionDialogOpen() const;
     void feedDropToSubstitutionalSolidSolutionDialog(const std::string& path);
 
+    // Amorphous structure builder dialog (no GL resources needed).
+    bool isAmorphousBuilderDialogOpen() const;
+
     // Returns true if any builder/analysis/file dialog is currently open.
     bool isAnyDialogOpen() const;
 
@@ -462,6 +466,7 @@ private:
     PolyCrystalBuilderDialog polyCrystalDialog;
     StackingFaultBuilderDialog stackingFaultDialog;
     SubstitutionalSolidSolutionDialog substitutionalSolidSolutionDialog;
+    AmorphousBuilderDialog amorphousBuilderDialog;
     CommonNeighbourAnalysisDialog cnaDialog;
     RadialDistributionAnalysisDialog rdfDialog;
     TransformAtomsDialog transformDialog;

@@ -399,6 +399,7 @@ void FileBrowser::draw(Structure& structure,
             nanoCrystalDialog.drawMenuItem(true);
             customStructureDialog.drawMenuItem(true);
             polyCrystalDialog.drawMenuItem(true);
+            amorphousBuilderDialog.drawMenuItem(true);
             ImGui::EndMenu();
         }
 
@@ -689,6 +690,9 @@ void FileBrowser::draw(Structure& structure,
                                                   editMenuDialogs.elementRadii,
                                                   editMenuDialogs.elementShininess,
                                                   updateFromBuilderToNewTab);
+    amorphousBuilderDialog.drawDialog(editMenuDialogs.elementColors,
+                                      editMenuDialogs.elementRadii,
+                                      updateFromBuilderToNewTab);
     cnaDialog.drawDialog(structure);
     rdfDialog.drawDialog(structure);
 
@@ -2128,6 +2132,7 @@ bool FileBrowser::isAnyDialogOpen() const
         || isPolyCrystalDialogOpen()
         || isStackingFaultDialogOpen()
         || isSubstitutionalSolidSolutionDialogOpen()
+        || isAmorphousBuilderDialogOpen()
         || showAbout
         || showManual
         || showEditColors
@@ -2139,6 +2144,11 @@ bool FileBrowser::isAnyDialogOpen() const
 void FileBrowser::feedDropToSubstitutionalSolidSolutionDialog(const std::string& path)
 {
     substitutionalSolidSolutionDialog.feedDroppedFile(path);
+}
+
+bool FileBrowser::isAmorphousBuilderDialogOpen() const
+{
+    return amorphousBuilderDialog.isOpen();
 }
 
 void FileBrowser::showLoadError(const std::string& message)

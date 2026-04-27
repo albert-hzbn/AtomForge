@@ -16,3 +16,7 @@ std::vector<float> makeLiteratureCovalentRadii();
 // CPK-style default colours for each element.
 // Returns a vector of size 119 indexed by atomic number (index 0 unused).
 std::vector<glm::vec3> makeDefaultElementColors();
+
+// Standard atomic weight (g/mol or u) for atomic number z (1–118).
+// Returns 1.0 for out-of-range or unstable elements with no standard weight.
+double elementAtomicMass(int z);

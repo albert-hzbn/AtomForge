@@ -238,59 +238,6 @@ void draw3DAxis(ImDrawList* drawList,
     drawList->AddText(ImVec2(p1.screen.x + 5.5f, p1.screen.y + 4.0f), axis.color, axis.label);
 }
 
-void draw3DWireCube(ImDrawList* drawList,
-                    ImVec2 origin,
-                    const glm::mat3& viewRotation,
-                    float halfExtent,
-                    float projectionScale)
-{
-    const std::array<glm::vec3, 8> cubeLocal = {{
-        {-halfExtent, -halfExtent, -halfExtent},
-        { halfExtent, -halfExtent, -halfExtent},
-        { halfExtent,  halfExtent, -halfExtent},
-        {-halfExtent,  halfExtent, -halfExtent},
-        {-halfExtent, -halfExtent,  halfExtent},
-        { halfExtent, -halfExtent,  halfExtent},
-        { halfExtent,  halfExtent,  halfExtent},
-        {-halfExtent,  halfExtent,  halfExtent}
-    }};
-
-    const std::array<GizmoEdge, 12> edges = {{
-        {0, 1}, {1, 2}, {2, 3}, {3, 0},
-        {4, 5}, {5, 6}, {6, 7}, {7, 4},
-        {0, 4}, {1, 5}, {2, 6}, {3, 7}
-    }};
-
-    std::array<ProjectedPoint, 8> projectedPoints;
-    for (std::size_t i = 0; i < cubeLocal.size(); ++i)
-    {
-        const glm::vec3 rotated = viewRotation * cubeLocal[i];
-        const glm::vec3 gizmoPoint(rotated.x, rotated.y, toGizmoDepth(rotated));
-        projectedPoints[i] = projectGizmoPoint(gizmoPoint, origin, projectionScale);
-    }
-
-    std::array<int, 12> edgeOrder = {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}};
-    std::sort(edgeOrder.begin(), edgeOrder.end(), [&](int lhs, int rhs) {
-        const GizmoEdge& e0 = edges[(std::size_t)lhs];
-        const GizmoEdge& e1 = edges[(std::size_t)rhs];
-        const float z0 = 0.5f * (projectedPoints[(std::size_t)e0.a].depth + projectedPoints[(std::size_t)e0.b].depth);
-        const float z1 = 0.5f * (projectedPoints[(std::size_t)e1.a].depth + projectedPoints[(std::size_t)e1.b].depth);
-        return z0 < z1;
-    });
-
-    for (int orderIndex : edgeOrder)
-    {
-        const GizmoEdge& edge = edges[(std::size_t)orderIndex];
-        const ProjectedPoint& a = projectedPoints[(std::size_t)edge.a];
-        const ProjectedPoint& b = projectedPoints[(std::size_t)edge.b];
-        const float zMid = 0.5f * (a.depth + b.depth);
-        const float alphaFactor = glm::clamp(0.45f + 0.35f * ((zMid + 1.0f) * 0.5f), 0.25f, 0.9f);
-        const int alpha = (int)(alphaFactor * 255.0f);
-        drawList->AddLine(a.screen, b.screen,
-                          isLightTheme() ? IM_COL32(60, 50, 40, alpha) : IM_COL32(205, 215, 230, alpha), 1.0f);
-    }
-}
-
 void draw3DOrientationGizmo(ImDrawList* drawList,
                             ImVec2 origin,
                             const std::array<AxisOverlayEntry, 3>& axes)

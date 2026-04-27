@@ -724,7 +724,6 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
             // Column widths.
             constexpr float kSymW  = 56.0f;
             constexpr float kPctW  = 150.0f;
-            constexpr float kAtomW = 90.0f;
 
             // Header row.
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetColorU32(ImGuiCol_TextDisabled));
