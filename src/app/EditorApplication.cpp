@@ -695,6 +695,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             continue;
 
         applyPendingDefaultViewReset(camera, state, frame);
+        camera.applyScrollVelocity(glfwGetTime());
         buildFrameView(camera, state.sceneBuffers, state.fileBrowser.isOrthographicViewEnabled(), frame);
 
         if (state.grabState.active)

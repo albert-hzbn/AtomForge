@@ -132,14 +132,37 @@ void Camera::scroll(GLFWwindow*, double, double y)
     if (ImGui::GetIO().WantCaptureMouse)
         return;
 
-    // Proportional zoom: each scroll step scales distance by a fixed ratio.
-    // This makes zooming feel equally responsive when close up or far away.
-    float factor = 1.0f - (float)y * instance->zoomSpeed * 0.15f;
-    instance->distance *= factor;
+    // Accumulate scroll delta into a velocity bucket.
+    // Both discrete mouse-wheel notches (y ≈ ±1) and the many rapid
+    // sub-unit events emitted by laptop touchpads land here and are
+    // applied together per frame, giving smooth zoom for both devices.
+    instance->scrollVelocity += (float)y * instance->zoomSpeed;
+}
 
-    if(instance->distance < Camera::kMinDistance)
-        instance->distance = Camera::kMinDistance;
+void Camera::applyScrollVelocity(double now)
+{
+    // Compute delta-time, guarding against the first-frame spike.
+    const double dt = (lastFrameTime > 0.0)
+                      ? std::min(now - lastFrameTime, 0.1)
+                      : 0.0;
+    lastFrameTime = now;
 
-    if(instance->distance > Camera::kMaxDistance)
-        instance->distance = Camera::kMaxDistance;
+    if (std::abs(scrollVelocity) < 1e-5f)
+        return;
+
+    // Exponential decay: time constant ≈ 1/12 s (≈ 83 ms).
+    // Over an infinite number of frames the total zoom consumed equals
+    // the full accumulated velocity, preserving the same zoom-per-notch
+    // as the original instantaneous formula regardless of frame rate.
+    constexpr float kDecay = 12.0f;
+    const float retain   = std::exp(-kDecay * (float)dt);
+    const float consumed = scrollVelocity * (1.0f - retain);
+    scrollVelocity      *= retain;
+    if (std::abs(scrollVelocity) < 0.001f)
+        scrollVelocity = 0.0f;
+
+    // Apply proportional zoom: same 0.15 coefficient as before.
+    const float factor = 1.0f - consumed * 0.15f;
+    distance *= factor;
+    distance  = std::max(kMinDistance, std::min(kMaxDistance, distance));
 }

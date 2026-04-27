@@ -20,6 +20,15 @@ public:
     float sensitivity = 0.3f;
     float zoomSpeed   = 0.5f;
 
+    // Accumulated scroll velocity for smooth zoom (supports both mouse wheel
+    // and touchpad precision scrolling). Applied and decayed each frame.
+    float scrollVelocity = 0.0f;
+    double lastFrameTime = 0.0;  // glfwGetTime() at start of previous frame
+
+    // Must be called once per frame (before buildFrameView) to apply
+    // accumulated scroll velocity with exponential decay.
+    void applyScrollVelocity(double now);
+
     bool mouseDown = false;
     bool middleMouseDown = false;
     bool rightMouseDown = false;
