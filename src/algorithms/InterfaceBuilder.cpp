@@ -164,17 +164,27 @@ Structure repeatLayersZ(const Structure& base, int layers)
 
     std::vector<AtomSite> origAtoms = base.atoms;
 
+    // Each layer is independent: build in parallel, then merge in order.
+    std::vector<std::vector<AtomSite>> layerAtoms((size_t)(layers - 1));
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
     for (int l = 1; l < layers; ++l)
     {
-        for (const auto& atom : origAtoms)
+        std::vector<AtomSite>& la = layerAtoms[(size_t)(l - 1)];
+        la.resize(origAtoms.size());
+        for (size_t k = 0; k < origAtoms.size(); ++k)
         {
-            AtomSite a = atom;
-            a.x += l * cz[0];
-            a.y += l * cz[1];
-            a.z += l * cz[2];
-            result.atoms.push_back(a);
+            la[k] = origAtoms[k];
+            la[k].x += l * cz[0];
+            la[k].y += l * cz[1];
+            la[k].z += l * cz[2];
         }
     }
+
+    result.atoms.reserve((size_t)layers * origAtoms.size());
+    for (auto& la : layerAtoms)
+        result.atoms.insert(result.atoms.end(), la.begin(), la.end());
 
     result.cellVectors[2][0] *= layers;
     result.cellVectors[2][1] *= layers;
@@ -265,19 +275,31 @@ Structure repeatInterfaceXY(const Structure& iface, int rx, int ry)
     double ax = iface.cellVectors[0][0], ay = iface.cellVectors[0][1];
     double bx = iface.cellVectors[1][0], by = iface.cellVectors[1][1];
 
-    for (int ix = 0; ix < rx; ++ix)
-    for (int iy = 0; iy < ry; ++iy)
+    // Each tile is independent: build in parallel, merge in order.
+    const int totalTiles = rx * ry;
+    std::vector<std::vector<AtomSite>> tileAtoms((size_t)totalTiles);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+    for (int t = 0; t < totalTiles; ++t)
     {
-        double dx = ix * ax + iy * bx;
-        double dy = ix * ay + iy * by;
-        for (const auto& atom : iface.atoms)
+        const int ix = t / ry;
+        const int iy = t % ry;
+        const double dx = ix * ax + iy * bx;
+        const double dy = ix * ay + iy * by;
+        std::vector<AtomSite>& tile = tileAtoms[(size_t)t];
+        tile.resize(iface.atoms.size());
+        for (size_t k = 0; k < iface.atoms.size(); ++k)
         {
-            AtomSite a = atom;
-            a.x += dx;
-            a.y += dy;
-            result.atoms.push_back(a);
+            tile[k] = iface.atoms[k];
+            tile[k].x += dx;
+            tile[k].y += dy;
         }
     }
+
+    result.atoms.reserve((size_t)totalTiles * iface.atoms.size());
+    for (auto& tile : tileAtoms)
+        result.atoms.insert(result.atoms.end(), tile.begin(), tile.end());
 
     result.cellVectors[0][0] *= rx;
     result.cellVectors[0][1] *= rx;

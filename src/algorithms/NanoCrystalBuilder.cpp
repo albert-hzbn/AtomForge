@@ -903,39 +903,56 @@ NanoBuildResult buildNanocrystal(Structure& structure,
                 return result;
             }
 
-            generatedAtoms.reserve((size_t)std::min(total, (long long)2000000));
             const float insideTolerance = std::max(1e-3f, preview.maxPlaneDistance * 1e-4f);
-            for (int ia = -nA; ia <= nA; ++ia)
-            for (int ib = -nB; ib <= nB; ++ib)
-            for (int ic = -nC; ic <= nC; ++ic)
             {
-                const glm::vec3 offset = (float)ia * a + (float)ib * b + (float)ic * c;
-                for (const AtomSite& atom : reference.atoms)
+                const int numSlices = 2 * nA + 1;
+                std::vector<std::vector<AtomSite>> sliceAtoms(numSlices);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+                for (int si = 0; si < numSlices; ++si)
                 {
-                    const glm::vec3 localPos((float)atom.x - center.x,
-                                             (float)atom.y - center.y,
-                                             (float)atom.z - center.z);
-                    const glm::vec3 pos = center + (orientation * localPos) + offset;
-                    if (!isInsideWulffPolyhedron(pos - center, preview, insideTolerance))
-                        continue;
+                    const int ia = si - nA;
+                    std::vector<AtomSite>& slice = sliceAtoms[si];
+                    for (int ib = -nB; ib <= nB; ++ib)
+                    for (int ic = -nC; ic <= nC; ++ic)
+                    {
+                        const glm::vec3 offset = (float)ia * a + (float)ib * b + (float)ic * c;
+                        for (const AtomSite& atom : reference.atoms)
+                        {
+                            const glm::vec3 localPos((float)atom.x - center.x,
+                                                     (float)atom.y - center.y,
+                                                     (float)atom.z - center.z);
+                            const glm::vec3 pos = center + (orientation * localPos) + offset;
+                            if (!isInsideWulffPolyhedron(pos - center, preview, insideTolerance))
+                                continue;
 
-                    AtomSite out = atom;
-                    out.x = (double)pos.x;
-                    out.y = (double)pos.y;
-                    out.z = (double)pos.z;
-                    const int z = out.atomicNumber;
-                    if (z >= 0 && z < (int)elementColors.size())
-                    {
-                        out.r = elementColors[z].r;
-                        out.g = elementColors[z].g;
-                        out.b = elementColors[z].b;
+                            AtomSite out = atom;
+                            out.x = (double)pos.x;
+                            out.y = (double)pos.y;
+                            out.z = (double)pos.z;
+                            const int z = out.atomicNumber;
+                            if (z >= 0 && z < (int)elementColors.size())
+                            {
+                                out.r = elementColors[z].r;
+                                out.g = elementColors[z].g;
+                                out.b = elementColors[z].b;
+                            }
+                            else
+                            {
+                                getDefaultElementColor(z, out.r, out.g, out.b);
+                            }
+                            slice.push_back(out);
+                        }
                     }
-                    else
-                    {
-                        getDefaultElementColor(z, out.r, out.g, out.b);
-                    }
-                    generatedAtoms.push_back(out);
                 }
+                size_t totalAtoms = 0;
+                for (const auto& s : sliceAtoms) totalAtoms += s.size();
+                generatedAtoms.reserve(totalAtoms);
+                for (auto& s : sliceAtoms)
+                    generatedAtoms.insert(generatedAtoms.end(),
+                                          std::make_move_iterator(s.begin()),
+                                          std::make_move_iterator(s.end()));
             }
         }
         else
@@ -1161,38 +1178,58 @@ NanoBuildResult buildNanocrystal(Structure& structure,
             return result;
         }
 
-        generatedAtoms.reserve((size_t)std::min(total, (long long)2000000));
+        {
+            const int numSlices = 2 * nA + 1;
+            std::vector<std::vector<AtomSite>> sliceAtoms(numSlices);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+            for (int si = 0; si < numSlices; ++si) {
+                const int ia = si - nA;
+                std::vector<AtomSite>& slice = sliceAtoms[si];
+                for (int ib = -nB; ib <= nB; ++ib)
+                for (int ic = -nC; ic <= nC; ++ic) {
+                    const glm::vec3 offset = (float)ia*a + (float)ib*b + (float)ic*c;
+                    for (const AtomSite& atom : reference.atoms) {
+                        const glm::vec3 localPos((float)atom.x - center.x,
+                                                 (float)atom.y - center.y,
+                                                 (float)atom.z - center.z);
+                        const glm::vec3 pos = center + (orientation * localPos) + offset;
+                        if (!isInsideShape(pos - center, params, modelVertices, modelIndices)) continue;
 
-        for (int ia = -nA; ia <= nA; ++ia)
-        for (int ib = -nB; ib <= nB; ++ib)
-        for (int ic = -nC; ic <= nC; ++ic) {
-            const glm::vec3 offset = (float)ia*a + (float)ib*b + (float)ic*c;
-            for (const AtomSite& atom : reference.atoms) {
-                const glm::vec3 localPos((float)atom.x - center.x,
-                                         (float)atom.y - center.y,
-                                         (float)atom.z - center.z);
-                const glm::vec3 pos = center + (orientation * localPos) + offset;
-                if (!isInsideShape(pos - center, params, modelVertices, modelIndices)) continue;
-
-                AtomSite out = atom;
-                out.x = (double)pos.x;
-                out.y = (double)pos.y;
-                out.z = (double)pos.z;
-                int z = out.atomicNumber;
-                if (z >= 0 && z < (int)elementColors.size()) {
-                    out.r = elementColors[z].r;
-                    out.g = elementColors[z].g;
-                    out.b = elementColors[z].b;
-                } else {
-                    getDefaultElementColor(z, out.r, out.g, out.b);
+                        AtomSite out = atom;
+                        out.x = (double)pos.x;
+                        out.y = (double)pos.y;
+                        out.z = (double)pos.z;
+                        const int z = out.atomicNumber;
+                        if (z >= 0 && z < (int)elementColors.size()) {
+                            out.r = elementColors[z].r;
+                            out.g = elementColors[z].g;
+                            out.b = elementColors[z].b;
+                        } else {
+                            getDefaultElementColor(z, out.r, out.g, out.b);
+                        }
+                        slice.push_back(out);
+                    }
                 }
-                generatedAtoms.push_back(out);
             }
+            size_t totalAtoms = 0;
+            for (const auto& s : sliceAtoms) totalAtoms += s.size();
+            generatedAtoms.reserve(totalAtoms);
+            for (auto& s : sliceAtoms)
+                generatedAtoms.insert(generatedAtoms.end(),
+                                      std::make_move_iterator(s.begin()),
+                                      std::make_move_iterator(s.end()));
         }
     } else {
         result.tilingUsed = false;
-        generatedAtoms.reserve(reference.atoms.size());
-        for (const AtomSite& atom : reference.atoms) {
+        const int nRef = (int)reference.atoms.size();
+        std::vector<std::vector<AtomSite>> perAtom((size_t)nRef);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+        for (int ai = 0; ai < nRef; ++ai) {
+            const AtomSite& atom = reference.atoms[(size_t)ai];
             const glm::vec3 localPos((float)atom.x - center.x,
                                      (float)atom.y - center.y,
                                      (float)atom.z - center.z);
@@ -1210,8 +1247,15 @@ NanoBuildResult buildNanocrystal(Structure& structure,
             } else {
                 getDefaultElementColor(z, out.r, out.g, out.b);
             }
-            generatedAtoms.push_back(out);
+            perAtom[(size_t)ai].push_back(std::move(out));
         }
+        size_t total = 0;
+        for (const auto& v : perAtom) total += v.size();
+        generatedAtoms.reserve(total);
+        for (auto& v : perAtom)
+            generatedAtoms.insert(generatedAtoms.end(),
+                                  std::make_move_iterator(v.begin()),
+                                  std::make_move_iterator(v.end()));
     }
 
     if (generatedAtoms.empty()) {

@@ -1231,13 +1231,20 @@ Grain makeSupercell(const Grain& grain, const int M[3][3])
     }
     searchRange += 1;
 
-    for (size_t ai = 0; ai < grain.atoms.size(); ai++)
+    // Parallelize per-atom: each atom's search loop is independent.
+    const int numAtoms = (int)grain.atoms.size();
+    std::vector<std::vector<AtomSite>> atomCandidates((size_t)numAtoms);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
+    for (int ai = 0; ai < numAtoms; ai++)
     {
-        const AtomSite& atom = grain.atoms[ai];
+        const AtomSite& atom = grain.atoms[(size_t)ai];
         double cart[3] = {atom.x, atom.y, atom.z};
         double oldFrac[3];
         cartToFrac(cart, cellInv, oldFrac);
 
+        std::vector<AtomSite>& cands = atomCandidates[(size_t)ai];
         for (int ti = -searchRange; ti <= searchRange; ti++)
         for (int tj = -searchRange; tj <= searchRange; tj++)
         for (int tk = -searchRange; tk <= searchRange; tk++)
@@ -1269,9 +1276,11 @@ Grain makeSupercell(const Grain& grain, const int M[3][3])
             newAtom.x = newCart[0];
             newAtom.y = newCart[1];
             newAtom.z = newCart[2];
-            result.atoms.push_back(newAtom);
+            cands.push_back(newAtom);
         }
     }
+    for (auto& cands : atomCandidates)
+        result.atoms.insert(result.atoms.end(), cands.begin(), cands.end());
 
     canonicalizeGrain(result);
 

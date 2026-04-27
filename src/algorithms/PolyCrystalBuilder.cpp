@@ -346,6 +346,12 @@ PolyBuildResult buildPolycrystal(Structure& structure,
         }
         return false;
     };
+    // Parallel phase: per-grain tiling and Voronoi filtering (no shared writes).
+    // Each grain accumulates candidates into its own vector.
+    std::vector<std::vector<AtomSite>> grainCandidates(params.numGrains);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(dynamic)
+#endif
     for (int g = 0; g < params.numGrains; ++g)
     {
         const glm::vec3& seed = seeds[g];
@@ -358,6 +364,8 @@ PolyBuildResult buildPolycrystal(Structure& structure,
         const int nA = std::min(100, (int)std::ceil(boxDiag / rla) + 2);
         const int nB = std::min(100, (int)std::ceil(boxDiag / rlb) + 2);
         const int nC = std::min(100, (int)std::ceil(boxDiag / rlc) + 2);
+
+        std::vector<AtomSite>& candidates = grainCandidates[g];
 
         for (int ia = -nA; ia <= nA; ++ia)
         for (int ib = -nB; ib <= nB; ++ib)
@@ -393,15 +401,12 @@ PolyBuildResult buildPolycrystal(Structure& structure,
                 if (nearestSeedPeriodic(wrappedPos, seeds, boxSize) != g)
                     continue;
 
-                if (isDuplicateSite(wrappedPos, atom.atomicNumber))
-                    continue;
-
                 AtomSite out = atom;
                 out.x = (double)wrappedPos.x;
                 out.y = (double)wrappedPos.y;
                 out.z = (double)wrappedPos.z;
 
-                int z = out.atomicNumber;
+                const int z = out.atomicNumber;
                 if (z >= 0 && z < (int)elementColors.size())
                 {
                     out.r = elementColors[z].r;
@@ -412,10 +417,23 @@ PolyBuildResult buildPolycrystal(Structure& structure,
                 {
                     getDefaultElementColor(z, out.r, out.g, out.b);
                 }
-                generatedAtoms.push_back(out);
-                atomGrainIndex.push_back(g);
-                dedupGrid[dedupCellOf(wrappedPos)].push_back((int)generatedAtoms.size() - 1);
+                candidates.push_back(out);
             }
+        }
+    }
+
+    // Serial dedup merge phase: iterate grains in order, inserting only
+    // atoms that are not duplicates of already-accepted sites.
+    for (int g = 0; g < params.numGrains; ++g)
+    {
+        for (const AtomSite& atom : grainCandidates[g])
+        {
+            const glm::vec3 wrappedPos((float)atom.x, (float)atom.y, (float)atom.z);
+            if (isDuplicateSite(wrappedPos, atom.atomicNumber))
+                continue;
+            generatedAtoms.push_back(atom);
+            atomGrainIndex.push_back(g);
+            dedupGrid[dedupCellOf(wrappedPos)].push_back((int)generatedAtoms.size() - 1);
         }
     }
 

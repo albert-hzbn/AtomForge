@@ -183,6 +183,15 @@ if(ATOMFORGE_ENABLE_SPGLIB)
     endif()
 endif()
 
+# OpenMP (optional) – enables multi-threaded atom generation in structure builders
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(AtomForge PRIVATE OpenMP::OpenMP_CXX)
+    message(STATUS "OpenMP found: parallel atom generation enabled")
+else()
+    message(STATUS "OpenMP not found: structure builders will run single-threaded")
+endif()
+
 # ============================================================================
 # Portable Build Option
 # ============================================================================

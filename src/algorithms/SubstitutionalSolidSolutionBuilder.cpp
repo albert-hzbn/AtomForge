@@ -112,6 +112,9 @@ SSSResult buildSubstitutionalSolidSolution(const Structure& base,
     // Pre-compute element colours from ElementData defaults.
     const auto defaultColors = makeDefaultElementColors();
 
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
     for (int i = 0; i < N; ++i)
     {
         AtomSite& atom = result.output.atoms[i];

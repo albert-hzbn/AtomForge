@@ -1083,8 +1083,6 @@ StackingFaultResult buildStackingFaultSequence(const Structure& base,
         result.detectedLayerCount = layers;
 
         const int stepCount = std::max(1, (int)std::floor(params.maxDisplacementFactor / params.interval + 0.5f));
-        result.sequence.reserve(stepCount + 1);
-
         int shiftedCountAtOne = 0;
         const int stageAtOne = std::max(0, (int)std::floor(1.0f + 1e-6f));
         const int startAtOne = std::min(layers - 1, startLayerBase + stageAtOne);
@@ -1092,6 +1090,10 @@ StackingFaultResult buildStackingFaultSequence(const Structure& base,
             shiftedCountAtOne++;
         result.shiftedAtomCount = shiftedCountAtOne;
 
+        result.sequence.resize((size_t)(stepCount + 1));
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
         for (int step = 0; step <= stepCount; ++step)
         {
             const float factor = std::min(params.maxDisplacementFactor, step * params.interval);
@@ -1112,11 +1114,10 @@ StackingFaultResult buildStackingFaultSequence(const Structure& base,
             generated.cellVectors[2][1] += displacement.y;
             generated.cellVectors[2][2] += displacement.z;
 
-            StackingFaultSequenceItem item;
+            StackingFaultSequenceItem& item = result.sequence[(size_t)step];
             item.structure = std::move(generated);
             item.displacementFactor = factor;
             item.label = buildSequenceLabel(detection.family, factor, params.interval);
-            result.sequence.push_back(std::move(item));
         }
 
         result.message = std::string("Generated ") + std::to_string(result.sequence.size())
@@ -1331,8 +1332,10 @@ StackingFaultResult buildStackingFaultSequence(const Structure& base,
     result.shiftedAtomCount = referenceShiftedCount;
 
     const int stepCount = std::max(1, (int)std::floor(params.maxDisplacementFactor / params.interval + 0.5f));
-    result.sequence.reserve(stepCount + 1);
-
+    result.sequence.resize((size_t)(stepCount + 1));
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
     for (int step = 0; step <= stepCount; ++step)
     {
         const float factor = std::min(params.maxDisplacementFactor, step * params.interval);
@@ -1366,11 +1369,10 @@ StackingFaultResult buildStackingFaultSequence(const Structure& base,
         if (params.cellMode == StackingFaultCellMode::OrthogonalCell)
             generated = makeOrthogonalCellStructure(generated, slipDirection, planeNormal);
 
-        StackingFaultSequenceItem item;
+        StackingFaultSequenceItem& item = result.sequence[(size_t)step];
         item.structure = std::move(generated);
         item.displacementFactor = factor;
         item.label = buildSequenceLabel(detection.family, factor, params.interval);
-        result.sequence.push_back(std::move(item));
     }
 
     std::ostringstream message;
