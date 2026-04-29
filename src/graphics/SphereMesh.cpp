@@ -1,8 +1,6 @@
 #include "SphereMesh.h"
 #include <cmath>
 #include <vector>
-#include <unordered_map>
-#include <cstring>
 
 static void createSphereIndexed(std::vector<float>& vertices,
                                 std::vector<unsigned int>& indices,
@@ -10,77 +8,48 @@ static void createSphereIndexed(std::vector<float>& vertices,
                                 int slices)
 {
     constexpr float kPi = 3.14159265358979323846f;
-    
-    std::unordered_map<uint64_t, unsigned int> vertexMap;
-    unsigned int vertexIndex = 0;
 
-    auto getOrCreateVertex = [&](float x, float y, float z) -> unsigned int {
-        // Normalize position
-        float len = std::sqrt(x * x + y * y + z * z);
-        x /= len;
-        y /= len;
-        z /= len;
+    // Generate (stacks+1) x (slices+1) vertices analytically.
+    // Vertex at grid position (i, j) has index i*(slices+1)+j.
+    // This guarantees shared edges between adjacent quads reference exactly
+    // the same index — no hashing, no floating-point comparison, no collisions.
+    for (int i = 0; i <= stacks; ++i)
+    {
+        const float lat = kPi * (-0.5f + (float)i / (float)stacks);
+        const float cosLat = std::cos(lat);
+        const float sinLat = std::sin(lat);
 
-        // Create hash for this vertex using memcpy (safe from aliasing issues)
-        uint32_t ix, iy, iz;
-        std::memcpy(&ix, &x, sizeof(uint32_t));
-        std::memcpy(&iy, &y, sizeof(uint32_t));
-        std::memcpy(&iz, &z, sizeof(uint32_t));
-        uint64_t hash = ((uint64_t)ix << 32) | iy;
-        hash ^= (uint64_t)iz;
-
-        if (auto it = vertexMap.find(hash); it != vertexMap.end())
+        for (int j = 0; j <= slices; ++j)
         {
-            return it->second;
+            const float lng = 2.0f * kPi * (float)j / (float)slices;
+            vertices.push_back(std::cos(lng) * cosLat); // x
+            vertices.push_back(std::sin(lng) * cosLat); // y
+            vertices.push_back(sinLat);                  // z
         }
+    }
 
-        // Add new vertex
-        vertices.push_back(x);
-        vertices.push_back(y);
-        vertices.push_back(z);
-        vertexMap[hash] = vertexIndex;
-        return vertexIndex++;
-    };
-
+    // Build two triangles per quad, winding CCW when viewed from outside.
     for (int i = 0; i < stacks; ++i)
     {
-        float lat0 = kPi * (-0.5f + i / (float)stacks);
-        float lat1 = kPi * (-0.5f + (i + 1) / (float)stacks);
-
         for (int j = 0; j < slices; ++j)
         {
-            float lng0 = 2 * kPi * j / (float)slices;
-            float lng1 = 2 * kPi * (j + 1) / (float)slices;
+            const unsigned int row0 = (unsigned int)(i       * (slices + 1));
+            const unsigned int row1 = (unsigned int)((i + 1) * (slices + 1));
 
-            float x0 = std::cos(lng0);
-            float y0 = std::sin(lng0);
-
-            float x1 = std::cos(lng1);
-            float y1 = std::sin(lng1);
-
-            float z0 = std::sin(lat0);
-            float zr0 = std::cos(lat0);
-
-            float z1 = std::sin(lat1);
-            float zr1 = std::cos(lat1);
+            const unsigned int v00 = row0 + (unsigned int)j;
+            const unsigned int v01 = row0 + (unsigned int)(j + 1);
+            const unsigned int v10 = row1 + (unsigned int)j;
+            const unsigned int v11 = row1 + (unsigned int)(j + 1);
 
             // Triangle 1
-            unsigned int v0 = getOrCreateVertex(x0 * zr0, y0 * zr0, z0);
-            unsigned int v1 = getOrCreateVertex(x0 * zr1, y0 * zr1, z1);
-            unsigned int v2 = getOrCreateVertex(x1 * zr1, y1 * zr1, z1);
-
-            indices.push_back(v0);
-            indices.push_back(v1);
-            indices.push_back(v2);
+            indices.push_back(v00);
+            indices.push_back(v10);
+            indices.push_back(v01);
 
             // Triangle 2
-            unsigned int v3 = getOrCreateVertex(x0 * zr0, y0 * zr0, z0);
-            unsigned int v4 = getOrCreateVertex(x1 * zr1, y1 * zr1, z1);
-            unsigned int v5 = getOrCreateVertex(x1 * zr0, y1 * zr0, z0);
-
-            indices.push_back(v3);
-            indices.push_back(v4);
-            indices.push_back(v5);
+            indices.push_back(v01);
+            indices.push_back(v10);
+            indices.push_back(v11);
         }
     }
 }

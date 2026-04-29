@@ -79,6 +79,22 @@ void beginShadowPass(const ShadowMap& shadow)
 
     glEnable(GL_DEPTH_TEST);
 
+    // Depth clamping must be OFF during the shadow pass: clamped vertices would
+    // write incorrect near/far-boundary depths into the depth texture, producing
+    // phantom shadow samples in the colour pass.
+    glDisable(GL_DEPTH_CLAMP);
+
+    // Only write back faces into the shadow map.  Front faces can then never
+    // appear to be shadowed by their own surface, eliminating self-shadow acne
+    // even where spheres overlap each other.
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+
+    // Push shadow depths slightly away from the light so sphere front-faces
+    // never self-intersect their own shadow map entry (eliminates acne/moire).
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(3.0f, 6.0f);
+
     glClear(GL_DEPTH_BUFFER_BIT);
 
     // disable color writes (important for shadow pass)
@@ -87,6 +103,13 @@ void beginShadowPass(const ShadowMap& shadow)
 
 void endShadowPass()
 {
+    glDisable(GL_POLYGON_OFFSET_FILL);
+    glDisable(GL_CULL_FACE);
+
+    // Restore depth clamping for the colour pass (prevents near-plane clipping
+    // of sphere geometry when the camera zooms in close).
+    glEnable(GL_DEPTH_CLAMP);
+
     glBindFramebuffer(GL_FRAMEBUFFER,0);
 
     // re-enable color writes

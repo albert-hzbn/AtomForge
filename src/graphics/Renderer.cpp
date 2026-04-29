@@ -114,7 +114,7 @@ static const char* kAtomFS = R"(
 
     out vec4 color;
 
-    float computeShadow(vec4 pos)
+    float computeShadow(vec4 pos, float cosTheta)
     {
         vec3 proj = pos.xyz / pos.w;
         proj = proj * 0.5 + 0.5;
@@ -124,7 +124,8 @@ static const char* kAtomFS = R"(
             proj.z < 0.0 || proj.z > 1.0)
             return 0.0;
 
-        float bias = 0.003;
+        // Slope-scale bias: larger at grazing angles to prevent self-shadowing acne.
+        float bias = max(0.012 * (1.0 - cosTheta), 0.002);
         float shadow = 0.0;
         vec2 texelSize = vec2(1.0 / 2048.0);
         for (int x = -2; x <= 2; ++x)
@@ -136,7 +137,6 @@ static const char* kAtomFS = R"(
 
     void main()
     {
-        float shadow = computeShadow(FragPosLight);
         vec3 norm = normalize(fragNormal);
         // Six fill lights at symmetric cube-octant positions for uniform coverage.
         // Key light is (+x,+y,+z); fills cover the remaining 5 distinct octants.
@@ -152,6 +152,9 @@ static const char* kAtomFS = R"(
         vec3 lightDir3 = normalize(lightPosFillC - fragWorldPos);
         vec3 lightDir4 = normalize(lightPosFillD - fragWorldPos);
         vec3 lightDir5 = normalize(lightPosFillE - fragWorldPos);
+
+        float cosTheta = clamp(dot(norm, lightDir0), 0.0, 1.0);
+        float shadow = computeShadow(FragPosLight, cosTheta);
 
         vec3 viewDir = normalize(viewPos - fragWorldPos);
         vec3 halfDir0 = normalize(lightDir0 + viewDir);
@@ -514,7 +517,7 @@ static const char* kAtomBillboardFS = R"(
 
     out vec4 color;
 
-    float computeShadow(vec4 pos)
+    float computeShadow(vec4 pos, float cosTheta)
     {
         vec3 proj = pos.xyz / pos.w;
         proj = proj * 0.5 + 0.5;
@@ -524,7 +527,8 @@ static const char* kAtomBillboardFS = R"(
             proj.z < 0.0 || proj.z > 1.0)
             return 0.0;
 
-        float bias = 0.003;
+        // Slope-scale bias: larger at grazing angles to prevent self-shadowing acne.
+        float bias = max(0.012 * (1.0 - cosTheta), 0.002);
         float shadow = 0.0;
         vec2 texelSize = vec2(1.0 / 2048.0);
         for (int x = -2; x <= 2; ++x)
@@ -556,8 +560,6 @@ static const char* kAtomBillboardFS = R"(
         float ndcDepth = clipPos.z / clipPos.w;
         gl_FragDepth = ndcDepth * 0.5 + 0.5;
 
-        float shadow = computeShadow(FragPosLight);
-
         // Six fill lights at symmetric cube-octant positions for uniform coverage.
         vec3 lightPosFillA = vec3(-lightPos.x,  lightPos.y,  lightPos.z);
         vec3 lightPosFillB = vec3( lightPos.x, -lightPos.y,  lightPos.z);
@@ -571,6 +573,9 @@ static const char* kAtomBillboardFS = R"(
         vec3 lightDir3 = normalize(lightPosFillC - fragWorldPos);
         vec3 lightDir4 = normalize(lightPosFillD - fragWorldPos);
         vec3 lightDir5 = normalize(lightPosFillE - fragWorldPos);
+
+        float cosTheta = clamp(dot(norm, lightDir0), 0.0, 1.0);
+        float shadow = computeShadow(FragPosLight, cosTheta);
 
         vec3 vDir = normalize(viewPos - fragWorldPos);
         vec3 halfDir0 = normalize(lightDir0 + vDir);

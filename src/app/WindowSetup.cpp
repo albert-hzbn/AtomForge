@@ -273,6 +273,7 @@ GLFWwindow* createMainWindow()
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE);
+    glEnable(GL_DEPTH_CLAMP);  // Prevents near-plane from slicing sphere geometry (flat-cutoff artifact)
     return window;
 }
 
