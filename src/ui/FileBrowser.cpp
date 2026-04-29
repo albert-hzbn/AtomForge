@@ -578,9 +578,10 @@ void FileBrowser::draw(Structure& structure,
 
     // Draw toolbar below menu bar with axis view and measurement options
     {
-        ImGui::SetNextWindowPos(ImVec2(0.0f, ImGui::GetFrameHeight()), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x, 0.0f), ImGuiCond_FirstUseEver);
-        if (ImGui::Begin("##ViewToolbar", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize))
+        const float toolbarH = ImGui::GetFrameHeightWithSpacing() + 10.0f;
+        ImGui::SetNextWindowPos(ImVec2(0.0f, ImGui::GetFrameHeight()), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x, toolbarH), ImGuiCond_Always);
+        if (ImGui::Begin("##ViewToolbar", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
         {
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12.0f, 4.0f));
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 4.0f));
