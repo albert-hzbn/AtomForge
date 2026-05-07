@@ -213,6 +213,7 @@ void initTabResources(StructureTab& tab,
     tab.state.fileBrowser.initSubstitutionalSolidSolutionRenderResources(renderer);
 #endif
     tab.state.fileBrowser.initCellSculptorRenderResources(renderer);
+    tab.state.fileBrowser.initInterstitialAtomsRenderResources(renderer);
     updateBuffers(tab.state);
     tab.state.undoRedo.reset(captureSnapshot(tab.state));
 }
@@ -964,6 +965,13 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                               activeState.editMenuDialogs.elementColors,
                               activeState.fileBrowser.isShowPolyhedralViewerEnabled()
                               && (int)activeState.structure.atoms.size() <= 5000);
+
+        activeState.fileBrowser.drawInterstitialVoidOverlay(drawList,
+                                                            frame.projection,
+                                                            frame.view,
+                                                            frame.framebufferWidth,
+                                                            frame.framebufferHeight,
+                                                            activeState.structure);
 
         if (activeState.fileBrowser.isShowElementEnabled())
             drawElementLabelsOverlay(drawList, frame.projection, frame.view,

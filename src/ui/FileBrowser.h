@@ -11,6 +11,7 @@
 #include "ui/StackingFaultBuilderDialog.h"
 #include "ui/SubstitutionalSolidSolutionDialog.h"
 #include "ui/AmorphousBuilderDialog.h"
+#include "ui/InterstitialAtomsDialog.h"
 #include "ui/CommonNeighbourAnalysis.h"
 #include "ui/RadialDistributionAnalysis.h"
 #include "ui/ShortRangeOrderDialog.h"
@@ -26,7 +27,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include <glm/glm.hpp>
+
 struct Renderer;
+struct ImDrawList;
 
 struct ToastNotification
 {
@@ -334,10 +338,23 @@ struct FileBrowser
     // Amorphous structure builder dialog (no GL resources needed).
     bool isAmorphousBuilderDialogOpen() const;
 
+    // Interstitial atoms dialog (Edit menu) and drop routing.
+    bool isInterstitialAtomsDialogOpen() const;
+    void feedDropToInterstitialAtomsDialog(const std::string& path);
+    void drawInterstitialVoidOverlay(ImDrawList* drawList,
+                                     const glm::mat4& projection,
+                                     const glm::mat4& view,
+                                     int framebufferWidth,
+                                     int framebufferHeight,
+                                     const Structure& structure) const;
+
     // Cell Sculptor dialog GL resources and drop routing.
     void initCellSculptorRenderResources(Renderer& renderer);
     bool isCellSculptorDialogOpen() const;
     void feedDropToCellSculptorDialog(const std::string& path);
+
+    // Interstitial Atoms dialog GL resources.
+    void initInterstitialAtomsRenderResources(Renderer& renderer);
 
     // Returns true if any builder/analysis/file dialog is currently open.
     bool isAnyDialogOpen() const;
@@ -475,6 +492,7 @@ private:
     StackingFaultBuilderDialog stackingFaultDialog;
     SubstitutionalSolidSolutionDialog substitutionalSolidSolutionDialog;
     AmorphousBuilderDialog amorphousBuilderDialog;
+    InterstitialAtomsDialog interstitialAtomsDialog;
     CellSculptorDialog cellSculptorDialog;
     CommonNeighbourAnalysisDialog cnaDialog;
     RadialDistributionAnalysisDialog rdfDialog;

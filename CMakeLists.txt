@@ -109,6 +109,7 @@ set(ATOMFORGE_SOURCES
     src/ui/TransformAtomsDialog.cpp
     src/ui/SubstitutionalSolidSolutionDialog.cpp
     src/ui/AmorphousBuilderDialog.cpp
+    src/ui/InterstitialAtomsDialog.cpp
     src/ui/CellSculptorDialog.cpp
     src/util/PathUtils.cpp
     src/algorithms/CSLComputation.cpp
@@ -124,6 +125,7 @@ set(ATOMFORGE_SOURCES
     src/algorithms/CellSculptorAlgo.cpp
     src/algorithms/ShortRangeOrderAnalysis.cpp
     src/algorithms/AngularDistributionAnalysis.cpp
+    src/algorithms/InterstitialVoidAnalysis.cpp
     src/cli/CLIMode.cpp
     src/io/StructureLoader.cpp
     imgui/imgui.cpp

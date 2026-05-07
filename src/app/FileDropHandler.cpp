@@ -107,6 +107,12 @@ void processDroppedFiles(EditorState& state)
             continue;
         }
 
+        if (state.fileBrowser.isInterstitialAtomsDialogOpen())
+        {
+            state.fileBrowser.feedDropToInterstitialAtomsDialog(droppedFile);
+            continue;
+        }
+
         Structure loadedStructure;
         std::string loadError;
         if (!loadStructureFromFile(droppedFile, loadedStructure, loadError))

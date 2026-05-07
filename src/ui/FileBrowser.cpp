@@ -382,6 +382,7 @@ void FileBrowser::draw(Structure& structure,
                 boxSelectMode = false;
             ImGui::Separator();
             editMenuDialogs.drawMenuItems();
+            interstitialAtomsDialog.drawMenuItem(!structure.atoms.empty());
             ImGui::Separator();
             transformDialog.drawMenuItem(structure.hasUnitCell);
             ImGui::Separator();
@@ -706,6 +707,11 @@ void FileBrowser::draw(Structure& structure,
     amorphousBuilderDialog.drawDialog(editMenuDialogs.elementColors,
                                       editMenuDialogs.elementRadii,
                                       updateFromBuilderToNewTab);
+    interstitialAtomsDialog.drawDialog(structure,
+                                       editMenuDialogs.elementColors,
+                                       editMenuDialogs.elementRadii,
+                                       editMenuDialogs.elementShininess,
+                                       [&](Structure& s) { updateBuffers(s); });
     cnaDialog.drawDialog(structure);
     rdfDialog.drawDialog(structure);
     drawShortRangeOrderDialog(shortRangeOrderDialog, structure);
@@ -2155,6 +2161,7 @@ bool FileBrowser::isAnyDialogOpen() const
         || isSubstitutionalSolidSolutionDialogOpen()
     #endif
         || isAmorphousBuilderDialogOpen()
+        || isInterstitialAtomsDialogOpen()
         || isCellSculptorDialogOpen()
         || showAbout
         || showManual
@@ -2174,9 +2181,39 @@ bool FileBrowser::isAmorphousBuilderDialogOpen() const
     return amorphousBuilderDialog.isOpen();
 }
 
+bool FileBrowser::isInterstitialAtomsDialogOpen() const
+{
+    return interstitialAtomsDialog.isOpen();
+}
+
+void FileBrowser::feedDropToInterstitialAtomsDialog(const std::string& path)
+{
+    interstitialAtomsDialog.feedDroppedFile(path);
+}
+
+void FileBrowser::drawInterstitialVoidOverlay(ImDrawList* drawList,
+                                              const glm::mat4& projection,
+                                              const glm::mat4& view,
+                                              int framebufferWidth,
+                                              int framebufferHeight,
+                                              const Structure& structure) const
+{
+    interstitialAtomsDialog.drawVoidOverlay(drawList,
+                                            projection,
+                                            view,
+                                            framebufferWidth,
+                                            framebufferHeight,
+                                            structure);
+}
+
 void FileBrowser::initCellSculptorRenderResources(Renderer& renderer)
 {
     cellSculptorDialog.initRenderResources(renderer);
+}
+
+void FileBrowser::initInterstitialAtomsRenderResources(Renderer& renderer)
+{
+    interstitialAtomsDialog.initRenderResources(renderer);
 }
 
 bool FileBrowser::isCellSculptorDialogOpen() const
