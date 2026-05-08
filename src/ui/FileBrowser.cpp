@@ -1864,10 +1864,48 @@ void FileBrowser::draw(Structure& structure,
     bool aboutOpen = true;
     if (ImGui::BeginPopupModal("About", &aboutOpen, ImGuiWindowFlags_NoResize))
     {
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        const ImVec2 iconPos = ImGui::GetCursorScreenPos();
+        const float iconSize = 52.0f;
+        const ImU32 bgCol = IM_COL32(16, 39, 53, 255);
+        const ImU32 gridCol = IM_COL32(95, 168, 198, 190);
+        const ImU32 nodeCol = IM_COL32(221, 245, 255, 255);
+        const ImU32 coreCol = IM_COL32(98, 194, 232, 255);
+        const ImU32 plusCol = IM_COL32(158, 220, 243, 255);
+
+        drawList->AddRectFilled(iconPos, ImVec2(iconPos.x + iconSize, iconPos.y + iconSize), bgCol, 10.0f);
+
+        const float p0 = iconPos.x + 12.0f;
+        const float p1 = iconPos.x + iconSize * 0.5f;
+        const float p2 = iconPos.x + iconSize - 12.0f;
+        const float q0 = iconPos.y + 12.0f;
+        const float q1 = iconPos.y + iconSize * 0.5f;
+        const float q2 = iconPos.y + iconSize - 12.0f;
+
+        drawList->AddLine(ImVec2(p0, q0), ImVec2(p2, q0), gridCol, 1.6f);
+        drawList->AddLine(ImVec2(p0, q1), ImVec2(p2, q1), gridCol, 1.6f);
+        drawList->AddLine(ImVec2(p0, q2), ImVec2(p2, q2), gridCol, 1.6f);
+        drawList->AddLine(ImVec2(p0, q0), ImVec2(p0, q2), gridCol, 1.6f);
+        drawList->AddLine(ImVec2(p1, q0), ImVec2(p1, q2), gridCol, 1.6f);
+        drawList->AddLine(ImVec2(p2, q0), ImVec2(p2, q2), gridCol, 1.6f);
+
+        drawList->AddCircleFilled(ImVec2(p0, q0), 2.7f, nodeCol);
+        drawList->AddCircleFilled(ImVec2(p2, q0), 2.7f, nodeCol);
+        drawList->AddCircleFilled(ImVec2(p0, q2), 2.7f, nodeCol);
+        drawList->AddCircleFilled(ImVec2(p2, q2), 2.7f, nodeCol);
+        drawList->AddCircleFilled(ImVec2(p1, q1), 5.5f, coreCol);
+        drawList->AddLine(ImVec2(p1 - 8.0f, q1), ImVec2(p1 + 8.0f, q1), plusCol, 2.5f);
+        drawList->AddLine(ImVec2(p1, q1 - 8.0f), ImVec2(p1, q1 + 8.0f), plusCol, 2.5f);
+
+        ImGui::Dummy(ImVec2(iconSize + 8.0f, iconSize));
+        ImGui::SameLine();
+
+        ImGui::BeginGroup();
         ImGui::Text("AtomForge");
         ImGui::PushTextWrapPos(0.0f);
         ImGui::TextDisabled("Version " ATOMFORGE_VERSION " - Atomistic structure builder, viewer, and editor with periodic-cell and finite-geometry workflows");
         ImGui::PopTextWrapPos();
+        ImGui::EndGroup();
         ImGui::Separator();
 
         if (ImGui::BeginChild("##about-scroll", ImVec2(0.0f, -ImGui::GetFrameHeightWithSpacing() - 6.0f), false))

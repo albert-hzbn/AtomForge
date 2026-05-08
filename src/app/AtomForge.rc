@@ -4,7 +4,11 @@
 
 #include <winuser.h>
 
-// Application icon for the executable and taskbar.
+// GLFW looks for this exact resource name on Windows when assigning the
+// running window icon; keep this in sync with the app icon asset.
+GLFW_ICON ICON "..\\..\\assets\\icon\\atomforge.ico"
+
+// Application icon for executable metadata and shortcuts.
 IDI_APP_ICON ICON "..\\..\\assets\\icon\\atomforge.ico"
 
 // RT_MANIFEST (ID 24), resource ID 1 = application manifest

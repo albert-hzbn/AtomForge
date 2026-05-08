@@ -1,15 +1,8 @@
-# AtomForge
+# <img src="assets/icon/atomforge-icon.svg" alt="AtomForge icon" width="80" style="vertical-align: middle; margin-right: 8px;" /><span style="vertical-align: middle;">AtomForge</span>
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20054535.svg)](https://doi.org/10.5281/zenodo.20054535)
 
 AtomForge is an interactive atomic structure builder for metallurgical simulation and atomistic modeling. It is designed to help researchers and engineers create, edit, inspect, and export structures used in molecular dynamics (MD) and first-principles workflows.
-
-## Application icon
-
-AtomForge uses a minimalist grid-core icon that represents aligned lattice features around a central atom.
-
-- Source SVG: `assets/icon/atomforge-icon.svg`
-- Windows app icon resource: `assets/icon/atomforge.ico`
 
 ## Highlights
 

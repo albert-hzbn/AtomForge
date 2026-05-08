@@ -22,6 +22,87 @@ namespace {
 
 void renderSplash(SplashScreen* splash, float progress);
 
+const unsigned char kIconBg[4]   = { 16, 39, 53, 255 };
+const unsigned char kIconGrid[4] = { 95, 168, 198, 180 };
+const unsigned char kIconNode[4] = { 221, 245, 255, 255 };
+const unsigned char kIconCore[4] = { 98, 194, 232, 255 };
+const unsigned char kIconPlus[4] = { 158, 220, 243, 255 };
+
+std::array<unsigned char, 64 * 64 * 4> makeGridCoreIconPixels()
+{
+    std::array<unsigned char, 64 * 64 * 4> pixels{};
+
+    auto putPixel = [&](int x, int y, const unsigned char color[4]) {
+        if (x < 0 || x >= 64 || y < 0 || y >= 64)
+            return;
+        const size_t idx = static_cast<size_t>((y * 64 + x) * 4);
+        pixels[idx + 0] = color[0];
+        pixels[idx + 1] = color[1];
+        pixels[idx + 2] = color[2];
+        pixels[idx + 3] = color[3];
+    };
+
+    auto fillRect = [&](int x0, int y0, int x1, int y1, const unsigned char color[4]) {
+        for (int y = y0; y <= y1; ++y)
+            for (int x = x0; x <= x1; ++x)
+                putPixel(x, y, color);
+    };
+
+    auto fillCircle = [&](int cx, int cy, int r, const unsigned char color[4]) {
+        const int rr = r * r;
+        for (int y = cy - r; y <= cy + r; ++y)
+        {
+            for (int x = cx - r; x <= cx + r; ++x)
+            {
+                const int dx = x - cx;
+                const int dy = y - cy;
+                if (dx * dx + dy * dy <= rr)
+                    putPixel(x, y, color);
+            }
+        }
+    };
+
+    // Base tile matching the selected grid-core icon.
+    fillRect(3, 3, 60, 60, kIconBg);
+
+    for (int x = 16; x <= 48; ++x)
+    {
+        putPixel(x, 16, kIconGrid);
+        putPixel(x, 32, kIconGrid);
+        putPixel(x, 48, kIconGrid);
+    }
+    for (int y = 16; y <= 48; ++y)
+    {
+        putPixel(16, y, kIconGrid);
+        putPixel(32, y, kIconGrid);
+        putPixel(48, y, kIconGrid);
+    }
+
+    fillCircle(16, 16, 3, kIconNode);
+    fillCircle(48, 16, 3, kIconNode);
+    fillCircle(16, 48, 3, kIconNode);
+    fillCircle(48, 48, 3, kIconNode);
+
+    fillCircle(32, 32, 6, kIconCore);
+    fillRect(23, 31, 41, 33, kIconPlus);
+    fillRect(31, 23, 33, 41, kIconPlus);
+
+    return pixels;
+}
+
+void applyWindowIcon(GLFWwindow* window)
+{
+    if (!window)
+        return;
+
+    static const std::array<unsigned char, 64 * 64 * 4> kIconPixels = makeGridCoreIconPixels();
+    GLFWimage image{};
+    image.width = 64;
+    image.height = 64;
+    image.pixels = const_cast<unsigned char*>(kIconPixels.data());
+    glfwSetWindowIcon(window, 1, &image);
+}
+
 bool ensureGlfwInitialized()
 {
     return glfwInit() == GLFW_TRUE;
@@ -193,6 +274,8 @@ SplashScreen* createSplashScreen()
         return nullptr;
     }
 
+    applyWindowIcon(splash->window);
+
     GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
     if (primaryMonitor)
     {
@@ -254,6 +337,8 @@ GLFWwindow* createMainWindow()
         if (!window)
             return nullptr;
     }
+
+    applyWindowIcon(window);
 
     glfwMakeContextCurrent(window);
 
