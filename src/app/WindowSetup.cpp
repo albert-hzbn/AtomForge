@@ -22,11 +22,10 @@ namespace {
 
 void renderSplash(SplashScreen* splash, float progress);
 
-const unsigned char kIconBg[4]   = { 16, 39, 53, 255 };
-const unsigned char kIconGrid[4] = { 95, 168, 198, 180 };
-const unsigned char kIconNode[4] = { 221, 245, 255, 255 };
-const unsigned char kIconCore[4] = { 98, 194, 232, 255 };
-const unsigned char kIconPlus[4] = { 158, 220, 243, 255 };
+const unsigned char kIconGrid[4] = { 46, 94, 119, 235 };
+const unsigned char kIconNode[4] = { 63, 110, 134, 255 };
+const unsigned char kIconCore[4] = { 18, 63, 87, 255 };
+const unsigned char kIconPlus[4] = { 46, 94, 119, 255 };
 
 std::array<unsigned char, 64 * 64 * 4> makeGridCoreIconPixels()
 {
@@ -62,30 +61,25 @@ std::array<unsigned char, 64 * 64 * 4> makeGridCoreIconPixels()
         }
     };
 
-    // Base tile matching the selected grid-core icon.
-    fillRect(3, 3, 60, 60, kIconBg);
+    // Keep icon background fully transparent.
 
-    for (int x = 16; x <= 48; ++x)
-    {
-        putPixel(x, 16, kIconGrid);
-        putPixel(x, 32, kIconGrid);
-        putPixel(x, 48, kIconGrid);
-    }
-    for (int y = 16; y <= 48; ++y)
-    {
-        putPixel(16, y, kIconGrid);
-        putPixel(32, y, kIconGrid);
-        putPixel(48, y, kIconGrid);
-    }
+    // Thicker grid bonds so the icon stays legible at 16-32px.
+    fillRect(8, 7, 56, 11, kIconGrid);
+    fillRect(8, 30, 56, 34, kIconGrid);
+    fillRect(8, 53, 56, 57, kIconGrid);
 
-    fillCircle(16, 16, 3, kIconNode);
-    fillCircle(48, 16, 3, kIconNode);
-    fillCircle(16, 48, 3, kIconNode);
-    fillCircle(48, 48, 3, kIconNode);
+    fillRect(7, 8, 11, 56, kIconGrid);
+    fillRect(30, 8, 34, 56, kIconGrid);
+    fillRect(53, 8, 57, 56, kIconGrid);
 
-    fillCircle(32, 32, 6, kIconCore);
-    fillRect(23, 31, 41, 33, kIconPlus);
-    fillRect(31, 23, 33, 41, kIconPlus);
+    fillCircle(10, 10, 6, kIconNode);
+    fillCircle(54, 10, 6, kIconNode);
+    fillCircle(10, 54, 6, kIconNode);
+    fillCircle(54, 54, 6, kIconNode);
+
+    fillCircle(32, 32, 10, kIconCore);
+    fillRect(16, 29, 48, 35, kIconPlus);
+    fillRect(29, 16, 35, 48, kIconPlus);
 
     return pixels;
 }

@@ -1,22 +1,79 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Grid core icon">
-  <rect x="14" y="14" width="228" height="228" rx="42" fill="#102735" />
-  <g stroke="#5FA8C6" stroke-width="3" opacity="0.45">
-    <line x1="64" y1="64" x2="192" y2="64"/>
-    <line x1="64" y1="128" x2="192" y2="128"/>
-    <line x1="64" y1="192" x2="192" y2="192"/>
-    <line x1="64" y1="64" x2="64" y2="192"/>
-    <line x1="128" y1="64" x2="128" y2="192"/>
-    <line x1="192" y1="64" x2="192" y2="192"/>
-  </g>
-  <g fill="#DDF5FF">
-    <circle cx="64" cy="64" r="8"/>
-    <circle cx="192" cy="64" r="8"/>
-    <circle cx="64" cy="192" r="8"/>
-    <circle cx="192" cy="192" r="8"/>
-  </g>
-  <circle cx="128" cy="128" r="18" fill="#62C2E8"/>
-  <g stroke="#9EDCF3" stroke-width="6" stroke-linecap="round">
-    <line x1="92" y1="128" x2="164" y2="128"/>
-    <line x1="128" y1="92" x2="128" y2="164"/>
-  </g>
-</svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="76.392761mm"
+   height="76.550247mm"
+   viewBox="0 0 76.392761 76.550247"
+   version="1.1"
+   id="svg1"
+   xml:space="preserve"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   sodipodi:docname="atomforge_icon.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.71891835"
+     inkscape:cx="129.361"
+     inkscape:cy="256.63554"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1"
+     inkscape:export-bgcolor="#ffffffff"><inkscape:page
+       x="0"
+       y="0"
+       width="76.392761"
+       height="76.550247"
+       id="page2"
+       margin="0"
+       bleed="0" /></sodipodi:namedview><defs
+     id="defs1" /><g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-26.099996,-49.317832)"><g
+       id="g1"><rect
+         style="fill:none;fill-opacity:0.8;stroke:#2e5e77;stroke-width:4;stroke-dasharray:none;stroke-opacity:0.651119"
+         id="rect1"
+         width="51.999882"
+         height="51.999886"
+         x="38.105743"
+         y="61.633728" /><circle
+         style="fill:#3f6e86;fill-opacity:1;stroke-width:1.18601"
+         id="path1"
+         cx="89.900002"
+         cy="113.3"
+         r="12.5" /><circle
+         style="fill:#3f6e86;fill-opacity:1;stroke-width:1.186;stroke-dasharray:none"
+         id="path1-1"
+         cx="89.99276"
+         cy="61.817833"
+         r="12.5" /><circle
+         style="fill:#123f57;fill-opacity:1;stroke-width:1.4232;stroke-dasharray:none"
+         id="path1-1-6"
+         cx="64.242775"
+         cy="87.865585"
+         r="15" /><circle
+         style="fill:#3f6e86;fill-opacity:1;stroke-width:1.186;stroke-dasharray:none"
+         id="path1-2"
+         cx="38.606247"
+         cy="61.817833"
+         r="12.5" /><circle
+         style="fill:#3f6e86;fill-opacity:1;stroke-width:1.18601"
+         id="path1-2-2"
+         cx="38.599998"
+         cy="113.36807"
+         r="12.5" /></g></g></svg>
