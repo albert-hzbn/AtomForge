@@ -22,10 +22,9 @@ namespace {
 
 void renderSplash(SplashScreen* splash, float progress);
 
-const unsigned char kIconGrid[4] = { 46, 94, 119, 235 };
+const unsigned char kIconBox[4]  = { 46, 94, 119, 166 };
 const unsigned char kIconNode[4] = { 63, 110, 134, 255 };
 const unsigned char kIconCore[4] = { 18, 63, 87, 255 };
-const unsigned char kIconPlus[4] = { 46, 94, 119, 255 };
 
 std::array<unsigned char, 64 * 64 * 4> makeGridCoreIconPixels()
 {
@@ -63,23 +62,20 @@ std::array<unsigned char, 64 * 64 * 4> makeGridCoreIconPixels()
 
     // Keep icon background fully transparent.
 
-    // Thicker grid bonds so the icon stays legible at 16-32px.
-    fillRect(8, 7, 56, 11, kIconGrid);
-    fillRect(8, 30, 56, 34, kIconGrid);
-    fillRect(8, 53, 56, 57, kIconGrid);
+    // Box outline (4 sides only, semi-transparent).
+    fillRect(10, 9,  54, 13, kIconBox);  // top
+    fillRect(10, 51, 54, 55, kIconBox);  // bottom
+    fillRect(9,  10, 13, 54, kIconBox);  // left
+    fillRect(51, 10, 55, 54, kIconBox);  // right
 
-    fillRect(7, 8, 11, 56, kIconGrid);
-    fillRect(30, 8, 34, 56, kIconGrid);
-    fillRect(53, 8, 57, 56, kIconGrid);
+    // Corner atoms.
+    fillCircle(10, 10, 9,  kIconNode);
+    fillCircle(54, 10, 9,  kIconNode);
+    fillCircle(10, 54, 9,  kIconNode);
+    fillCircle(54, 54, 9,  kIconNode);
 
-    fillCircle(10, 10, 6, kIconNode);
-    fillCircle(54, 10, 6, kIconNode);
-    fillCircle(10, 54, 6, kIconNode);
-    fillCircle(54, 54, 6, kIconNode);
-
-    fillCircle(32, 32, 10, kIconCore);
-    fillRect(16, 29, 48, 35, kIconPlus);
-    fillRect(29, 16, 35, 48, kIconPlus);
+    // Central atom (larger).
+    fillCircle(32, 32, 11, kIconCore);
 
     return pixels;
 }

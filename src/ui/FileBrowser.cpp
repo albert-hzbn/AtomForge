@@ -1867,10 +1867,9 @@ void FileBrowser::draw(Structure& structure,
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         const ImVec2 iconPos = ImGui::GetCursorScreenPos();
         const float iconSize = 52.0f;
-        const ImU32 gridCol = IM_COL32(46, 94, 119, 235);
+        const ImU32 boxCol  = IM_COL32(46, 94, 119, 166);
         const ImU32 nodeCol = IM_COL32(63, 110, 134, 255);
         const ImU32 coreCol = IM_COL32(18, 63, 87, 255);
-        const ImU32 plusCol = IM_COL32(46, 94, 119, 255);
 
         const float p0 = iconPos.x + 6.0f;
         const float p1 = iconPos.x + iconSize * 0.5f;
@@ -1879,20 +1878,18 @@ void FileBrowser::draw(Structure& structure,
         const float q1 = iconPos.y + iconSize * 0.5f;
         const float q2 = iconPos.y + iconSize - 6.0f;
 
-        drawList->AddLine(ImVec2(p0, q0), ImVec2(p2, q0), gridCol, 3.1f);
-        drawList->AddLine(ImVec2(p0, q1), ImVec2(p2, q1), gridCol, 3.1f);
-        drawList->AddLine(ImVec2(p0, q2), ImVec2(p2, q2), gridCol, 3.1f);
-        drawList->AddLine(ImVec2(p0, q0), ImVec2(p0, q2), gridCol, 3.1f);
-        drawList->AddLine(ImVec2(p1, q0), ImVec2(p1, q2), gridCol, 3.1f);
-        drawList->AddLine(ImVec2(p2, q0), ImVec2(p2, q2), gridCol, 3.1f);
+        // Box outline (4 sides only).
+        drawList->AddLine(ImVec2(p0, q0), ImVec2(p2, q0), boxCol, 3.0f);
+        drawList->AddLine(ImVec2(p0, q2), ImVec2(p2, q2), boxCol, 3.0f);
+        drawList->AddLine(ImVec2(p0, q0), ImVec2(p0, q2), boxCol, 3.0f);
+        drawList->AddLine(ImVec2(p2, q0), ImVec2(p2, q2), boxCol, 3.0f);
 
-        drawList->AddCircleFilled(ImVec2(p0, q0), 4.6f, nodeCol);
-        drawList->AddCircleFilled(ImVec2(p2, q0), 4.6f, nodeCol);
-        drawList->AddCircleFilled(ImVec2(p0, q2), 4.6f, nodeCol);
-        drawList->AddCircleFilled(ImVec2(p2, q2), 4.6f, nodeCol);
-        drawList->AddCircleFilled(ImVec2(p1, q1), 9.2f, coreCol);
-        drawList->AddLine(ImVec2(p1 - 12.0f, q1), ImVec2(p1 + 12.0f, q1), plusCol, 3.8f);
-        drawList->AddLine(ImVec2(p1, q1 - 12.0f), ImVec2(p1, q1 + 12.0f), plusCol, 3.8f);
+        // Corner atoms and central atom (no plus cross).
+        drawList->AddCircleFilled(ImVec2(p0, q0), 8.5f, nodeCol);
+        drawList->AddCircleFilled(ImVec2(p2, q0), 8.5f, nodeCol);
+        drawList->AddCircleFilled(ImVec2(p0, q2), 8.5f, nodeCol);
+        drawList->AddCircleFilled(ImVec2(p2, q2), 8.5f, nodeCol);
+        drawList->AddCircleFilled(ImVec2(p1, q1), 10.2f, coreCol);
 
         ImGui::Dummy(ImVec2(iconSize + 8.0f, iconSize));
         ImGui::SameLine();
