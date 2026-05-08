@@ -409,524 +409,366 @@ void FileBrowser::initFromPath(const std::string& initialPath)
     }
 }
 
-void FileBrowser::draw(Structure& structure,
-                       EditMenuDialogs& editMenuDialogs,
-                       const std::function<void(Structure&)>& updateBuffers,
-                       const std::function<void(Structure)>& openInNewTab,
-                       bool canUndo,
-                       bool canRedo)
+void FileBrowser::triggerSaveAsDialog()
 {
-    auto triggerSaveAsDialog = [&]() {
-        saveStructurePopup = true;
-        saveDir = openDir.empty() ? "." : openDir;
-        saveDirHistory = dirHistory;
-        saveHistoryIndex = historyIndex;
-        if (saveDirHistory.empty())
-        {
-            saveDirHistory.push_back(saveDir);
-            saveHistoryIndex = 0;
-        }
-        saveStatusMsg[0] = '\0';
-    };
+    saveStructurePopup = true;
+    saveDir = openDir.empty() ? "." : openDir;
+    saveDirHistory = dirHistory;
+    saveHistoryIndex = historyIndex;
+    if (saveDirHistory.empty())
+    {
+        saveDirHistory.push_back(saveDir);
+        saveHistoryIndex = 0;
+    }
+    saveStatusMsg[0] = '\0';
+}
 
-    auto performQuickSave = [&]() {
-        if (structure.atoms.empty())
+void FileBrowser::performQuickSave(const Structure& structure)
+{
+    if (structure.atoms.empty())
+    {
+        showNotification("Error: no atoms to save.", true);
+        return;
+    }
+
+    if (currentStructurePath.empty())
+    {
+        triggerSaveAsDialog();
+        return;
+    }
+
+    std::string fullPath = normalizePathSeparators(currentStructurePath);
+    const std::string lowerPath = toLower(fullPath);
+    int formatIndex = -1;
+    for (int i = 0; i < kNumSaveFormats; ++i)
+    {
+        if (hasExtension(lowerPath, toLower(kSaveFormats[i].ext)))
         {
-            showNotification("Error: no atoms to save.", true);
-            return;
+            formatIndex = i;
+            break;
+        }
+    }
+
+    if (formatIndex < 0)
+    {
+        formatIndex = kDefaultSaveFormatIndex;
+        fullPath = replaceFileExtension(fullPath, kSaveFormats[formatIndex].ext, "structure");
+    }
+
+    std::size_t savedAtomCount = 0;
+    const bool ok = saveStructureWithOptionalSupercell(
+        structure,
+        isTransformMatrixEnabled(),
+        getTransformMatrix(),
+        fullPath,
+        kSaveFormats[formatIndex].fmt,
+        savedAtomCount);
+
+    if (ok)
+    {
+        currentStructurePath = fullPath;
+        lastLoadedPath = fullPath;
+
+        const std::size_t slash = fullPath.find_last_of("/\\");
+        const std::string shownName = (slash == std::string::npos)
+            ? fullPath
+            : fullPath.substr(slash + 1);
+
+        std::ostringstream msg;
+        msg << "Structure saved: " << shownName << " (" << savedAtomCount << " atoms)";
+        showNotification(msg.str(), false);
+        std::cout << "[Operation] Saved structure: " << fullPath
+                  << " (format=" << kSaveFormats[formatIndex].fmt
+                  << ", atoms=" << savedAtomCount << ")" << std::endl;
+    }
+    else
+    {
+        showNotification("Error: failed to save (format may not support this structure).", true);
+        std::cout << "[Operation] Save failed: " << fullPath
+                  << " (format=" << kSaveFormats[formatIndex].fmt << ")" << std::endl;
+    }
+}
+
+void FileBrowser::drawMainMenuBar(Structure& structure,
+                                  EditMenuDialogs& editMenuDialogs,
+                                  const std::function<void(Structure&)>& updateBuffers,
+                                  bool canUndo,
+                                  bool canRedo)
+{
+    if (!ImGui::BeginMainMenuBar())
+        return;
+
+    if (ImGui::BeginMenu("File"))
+    {
+        if (ImGui::MenuItem("Open",  "Ctrl+O"))
+            openStructurePopup = true;
+
+        loadSharedRecentFilesIfNeeded();
+        const auto& recent = sharedRecentFiles();
+        if (ImGui::BeginMenu("Open Recent", !recent.empty()))
+        {
+            for (const std::string& recentPath : recent)
+            {
+                if (ImGui::MenuItem(recentPath.c_str()))
+                {
+                    pendingOpenPath = recentPath;
+                    openStatusMsg[0] = '\0';
+                }
+            }
+            ImGui::EndMenu();
         }
 
-        if (currentStructurePath.empty())
+        if (ImGui::MenuItem("Close", "Ctrl+W", false, !structure.atoms.empty()))
         {
+            requestCloseStructure = true;
+            std::cout << "[Operation] Close structure requested" << std::endl;
+        }
+
+        if (ImGui::MenuItem("Save", "Ctrl+S", false, !structure.atoms.empty()))
+            requestSaveFile = true;
+
+        if (ImGui::MenuItem("Save As", "Ctrl+Shift+S", false, !structure.atoms.empty()))
             triggerSaveAsDialog();
-            return;
-        }
 
-        std::string fullPath = normalizePathSeparators(currentStructurePath);
-        const std::string lowerPath = toLower(fullPath);
-        int formatIndex = -1;
-        for (int i = 0; i < kNumSaveFormats; ++i)
+        if (ImGui::MenuItem("Export Image", "Ctrl+Alt+S", false, !structure.atoms.empty()))
         {
-            if (hasExtension(lowerPath, toLower(kSaveFormats[i].ext)))
-            {
-                formatIndex = i;
-                break;
-            }
+            exportImagePopup = true;
+            exportDir = openDir;
+            exportDirHistory = dirHistory;
+            exportHistoryIndex = historyIndex;
+
+            if (exportFilename[0] == '\0')
+                std::snprintf(exportFilename, sizeof(exportFilename), "%s", "structure.png");
+
+            exportStatusMsg[0] = '\0';
         }
 
-        if (formatIndex < 0)
-        {
-            formatIndex = kDefaultSaveFormatIndex;
-            fullPath = replaceFileExtension(fullPath, kSaveFormats[formatIndex].ext, "structure");
-        }
+        ImGui::Separator();
 
-        std::size_t savedAtomCount = 0;
-        const bool ok = saveStructureWithOptionalSupercell(
-            structure,
-            isTransformMatrixEnabled(),
-            getTransformMatrix(),
-            fullPath,
-            kSaveFormats[formatIndex].fmt,
-            savedAtomCount);
+        if (ImGui::MenuItem("Quit"))
+            glfwSetWindowShouldClose(glfwGetCurrentContext(), true);
 
-        if (ok)
-        {
-            currentStructurePath = fullPath;
-            lastLoadedPath = fullPath;
-
-            const std::size_t slash = fullPath.find_last_of("/\\");
-            const std::string shownName = (slash == std::string::npos)
-                ? fullPath
-                : fullPath.substr(slash + 1);
-
-            std::ostringstream msg;
-            msg << "Structure saved: " << shownName << " (" << savedAtomCount << " atoms)";
-            showNotification(msg.str(), false);
-            std::cout << "[Operation] Saved structure: " << fullPath
-                      << " (format=" << kSaveFormats[formatIndex].fmt
-                      << ", atoms=" << savedAtomCount << ")" << std::endl;
-        }
-        else
-        {
-            showNotification("Error: failed to save (format may not support this structure).", true);
-            std::cout << "[Operation] Save failed: " << fullPath
-                      << " (format=" << kSaveFormats[formatIndex].fmt << ")" << std::endl;
-        }
-    };
-
-    if (requestSaveFile)
-    {
-        requestSaveFile = false;
-        performQuickSave();
+        ImGui::EndMenu();
     }
 
-    if (ImGui::BeginMainMenuBar())
+    if (ImGui::BeginMenu("Edit"))
     {
-        if (ImGui::BeginMenu("File"))
-        {
-            if (ImGui::MenuItem("Open",  "Ctrl+O"))
-                openStructurePopup = true;
+        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo))
+            requestUndo = true;
+        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo))
+            requestRedo = true;
+        ImGui::Separator();
+        if (ImGui::MenuItem("Box Select Mode", nullptr, &boxSelectMode) && boxSelectMode)
+            lassoSelectMode = false;
+        if (ImGui::MenuItem("Lasso Select Mode", nullptr, &lassoSelectMode) && lassoSelectMode)
+            boxSelectMode = false;
+        ImGui::Separator();
+        editMenuDialogs.drawMenuItems();
+        interstitialAtomsDialog.drawMenuItem(!structure.atoms.empty());
+        ImGui::Separator();
+        transformDialog.drawMenuItem(structure.hasUnitCell);
+        ImGui::Separator();
+        mergeStructuresDialog.drawMenuItem(true);
+        ImGui::Separator();
+        cellSculptorDialog.drawMenuItem(!structure.atoms.empty() || true);
 
-            loadSharedRecentFilesIfNeeded();
-            const auto& recent = sharedRecentFiles();
-            if (ImGui::BeginMenu("Open Recent", !recent.empty()))
-            {
-                for (const std::string& recentPath : recent)
-                {
-                    if (ImGui::MenuItem(recentPath.c_str()))
-                    {
-                        pendingOpenPath = recentPath;
-                        openStatusMsg[0] = '\0';
-                    }
-                }
-                ImGui::EndMenu();
-            }
+        ImGui::EndMenu();
+    }
 
-            if (ImGui::MenuItem("Close", "Ctrl+W", false, !structure.atoms.empty()))
-            {
-                requestCloseStructure = true;
-                std::cout << "[Operation] Close structure requested" << std::endl;
-            }
-
-            if (ImGui::MenuItem("Save", "Ctrl+S", false, !structure.atoms.empty()))
-            {
-                requestSaveFile = true;
-            }
-
-            if (ImGui::MenuItem("Save As", "Ctrl+Shift+S", false, !structure.atoms.empty()))
-            {
-                triggerSaveAsDialog();
-            }
-
-            if (ImGui::MenuItem("Export Image", "Ctrl+Alt+S", false, !structure.atoms.empty()))
-            {
-                exportImagePopup = true;
-                exportDir = openDir;
-                exportDirHistory = dirHistory;
-                exportHistoryIndex = historyIndex;
-
-                if (exportFilename[0] == '\0')
-                    std::snprintf(exportFilename, sizeof(exportFilename), "%s", "structure.png");
-
-                exportStatusMsg[0] = '\0';
-            }
-
-            ImGui::Separator();
-
-            if (ImGui::MenuItem("Quit"))
-                glfwSetWindowShouldClose(glfwGetCurrentContext(), true);
-
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Edit"))
-        {
-            if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo))
-                requestUndo = true;
-            if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo))
-                requestRedo = true;
-            ImGui::Separator();
-            if (ImGui::MenuItem("Box Select Mode", nullptr, &boxSelectMode) && boxSelectMode)
-                lassoSelectMode = false;
-            if (ImGui::MenuItem("Lasso Select Mode", nullptr, &lassoSelectMode) && lassoSelectMode)
-                boxSelectMode = false;
-            ImGui::Separator();
-            editMenuDialogs.drawMenuItems();
-            interstitialAtomsDialog.drawMenuItem(!structure.atoms.empty());
-            ImGui::Separator();
-            transformDialog.drawMenuItem(structure.hasUnitCell);
-            ImGui::Separator();
-            mergeStructuresDialog.drawMenuItem(true);
-            ImGui::Separator();
-            cellSculptorDialog.drawMenuItem(!structure.atoms.empty() || true);
-
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Build"))
-        {
-            bulkCrystalDialog.drawMenuItem(true);
+    if (ImGui::BeginMenu("Build"))
+    {
+        bulkCrystalDialog.drawMenuItem(true);
 #if ATOMFORGE_ENABLE_SSS_BUILDER
-            substitutionalSolidSolutionDialog.drawMenuItem(true);
+        substitutionalSolidSolutionDialog.drawMenuItem(true);
 #endif
 #if ATOMFORGE_ENABLE_SFE_BUILDER
-            stackingFaultDialog.drawMenuItem(true);
+        stackingFaultDialog.drawMenuItem(true);
 #endif
-            cslDialog.drawMenuItem(true);
-            nanoCrystalDialog.drawMenuItem(true);
-            customStructureDialog.drawMenuItem(true);
-            polyCrystalDialog.drawMenuItem(true);
-            amorphousBuilderDialog.drawMenuItem(true);
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("View"))
-        {
-            ImGui::MenuItem("Show Element", nullptr, &showElementLabels);
-            ImGui::Separator();
-
-            if (ImGui::BeginMenu("Color Structure By"))
-            {
-                if (ImGui::MenuItem("Element Type", nullptr,
-                                    atomColorMode == AtomColorMode::ElementType))
-                {
-                    if (atomColorMode != AtomColorMode::ElementType)
-                    {
-                        atomColorMode = AtomColorMode::ElementType;
-                        atomColorModeJustChanged = true;
-                        updateBuffers(structure);
-                    }
-                }
-                if (ImGui::MenuItem("Crystal Orientation", nullptr,
-                                    atomColorMode == AtomColorMode::CrystalOrientation))
-                {
-                    if (atomColorMode != AtomColorMode::CrystalOrientation)
-                    {
-                        atomColorMode = AtomColorMode::CrystalOrientation;
-                        atomColorModeJustChanged = true;
-                        updateBuffers(structure);
-                    }
-                }
-                if (ImGui::MenuItem("Grain Boundary", nullptr,
-                                    atomColorMode == AtomColorMode::GrainBoundary))
-                {
-                    if (atomColorMode != AtomColorMode::GrainBoundary)
-                    {
-                        atomColorMode = AtomColorMode::GrainBoundary;
-                        atomColorModeJustChanged = true;
-                        updateBuffers(structure);
-                    }
-                }
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("View Atom By"))
-            {
-                if (ImGui::MenuItem("Balls", nullptr, atomDisplayMode == AtomDisplayMode::Balls))
-                {
-                    if (atomDisplayMode != AtomDisplayMode::Balls)
-                    {
-                        atomDisplayMode = AtomDisplayMode::Balls;
-                        updateBuffers(structure);
-                    }
-                }
-                if (ImGui::MenuItem("Ball and Stick", nullptr, atomDisplayMode == AtomDisplayMode::BallAndStick))
-                {
-                    if (atomDisplayMode != AtomDisplayMode::BallAndStick)
-                    {
-                        atomDisplayMode = AtomDisplayMode::BallAndStick;
-                        updateBuffers(structure);
-                    }
-                }
-                if (ImGui::MenuItem("Space Filling", nullptr, atomDisplayMode == AtomDisplayMode::SpaceFilling))
-                {
-                    if (atomDisplayMode != AtomDisplayMode::SpaceFilling)
-                    {
-                        atomDisplayMode = AtomDisplayMode::SpaceFilling;
-                        updateBuffers(structure);
-                    }
-                }
-                {
-                    const bool polyhedralAllowed = (int)structure.atoms.size() <= 5000;
-                    if (!polyhedralAllowed && atomDisplayMode == AtomDisplayMode::Polyhedral)
-                        atomDisplayMode = AtomDisplayMode::BallAndStick;
-                    if (ImGui::MenuItem("Polyhedral", nullptr, atomDisplayMode == AtomDisplayMode::Polyhedral, polyhedralAllowed))
-                    {
-                        if (atomDisplayMode != AtomDisplayMode::Polyhedral)
-                        {
-                            atomDisplayMode = AtomDisplayMode::Polyhedral;
-                            updateBuffers(structure);
-                        }
-                    }
-                    if (!polyhedralAllowed && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                        ImGui::SetTooltip("Polyhedral view is disabled for structures with more than 5\u202f000 atoms.");
-                }
-                ImGui::EndMenu();
-            }
-
-            ImGui::Separator();
-
-            ImGui::MenuItem("Show Lattice Planes", nullptr, &showLatticePlanes, structure.hasUnitCell);
-            if (ImGui::MenuItem("Lattice Planes", nullptr, false, structure.hasUnitCell))
-                showLatticePlanesDialog = true;
-
-            ImGui::MenuItem("Show Miller Directions", nullptr, &showMillerDirections, structure.hasUnitCell);
-            if (ImGui::MenuItem("Miller Directions", nullptr, false, structure.hasUnitCell))
-                showMillerDirectionsDialog = true;
-
-            ImGui::Separator();
-
-            const bool isIsometricView = (viewMode == ViewMode::Isometric);
-            if (ImGui::MenuItem("Isometric View", nullptr, isIsometricView) && !isIsometricView)
-            {
-                viewMode = ViewMode::Isometric;
-                requestResetDefaultView = true;
-            }
-
-            const bool isOrthographicView = (viewMode == ViewMode::Orthographic);
-            if (ImGui::MenuItem("Orthographic View", nullptr, isOrthographicView) && !isOrthographicView)
-            {
-                viewMode = ViewMode::Orthographic;
-                requestResetDefaultView = true;
-            }
-
-            ImGui::Separator();
-            ImGui::MenuItem("Show Voronoi Volume", nullptr, &showVoronoi, !structure.atoms.empty());
-            ImGui::MenuItem("Polyhedral Viewer", nullptr, &showPolyhedralViewer, !structure.atoms.empty());
-            ImGui::Separator();
-            ImGui::MenuItem("Show Atoms", nullptr, &showAtoms, !structure.atoms.empty());
-            ImGui::MenuItem("Show Bounding Box", nullptr, &showBoundingBox, structure.hasUnitCell);
-            ImGui::Separator();
-            if (ImGui::MenuItem("Structure Info"))
-                requestStructureInfo = true;
-            if (ImGui::MenuItem("Measure Distance"))
-                requestMeasureDistance = true;
-            if (ImGui::MenuItem("Measure Angle"))
-                requestMeasureAngle = true;
-            if (ImGui::MenuItem("Atom Info"))
-                requestAtomInfo = true;
-            if (ImGui::MenuItem("Reset Default View"))
-                requestResetDefaultView = true;
-            ImGui::Separator();
-            if (ImGui::BeginMenu("Select Theme"))
-            {
-                if (ImGui::MenuItem("Dark", nullptr, !useLightTheme))
-                {
-                    if (useLightTheme) { useLightTheme = false; applyDarkTheme(); }
-                }
-                if (ImGui::MenuItem("Light", nullptr, useLightTheme))
-                {
-                    if (!useLightTheme) { useLightTheme = true; applyLightTheme(); }
-                }
-                ImGui::EndMenu();
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Analysis"))
-        {
-            // cnaDialog.drawMenuItem(!structure.atoms.empty()); // disabled: not ready
-            rdfDialog.drawMenuItem(!structure.atoms.empty());
-            drawShortRangeOrderMenuItem(!structure.atoms.empty(), shortRangeOrderDialog);
-            // angularDistributionDialog.drawMenuItem(!structure.atoms.empty()); // disabled: not ready
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Settings"))
-        {
-            editMenuDialogs.drawSettingsMenuItems();
-            ImGui::Separator();
-            if (ImGui::MenuItem("Polyhedral Settings"))
-                showPolyhedralSettingsDialog = true;
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Help"))
-        {
-            if (ImGui::MenuItem("Manual"))
-                showManual = true;
-
-            if (ImGui::MenuItem("About"))
-                showAbout = true;
-
-            ImGui::EndMenu();
-        }
-
-        ImGui::EndMainMenuBar();
+        cslDialog.drawMenuItem(true);
+        nanoCrystalDialog.drawMenuItem(true);
+        customStructureDialog.drawMenuItem(true);
+        polyCrystalDialog.drawMenuItem(true);
+        amorphousBuilderDialog.drawMenuItem(true);
+        ImGui::EndMenu();
     }
 
-    // Draw toolbar below menu bar with axis view and measurement options
+    if (ImGui::BeginMenu("View"))
     {
-        const float toolbarH = ImGui::GetFrameHeightWithSpacing() + 10.0f;
-        ImGui::SetNextWindowPos(ImVec2(0.0f, ImGui::GetFrameHeight()), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x, toolbarH), ImGuiCond_Always);
-        if (ImGui::Begin("##ViewToolbar", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
+        ImGui::MenuItem("Show Element", nullptr, &showElementLabels);
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Color Structure By"))
         {
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12.0f, 4.0f));
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 4.0f));
-            
-            // View Axis section
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("View Axis:");
-            ImGui::SameLine(0.0f, 8.0f);
-            if (ImGui::Button("X##axis", ImVec2(40.0f, 0.0f)))
-                requestViewAxisX = true;
-            ImGui::SameLine(0.0f, 4.0f);
-            if (ImGui::Button("Y##axis", ImVec2(40.0f, 0.0f)))
-                requestViewAxisY = true;
-            ImGui::SameLine(0.0f, 4.0f);
-            if (ImGui::Button("Z##axis", ImVec2(40.0f, 0.0f)))
-                requestViewAxisZ = true;
-
-            ImGui::SameLine(0.0f, 16.0f);
-
-            const bool hasInputCell = structure.hasUnitCell && !structure.atoms.empty();
-            if (!hasInputCell) ImGui::BeginDisabled();
-            if (ImGui::Button("a##latview", ImVec2(34.0f, 0.0f)))
-                requestViewLatticeA = true;
-            ImGui::SameLine(0.0f, 4.0f);
-            if (ImGui::Button("b##latview", ImVec2(34.0f, 0.0f)))
-                requestViewLatticeB = true;
-            ImGui::SameLine(0.0f, 4.0f);
-            if (ImGui::Button("c##latview", ImVec2(34.0f, 0.0f)))
-                requestViewLatticeC = true;
-            if (!hasInputCell) ImGui::EndDisabled();
-
-            ImGui::SameLine(0.0f, 16.0f);
-
-            // Rotate Crystal section
-            const bool hasAtoms = !structure.atoms.empty();
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Rotate:");
-            ImGui::SameLine(0.0f, 8.0f);
-            ImGui::SetNextItemWidth(68.0f);
-            ImGui::DragFloat("##rotangle", &rotateCrystalAngle, 1.0f, -360.0f, 360.0f, "%.1f\xc2\xb0");
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Rotation angle in degrees");
-            ImGui::SameLine(0.0f, 6.0f);
-            if (!hasAtoms) ImGui::BeginDisabled();
-            if (ImGui::Button("X##rot", ImVec2(36.0f, 0.0f)))
-                requestRotateCrystalX = true;
-            ImGui::SameLine(0.0f, 4.0f);
-            if (ImGui::Button("Y##rot", ImVec2(36.0f, 0.0f)))
-                requestRotateCrystalY = true;
-            ImGui::SameLine(0.0f, 4.0f);
-            if (ImGui::Button("Z##rot", ImVec2(36.0f, 0.0f)))
-                requestRotateCrystalZ = true;
-            if (!hasAtoms) ImGui::EndDisabled();
-
-            ImGui::SameLine(0.0f, 16.0f);
-            
-            // Measure section
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Measure:");
-            ImGui::SameLine(0.0f, 8.0f);
-            if (ImGui::Button("Distance##measure", ImVec2(80.0f, 0.0f)))
-                requestMeasureDistance = true;
-            ImGui::SameLine(0.0f, 4.0f);
-            if (ImGui::Button("Angle##measure", ImVec2(80.0f, 0.0f)))
-                requestMeasureAngle = true;
-
-            ImGui::PopStyleVar(2);
-            ImGui::End();
+            if (ImGui::MenuItem("Element Type", nullptr,
+                                atomColorMode == AtomColorMode::ElementType))
+            {
+                if (atomColorMode != AtomColorMode::ElementType)
+                {
+                    atomColorMode = AtomColorMode::ElementType;
+                    atomColorModeJustChanged = true;
+                    updateBuffers(structure);
+                }
+            }
+            if (ImGui::MenuItem("Crystal Orientation", nullptr,
+                                atomColorMode == AtomColorMode::CrystalOrientation))
+            {
+                if (atomColorMode != AtomColorMode::CrystalOrientation)
+                {
+                    atomColorMode = AtomColorMode::CrystalOrientation;
+                    atomColorModeJustChanged = true;
+                    updateBuffers(structure);
+                }
+            }
+            if (ImGui::MenuItem("Grain Boundary", nullptr,
+                                atomColorMode == AtomColorMode::GrainBoundary))
+            {
+                if (atomColorMode != AtomColorMode::GrainBoundary)
+                {
+                    atomColorMode = AtomColorMode::GrainBoundary;
+                    atomColorModeJustChanged = true;
+                    updateBuffers(structure);
+                }
+            }
+            ImGui::EndMenu();
         }
+
+        if (ImGui::BeginMenu("View Atom By"))
+        {
+            if (ImGui::MenuItem("Balls", nullptr, atomDisplayMode == AtomDisplayMode::Balls))
+            {
+                if (atomDisplayMode != AtomDisplayMode::Balls)
+                {
+                    atomDisplayMode = AtomDisplayMode::Balls;
+                    updateBuffers(structure);
+                }
+            }
+            if (ImGui::MenuItem("Ball and Stick", nullptr, atomDisplayMode == AtomDisplayMode::BallAndStick))
+            {
+                if (atomDisplayMode != AtomDisplayMode::BallAndStick)
+                {
+                    atomDisplayMode = AtomDisplayMode::BallAndStick;
+                    updateBuffers(structure);
+                }
+            }
+            if (ImGui::MenuItem("Space Filling", nullptr, atomDisplayMode == AtomDisplayMode::SpaceFilling))
+            {
+                if (atomDisplayMode != AtomDisplayMode::SpaceFilling)
+                {
+                    atomDisplayMode = AtomDisplayMode::SpaceFilling;
+                    updateBuffers(structure);
+                }
+            }
+            {
+                const bool polyhedralAllowed = (int)structure.atoms.size() <= 5000;
+                if (!polyhedralAllowed && atomDisplayMode == AtomDisplayMode::Polyhedral)
+                    atomDisplayMode = AtomDisplayMode::BallAndStick;
+                if (ImGui::MenuItem("Polyhedral", nullptr, atomDisplayMode == AtomDisplayMode::Polyhedral, polyhedralAllowed))
+                {
+                    if (atomDisplayMode != AtomDisplayMode::Polyhedral)
+                    {
+                        atomDisplayMode = AtomDisplayMode::Polyhedral;
+                        updateBuffers(structure);
+                    }
+                }
+                if (!polyhedralAllowed && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("Polyhedral view is disabled for structures with more than 5\u202f000 atoms.");
+            }
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+
+        ImGui::MenuItem("Show Lattice Planes", nullptr, &showLatticePlanes, structure.hasUnitCell);
+        if (ImGui::MenuItem("Lattice Planes", nullptr, false, structure.hasUnitCell))
+            showLatticePlanesDialog = true;
+
+        ImGui::MenuItem("Show Miller Directions", nullptr, &showMillerDirections, structure.hasUnitCell);
+        if (ImGui::MenuItem("Miller Directions", nullptr, false, structure.hasUnitCell))
+            showMillerDirectionsDialog = true;
+
+        ImGui::Separator();
+
+        const bool isIsometricView = (viewMode == ViewMode::Isometric);
+        if (ImGui::MenuItem("Isometric View", nullptr, isIsometricView) && !isIsometricView)
+        {
+            viewMode = ViewMode::Isometric;
+            requestResetDefaultView = true;
+        }
+
+        const bool isOrthographicView = (viewMode == ViewMode::Orthographic);
+        if (ImGui::MenuItem("Orthographic View", nullptr, isOrthographicView) && !isOrthographicView)
+        {
+            viewMode = ViewMode::Orthographic;
+            requestResetDefaultView = true;
+        }
+
+        ImGui::Separator();
+        ImGui::MenuItem("Show Voronoi Volume", nullptr, &showVoronoi, !structure.atoms.empty());
+        ImGui::MenuItem("Polyhedral Viewer", nullptr, &showPolyhedralViewer, !structure.atoms.empty());
+        ImGui::Separator();
+        ImGui::MenuItem("Show Atoms", nullptr, &showAtoms, !structure.atoms.empty());
+        ImGui::MenuItem("Show Bounding Box", nullptr, &showBoundingBox, structure.hasUnitCell);
+        ImGui::Separator();
+        if (ImGui::MenuItem("Structure Info"))
+            requestStructureInfo = true;
+        if (ImGui::MenuItem("Measure Distance"))
+            requestMeasureDistance = true;
+        if (ImGui::MenuItem("Measure Angle"))
+            requestMeasureAngle = true;
+        if (ImGui::MenuItem("Atom Info"))
+            requestAtomInfo = true;
+        if (ImGui::MenuItem("Reset Default View"))
+            requestResetDefaultView = true;
+        ImGui::Separator();
+        if (ImGui::BeginMenu("Select Theme"))
+        {
+            if (ImGui::MenuItem("Dark", nullptr, !useLightTheme))
+            {
+                if (useLightTheme) { useLightTheme = false; applyDarkTheme(); }
+            }
+            if (ImGui::MenuItem("Light", nullptr, useLightTheme))
+            {
+                if (!useLightTheme) { useLightTheme = true; applyLightTheme(); }
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenu();
     }
 
-    editMenuDialogs.drawPopups(structure, updateBuffers);
-
-    transformDialog.drawDialog([&]() { updateBuffers(structure); });
-
-    // Callback for builder dialogs: captures the built result and opens it in a new tab,
-    // restoring the current tab's structure to its pre-build state.
-    Structure preBuilderState = structure;
-    auto updateFromBuilderToNewTab = [&](Structure& s) {
-        Structure result = std::move(s);
-        s = std::move(preBuilderState);
-        openInNewTab(std::move(result));
-    };
-
-    bulkCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors, updateFromBuilderToNewTab);
-    cslDialog.drawDialog(structure, editMenuDialogs.elementColors,
-                         editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                         updateFromBuilderToNewTab);
-    nanoCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors,
-                                 editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                                 updateFromBuilderToNewTab);
-    customStructureDialog.drawDialog(structure, editMenuDialogs.elementColors,
-                                      editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                                      updateFromBuilderToNewTab);
-    mergeStructuresDialog.drawDialog(structure, updateFromBuilderToNewTab);
-    interfaceBuilderDialog.drawDialog(structure, editMenuDialogs.elementColors,
-                                      editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                                      updateFromBuilderToNewTab);
-    polyCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors,
-                                 editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
-                                 updateFromBuilderToNewTab);
-#if ATOMFORGE_ENABLE_SFE_BUILDER
-    stackingFaultDialog.drawDialog(structure, editMenuDialogs.elementColors,
-                                   editMenuDialogs.elementRadii,
-                                   editMenuDialogs.elementShininess,
-                                   updateFromBuilderToNewTab);
-#endif
-#if ATOMFORGE_ENABLE_SSS_BUILDER
-    substitutionalSolidSolutionDialog.drawDialog(structure, editMenuDialogs.elementColors,
-                                                  editMenuDialogs.elementRadii,
-                                                  editMenuDialogs.elementShininess,
-                                                  updateFromBuilderToNewTab);
-#endif
-    amorphousBuilderDialog.drawDialog(editMenuDialogs.elementColors,
-                                      editMenuDialogs.elementRadii,
-                                      updateFromBuilderToNewTab);
-    interstitialAtomsDialog.drawDialog(structure,
-                                       editMenuDialogs.elementColors,
-                                       editMenuDialogs.elementRadii,
-                                       editMenuDialogs.elementShininess,
-                                       [&](Structure& s) { updateBuffers(s); });
-    cnaDialog.drawDialog(structure);
-    rdfDialog.drawDialog(structure);
-    drawShortRangeOrderDialog(shortRangeOrderDialog, structure);
-    angularDistributionDialog.drawDialog(structure);
-    cellSculptorDialog.drawDialog(structure, updateBuffers);
-
-    if (loadErrorPopupRequested)
+    if (ImGui::BeginMenu("Analysis"))
     {
-        ImGui::OpenPopup(loadPopupTitle);
-        loadErrorPopupRequested = false;
+        // cnaDialog.drawMenuItem(!structure.atoms.empty()); // disabled: not ready
+        rdfDialog.drawMenuItem(!structure.atoms.empty());
+        drawShortRangeOrderMenuItem(!structure.atoms.empty(), shortRangeOrderDialog);
+        // angularDistributionDialog.drawMenuItem(!structure.atoms.empty()); // disabled: not ready
+        ImGui::EndMenu();
     }
 
-    ImGui::SetNextWindowSize(ImVec2(720.0f, 0.0f), ImGuiCond_Appearing);
-    bool loadErrorOpen = true;
-    if (ImGui::BeginPopupModal(loadPopupTitle, &loadErrorOpen, ImGuiWindowFlags_NoResize))
+    if (ImGui::BeginMenu("Settings"))
     {
-        ImGui::TextUnformatted(loadErrorMsg);
-        ImGui::Spacing();
-        if (ImGui::Button("OK", ImVec2(120, 0)))
-            ImGui::CloseCurrentPopup();
-        ImGui::EndPopup();
+        editMenuDialogs.drawSettingsMenuItems();
+        ImGui::Separator();
+        if (ImGui::MenuItem("Polyhedral Settings"))
+            showPolyhedralSettingsDialog = true;
+        ImGui::EndMenu();
     }
-    if (!loadErrorOpen)
-        ImGui::CloseCurrentPopup();
 
+    if (ImGui::BeginMenu("Help"))
+    {
+        if (ImGui::MenuItem("Manual"))
+            showManual = true;
+
+        if (ImGui::MenuItem("About"))
+            showAbout = true;
+
+        ImGui::EndMenu();
+    }
+
+    ImGui::EndMainMenuBar();
+}
+
+void FileBrowser::drawOpenStructureDialog()
+{
     if (openStructurePopup)
     {
         ImGui::OpenPopup("Open Structure");
@@ -1108,8 +950,10 @@ void FileBrowser::draw(Structure& structure,
     }
     if (!openStructureOpen)
         ImGui::CloseCurrentPopup();
+}
 
-    // ---- Save As dialog ------------------------------------------------
+void FileBrowser::drawSaveAsDialog(Structure& structure)
+{
     if (saveStructurePopup)
     {
         if (saveDir.empty())
@@ -1188,7 +1032,7 @@ void FileBrowser::draw(Structure& structure,
         ImGui::SameLine(0.0f, 2.0f);
         if (ImGui::Button("\xe2\x86\x91##saveUp", ImVec2(navBtnW, 0.0f)))
             pushSaveDir(parentPath(saveDir));
-            
+
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Up one level");
         ImGui::SameLine(0.0f, 8.0f);
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
@@ -1351,9 +1195,10 @@ void FileBrowser::draw(Structure& structure,
     }
     if (!saveAsOpen)
         ImGui::CloseCurrentPopup();
-    // ---- end Save As dialog --------------------------------------------
+}
 
-    // ---- Export Image dialog -------------------------------------------
+void FileBrowser::drawExportImageDialog(Structure& structure)
+{
     if (exportImagePopup)
     {
         if (exportDir.empty())
@@ -1572,7 +1417,178 @@ void FileBrowser::draw(Structure& structure,
     }
     if (!exportImageOpen)
         ImGui::CloseCurrentPopup();
-    // ---- end Export Image dialog ---------------------------------------
+}
+
+void FileBrowser::draw(Structure& structure,
+                       EditMenuDialogs& editMenuDialogs,
+                       const std::function<void(Structure&)>& updateBuffers,
+                       const std::function<void(Structure)>& openInNewTab,
+                       bool canUndo,
+                       bool canRedo)
+{
+    if (requestSaveFile)
+    {
+        requestSaveFile = false;
+        performQuickSave(structure);
+    }
+
+    drawMainMenuBar(structure, editMenuDialogs, updateBuffers, canUndo, canRedo);
+
+    // Draw toolbar below menu bar with axis view and measurement options
+    {
+        const float toolbarH = ImGui::GetFrameHeightWithSpacing() + 10.0f;
+        ImGui::SetNextWindowPos(ImVec2(0.0f, ImGui::GetFrameHeight()), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x, toolbarH), ImGuiCond_Always);
+        if (ImGui::Begin("##ViewToolbar", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12.0f, 4.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 4.0f));
+            
+            // View Axis section
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("View Axis:");
+            ImGui::SameLine(0.0f, 8.0f);
+            if (ImGui::Button("X##axis", ImVec2(40.0f, 0.0f)))
+                requestViewAxisX = true;
+            ImGui::SameLine(0.0f, 4.0f);
+            if (ImGui::Button("Y##axis", ImVec2(40.0f, 0.0f)))
+                requestViewAxisY = true;
+            ImGui::SameLine(0.0f, 4.0f);
+            if (ImGui::Button("Z##axis", ImVec2(40.0f, 0.0f)))
+                requestViewAxisZ = true;
+
+            ImGui::SameLine(0.0f, 16.0f);
+
+            const bool hasInputCell = structure.hasUnitCell && !structure.atoms.empty();
+            if (!hasInputCell) ImGui::BeginDisabled();
+            if (ImGui::Button("a##latview", ImVec2(34.0f, 0.0f)))
+                requestViewLatticeA = true;
+            ImGui::SameLine(0.0f, 4.0f);
+            if (ImGui::Button("b##latview", ImVec2(34.0f, 0.0f)))
+                requestViewLatticeB = true;
+            ImGui::SameLine(0.0f, 4.0f);
+            if (ImGui::Button("c##latview", ImVec2(34.0f, 0.0f)))
+                requestViewLatticeC = true;
+            if (!hasInputCell) ImGui::EndDisabled();
+
+            ImGui::SameLine(0.0f, 16.0f);
+
+            // Rotate Crystal section
+            const bool hasAtoms = !structure.atoms.empty();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Rotate:");
+            ImGui::SameLine(0.0f, 8.0f);
+            ImGui::SetNextItemWidth(68.0f);
+            ImGui::DragFloat("##rotangle", &rotateCrystalAngle, 1.0f, -360.0f, 360.0f, "%.1f\xc2\xb0");
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Rotation angle in degrees");
+            ImGui::SameLine(0.0f, 6.0f);
+            if (!hasAtoms) ImGui::BeginDisabled();
+            if (ImGui::Button("X##rot", ImVec2(36.0f, 0.0f)))
+                requestRotateCrystalX = true;
+            ImGui::SameLine(0.0f, 4.0f);
+            if (ImGui::Button("Y##rot", ImVec2(36.0f, 0.0f)))
+                requestRotateCrystalY = true;
+            ImGui::SameLine(0.0f, 4.0f);
+            if (ImGui::Button("Z##rot", ImVec2(36.0f, 0.0f)))
+                requestRotateCrystalZ = true;
+            if (!hasAtoms) ImGui::EndDisabled();
+
+            ImGui::SameLine(0.0f, 16.0f);
+            
+            // Measure section
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Measure:");
+            ImGui::SameLine(0.0f, 8.0f);
+            if (ImGui::Button("Distance##measure", ImVec2(80.0f, 0.0f)))
+                requestMeasureDistance = true;
+            ImGui::SameLine(0.0f, 4.0f);
+            if (ImGui::Button("Angle##measure", ImVec2(80.0f, 0.0f)))
+                requestMeasureAngle = true;
+
+            ImGui::PopStyleVar(2);
+            ImGui::End();
+        }
+    }
+
+    editMenuDialogs.drawPopups(structure, updateBuffers);
+
+    transformDialog.drawDialog([&]() { updateBuffers(structure); });
+
+    // Callback for builder dialogs: captures the built result and opens it in a new tab,
+    // restoring the current tab's structure to its pre-build state.
+    Structure preBuilderState = structure;
+    auto updateFromBuilderToNewTab = [&](Structure& s) {
+        Structure result = std::move(s);
+        s = std::move(preBuilderState);
+        openInNewTab(std::move(result));
+    };
+
+    bulkCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors, updateFromBuilderToNewTab);
+    cslDialog.drawDialog(structure, editMenuDialogs.elementColors,
+                         editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
+                         updateFromBuilderToNewTab);
+    nanoCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors,
+                                 editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
+                                 updateFromBuilderToNewTab);
+    customStructureDialog.drawDialog(structure, editMenuDialogs.elementColors,
+                                      editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
+                                      updateFromBuilderToNewTab);
+    mergeStructuresDialog.drawDialog(structure, updateFromBuilderToNewTab);
+    interfaceBuilderDialog.drawDialog(structure, editMenuDialogs.elementColors,
+                                      editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
+                                      updateFromBuilderToNewTab);
+    polyCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors,
+                                 editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
+                                 updateFromBuilderToNewTab);
+#if ATOMFORGE_ENABLE_SFE_BUILDER
+    stackingFaultDialog.drawDialog(structure, editMenuDialogs.elementColors,
+                                   editMenuDialogs.elementRadii,
+                                   editMenuDialogs.elementShininess,
+                                   updateFromBuilderToNewTab);
+#endif
+#if ATOMFORGE_ENABLE_SSS_BUILDER
+    substitutionalSolidSolutionDialog.drawDialog(structure, editMenuDialogs.elementColors,
+                                                  editMenuDialogs.elementRadii,
+                                                  editMenuDialogs.elementShininess,
+                                                  updateFromBuilderToNewTab);
+#endif
+    amorphousBuilderDialog.drawDialog(editMenuDialogs.elementColors,
+                                      editMenuDialogs.elementRadii,
+                                      updateFromBuilderToNewTab);
+    interstitialAtomsDialog.drawDialog(structure,
+                                       editMenuDialogs.elementColors,
+                                       editMenuDialogs.elementRadii,
+                                       editMenuDialogs.elementShininess,
+                                       [&](Structure& s) { updateBuffers(s); });
+    cnaDialog.drawDialog(structure);
+    rdfDialog.drawDialog(structure);
+    drawShortRangeOrderDialog(shortRangeOrderDialog, structure);
+    angularDistributionDialog.drawDialog(structure);
+    cellSculptorDialog.drawDialog(structure, updateBuffers);
+
+    if (loadErrorPopupRequested)
+    {
+        ImGui::OpenPopup(loadPopupTitle);
+        loadErrorPopupRequested = false;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(720.0f, 0.0f), ImGuiCond_Appearing);
+    bool loadErrorOpen = true;
+    if (ImGui::BeginPopupModal(loadPopupTitle, &loadErrorOpen, ImGuiWindowFlags_NoResize))
+    {
+        ImGui::TextUnformatted(loadErrorMsg);
+        ImGui::Spacing();
+        if (ImGui::Button("OK", ImVec2(120, 0)))
+            ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+    if (!loadErrorOpen)
+        ImGui::CloseCurrentPopup();
+
+    drawOpenStructureDialog();
+    drawSaveAsDialog(structure);
+    drawExportImageDialog(structure);
 
     if (showLatticePlanesDialog)
     {

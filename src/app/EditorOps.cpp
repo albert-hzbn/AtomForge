@@ -462,25 +462,30 @@ EditorSnapshot captureSnapshot(const EditorState& state)
     return snapshot;
 }
 
-void updateBuffers(EditorState& state)
+namespace
 {
-    if (state.fileBrowser.isTransformMatrixEnabled() && state.structure.hasUnitCell)
-    {
-        const size_t inputAtomCount = state.structure.atoms.size();
-        const int (&matrix)[3][3] = state.fileBrowser.getTransformMatrix();
-        state.structure = buildSupercell(state.structure, state.fileBrowser.getTransformMatrix());
-        std::cout << "[Operation] Applied supercell transform: "
-                  << "matrix=[[" << matrix[0][0] << " " << matrix[0][1] << " " << matrix[0][2] << "]"
-                  << ",[" << matrix[1][0] << " " << matrix[1][1] << " " << matrix[1][2] << "]"
-                  << ",[" << matrix[2][0] << " " << matrix[2][1] << " " << matrix[2][2] << "]]"
-                  << ", atoms=" << inputAtomCount << " -> " << state.structure.atoms.size()
-                  << std::endl;
-        state.fileBrowser.clearTransformMatrix();
-    }
+void applyPendingStructureMutations(EditorState& state)
+{
+    if (!state.fileBrowser.isTransformMatrixEnabled() || !state.structure.hasUnitCell)
+        return;
 
+    const size_t inputAtomCount = state.structure.atoms.size();
+    const int (&matrix)[3][3] = state.fileBrowser.getTransformMatrix();
+    state.structure = buildSupercell(state.structure, state.fileBrowser.getTransformMatrix());
+    std::cout << "[Operation] Applied supercell transform: "
+              << "matrix=[[" << matrix[0][0] << " " << matrix[0][1] << " " << matrix[0][2] << "]"
+              << ",[" << matrix[1][0] << " " << matrix[1][1] << " " << matrix[1][2] << "]"
+              << ",[" << matrix[2][0] << " " << matrix[2][1] << " " << matrix[2][2] << "]]"
+              << ", atoms=" << inputAtomCount << " -> " << state.structure.atoms.size()
+              << std::endl;
+    state.fileBrowser.clearTransformMatrix();
+}
+
+void applyDisplayColors(EditorState& state)
+{
     for (auto& atom : state.structure.atoms)
     {
-        int atomicNumber = atom.atomicNumber;
+        const int atomicNumber = atom.atomicNumber;
         if (atomicNumber >= 0 && atomicNumber < (int)state.editMenuDialogs.elementColors.size())
         {
             atom.r = state.editMenuDialogs.elementColors[atomicNumber].r;
@@ -489,7 +494,6 @@ void updateBuffers(EditorState& state)
         }
     }
 
-    // Override with alternative color modes when selected.
     if (state.fileBrowser.getAtomColorMode() == AtomColorMode::CrystalOrientation)
     {
         if (state.structure.grainColors.size() == state.structure.atoms.size())
@@ -506,7 +510,10 @@ void updateBuffers(EditorState& state)
     {
         applyGrainBoundaryColors(state.structure);
     }
+}
 
+StructureInstanceData buildRenderData(const EditorState& state)
+{
     StructureInstanceData data = buildStructureInstanceData(
         state.structure,
         state.fileBrowser.isTransformMatrixEnabled(),
@@ -514,23 +521,40 @@ void updateBuffers(EditorState& state)
         state.editMenuDialogs.elementRadii,
         state.editMenuDialogs.elementShininess);
 
-    // Apply display mode visual radius scale (does not affect bond detection).
     const float radiusScale = state.fileBrowser.getAtomRadiusScale();
     if (std::abs(radiusScale - 1.0f) > 1e-4f)
     {
-        for (float& s : data.scales)
-            s *= radiusScale;
+        for (float& scale : data.scales)
+            scale *= radiusScale;
     }
 
+    return data;
+}
+
+void refreshSceneBuffers(EditorState& state, const StructureInstanceData& data)
+{
     state.sceneBuffers.upload(
         data,
         state.fileBrowser.isBondElementFilterEnabled(),
         state.fileBrowser.getBondElementFilterMask());
     state.selectedInstanceIndices.clear();
     state.voronoiDirty = true;
+}
 
+void commitSnapshotIfEnabled(EditorState& state)
+{
     if (!state.suppressHistoryCommit)
         state.undoRedo.commit(captureSnapshot(state));
+}
+}
+
+void updateBuffers(EditorState& state)
+{
+    applyPendingStructureMutations(state);
+    applyDisplayColors(state);
+    const StructureInstanceData data = buildRenderData(state);
+    refreshSceneBuffers(state, data);
+    commitSnapshotIfEnabled(state);
 }
 
 void updateBuffers(EditorState& state, Structure& structure)

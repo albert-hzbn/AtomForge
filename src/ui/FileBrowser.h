@@ -369,6 +369,17 @@ struct FileBrowser
     void showNotification(const std::string& message, bool isError = false);
 
 private:
+    void triggerSaveAsDialog();
+    void performQuickSave(const Structure& structure);
+    void drawMainMenuBar(Structure& structure,
+                         EditMenuDialogs& editMenuDialogs,
+                         const std::function<void(Structure&)>& updateBuffers,
+                         bool canUndo,
+                         bool canRedo);
+    void drawOpenStructureDialog();
+    void drawSaveAsDialog(Structure& structure);
+    void drawExportImageDialog(Structure& structure);
+
     void rememberRecentFile(const std::string& path);
     void updateBondElementFilterMask();
     void updatePolyhedralElementFilterMask(const char* input, std::array<bool, 119>& mask);
