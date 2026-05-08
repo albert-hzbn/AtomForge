@@ -6,6 +6,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <climits>
 #include <limits>
 #include <set>
 #include <thread>
@@ -391,7 +392,8 @@ InterstitialVoidDetectionResult detectInterstitialVoidRegions(
     }
 
     const int gridN = std::max(6, std::min(48, params.gridResolution));
-    const int maxVoids = std::max(1, params.maxVoids);
+    const bool limitVoids = params.maxVoids > 0;
+    const int maxVoids = limitVoids ? std::max(1, params.maxVoids) : INT_MAX;
     const float minClear = std::max(0.05f, params.minClearance);
     const float minSep = std::max(0.05f, params.minSeparation);
     const float neighborShell = std::max(1.02f, params.firstNeighborShellFactor);
@@ -412,7 +414,10 @@ InterstitialVoidDetectionResult detectInterstitialVoidRegions(
     const int neighborPool = std::max(16, std::min(40, gridN + 10));
 
     std::vector<InterstitialVoidRegion> regions;
-    regions.reserve((size_t)maxVoids * 2);
+    if (limitVoids)
+        regions.reserve((size_t)maxVoids * 2);
+    else
+        regions.reserve(std::max((size_t)4096, atomPos.size() * (size_t)2));
 
     struct CandidateCenter
     {
@@ -757,7 +762,7 @@ InterstitialVoidDetectionResult detectInterstitialVoidRegions(
         return a.clearance > b.clearance;
     });
 
-    if ((int)regions.size() > maxVoids)
+    if (limitVoids && (int)regions.size() > maxVoids)
         regions.resize((size_t)maxVoids);
 
     assignVolumeBins(regions);

@@ -145,7 +145,7 @@ private:
     int   m_selectedElement   = 6;
     int   m_selectedVoidIndex = -1;
     int   m_gridResolution    = 14;
-    int   m_maxVoids          = 400;
+    int   m_maxVoids          = 0;
     float m_minClearance      = 0.6f;
     float m_minSeparation     = 0.8f;
     bool  m_showVoidOverlay   = true;

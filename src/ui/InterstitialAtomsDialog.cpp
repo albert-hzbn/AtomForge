@@ -1273,7 +1273,8 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
         ImGui::SliderInt("Grid", &m_gridResolution, 8, 30);
         ImGui::SetNextItemWidth(180.0f);
         ImGui::InputInt("Max Voids", &m_maxVoids);
-        m_maxVoids = std::max(20, m_maxVoids);
+        m_maxVoids = std::max(0, m_maxVoids);
+        ImGui::TextDisabled("0 = detect all voids");
         ImGui::SetNextItemWidth(180.0f);
         ImGui::DragFloat("Min Clearance (A)", &m_minClearance, 0.02f, 0.05f, 5.0f, "%.2f");
         ImGui::SetNextItemWidth(180.0f);
@@ -1286,7 +1287,10 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
             if (detectVoids())
             {
                 m_statusIsError = false;
-                m_statusMsg = "Detected " + std::to_string(m_voids.size()) + " void candidates.";
+                if (m_maxVoids > 0)
+                    m_statusMsg = "Detected " + std::to_string(m_voids.size()) + " void candidates (capped).";
+                else
+                    m_statusMsg = "Detected " + std::to_string(m_voids.size()) + " void candidates.";
             }
             else
             {
