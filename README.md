@@ -1,4 +1,4 @@
-# <img src="assets/icon/atomforge-icon.svg" alt="AtomForge icon" width="80" style="vertical-align: middle; margin-right: 8px;" /><span style="vertical-align: middle;">AtomForge</span>
+# <img src="assets/icon/atomforge-icon.svg" alt="AtomForge icon" width="40" style="vertical-align: middle; margin-right: 8px;" /><span style="vertical-align: middle;">AtomForge</span>
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20054535.svg)](https://doi.org/10.5281/zenodo.20054535)
 
