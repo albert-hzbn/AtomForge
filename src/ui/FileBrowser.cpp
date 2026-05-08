@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #ifdef _WIN32
@@ -42,6 +43,7 @@ static const SaveFormat kSaveFormats[] = {
     { "Gaussian Input (.gjf)",    ".gjf",  "gjf"   },
 };
 static constexpr int kNumSaveFormats = (int)(sizeof(kSaveFormats) / sizeof(kSaveFormats[0]));
+static constexpr int kDefaultSaveFormatIndex = 1; // CIF (.cif)
 
 struct ImageExportFormatOption { const char* label; const char* ext; ImageExportFormat fmt; };
 static const ImageExportFormatOption kImageExportFormats[] = {
@@ -51,6 +53,66 @@ static const ImageExportFormatOption kImageExportFormats[] = {
 };
 static constexpr int kNumImageExportFormats = (int)(sizeof(kImageExportFormats) / sizeof(kImageExportFormats[0]));
 static constexpr double kNotificationLifetimeSeconds = 3.5;
+static constexpr std::size_t kMaxRecentFiles = 5;
+
+namespace
+{
+std::vector<std::string>& sharedRecentFiles()
+{
+    static std::vector<std::string> files;
+    return files;
+}
+
+bool& sharedRecentFilesLoaded()
+{
+    static bool loaded = false;
+    return loaded;
+}
+
+std::string recentFilesStorePath()
+{
+    return joinPath(detectHomePath(), ".atomforge_recent_files.txt");
+}
+
+void loadSharedRecentFilesIfNeeded()
+{
+    if (sharedRecentFilesLoaded())
+        return;
+
+    sharedRecentFilesLoaded() = true;
+
+    std::ifstream in(recentFilesStorePath());
+    if (!in)
+        return;
+
+    std::string line;
+    while (std::getline(in, line))
+    {
+        if (line.empty())
+            continue;
+
+        const std::string normalized = normalizePathSeparators(line);
+        auto& files = sharedRecentFiles();
+        if (std::find(files.begin(), files.end(), normalized) != files.end())
+            continue;
+
+        files.push_back(normalized);
+        if (files.size() >= kMaxRecentFiles)
+            break;
+    }
+}
+
+void saveSharedRecentFiles()
+{
+    std::ofstream out(recentFilesStorePath(), std::ios::trunc);
+    if (!out)
+        return;
+
+    for (const std::string& path : sharedRecentFiles())
+        out << path << '\n';
+}
+}
+
 // Persistent sidebar width shared across all three file-browser dialogs.
 static float s_sidebarW = 130.0f;
  
@@ -95,6 +157,7 @@ FileBrowser::FileBrowser()
             requestUndo(false),
             requestRedo(false),
             requestCloseStructure(false),
+            requestSaveFile(false),
             requestImageExport(false),
             openStructurePopup(false),
             saveStructurePopup(false),
@@ -104,7 +167,7 @@ FileBrowser::FileBrowser()
       historyIndex(-1),
       saveDir("."),
       saveHistoryIndex(-1),
-      selectedSaveFormat(0),
+    selectedSaveFormat(kDefaultSaveFormatIndex),
         exportDir("."),
         exportHistoryIndex(-1),
         selectedExportFormat(0),
@@ -177,6 +240,27 @@ FileBrowser::FileBrowser()
     polyhedralSettings.centerElementMask.fill(false);
     polyhedralSettings.ligandElementMask.fill(false);
     updateBondElementFilterMask();
+    loadSharedRecentFilesIfNeeded();
+}
+
+void FileBrowser::rememberRecentFile(const std::string& path)
+{
+    if (path.empty())
+        return;
+
+    loadSharedRecentFilesIfNeeded();
+
+    const std::string normalized = normalizePathSeparators(path);
+    auto& files = sharedRecentFiles();
+    files.erase(
+        std::remove(files.begin(), files.end(), normalized),
+        files.end());
+    files.insert(files.begin(), normalized);
+
+    if (files.size() > kMaxRecentFiles)
+        files.resize(kMaxRecentFiles);
+
+    saveSharedRecentFiles();
 }
 
 void FileBrowser::updateBondElementFilterMask()
@@ -297,6 +381,8 @@ void FileBrowser::updatePolyhedralCenterAtomIndexFilter(const char* input)
 
 void FileBrowser::initFromPath(const std::string& initialPath)
 {
+    saveFilename[0] = '\0';
+
     openDir = ".";
     auto pos = initialPath.find_last_of("/\\");
     if (pos != std::string::npos)
@@ -315,8 +401,12 @@ void FileBrowser::initFromPath(const std::string& initialPath)
         initialOpenFilename = initialPath.substr(pos + 1);
 
     std::snprintf(openFilename, sizeof(openFilename), "%s", initialOpenFilename.c_str());
+    currentStructurePath = initialPath;
     if (!initialPath.empty())
+    {
+        rememberRecentFile(initialPath);
         lastLoadedPath = initialPath;
+    }
 }
 
 void FileBrowser::draw(Structure& structure,
@@ -326,6 +416,90 @@ void FileBrowser::draw(Structure& structure,
                        bool canUndo,
                        bool canRedo)
 {
+    auto triggerSaveAsDialog = [&]() {
+        saveStructurePopup = true;
+        saveDir = openDir.empty() ? "." : openDir;
+        saveDirHistory = dirHistory;
+        saveHistoryIndex = historyIndex;
+        if (saveDirHistory.empty())
+        {
+            saveDirHistory.push_back(saveDir);
+            saveHistoryIndex = 0;
+        }
+        saveStatusMsg[0] = '\0';
+    };
+
+    auto performQuickSave = [&]() {
+        if (structure.atoms.empty())
+        {
+            showNotification("Error: no atoms to save.", true);
+            return;
+        }
+
+        if (currentStructurePath.empty())
+        {
+            triggerSaveAsDialog();
+            return;
+        }
+
+        std::string fullPath = normalizePathSeparators(currentStructurePath);
+        const std::string lowerPath = toLower(fullPath);
+        int formatIndex = -1;
+        for (int i = 0; i < kNumSaveFormats; ++i)
+        {
+            if (hasExtension(lowerPath, toLower(kSaveFormats[i].ext)))
+            {
+                formatIndex = i;
+                break;
+            }
+        }
+
+        if (formatIndex < 0)
+        {
+            formatIndex = kDefaultSaveFormatIndex;
+            fullPath = replaceFileExtension(fullPath, kSaveFormats[formatIndex].ext, "structure");
+        }
+
+        std::size_t savedAtomCount = 0;
+        const bool ok = saveStructureWithOptionalSupercell(
+            structure,
+            isTransformMatrixEnabled(),
+            getTransformMatrix(),
+            fullPath,
+            kSaveFormats[formatIndex].fmt,
+            savedAtomCount);
+
+        if (ok)
+        {
+            currentStructurePath = fullPath;
+            lastLoadedPath = fullPath;
+
+            const std::size_t slash = fullPath.find_last_of("/\\");
+            const std::string shownName = (slash == std::string::npos)
+                ? fullPath
+                : fullPath.substr(slash + 1);
+
+            std::ostringstream msg;
+            msg << "Structure saved: " << shownName << " (" << savedAtomCount << " atoms)";
+            showNotification(msg.str(), false);
+            std::cout << "[Operation] Saved structure: " << fullPath
+                      << " (format=" << kSaveFormats[formatIndex].fmt
+                      << ", atoms=" << savedAtomCount << ")" << std::endl;
+        }
+        else
+        {
+            showNotification("Error: failed to save (format may not support this structure).", true);
+            std::cout << "[Operation] Save failed: " << fullPath
+                      << " (format=" << kSaveFormats[formatIndex].fmt << ")" << std::endl;
+        }
+    };
+
+    if (requestSaveFile)
+    {
+        requestSaveFile = false;
+        performQuickSave();
+    }
+
     if (ImGui::BeginMainMenuBar())
     {
         if (ImGui::BeginMenu("File"))
@@ -333,22 +507,38 @@ void FileBrowser::draw(Structure& structure,
             if (ImGui::MenuItem("Open",  "Ctrl+O"))
                 openStructurePopup = true;
 
+            loadSharedRecentFilesIfNeeded();
+            const auto& recent = sharedRecentFiles();
+            if (ImGui::BeginMenu("Open Recent", !recent.empty()))
+            {
+                for (const std::string& recentPath : recent)
+                {
+                    if (ImGui::MenuItem(recentPath.c_str()))
+                    {
+                        pendingOpenPath = recentPath;
+                        openStatusMsg[0] = '\0';
+                    }
+                }
+                ImGui::EndMenu();
+            }
+
             if (ImGui::MenuItem("Close", "Ctrl+W", false, !structure.atoms.empty()))
             {
                 requestCloseStructure = true;
                 std::cout << "[Operation] Close structure requested" << std::endl;
             }
 
-            if (ImGui::MenuItem("Save As", "Ctrl+S"))
+            if (ImGui::MenuItem("Save", "Ctrl+S", false, !structure.atoms.empty()))
             {
-                saveStructurePopup = true;
-                saveDir = openDir;
-                saveDirHistory = dirHistory;
-                saveHistoryIndex = historyIndex;
-                saveStatusMsg[0] = '\0';
+                requestSaveFile = true;
             }
 
-            if (ImGui::MenuItem("Export Image", "Ctrl+Shift+S", false, !structure.atoms.empty()))
+            if (ImGui::MenuItem("Save As", "Ctrl+Shift+S", false, !structure.atoms.empty()))
+            {
+                triggerSaveAsDialog();
+            }
+
+            if (ImGui::MenuItem("Export Image", "Ctrl+Alt+S", false, !structure.atoms.empty()))
             {
                 exportImagePopup = true;
                 exportDir = openDir;
@@ -922,6 +1112,42 @@ void FileBrowser::draw(Structure& structure,
     // ---- Save As dialog ------------------------------------------------
     if (saveStructurePopup)
     {
+        if (saveDir.empty())
+            saveDir = openDir.empty() ? "." : openDir;
+
+        if (saveDirHistory.empty())
+        {
+            saveDirHistory = dirHistory;
+            saveHistoryIndex = historyIndex;
+            if (saveDirHistory.empty())
+            {
+                saveDirHistory.push_back(saveDir);
+                saveHistoryIndex = 0;
+            }
+        }
+
+        if (saveFilename[0] == '\0')
+        {
+            selectedSaveFormat = kDefaultSaveFormatIndex;
+            std::string fallbackBase = "structure";
+            if (!currentStructurePath.empty())
+            {
+                const std::string path = normalizePathSeparators(currentStructurePath);
+                const std::size_t slash = path.find_last_of('/');
+                std::string fileName = (slash == std::string::npos) ? path : path.substr(slash + 1);
+                const std::size_t dot = fileName.find_last_of('.');
+                if (dot != std::string::npos)
+                    fileName = fileName.substr(0, dot);
+                if (!fileName.empty())
+                    fallbackBase = fileName;
+            }
+            const std::string initialName = replaceFileExtension(
+                fallbackBase,
+                kSaveFormats[selectedSaveFormat].ext,
+                "structure");
+            std::snprintf(saveFilename, sizeof(saveFilename), "%s", initialName.c_str());
+        }
+
         ImGui::OpenPopup("Save As");
         saveStructurePopup = false;
     }
@@ -1099,6 +1325,9 @@ void FileBrowser::draw(Structure& structure,
                     savedAtomCount);
                 if (ok)
                 {
+                    currentStructurePath = fullPath;
+                    lastLoadedPath = fullPath;
+
                     std::ostringstream msg;
                     msg << "Structure saved: " << saveFilename
                         << " (" << savedAtomCount << " atoms)";
@@ -1745,8 +1974,9 @@ void FileBrowser::draw(Structure& structure,
             ImGui::Spacing();
             ImGui::Text("Keyboard Shortcuts");
             wrappedBullet("Ctrl+O: open structure file.");
-            wrappedBullet("Ctrl+S: save structure as.");
-            wrappedBullet("Ctrl+Shift+S: export the current rendered view.");
+            wrappedBullet("Ctrl+S: save current structure.");
+            wrappedBullet("Ctrl+Shift+S: save structure as.");
+            wrappedBullet("Ctrl+Alt+S: export the current rendered view.");
             wrappedBullet("Ctrl+Z: undo. Ctrl+Y or Ctrl+Shift+Z: redo.");
 
             ImGui::Spacing();

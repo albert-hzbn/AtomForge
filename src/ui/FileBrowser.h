@@ -285,9 +285,11 @@ struct FileBrowser
 
     // Programmatically trigger file open dialog (for keyboard shortcuts)
     void openFileDialog() { openStructurePopup = true; }
-    // Trigger save-as dialog (e.g. from Ctrl+S shortcut)
+    // Trigger save of the current file path (Ctrl+S). Falls back to Save As.
+    void saveFile() { requestSaveFile = true; }
+    // Trigger save-as dialog.
     void saveFileDialog() { saveStructurePopup = true; }
-    // Trigger image-export dialog (e.g. from Ctrl+Shift+S shortcut)
+    // Trigger image-export dialog.
     void exportImageDialog() { exportImagePopup = true; }
     // Trigger unload of current structure (e.g. from Ctrl+W shortcut)
     void closeStructure() { requestCloseStructure = true; }
@@ -367,6 +369,7 @@ struct FileBrowser
     void showNotification(const std::string& message, bool isError = false);
 
 private:
+    void rememberRecentFile(const std::string& path);
     void updateBondElementFilterMask();
     void updatePolyhedralElementFilterMask(const char* input, std::array<bool, 119>& mask);
     void updatePolyhedralCenterAtomIndexFilter(const char* input);
@@ -416,12 +419,14 @@ private:
     bool requestUndo;
     bool requestRedo;
     bool requestCloseStructure;
+    bool requestSaveFile;
     bool requestImageExport;
     bool openStructurePopup;
     bool saveStructurePopup;
     bool exportImagePopup;
     bool loadErrorPopupRequested;
     std::string pendingOpenPath;
+    std::string currentStructurePath;
 
     std::string openDir;
     std::vector<std::string> dirHistory;

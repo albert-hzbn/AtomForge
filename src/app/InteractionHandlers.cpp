@@ -84,10 +84,16 @@ FrameActionRequests beginFrameActionRequests(EditorState& state)
 
 void applyKeyboardShortcuts(EditorState& state, FrameActionRequests& requests)
 {
+    ImGuiIO& io = ImGui::GetIO();
     const bool ctrlHeld = isCtrlHeld();
 
     // When grab mode is active, only grab-related keys should be processed.
     if (state.grabState.active)
+        return;
+
+    // Disable global shortcuts while any modal/popup dialog is open.
+    const bool anyPopupOpen = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId);
+    if (state.fileBrowser.isAnyDialogOpen() || anyPopupOpen)
         return;
 
     if (ImGui::IsKeyPressed(ImGuiKey_Delete) && !state.selectedInstanceIndices.empty())
@@ -95,7 +101,7 @@ void applyKeyboardShortcuts(EditorState& state, FrameActionRequests& requests)
 
     if (ImGui::IsKeyPressed(ImGuiKey_I)
         && !ctrlHeld
-        && !ImGui::GetIO().WantTextInput
+        && !io.WantTextInput
         && state.selectedInstanceIndices.size() >= 2
         && !state.sceneBuffers.cpuCachesDisabled
         && !state.fileBrowser.isAnyDialogOpen())
@@ -113,16 +119,19 @@ void applyKeyboardShortcuts(EditorState& state, FrameActionRequests& requests)
     if (ImGui::IsKeyPressed(ImGuiKey_O) && ctrlHeld)
         state.fileBrowser.openFileDialog();
 
-    if (ImGui::IsKeyPressed(ImGuiKey_S) && ctrlHeld && ImGui::GetIO().KeyShift)
+    if (ImGui::IsKeyPressed(ImGuiKey_S) && ctrlHeld && io.KeyAlt)
         state.fileBrowser.exportImageDialog();
 
-    if (ImGui::IsKeyPressed(ImGuiKey_S) && ctrlHeld && !ImGui::GetIO().KeyShift)
+    if (ImGui::IsKeyPressed(ImGuiKey_S) && ctrlHeld && io.KeyShift && !io.KeyAlt)
         state.fileBrowser.saveFileDialog();
+
+    if (ImGui::IsKeyPressed(ImGuiKey_S) && ctrlHeld && !io.KeyShift && !io.KeyAlt)
+        state.fileBrowser.saveFile();
 
     if (ImGui::IsKeyPressed(ImGuiKey_S) && !ctrlHeld && !state.selectedInstanceIndices.empty()
         && !state.sceneBuffers.cpuCachesDisabled
         && !state.fileBrowser.isAnyDialogOpen()
-        && !ImGui::GetIO().WantTextInput)
+        && !io.WantTextInput)
         state.contextMenu.openSubstitute();
 
     if (ImGui::IsKeyPressed(ImGuiKey_W) && ctrlHeld)
@@ -130,18 +139,18 @@ void applyKeyboardShortcuts(EditorState& state, FrameActionRequests& requests)
 
     if (ImGui::IsKeyPressed(ImGuiKey_R)
         && !ctrlHeld
-        && !ImGui::GetIO().WantTextInput
-        && !ImGui::GetIO().KeyAlt
-        && !ImGui::GetIO().KeySuper)
+        && !io.WantTextInput
+        && !io.KeyAlt
+        && !io.KeySuper)
     {
         state.pendingDefaultViewReset = true;
     }
 
-    if (ImGui::IsKeyPressed(ImGuiKey_Z) && ctrlHeld && !ImGui::GetIO().KeyShift)
+    if (ImGui::IsKeyPressed(ImGuiKey_Z) && ctrlHeld && !io.KeyShift)
         requests.requestUndo = true;
 
     if ((ImGui::IsKeyPressed(ImGuiKey_Y) && ctrlHeld) ||
-        (ImGui::IsKeyPressed(ImGuiKey_Z) && ctrlHeld && ImGui::GetIO().KeyShift))
+        (ImGui::IsKeyPressed(ImGuiKey_Z) && ctrlHeld && io.KeyShift))
     {
         requests.requestRedo = true;
     }

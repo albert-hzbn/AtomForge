@@ -99,8 +99,9 @@ Box selection is available from Edit -> Box Select Mode. When enabled, right-dra
 | Action | Shortcut |
 | --- | --- |
 | Open structure | Ctrl + O |
-| Save structure as | Ctrl + S |
-| Export rendered image | Ctrl + Shift + S |
+| Save structure | Ctrl + S |
+| Save structure as | Ctrl + Shift + S |
+| Export rendered image | Ctrl + Alt + S |
 | Undo | Ctrl + Z |
 | Redo | Ctrl + Y or Ctrl + Shift + Z |
 
