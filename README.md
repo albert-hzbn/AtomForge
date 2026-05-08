@@ -4,6 +4,13 @@
 
 AtomForge is an interactive atomic structure builder for metallurgical simulation and atomistic modeling. It is designed to help researchers and engineers create, edit, inspect, and export structures used in molecular dynamics (MD) and first-principles workflows.
 
+## Application icon
+
+AtomForge uses a minimalist grid-core icon that represents aligned lattice features around a central atom.
+
+- Source SVG: `assets/icon/atomforge-icon.svg`
+- Windows app icon resource: `assets/icon/atomforge.ico`
+
 ## Highlights
 
 - Build structures from scratch using crystal-aware workflows for bulk crystals, substitutional solid solutions, cubic grain boundaries, and nanocrystals.

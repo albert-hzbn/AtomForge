@@ -4,5 +4,8 @@
 
 #include <winuser.h>
 
+// Application icon for the executable and taskbar.
+IDI_APP_ICON ICON "..\\..\\assets\\icon\\atomforge.ico"
+
 // RT_MANIFEST (ID 24), resource ID 1 = application manifest
 1 RT_MANIFEST "AtomForge.manifest"

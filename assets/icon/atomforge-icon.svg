@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Grid core icon">
+  <rect x="14" y="14" width="228" height="228" rx="42" fill="#102735" />
+  <g stroke="#5FA8C6" stroke-width="3" opacity="0.45">
+    <line x1="64" y1="64" x2="192" y2="64"/>
+    <line x1="64" y1="128" x2="192" y2="128"/>
+    <line x1="64" y1="192" x2="192" y2="192"/>
+    <line x1="64" y1="64" x2="64" y2="192"/>
+    <line x1="128" y1="64" x2="128" y2="192"/>
+    <line x1="192" y1="64" x2="192" y2="192"/>
+  </g>
+  <g fill="#DDF5FF">
+    <circle cx="64" cy="64" r="8"/>
+    <circle cx="192" cy="64" r="8"/>
+    <circle cx="64" cy="192" r="8"/>
+    <circle cx="192" cy="192" r="8"/>
+  </g>
+  <circle cx="128" cy="128" r="18" fill="#62C2E8"/>
+  <g stroke="#9EDCF3" stroke-width="6" stroke-linecap="round">
+    <line x1="92" y1="128" x2="164" y2="128"/>
+    <line x1="128" y1="92" x2="128" y2="164"/>
+  </g>
+</svg>
