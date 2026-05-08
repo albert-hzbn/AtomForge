@@ -1,20 +1,26 @@
-# <img src="assets/icon/atomforge-icon.svg" alt="AtomForge icon" width="40" style="vertical-align: middle; margin-right: 8px;" /><span style="vertical-align: middle;">AtomForge</span>
+<p align="center">
+	<img src="assets/icon/atomforge-icon.svg" alt="AtomForge icon" width="28" />
+</p>
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20054535.svg)](https://doi.org/10.5281/zenodo.20054535)
+<h1 align="center">AtomForge</h1>
+
+<p align="center">
+	<a href="https://doi.org/10.5281/zenodo.20054535">
+		<img src="https://zenodo.org/badge/DOI/10.5281/zenodo.20054535.svg" alt="DOI" />
+	</a>
+</p>
 
 AtomForge is an interactive atomic structure builder for metallurgical simulation and atomistic modeling. It is designed to help researchers and engineers create, edit, inspect, and export structures used in molecular dynamics (MD) and first-principles workflows.
 
-## Highlights
+## Features
 
-- Build structures from scratch using crystal-aware workflows for bulk crystals, substitutional solid solutions, cubic grain boundaries, and nanocrystals.
-- Generate Wulff-construction nanocrystals from periodic reference structures, including non-cubic systems, with symmetry-expanded facet previews.
-- Generate custom finite structures by filling imported 3D mesh volumes with atoms from a reference crystal.
-- Combine multiple loaded structures in a dedicated 3D Merge Structures workflow with per-structure transform gizmos.
-- Create polycrystalline microstructures via Voronoi grain construction.
-- Analyze local order with common neighbour analysis (CNA) and radial distribution function (RDF) tools.
-- Export structures for simulation (VASP and other supported formats).
-- Export publication-ready images (PNG, JPEG, SVG), including high-resolution scaling.
-- Use dark/light themes with HiDPI-aware UI scaling for readable overlays and dialogs.
+- Build structures with bulk crystal, substitutional solid solution, CSL grain boundary, nanocrystal, custom mesh-fill, interface, polycrystal, amorphous, and stacking-fault workflows.
+- Create Wulff-style and shape-based nanocrystals, including non-cubic periodic references.
+- Merge multiple loaded structures in an interactive 3D workflow with per-structure transforms.
+- Analyze structures with CNA, RDF, angular distribution, short-range order, and interstitial/void analysis tools.
+- Inspect and edit structures interactively with atom selection, box select, measurement overlays, and structure editing dialogs.
+- Export simulation structures and publication-ready rendered images (PNG, JPEG, SVG).
+- Use dark/light themes with HiDPI-aware UI scaling.
 
 ## Platform support
 
@@ -125,12 +131,13 @@ Box selection is available from Edit -> Box Select Mode. When enabled, right-dra
 ### Build structures
 
 - **Bulk Crystal**: Create periodic cells from crystal system, space group, lattice parameters, and asymmetric-unit atoms.
-- **Substitutional Solid Solution**: Randomly substitute element species on the lattice sites of a host structure to match a user-defined target composition, specified in atomic percent with live integer-count feedback.
-- **CSL Grain Boundary**: Build cubic bicrystals with explicit Sigma selection and control over GB plane, in-plane replication, translation, and overlap handling.
-- **Nanocrystal**: Carve finite particles from loaded reference structures (sphere, ellipsoid, box, cylinder, octahedron, truncated octahedron, cuboctahedron).
-- **Nanocrystal (Wulff)**: Build equilibrium-shape nanocrystals from user-supplied Miller-index / surface-energy families with an interactive 3D facet preview.
-- **Custom Structure**: Fill imported mesh volumes (OBJ/STL) with atoms from a reference crystal, with side-by-side 3D previews.
+- **Substitutional Solid Solution**: Randomly substitute elements on host lattice sites to match a target composition.
+- **CSL Grain Boundary**: Build cubic bicrystals with Sigma, plane, replication, translation, and overlap controls.
+- **Nanocrystal**: Carve finite particles using geometric shapes or Wulff-style facet energies.
+- **Custom Structure**: Fill imported mesh volumes (OBJ/STL) with atoms from a reference crystal.
 - **Polycrystal**: Generate Voronoi-based polycrystalline structures from a reference crystal.
+- **Interface Builder**: Match in-plane supercells and build heterogeneous interfaces.
+- **Amorphous / Stacking Fault**: Generate amorphous packs and stacking-fault structures.
 
 ### Merge structures
 
@@ -139,53 +146,7 @@ Box selection is available from Edit -> Box Select Mode. When enabled, right-dra
 - Select individual structures in the list or preview, then use the 3D gizmo for translate/rotate.
 - Orbit and zoom the preview, optionally show/hide the merged bounding box, then apply **Merge Structures**.
 
-## Builder and analysis details
-
-### Bulk crystal builder
-
-- Organizes space groups by crystal system (triclinic to cubic).
-- Applies system-specific lattice constraints and trigonal settings.
-- Expands asymmetric-unit atoms using symmetry operations to produce full unit cells.
-
-### Substitutional solid solution builder
-
-- Accepts a host structure from the current scene or by drag-and-drop file.
-- Composition is specified per element in atomic percent (at%) with a draggable field; Ctrl+click to type exact values.
-- Adjusting one element scales all others proportionally so the total always remains 100 at%.
-- Integer atom counts are derived via the largest-remainder method to guarantee they sum exactly to the total.
-- Atom positions and the unit cell are fully preserved; only element assignments are randomised.
-
-### CSL grain boundary builder
-
-- Designed for cubic grain boundary studies in metallurgy.
-- Generates Sigma candidates from rotation axis input.
-- Controls GB plane, dimensions, replication, overlap removal, and rigid translation.
-
-### Nanocrystal builder
-
-- Carves finite structures from loaded references.
-- Supports sphere, ellipsoid, box, cylinder, octahedron, truncated octahedron, and cuboctahedron geometries.
-- Supports Wulff construction from Miller-index facet families and relative surface energies.
-- Uses spglib symmetry expansion for Wulff families and supports non-cubic periodic reference cells.
-- Includes a dedicated 3D Wulff preview with editable facet colors and black face-boundary lines for readability.
-- Can auto-replicate periodic inputs and apply vacuum padding.
-
-### Algorithm references
-
-- **CSL Grain Boundary Builder**: Jianli Cheng, Jian Luo, and Kesong Yang, *Aimsgb: An Algorithm and Open-Source Python Library to Generate Periodic Grain Boundary Structures*, Comput. Mater. Sci. 155, 92-103 (2018).
-- **Nanocrystal Builder (Wulff construction)**: Georgios D. Barmparis, Zbigniew Lodziana, Nuria Lopez, and Ioannis N. Remediakis, *Nanoparticle shapes by using Wulff constructions and first-principles calculations*, Beilstein J. Nanotechnol. 6, 361-368 (2015).
-
-### Polycrystal builder
-
-- Uses unit-cell-aware reference structures.
-- Builds grains via Voronoi tessellation in a user-defined box.
-- Supports random, explicit, and mixed orientation assignment.
-
-### Custom structure builder
-
-- Accepts drag-and-drop crystal and mesh inputs.
-- Provides live 3D previews for both reference crystal and mesh model.
-- Produces finite atomistic structures constrained by the model volume.
+## Analysis and coloring
 
 ### Crystal orientation coloring
 
@@ -196,9 +157,12 @@ Box selection is available from Edit -> Box Select Mode. When enabled, right-dra
 
 ### Analysis tools
 
-- **Common Neighbour Analysis (CNA)**: Classifies local motifs (FCC, HCP, BCC, ICO) with Honeycutt-Andersen-style signatures.
-- **Radial Distribution Function (RDF)**: Provides species filtering, normalization, smoothing, and first-peak analysis.
-- **Coordination and bonding**: Includes automatic bond detection, PBC-aware coordination counting, and bond-length statistics.
+- Common Neighbour Analysis (CNA)
+- Radial Distribution Function (RDF)
+- Angular Distribution Function (ADF)
+- Short Range Order (SRO)
+- Interstitial and void analysis
+- Coordination and bonding statistics
 
 ## Display and measurement
 
@@ -208,66 +172,6 @@ Box selection is available from Edit -> Box Select Mode. When enabled, right-dra
 - Atom Info reports element, Cartesian/direct coordinates, and bond statistics.
 - View -> Select Theme supports dark and light themes with matching overlay colors.
 - UI scales automatically for high-resolution and HiDPI displays.
-
-## Menus at a glance
-
-### File
-
-- Open structures
-- Save structures
-- Export rendered images
-- Close current structure
-
-### Edit
-
-- Undo/redo
-- Box selection mode
-- Structure editing
-- Atomic-size and element-color overrides
-- Supercell transform
-
-### View
-
-- Element labels and bonds
-- Isometric/orthographic camera modes
-- Element/crystal-orientation color modes
-- Structure and measurement dialogs
-- Reset default view
-
-### Build
-
-- Bulk Crystal
-- CSL Grain Boundary
-- Nanocrystal
-- Custom Structure
-- Polycrystal
-
-### Analysis
-
-- Common Neighbour Analysis
-- Radial Distribution Function
-
-### Help
-
-- Manual
-- About
-
-## Project layout
-
-```text
-CMakeLists.txt              cross-platform build configuration
-src/
-  main.cpp                  application entry point and frame loop
-  app/                      editor coordination, workflow control, undo/redo, interactions
-  algorithms/               structure generation and geometry/model processing
-  camera/                   orbit camera and callbacks
-  graphics/                 renderer, scene buffers, picking, meshes, shaders
-  io/                       structure loading and saving through Open Babel
-  math/                     structure and geometry helpers
-  ui/                       Dear ImGui windows, dialogs, and builders
-  util/                     shared utilities and element metadata
-imgui/                      bundled Dear ImGui sources and backend bindings
-```
 
 ## Citation
 
