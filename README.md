@@ -1,5 +1,5 @@
 <p align="center">
-	<img src="assets/icon/atomforge-icon.svg" alt="AtomForge icon" width="28" />
+	<img src="assets/icon/atomforge-icon.svg" alt="AtomForge icon" width="80" />
 </p>
 
 <h1 align="center">AtomForge</h1>
