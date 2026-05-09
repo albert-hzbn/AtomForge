@@ -206,6 +206,7 @@ void initTabResources(StructureTab& tab,
     tab.state.fileBrowser.initInterfaceBuilderRenderResources(renderer);
     tab.state.fileBrowser.initCSLGrainBoundaryRenderResources(renderer);
     tab.state.fileBrowser.initPolyCrystalRenderResources(renderer);
+    tab.state.fileBrowser.initDislocationRenderResources(renderer);
 #if ATOMFORGE_ENABLE_SFE_BUILDER
     tab.state.fileBrowser.initStackingFaultRenderResources(renderer);
 #endif
@@ -343,6 +344,7 @@ void drawScene(Renderer& renderer,
                bool showBonds,
                bool showAtoms,
                bool showBoundingBox,
+               bool showDislocationLines,
                bool lightTheme)
 {
     // Shadow passes first (render into shadow FBO at shadow resolution)
@@ -439,6 +441,18 @@ void drawScene(Renderer& renderer,
         sceneBuffers.lineVAO,
         sceneBuffers.boxLines.size(),
         lightTheme ? glm::vec3(0.25f) : glm::vec3(0.85f));
+    }
+
+    if (showDislocationLines
+        && sceneBuffers.dislocationLineVAO != 0
+        && sceneBuffers.dislocationLoopPointCount >= 2)
+    {
+        renderer.drawLineLoop(
+            frame.projection,
+            frame.view,
+            sceneBuffers.dislocationLineVAO,
+            sceneBuffers.dislocationLoopPointCount,
+            glm::vec3(1.0f, 0.25f, 0.1f));  // red-orange
     }
 }
 
@@ -1007,6 +1021,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                   activeState.fileBrowser.isShowBondsEnabled(),
                   activeState.fileBrowser.isShowAtomsEnabled(),
                   activeState.fileBrowser.isShowBoundingBoxEnabled(),
+                  activeState.fileBrowser.isShowDislocationLinesEnabled(),
                   activeState.fileBrowser.isLightThemeEnabled());
 
         // Selection wireframes — drawn after atoms so depth-testing is correct.

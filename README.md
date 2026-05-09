@@ -150,7 +150,7 @@ Box selection is available from Edit -> Box Select Mode. When enabled, right-dra
 
 ### Crystal orientation coloring
 
-- View -> Color Structure By -> Crystal Orientation switches from element colors to cubic IPF-Z colors.
+- View -> View Structure By -> Crystal Orientation switches from element colors to cubic IPF-Z colors.
 - Displays an IPF triangle legend in the main view when active.
 - Saves companion `basename.atomforge-ipf` metadata when IPF data is available.
 - Restores from sidecar metadata on load when present, with geometry-based fallback otherwise.

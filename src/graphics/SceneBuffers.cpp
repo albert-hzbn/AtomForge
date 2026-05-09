@@ -345,21 +345,49 @@ void SceneBuffers::init(GLuint sphereVbo, GLuint sphereEbo, int sphereIdxCount,
 
 void SceneBuffers::destroy()
 {
-    if (tabSphereVAO)    { glDeleteVertexArrays(1, &tabSphereVAO);    tabSphereVAO = 0; }
-    if (tabLowPolyVAO)   { glDeleteVertexArrays(1, &tabLowPolyVAO);   tabLowPolyVAO = 0; }
-    if (tabBillboardVAO) { glDeleteVertexArrays(1, &tabBillboardVAO); tabBillboardVAO = 0; }
-    if (tabCylinderVAO)  { glDeleteVertexArrays(1, &tabCylinderVAO);  tabCylinderVAO = 0; }
-    if (lineVAO)         { glDeleteVertexArrays(1, &lineVAO);         lineVAO = 0; }
+    if (tabSphereVAO)       { glDeleteVertexArrays(1, &tabSphereVAO);       tabSphereVAO = 0; }
+    if (tabLowPolyVAO)      { glDeleteVertexArrays(1, &tabLowPolyVAO);      tabLowPolyVAO = 0; }
+    if (tabBillboardVAO)    { glDeleteVertexArrays(1, &tabBillboardVAO);    tabBillboardVAO = 0; }
+    if (tabCylinderVAO)     { glDeleteVertexArrays(1, &tabCylinderVAO);     tabCylinderVAO = 0; }
+    if (lineVAO)            { glDeleteVertexArrays(1, &lineVAO);            lineVAO = 0; }
+    if (dislocationLineVAO) { glDeleteVertexArrays(1, &dislocationLineVAO); dislocationLineVAO = 0; }
 
     GLuint vbos[] = {
         instanceVBO, colorVBO, scaleVBO, shininessVBO,
         bondStartVBO, bondEndVBO, bondColorAVBO, bondColorBVBO,
-        bondRadiusVBO, bondShininessAVBO, bondShininessBVBO, lineVBO
+        bondRadiusVBO, bondShininessAVBO, bondShininessBVBO, lineVBO,
+        dislocationLineVBO
     };
     for (GLuint& vbo : vbos)
     {
         if (vbo) { glDeleteBuffers(1, &vbo); vbo = 0; }
     }
+    dislocationLoopPointCount = 0;
+}
+
+void SceneBuffers::uploadDislocationLoop(const std::vector<glm::vec3>& points)
+{
+    dislocationLoopPointCount = points.size();
+    if (points.empty())
+        return;
+
+    if (!dislocationLineVAO)
+    {
+        glGenVertexArrays(1, &dislocationLineVAO);
+        glGenBuffers(1, &dislocationLineVBO);
+        glBindVertexArray(dislocationLineVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, dislocationLineVBO);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glBindVertexArray(0);
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, dislocationLineVBO);
+    glBufferData(GL_ARRAY_BUFFER,
+                 static_cast<GLsizeiptr>(points.size() * sizeof(glm::vec3)),
+                 points.data(),
+                 GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void SceneBuffers::upload(const StructureInstanceData& data,

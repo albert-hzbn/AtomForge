@@ -9,6 +9,7 @@
 #include "ui/InterfaceBuilderDialog.h"
 #include "ui/PolyCrystalBuilderDialog.h"
 #include "ui/StackingFaultBuilderDialog.h"
+#include "ui/DislocationBuilderDialog.h"
 #include "ui/SubstitutionalSolidSolutionDialog.h"
 #include "ui/AmorphousBuilderDialog.h"
 #include "ui/InterstitialAtomsDialog.h"
@@ -126,6 +127,8 @@ struct FileBrowser
     }
     bool isShowAtomsEnabled() const { return showAtoms; }
     bool isShowBoundingBoxEnabled() const { return showBoundingBox; }
+    bool isShowDislocationLinesEnabled() const { return showDislocationLines; }
+    void enableDislocationLines() { showDislocationLines = true; }
     bool isLightThemeEnabled() const { return useLightTheme; }
     void setLightTheme(bool v) { useLightTheme = v; }
     bool isBondElementFilterEnabled() const { return bondElementFilterEnabled; }
@@ -332,6 +335,11 @@ struct FileBrowser
     bool isStackingFaultDialogOpen() const;
     void feedDropToStackingFaultDialog(const std::string& path);
 
+    // Dislocation builder dialog GL resources and drop routing.
+    void initDislocationRenderResources(Renderer& renderer);
+    bool isDislocationDialogOpen() const;
+    void feedDropToDislocationDialog(const std::string& path);
+
     // Substitutional solid solution dialog GL resources and drop routing.
     void initSubstitutionalSolidSolutionRenderResources(Renderer& renderer);
     bool isSubstitutionalSolidSolutionDialogOpen() const;
@@ -397,6 +405,7 @@ private:
     bool showBonds;
     bool showAtoms;
     bool showBoundingBox;
+    bool showDislocationLines;
     bool showLatticePlanes;
     bool showLatticePlanesDialog;
     bool showMillerDirections;
@@ -506,6 +515,7 @@ private:
     InterfaceBuilderDialog interfaceBuilderDialog;
     PolyCrystalBuilderDialog polyCrystalDialog;
     StackingFaultBuilderDialog stackingFaultDialog;
+    DislocationBuilderDialog dislocationDialog;
     SubstitutionalSolidSolutionDialog substitutionalSolidSolutionDialog;
     AmorphousBuilderDialog amorphousBuilderDialog;
     InterstitialAtomsDialog interstitialAtomsDialog;

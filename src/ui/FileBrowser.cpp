@@ -125,6 +125,7 @@ FileBrowser::FileBrowser()
             showBonds(false),
             showAtoms(true),
             showBoundingBox(true),
+            showDislocationLines(false),
             showLatticePlanes(false),
             showLatticePlanesDialog(false),
             showMillerDirections(false),
@@ -564,6 +565,7 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
             boxSelectMode = false;
         ImGui::Separator();
         editMenuDialogs.drawMenuItems();
+        dislocationDialog.drawMenuItem(true);
         interstitialAtomsDialog.drawMenuItem(!structure.atoms.empty());
         ImGui::Separator();
         transformDialog.drawMenuItem(structure.hasUnitCell);
@@ -597,7 +599,7 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         ImGui::MenuItem("Show Element", nullptr, &showElementLabels);
         ImGui::Separator();
 
-        if (ImGui::BeginMenu("Color Structure By"))
+        if (ImGui::BeginMenu("View Structure By"))
         {
             if (ImGui::MenuItem("Element Type", nullptr,
                                 atomColorMode == AtomColorMode::ElementType))
@@ -629,10 +631,13 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
                     updateBuffers(structure);
                 }
             }
+            ImGui::Separator();
+            ImGui::MenuItem("Dislocation Lines", nullptr, &showDislocationLines,
+                            !structure.atoms.empty());
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("View Atom By"))
+        if (ImGui::BeginMenu("View Atoms By"))
         {
             if (ImGui::MenuItem("Balls", nullptr, atomDisplayMode == AtomDisplayMode::Balls))
             {
@@ -705,6 +710,8 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         ImGui::Separator();
         ImGui::MenuItem("Show Voronoi Volume", nullptr, &showVoronoi, !structure.atoms.empty());
         ImGui::MenuItem("Polyhedral Viewer", nullptr, &showPolyhedralViewer, !structure.atoms.empty());
+        ImGui::MenuItem("Show Dislocation Lines", nullptr, &showDislocationLines,
+                        !structure.atoms.empty());
         ImGui::Separator();
         ImGui::MenuItem("Show Atoms", nullptr, &showAtoms, !structure.atoms.empty());
         ImGui::MenuItem("Show Bounding Box", nullptr, &showBoundingBox, structure.hasUnitCell);
@@ -1541,6 +1548,10 @@ void FileBrowser::draw(Structure& structure,
     polyCrystalDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                  editMenuDialogs.elementRadii, editMenuDialogs.elementShininess,
                                  updateFromBuilderToNewTab);
+    dislocationDialog.drawDialog(structure, editMenuDialogs.elementColors,
+                                 editMenuDialogs.elementRadii,
+                                 editMenuDialogs.elementShininess,
+                                 [&](Structure& s) { updateBuffers(s); });
 #if ATOMFORGE_ENABLE_SFE_BUILDER
     stackingFaultDialog.drawDialog(structure, editMenuDialogs.elementColors,
                                    editMenuDialogs.elementRadii,
@@ -2060,7 +2071,7 @@ void FileBrowser::draw(Structure& structure,
             wrappedBullet("Show Bonds toggles bond-cylinder rendering.");
             wrappedBullet("Isometric View and Orthographic View switch the camera projection mode.");
             wrappedBullet("Select Theme switches between the default dark theme and the light theme.");
-            wrappedBullet("Color Structure By switches between element-type colors and crystal-orientation IPF coloring.");
+            wrappedBullet("View Structure By switches between element-type colors and crystal-orientation IPF coloring.");
             wrappedBullet("Structure Info shows composition, lattice metrics, positions, and symmetry when available.");
             wrappedBullet("Measure Distance, Measure Angle, and Atom Info open the corresponding dialogs for the current selection.");
 
@@ -2400,14 +2411,29 @@ void FileBrowser::initStackingFaultRenderResources(Renderer& renderer)
     stackingFaultDialog.initRenderResources(renderer);
 }
 
+void FileBrowser::initDislocationRenderResources(Renderer& renderer)
+{
+    dislocationDialog.initRenderResources(renderer);
+}
+
 bool FileBrowser::isStackingFaultDialogOpen() const
 {
     return stackingFaultDialog.isOpen();
 }
 
+bool FileBrowser::isDislocationDialogOpen() const
+{
+    return dislocationDialog.isOpen();
+}
+
 void FileBrowser::feedDropToStackingFaultDialog(const std::string& path)
 {
     stackingFaultDialog.feedDroppedFile(path);
+}
+
+void FileBrowser::feedDropToDislocationDialog(const std::string& path)
+{
+    dislocationDialog.feedDroppedFile(path);
 }
 
 void FileBrowser::initSubstitutionalSolidSolutionRenderResources(Renderer& renderer)
@@ -2432,6 +2458,7 @@ bool FileBrowser::isAnyDialogOpen() const
         || isCSLGrainBoundaryDialogOpen()
         || isInterfaceBuilderDialogOpen()
         || isPolyCrystalDialogOpen()
+        || isDislocationDialogOpen()
     #if ATOMFORGE_ENABLE_SFE_BUILDER
         || isStackingFaultDialogOpen()
     #endif

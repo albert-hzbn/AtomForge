@@ -71,6 +71,12 @@ struct SceneBuffers
     int tabBillboardIndexCount = 0;
     int tabCylinderVertexCount = 0;
 
+    // Dislocation loop overlay geometry (GL_LINE_LOOP polygon in world space).
+    // Populated from Structure::dislocationLoopPoints after applying a dislocation.
+    GLuint dislocationLineVAO   = 0;
+    GLuint dislocationLineVBO   = 0;
+    size_t dislocationLoopPointCount = 0;
+
     // Full init: creates per-tab VAOs by combining shared mesh geometry VBOs with
     // this tab's own instance VBOs.  Call once after a valid GL context is ready.
     void init(GLuint sphereVbo,    GLuint sphereEbo,    int sphereIndexCount,
@@ -89,6 +95,10 @@ struct SceneBuffers
     void upload(const StructureInstanceData& data,
                 bool bondElementFilterEnabled,
                 const std::array<bool, 119>& bondElementFilterMask);
+
+    // Upload the dislocation loop polygon (GL_LINE_LOOP vertices) to the GPU.
+    // Pass an empty vector to clear the overlay.
+    void uploadDislocationLoop(const std::vector<glm::vec3>& points);
 
     // Patch the colour of one instance (e.g. to highlight a selected atom).
     void highlightAtom(int instanceIdx, glm::vec3 color);

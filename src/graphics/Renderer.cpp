@@ -1111,6 +1111,32 @@ void Renderer::drawBoxLines(const glm::mat4& projection,
     glDrawArrays(GL_LINES, 0, (GLsizei)lineVertexCount);
 }
 
+void Renderer::drawLineLoop(const glm::mat4& projection,
+                             const glm::mat4& view,
+                             GLuint lineVAO,
+                             size_t vertexCount,
+                             const glm::vec3& color)
+{
+    if (vertexCount < 2)
+        return;
+
+    glUseProgram(lineProgram);
+
+    glUniformMatrix4fv(glGetUniformLocation(lineProgram, "projection"),
+                       1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(glGetUniformLocation(lineProgram, "view"),
+                       1, GL_FALSE, glm::value_ptr(view));
+    glUniform3f(glGetUniformLocation(lineProgram, "uColor"), color.r, color.g, color.b);
+
+    // Disable depth test so the dislocation boundary overlay is always visible
+    // through the opaque atom spheres that fill the interior of the crystal.
+    glDisable(GL_DEPTH_TEST);
+    glLineWidth(3.5f);
+    glBindVertexArray(lineVAO);
+    glDrawArrays(GL_LINE_LOOP, 0, (GLsizei)vertexCount);
+    glEnable(GL_DEPTH_TEST);
+}
+
 void Renderer::drawSelectionWireframes(const glm::mat4& projection,
                                         const glm::mat4& view,
                                         const std::vector<glm::vec3>& positions,

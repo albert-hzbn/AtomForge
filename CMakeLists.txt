@@ -90,6 +90,7 @@ set(ATOMFORGE_SOURCES
     src/ui/CustomStructureDialog.cpp
     src/ui/MergeStructuresDialog.cpp
     src/ui/PolyCrystalBuilderDialog.cpp
+    src/ui/DislocationBuilderDialog.cpp
     src/ui/InterfaceBuilderDialog.cpp
     src/ui/CommonNeighbourAnalysis.cpp
     src/ui/EditMenuDialogs.cpp
@@ -118,6 +119,7 @@ set(ATOMFORGE_SOURCES
     src/algorithms/PolyCrystalBuilder.cpp
     src/algorithms/BulkCrystalBuilder.cpp
     src/algorithms/InterfaceBuilder.cpp
+    src/algorithms/DislocationBuilder.cpp
     src/algorithms/StackingFaultBuilder.cpp
     src/algorithms/VoronoiComputation.cpp
     src/algorithms/SubstitutionalSolidSolutionBuilder.cpp

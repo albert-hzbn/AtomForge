@@ -3,6 +3,7 @@
 #include "algorithms/AmorphousBuilder.h"
 #include "algorithms/BulkCrystalBuilder.h"
 #include "algorithms/CSLComputation.h"
+#include "algorithms/DislocationBuilder.h"
 #include "algorithms/InterfaceBuilder.h"
 #include "algorithms/MeshLoader.h"
 #include "algorithms/NanoCrystalBuilder.h"
@@ -294,6 +295,43 @@ static void printHelpSSS()
 << std::endl;
 }
 
+static void printHelpDislocation()
+{
+    std::cout <<
+"------------------------------------------------------------------\n"
+"DISLOCATION  (--build dislocation)\n"
+"------------------------------------------------------------------\n"
+"  --input  <file>             Input structure (must have a unit cell)\n"
+"  --output <file>             Output file (format from extension)\n"
+"  --character <edge|screw|mixed>\n"
+"                              Dislocation character (default: edge)\n"
+"  --shape <halfplane|cylinder|sphere|ellipsoid|freeform>\n"
+"                              Application region shape (default: halfplane)\n"
+"  --manual-vectors            Disable automatic FCC/HCP/BCC vector presets\n"
+"  --plane   \"h k l\"          Slip-plane Miller indices (default: 1 1 1)\n"
+"  --burgers \"u v w\"          Burgers direction indices (default: 1 -1 0)\n"
+"  --line    \"u v w\"          Line direction indices (default: 1 1 -2)\n"
+"  --line-frac   \"fx fy fz\"   Dislocation line point in fractional coords\n"
+"  --line-offset \"x y z\"      Cartesian offset added to line point (A)\n"
+"  --bscale <f>                Burgers magnitude scale factor (default: 1.0)\n"
+"  --bmag <A>                  Explicit Burgers magnitude in Angstroms (overrides auto-detect)\n"
+"  --mixed-angle <deg>         Edge/screw mixing angle for mixed mode\n"
+"  --nu <f>                    Poisson ratio (default: 0.33)\n"
+"  --core <A>                  Core radius regularization (default: 1.2)\n"
+"  --cutoff <A>                Radial attenuation distance, 0=off (default: 20)\n"
+"  --line-half <A>             Half-length extent along line (default: 1e6)\n"
+"  --cyl-radius <A>            Cylinder radius for shape=cylinder\n"
+"  --sphere-radius <A>         Sphere radius for shape=sphere\n"
+"  --ellipsoid \"rx ry rz\"     Ellipsoid radii for shape=ellipsoid\n"
+"  --poly2d \"x1 y1;x2 y2;...\"  Freeform polygon for shape=freeform\n"
+"\n"
+"Example:\n"
+"  AtomForge --build dislocation --input base.cfg --character edge ^\n"
+"            --manual-vectors --line \"0 0 1\" --burgers \"1 0 0\" ^\n"
+"            --shape cylinder --cyl-radius 12 --output edge.cfg\n"
+<< std::endl;
+}
+
 static void printHelp()
 {
     std::cout <<
@@ -309,6 +347,7 @@ static void printHelp()
 "  nano        Carve a nanocrystal from a bulk reference structure\n"
 "  amorphous   Pack an amorphous structure by random sequential addition\n"
 "  sss         Build a substitutional solid solution from a host structure\n"
+"  dislocation Insert a dislocation displacement field into a structure\n"
 "  custom      Fill a 3D mesh model (OBJ/STL) with atoms from a reference crystal\n"
 "\n"
 "For detailed options per mode run:\n"
@@ -318,8 +357,202 @@ static void printHelp()
 "  AtomForge --help nano\n"
 "  AtomForge --help amorphous\n"
 "  AtomForge --help sss\n"
+"  AtomForge --help dislocation\n"
 "  AtomForge --help custom\n"
 << std::endl;
+}
+
+static bool parseIvec3(const char* text, glm::ivec3& out)
+{
+    if (!text)
+        return false;
+    std::istringstream iss(text);
+    int x = 0, y = 0, z = 0;
+    if (!(iss >> x >> y >> z))
+        return false;
+    out = glm::ivec3(x, y, z);
+    return true;
+}
+
+static bool parseVec3(const char* text, glm::vec3& out)
+{
+    if (!text)
+        return false;
+    std::istringstream iss(text);
+    float x = 0.0f, y = 0.0f, z = 0.0f;
+    if (!(iss >> x >> y >> z))
+        return false;
+    out = glm::vec3(x, y, z);
+    return true;
+}
+
+static int runDislocation(int argc, char* argv[])
+{
+    const char* inputPath = findArg(argc, argv, "--input");
+    const char* outPath   = findArg(argc, argv, "--output");
+
+    if (!inputPath)
+    {
+        std::cerr << "Error: --input <file> is required for --build dislocation\n";
+        return 1;
+    }
+    if (!outPath)
+    {
+        std::cerr << "Error: --output <file> is required\n";
+        return 1;
+    }
+
+    Structure base;
+    std::string loadErr;
+    if (!loadStructureFromFile(inputPath, base, loadErr))
+    {
+        std::cerr << "Error loading input structure: " << loadErr << "\n";
+        return 1;
+    }
+
+    DislocationParams params;
+    params.autoDirections = !hasFlag(argc, argv, "--manual-vectors");
+
+    const char* character = findArg(argc, argv, "--character");
+    if (character)
+    {
+        std::string c = character;
+        for (char& ch : c) ch = (char)std::tolower((unsigned char)ch);
+        if (c == "edge") params.character = DislocationCharacter::Edge;
+        else if (c == "screw") params.character = DislocationCharacter::Screw;
+        else if (c == "mixed") params.character = DislocationCharacter::Mixed;
+        else
+        {
+            std::cerr << "Error: unsupported --character value '" << character << "'\n";
+            return 1;
+        }
+    }
+
+    const char* shape = findArg(argc, argv, "--shape");
+    if (shape)
+    {
+        std::string s = shape;
+        for (char& ch : s) ch = (char)std::tolower((unsigned char)ch);
+        if (s == "halfplane") params.shape = DislocationShape::HalfPlane;
+        else if (s == "cylinder") params.shape = DislocationShape::Cylinder;
+        else if (s == "sphere") params.shape = DislocationShape::Sphere;
+        else if (s == "ellipsoid") params.shape = DislocationShape::Ellipsoid;
+        else if (s == "freeform") params.shape = DislocationShape::Freeform2D;
+        else
+        {
+            std::cerr << "Error: unsupported --shape value '" << shape << "'\n";
+            return 1;
+        }
+    }
+
+    {
+        const char* p = findArg(argc, argv, "--plane");
+        if (p && !parseIvec3(p, params.planeHkl))
+        {
+            std::cerr << "Error: could not parse --plane \"h k l\"\n";
+            return 1;
+        }
+    }
+    {
+        const char* b = findArg(argc, argv, "--burgers");
+        if (b && !parseIvec3(b, params.burgersUvw))
+        {
+            std::cerr << "Error: could not parse --burgers \"u v w\"\n";
+            return 1;
+        }
+    }
+    {
+        const char* l = findArg(argc, argv, "--line");
+        if (l && !parseIvec3(l, params.lineUvw))
+        {
+            std::cerr << "Error: could not parse --line \"u v w\"\n";
+            return 1;
+        }
+    }
+    {
+        const char* lf = findArg(argc, argv, "--line-frac");
+        if (lf)
+        {
+            params.useFractionalLinePoint = true;
+            if (!parseVec3(lf, params.linePointFractional))
+            {
+                std::cerr << "Error: could not parse --line-frac \"fx fy fz\"\n";
+                return 1;
+            }
+        }
+    }
+    {
+        const char* lo = findArg(argc, argv, "--line-offset");
+        if (lo && !parseVec3(lo, params.linePointCartesianOffset))
+        {
+            std::cerr << "Error: could not parse --line-offset \"x y z\"\n";
+            return 1;
+        }
+    }
+
+    params.burgersScale = (float)argDouble(argc, argv, "--bscale", params.burgersScale);
+    params.burgersOverrideMagnitude = (float)argDouble(argc, argv, "--bmag", params.burgersOverrideMagnitude);
+    params.mixedCharacterAngleDeg = (float)argDouble(argc, argv, "--mixed-angle", params.mixedCharacterAngleDeg);
+    params.poissonRatio = (float)argDouble(argc, argv, "--nu", params.poissonRatio);
+    params.coreRadius = (float)argDouble(argc, argv, "--core", params.coreRadius);
+    params.cutoffRadius = (float)argDouble(argc, argv, "--cutoff", params.cutoffRadius);
+    params.lineHalfLength = (float)argDouble(argc, argv, "--line-half", params.lineHalfLength);
+
+    params.cylinderRadius = (float)argDouble(argc, argv, "--cyl-radius", params.cylinderRadius);
+    params.sphereRadius = (float)argDouble(argc, argv, "--sphere-radius", params.sphereRadius);
+    {
+        const char* er = findArg(argc, argv, "--ellipsoid");
+        if (er && !parseVec3(er, params.ellipsoidRadii))
+        {
+            std::cerr << "Error: could not parse --ellipsoid \"rx ry rz\"\n";
+            return 1;
+        }
+    }
+
+    const char* poly = findArg(argc, argv, "--poly2d");
+    if (poly)
+    {
+        params.freeformPoints.clear();
+        std::string all = poly;
+        std::stringstream ss(all);
+        std::string token;
+        while (std::getline(ss, token, ';'))
+        {
+            std::istringstream pss(token);
+            float x = 0.0f, y = 0.0f;
+            if (!(pss >> x >> y))
+            {
+                std::cerr << "Error: could not parse polygon point '" << token << "' in --poly2d\n";
+                return 1;
+            }
+            params.freeformPoints.push_back(glm::vec2(x, y));
+        }
+        if (params.freeformPoints.size() < 3)
+        {
+            std::cerr << "Error: --poly2d needs at least 3 points\n";
+            return 1;
+        }
+    }
+
+    DislocationResult result = buildDislocation(base, params);
+    if (!result.success)
+    {
+        std::cerr << "Error building dislocation: " << result.message << "\n";
+        return 1;
+    }
+
+    std::cout << result.message << "\n";
+    std::cout << "Shifted atoms: " << result.shiftedAtomCount << "\n";
+    std::cout << "Validation: " << result.validation.message << "\n";
+
+    std::string fmt = detectFormat(outPath);
+    if (!saveStructure(result.output, outPath, fmt))
+    {
+        std::cerr << "Error: failed to save structure to '" << outPath << "'\n";
+        return 1;
+    }
+    std::cout << "Saved to: " << outPath << "\n";
+    return 0;
 }
 
 // ── Bulk builder ─────────────────────────────────────────────────────────────
@@ -1378,11 +1611,12 @@ int runCLI(int argc, char* argv[])
             else if (t == "nano")      { printHelpNano();      return 0; }
             else if (t == "amorphous") { printHelpAmorphous(); return 0; }
             else if (t == "sss")       { printHelpSSS();       return 0; }
+            else if (t == "dislocation"){ printHelpDislocation(); return 0; }
             else if (t == "custom")    { printHelpCustom();    return 0; }
             else
             {
                 std::cerr << "Unknown help topic '" << t
-                          << "'.  Valid topics: bulk | gb | poly | nano | amorphous | sss | custom\n";
+                          << "'.  Valid topics: bulk | gb | poly | nano | amorphous | sss | dislocation | custom\n";
                 return 1;
             }
         }
@@ -1407,11 +1641,12 @@ int runCLI(int argc, char* argv[])
     else if (m == "nano")      return runNano     (argc, argv);
     else if (m == "amorphous") return runAmorphous(argc, argv);
     else if (m == "sss")       return runSSS      (argc, argv);
+    else if (m == "dislocation") return runDislocation(argc, argv);
     else if (m == "custom")    return runCustom   (argc, argv);
     else
     {
         std::cerr << "Error: unknown build mode '" << m
-                  << "'.  Valid modes: bulk | gb | poly | nano | amorphous | sss | custom\n";
+                  << "'.  Valid modes: bulk | gb | poly | nano | amorphous | sss | dislocation | custom\n";
         return 1;
     }
 }

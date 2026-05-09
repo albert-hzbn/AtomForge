@@ -111,6 +111,13 @@ struct Renderer
                       size_t lineVertexCount,
                       const glm::vec3& color = glm::vec3(0.85f));
 
+    // Render a closed polygon outline with GL_LINE_LOOP (e.g. dislocation loop).
+    void drawLineLoop(const glm::mat4& projection,
+                      const glm::mat4& view,
+                      GLuint lineVAO,
+                      size_t vertexCount,
+                      const glm::vec3& color);
+
     // Draw a yellow low-poly wireframe sphere around each selected atom.
     void drawSelectionWireframes(const glm::mat4& projection,
                                  const glm::mat4& view,

@@ -2,6 +2,7 @@
 #include <array>
 #include <vector>
 #include <string>
+#include <glm/glm.hpp>
 
 struct AtomSite
 {
@@ -47,6 +48,17 @@ struct Structure
     // User-visible note set on load to indicate how IPF was obtained
     // (metadata sidecar, geometry fallback, or unavailable).
     std::string ipfLoadStatus;
+
+    // 3D convex-hull boundary of the displaced atom region, populated by the
+    // dislocation builder.  Projected onto the slip plane (e1–lineDir), so it
+    // forms a closed polygon that can be rendered with GL_LINE_LOOP.
+    // Empty unless a dislocation was built and applied to this structure.
+    std::vector<glm::vec3> dislocationLoopPoints;
+
+    // Set to true after the auto-detection algorithm in refreshSceneBuffers has
+    // run once for this structure (regardless of whether it found anything).
+    // Prevents the O(N) detection from re-running on every updateBuffers call.
+    bool dislocationDetectionDone = false;
 };
 
 void getDefaultElementColor(int atomicNumber, float& r, float& g, float& b);

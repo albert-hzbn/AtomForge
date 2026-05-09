@@ -85,6 +85,12 @@ void processDroppedFiles(EditorState& state)
             continue;
         }
 
+        if (state.fileBrowser.isDislocationDialogOpen())
+        {
+            state.fileBrowser.feedDropToDislocationDialog(droppedFile);
+            continue;
+        }
+
 #if ATOMFORGE_ENABLE_SFE_BUILDER
         if (state.fileBrowser.isStackingFaultDialogOpen())
         {
