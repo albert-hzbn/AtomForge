@@ -1335,6 +1335,7 @@ void showMainWindow(GLFWwindow* window)
         return;
 
     glfwShowWindow(window);
+    glfwMaximizeWindow(window);
     glfwFocusWindow(window);
 }
 
