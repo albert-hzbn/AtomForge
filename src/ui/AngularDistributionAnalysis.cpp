@@ -784,7 +784,7 @@ void AngularDistributionAnalysisDialog::drawDialog(const Structure& structure)
         {
             if (m_result.valid)
             {
-                ImGui::TextColored(ImVec4(0.25f, 0.85f, 0.25f, 1.0f), "Complete");
+                ImGui::TextColored(themeStatusGood(), "Complete");
                 ImGui::SameLine();
                 ImGui::TextDisabled("%lld triplets", m_result.nTriplets);
             }

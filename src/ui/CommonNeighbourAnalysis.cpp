@@ -2,6 +2,7 @@
 
 #include "ElementData.h"
 #include "math/StructureMath.h"
+#include "ui/ThemeUtils.h"
 #include "imgui.h"
 
 #include <glm/glm.hpp>
@@ -512,9 +513,9 @@ void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
         
         ImGui::SameLine();
         if (m_isComputing)
-            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Computing...");
+            ImGui::TextColored(themeStatusComputing(), "Computing...");
         else if (m_computeCompleted)
-            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Done");
+            ImGui::TextColored(themeStatusGood(), "Done");
 
         // Launch computation in background thread
         if (computeRequested && !m_isComputing)

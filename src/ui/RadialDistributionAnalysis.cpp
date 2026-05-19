@@ -692,9 +692,9 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
                 dialogOpen = false;
             ImGui::SameLine();
             if (m_isComputing)
-                ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Computing...");
+                ImGui::TextColored(themeStatusComputing(), "Computing...");
             else if (m_computeCompleted)
-                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Done");
+                ImGui::TextColored(themeStatusGood(), "Done");
             
             if (changed)
                 m_computeCompleted = false;

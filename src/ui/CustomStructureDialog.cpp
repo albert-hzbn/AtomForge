@@ -11,6 +11,7 @@
 #include "graphics/Shader.h"
 #include "app/SceneView.h"
 #include "camera/Camera.h"
+#include "ui/ThemeUtils.h"
 #include "util/PathUtils.h"
 
 #include "imgui.h"
@@ -705,7 +706,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
             const float sx = 2.0f * m_modelHalfExtents.x * params.modelScale;
             const float sy = 2.0f * m_modelHalfExtents.y * params.modelScale;
             const float sz = 2.0f * m_modelHalfExtents.z * params.modelScale;
-            ImGui::TextColored(ImVec4(0.5f, 0.9f, 1.0f, 1.0f),
+            ImGui::TextColored(themeInfoColor(),
                                "= %.1f x %.1f x %.1f Angstrom", sx, sy, sz);
         }
         else
@@ -839,13 +840,13 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     {
         ImGui::BeginDisabled();
         if (m_reference.atoms.empty() && m_modelVertices.empty())
-            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f),
+            ImGui::TextColored(themeStatusWarn(),
                                "Drop a crystal structure and a 3D model to begin.");
         else if (m_reference.atoms.empty())
-            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f),
+            ImGui::TextColored(themeStatusWarn(),
                                "Drop a crystal structure file (CIF, XYZ, ...) to continue.");
         else
-            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f),
+            ImGui::TextColored(themeStatusWarn(),
                                "Drop a 3D model (OBJ/STL) to continue.");
     }
     if (ImGui::Button("Build Fill", ImVec2(140.0f, 0.0f)))

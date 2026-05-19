@@ -20,10 +20,18 @@ ShortRangeOrderDialogState::~ShortRangeOrderDialogState()
 // ===========================================================================
 namespace {
 
-// Diverging colormap: blue (-1) -> white (0) -> red (+1)
+// Diverging colormap: blue (-1) -> center (0) -> red (+1), theme-aware center
 static ImVec4 sroAlphaColor(double alpha)
 {
     float t = static_cast<float>(std::max(-1.0, std::min(1.0, alpha)));
+    if (isLightTheme()) {
+        // On light background, use stronger saturated colors and mid-gray center
+        if (t < 0.0f) {
+            float s = -t;
+            return ImVec4(0.60f - s * 0.40f, 0.60f - s * 0.20f, 0.60f + s * 0.40f, 1.0f);
+        }
+        return ImVec4(0.60f + t * 0.40f, 0.60f - t * 0.40f, 0.60f - t * 0.50f, 1.0f);
+    }
     if (t < 0.0f) {
         float s = -t;
         return ImVec4(1.0f - s * 0.55f, 1.0f - s * 0.45f, 1.0f, 1.0f);
@@ -56,13 +64,15 @@ static void drawAlphaBar(double alpha, float bw = 88.0f, float bh = 9.0f)
                 IM_COL32(130, 130, 130, 160), 1.0f);
 
     // Needle
+    const ImU32 needleCol  = isLightTheme() ? IM_COL32(30,  30,  30,  230) : IM_COL32(255, 255, 255, 240);
+    const ImU32 triangleCol= isLightTheme() ? IM_COL32(30,  30,  30,  210) : IM_COL32(255, 255, 255, 230);
     float mx = pos.x + fraction * bw;
     dl->AddLine({ mx, pos.y - 1 }, { mx, pos.y + bh + 1 },
-                IM_COL32(255, 255, 255, 240), 2.0f);
+                needleCol, 2.0f);
     // Small triangle pointer
     dl->AddTriangleFilled(
         { mx - 3, pos.y - 4 }, { mx + 3, pos.y - 4 }, { mx, pos.y - 1 },
-        IM_COL32(255, 255, 255, 230));
+        triangleCol);
 
     ImGui::Dummy({ bw, bh });
 }

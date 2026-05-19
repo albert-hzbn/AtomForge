@@ -33,7 +33,7 @@ void drawBuildResultSummary(const CSLBuildResult& result)
 
     if (result.success)
     {
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 1.0f, 0.5f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, themeStatusGood());
         ImGui::TextWrapped("OK: %s", result.message.c_str());
         ImGui::PopStyleColor();
     }

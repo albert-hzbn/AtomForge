@@ -440,7 +440,7 @@ void drawReplicationPreview(const NanoParams& params, const Structure& reference
     ImGui::TextDisabled("Tiling: %dx%dx%d  (%lld atoms tested)",
                         2*nA+1, 2*nB+1, 2*nC+1, (long long)tested);
     if (clamped)
-        ImGui::TextColored(ImVec4(1,0.7f,0,1), "Warning: replication clamped to %d.", kMax);
+        ImGui::TextColored(themeStatusWarn(), "Warning: replication clamped to %d.", kMax);
     if (tested > 8000000LL)
         ImGui::TextColored(ImVec4(1,0.3f,0.3f,1),
                            "Exceeds 8M limit -- build will be refused.");

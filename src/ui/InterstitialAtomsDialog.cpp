@@ -12,6 +12,7 @@
 #include "graphics/StructureInstanceBuilder.h"
 #include "math/StructureMath.h"
 #include "ui/PeriodicTableDialog.h"
+#include "ui/ThemeUtils.h"
 #include "util/ElementData.h"
 
 #include "imgui.h"
@@ -1521,7 +1522,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
         if (m_statusIsError)
             ImGui::TextColored(ImVec4(0.95f, 0.42f, 0.42f, 1.0f), "%s", m_statusMsg.c_str());
         else
-            ImGui::TextColored(ImVec4(0.50f, 0.92f, 0.58f, 1.0f), "%s", m_statusMsg.c_str());
+            ImGui::TextColored(themeStatusGood(), "%s", m_statusMsg.c_str());
     }
 
     ImGui::EndPopup();

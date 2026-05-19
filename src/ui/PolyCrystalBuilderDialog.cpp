@@ -531,7 +531,7 @@ void PolyCrystalBuilderDialog::drawDialog(
     ImGui::Text("Result");
     if (lastResult.success)
     {
-        ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.3f, 1.0f), "%s", lastResult.message.c_str());
+        ImGui::TextColored(themeStatusGood(), "%s", lastResult.message.c_str());
     }
     else if (!lastResult.message.empty())
     {

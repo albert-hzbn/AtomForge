@@ -7,6 +7,7 @@
 #include "graphics/SphereMesh.h"
 #include "graphics/StructureInstanceBuilder.h"
 #include "io/StructureLoader.h"
+#include "ui/ThemeUtils.h"
 #include "util/PathUtils.h"
 
 #include "imgui.h"
@@ -526,7 +527,7 @@ void StackingFaultBuilderDialog::drawDialog(
 
         if (m_sourceLoaded)
         {
-            ImGui::TextColored(ImVec4(0.40f, 0.90f, 0.40f, 1.0f), "%s", m_sourceLabel.c_str());
+            ImGui::TextColored(themeStatusGood(), "%s", m_sourceLabel.c_str());
             ImGui::SameLine();
             ImGui::TextDisabled("(%d atoms)", (int)m_source.atoms.size());
         }
@@ -788,7 +789,7 @@ void StackingFaultBuilderDialog::drawDialog(
     {
         const ImVec4 color = m_statusIsError
             ? ImVec4(1.0f, 0.4f, 0.4f, 1.0f)
-            : ImVec4(0.5f, 0.9f, 0.5f, 1.0f);
+            : themeStatusGood();
         ImGui::TextColored(color, "%s", m_statusMsg.c_str());
         ImGui::SameLine();
     }

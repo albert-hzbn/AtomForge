@@ -2,7 +2,7 @@
 
 ## Project overview
 
-AtomForge is a C++11 desktop application for interactive atomic structure building and visualization, targeting metallurgical simulation and atomistic modeling workflows (MD / DFT / first-principles). It runs on Linux and Windows (MSYS2 UCRT64 / MinGW-w64).
+AtomForge is a desktop application for interactive atomic structure building and visualization, targeting metallurgical simulation and atomistic modeling workflows (MD / DFT / first-principles). It runs on Linux and Windows.
 
 Core capabilities implemented so far:
 - Bulk crystal generation with full space-group support (via spglib when available).

@@ -408,7 +408,7 @@ void InterfaceBuilderDialog::drawDropZone(
     (void)tex;
 
     ImGui::BeginChild(label, ImVec2(width, height), true);
-    ImGui::TextColored(ImVec4(0.7f, 0.85f, 1.0f, 1.0f), "%s", label);
+    ImGui::TextColored(themeAccentColor(), "%s", label);
     ImGui::Separator();
     if (!status.empty())
         ImGui::Text("%s", status.c_str());
@@ -783,7 +783,7 @@ void InterfaceBuilderDialog::drawDialog(
     // --- Orientation Relationship ---
     ImGui::BeginChild("##orPanel", ImVec2(orW, topH), true);
     {
-        ImGui::TextColored(ImVec4(0.7f, 0.85f, 1.0f, 1.0f), "Orientation Relationship");
+        ImGui::TextColored(themeAccentColor(), "Orientation Relationship");
         ImGui::Separator();
 
         if (ImGui::RadioButton("None##or", !m_useOrAngle && !m_useOrPlaneDir))
@@ -867,13 +867,13 @@ void InterfaceBuilderDialog::drawDialog(
     // --- Matching Parameters ---
     ImGui::BeginChild("##paramsPanel", ImVec2(paramW, topH), true);
     {
-        ImGui::TextColored(ImVec4(0.7f, 0.85f, 1.0f, 1.0f), "Matching Parameters");
+        ImGui::TextColored(themeAccentColor(), "Matching Parameters");
         ImGui::Separator();
 
         float fieldW = 55.0f;
         float colLblW = 85.0f;
 
-        ImGui::TextColored(ImVec4(0.6f, 0.75f, 0.9f, 1.0f), "Supercell");
+        ImGui::TextColored(themeAccentSubtle(), "Supercell");
         if (ImGui::BeginTable("##scTbl", 4, ImGuiTableFlags_SizingFixedFit))
         {
             ImGui::TableSetupColumn("L1", 0, colLblW);
@@ -911,7 +911,7 @@ void InterfaceBuilderDialog::drawDialog(
         }
 
         ImGui::Spacing();
-        ImGui::TextColored(ImVec4(0.6f, 0.75f, 0.9f, 1.0f), "Thresholds");
+        ImGui::TextColored(themeAccentSubtle(), "Thresholds");
         if (ImGui::BeginTable("##thTbl", 4, ImGuiTableFlags_SizingFixedFit))
         {
             ImGui::TableSetupColumn("L1", 0, 100.0f);
@@ -931,7 +931,7 @@ void InterfaceBuilderDialog::drawDialog(
         }
 
         ImGui::Spacing();
-        ImGui::TextColored(ImVec4(0.6f, 0.75f, 0.9f, 1.0f), "Interface Geometry");
+        ImGui::TextColored(themeAccentSubtle(), "Interface Geometry");
         if (ImGui::BeginTable("##geoTbl", 4, ImGuiTableFlags_SizingFixedFit))
         {
             ImGui::TableSetupColumn("L1", 0, colLblW);
@@ -965,7 +965,7 @@ void InterfaceBuilderDialog::drawDialog(
     // --- Elastic Stiffness ---
     ImGui::BeginChild("##stiffPanel", ImVec2(stiffW, topH), true);
     {
-        ImGui::TextColored(ImVec4(0.7f, 0.85f, 1.0f, 1.0f), "Stiffness (GPa)");
+        ImGui::TextColored(themeAccentColor(), "Stiffness (GPa)");
         ImGui::SameLine(0.0f, 10.0f);
         ImGui::RadioButton("Structure A##stiff", &m_stiffnessTarget, 0);
         ImGui::SameLine();

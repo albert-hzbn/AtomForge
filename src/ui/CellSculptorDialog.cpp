@@ -10,6 +10,7 @@
 #include "graphics/SphereMesh.h"
 #include "graphics/StructureInstanceBuilder.h"
 #include "io/StructureLoader.h"
+#include "ui/ThemeUtils.h"
 #include "util/ElementData.h"
 #include "imgui.h"
 
@@ -1111,10 +1112,10 @@ void CellSculptorDialog::drawDialog(
     if (m_slabs.empty())
         ImGui::TextDisabled("Add >=3 non-parallel slabs to close the region.");
     else if (!bounded)
-        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "Region not closed — add more slabs.");
+        ImGui::TextColored(themeStatusWarn(), "Region not closed — add more slabs.");
     else
     {
-        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "Closed region.");
+        ImGui::TextColored(themeStatusGood(), "Closed region.");
         if (!m_previewResult.atoms.empty())
             ImGui::TextDisabled("%d atoms in result", (int)m_previewResult.atoms.size());
     }

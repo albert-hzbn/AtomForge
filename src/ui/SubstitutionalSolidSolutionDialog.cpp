@@ -7,6 +7,7 @@
 #include "graphics/StructureInstanceBuilder.h"
 #include "io/StructureLoader.h"
 #include "ui/PeriodicTableDialog.h"
+#include "ui/ThemeUtils.h"
 #include "util/ElementData.h"
 #include "imgui.h"
 
@@ -599,7 +600,7 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
 
         if (m_sourceLoaded)
         {
-            ImGui::TextColored(ImVec4(0.40f, 0.90f, 0.40f, 1.0f),
+            ImGui::TextColored(themeStatusGood(),
                                "%s", m_sourceLabel.c_str());
             ImGui::SameLine();
             ImGui::TextDisabled("(%d atoms)", (int)m_source.atoms.size());
@@ -893,7 +894,7 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
                                "%s", m_statusMsg.c_str());
         else
-            ImGui::TextColored(ImVec4(0.5f, 0.9f, 0.5f, 1.0f),
+            ImGui::TextColored(themeStatusGood(),
                                "%s", m_statusMsg.c_str());
         ImGui::SameLine();
     }
