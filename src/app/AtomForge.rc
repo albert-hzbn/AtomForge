@@ -3,6 +3,7 @@
 // and recognises the executable as a known, non-elevated application.
 
 #include <winuser.h>
+#include <winver.h>
 
 // GLFW looks for this exact resource name on Windows when assigning the
 // running window icon; keep this in sync with the app icon asset.
@@ -13,3 +14,33 @@ IDI_APP_ICON ICON "..\\..\\assets\\icon\\atomforge.ico"
 
 // RT_MANIFEST (ID 24), resource ID 1 = application manifest
 1 RT_MANIFEST "AtomForge.manifest"
+
+// Version information – shown in file Properties and UAC publisher field.
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     0,2,0,0
+PRODUCTVERSION  0,2,0,0
+FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+FILEFLAGS       0
+FILEOS          VOS__WINDOWS32
+FILETYPE        VFT_APP
+FILESUBTYPE     0
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"  // Language: English (US), Code page: Unicode
+        BEGIN
+            VALUE "CompanyName",      "Albert Linda"
+            VALUE "FileDescription",  "AtomForge \x2013 Atomistic structure builder and viewer"
+            VALUE "FileVersion",      "0.2.0.0"
+            VALUE "InternalName",     "AtomForge"
+            VALUE "LegalCopyright",   "Copyright \xA9 2024\x20132026 Albert Linda"
+            VALUE "OriginalFilename", "AtomForge.exe"
+            VALUE "ProductName",      "AtomForge"
+            VALUE "ProductVersion",   "0.2.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200  // English (US), Unicode
+    END
+END
