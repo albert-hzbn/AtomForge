@@ -327,23 +327,15 @@ SymmetryRotationSet collectSymmetryRotations(const Structure& reference)
         return result;
     }
 
-    const glm::mat3 invLattice = glm::inverse(latticeMat);
-    const glm::vec3 origin((float)reference.cellOffset[0],
-                           (float)reference.cellOffset[1],
-                           (float)reference.cellOffset[2]);
-
-    std::vector<std::array<double, 3>> positions(reference.atoms.size());
-    std::vector<int> types(reference.atoms.size(), 0);
-    for (size_t index = 0; index < reference.atoms.size(); ++index)
-    {
-        const AtomSite& atom = reference.atoms[index];
-        glm::vec3 frac = invLattice * (glm::vec3((float)atom.x, (float)atom.y, (float)atom.z) - origin);
-        frac.x -= std::floor(frac.x);
-        frac.y -= std::floor(frac.y);
-        frac.z -= std::floor(frac.z);
-        positions[index] = {{frac.x, frac.y, frac.z}};
-        types[index] = (atom.atomicNumber > 0) ? atom.atomicNumber : (int)index + 1000;
-    }
+    // Use a single dummy atom at the fractional origin so that spglib returns
+    // the full holohedry of the Bravais lattice.  Using all atoms from the
+    // reference structure breaks Wulff construction whenever the structure
+    // contains defects (e.g. interstitial atoms) that sit at non-ideal
+    // fractional positions and cause spglib to report a reduced point group.
+    // For Wulff construction the relevant symmetry is the crystal's point
+    // group as encoded in the lattice metric — independent of defects.
+    std::vector<std::array<double, 3>> positions = {{{0.0, 0.0, 0.0}}};
+    std::vector<int> types = {1};
 
     const SpglibDataset* dataset = spg_get_dataset(
         lattice,
