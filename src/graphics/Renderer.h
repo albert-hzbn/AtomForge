@@ -41,6 +41,26 @@ struct Renderer
     GLuint selWireVBO       = 0;
     int    selWireLineVtxCount = 0;
 
+    // GPU-driven indirect rendering (GL 4.3+).
+    // One compute cull pass per frame populates SceneBuffers::visibleIndexSSBO and
+    // SceneBuffers::drawIndirectBuffer; the three SSBO programs then read per-instance
+    // data from the existing VBOs (reused as SSBOs) via gl_InstanceID indirection.
+    GLuint cullProgram              = 0;
+    GLuint atomSSBOProgram          = 0;
+    GLuint atomLowPolySSBOProgram   = 0;
+    GLuint atomBillboardSSBOProgram = 0;
+
+    // Depth prepass programs: write only depth (no color output).
+    // The legacy program reads per-instance attributes from the VAO;
+    // the SSBO program reads from visibleIndexSSBO + instance SSBOs (GL 4.3+).
+    GLuint depthPrepassProgram     = 0;
+    GLuint depthPrepassSSBOProgram = 0;
+
+    // Shadow SSBO programs: shadow-pass variants that read instance data from SSBOs
+    // instead of vertex attributes, enabling indirect shadow-pass draws (GL 4.3+).
+    GLuint shadowSSBOProgram          = 0;
+    GLuint shadowBillboardSSBOProgram = 0;
+
     // Compile and link all shader programs.
     void init();
 
@@ -123,4 +143,67 @@ struct Renderer
                                  const glm::mat4& view,
                                  const std::vector<glm::vec3>& positions,
                                  const std::vector<float>& radii);
+
+    // GPU-driven frustum cull: populate buf.visibleIndexSSBO with the indices of
+    // atoms that pass the view frustum test, and reset buf.drawIndirectBuffer so
+    // that instanceCount starts at 0 and is incremented atomically by the compute.
+    // indexCount is the element count for the current render-mode mesh.
+    void cullAtoms(const SceneBuffers& buf,
+                   const glm::mat4& projection,
+                   const glm::mat4& view,
+                   int indexCount);
+
+    // Light-frustum cull: same compute, but fills buf.shadowVisibleIndexSSBO and
+    // buf.shadowDrawIndirectBuffer, enabling indirect shadow-pass draws.
+    void cullAtomsForShadow(const SceneBuffers& buf,
+                            const glm::mat4& lightMVP,
+                            int indexCount);
+
+    // Depth prepass: writes only the depth buffer (color writes disabled by caller).
+    // Legacy path reads per-instance data from VAO vertex attributes.
+    void drawDepthPrepass(const glm::mat4& mvp,
+                          GLuint vao, int indexCount, size_t atomCount);
+
+    // Depth prepass SSBO path: reads from visibleIndexSSBO + per-instance SSBOs.
+    void drawDepthPrepassIndirect(const glm::mat4& mvp,
+                                  const SceneBuffers& buf,
+                                  GLuint vao);
+
+    // Indirect shadow draw (Standard + LowPoly share kShadowSSBOVS).
+    void drawShadowPassIndirect(const ShadowMap& shadow,
+                                const glm::mat4& lightMVP,
+                                const SceneBuffers& buf,
+                                GLuint vao);
+
+    // Indirect shadow draw for billboard mode.
+    void drawShadowPassBillboardIndirect(const ShadowMap& shadow,
+                                         const glm::mat4& lightMVP,
+                                         const glm::vec3& viewPos,
+                                         const SceneBuffers& buf,
+                                         GLuint vao);
+
+    // Indirect-draw variants: read per-instance data from SSBOs via visibleIndices.
+    void drawAtomsIndirect(const glm::mat4& projection,
+                           const glm::mat4& view,
+                           const glm::mat4& lightMVP,
+                           const glm::vec3& lightPos,
+                           const glm::vec3& viewPos,
+                           const ShadowMap& shadow,
+                           const SceneBuffers& buf);
+
+    void drawAtomsLowPolyIndirect(const glm::mat4& projection,
+                                  const glm::mat4& view,
+                                  const glm::mat4& lightMVP,
+                                  const glm::vec3& lightPos,
+                                  const glm::vec3& viewPos,
+                                  const ShadowMap& shadow,
+                                  const SceneBuffers& buf);
+
+    void drawAtomsBillboardIndirect(const glm::mat4& projection,
+                                    const glm::mat4& view,
+                                    const glm::mat4& lightMVP,
+                                    const glm::vec3& lightPos,
+                                    const glm::vec3& viewPos,
+                                    const ShadowMap& shadow,
+                                    const SceneBuffers& buf);
 };

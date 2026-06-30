@@ -57,6 +57,24 @@ struct SceneBuffers
     // Flag: if true, CPU caches are disabled (large structure)
     bool cpuCachesDisabled = false;
 
+    // GPU-driven indirect rendering (GL 4.3+).
+    // instanceVBO / scaleVBO / colorVBO / shininessVBO double as SSBOs for the cull compute
+    // and the SSBO-based vertex shaders — no extra copies of per-atom data are needed.
+    GLuint visibleIndexSSBO   = 0;  // compact uint list of visible atom indices (per-frame)
+    GLuint drawIndirectBuffer = 0;  // DrawElementsIndirectCommand updated by cull compute
+
+    // Geometry-only VAOs for indirect draw (no per-instance VBO attributes;
+    // per-instance data is fetched from SSBOs inside the vertex shader).
+    GLuint tabSphereVAO_indirect    = 0;
+    GLuint tabLowPolyVAO_indirect   = 0;
+    GLuint tabBillboardVAO_indirect = 0;
+
+    bool gpuCullingReady = false;   // true when GL 4.3 buffers are allocated
+
+    // Light-frustum culling for the shadow pass (GL 4.3+).
+    GLuint shadowVisibleIndexSSBO  = 0;  // compact visible indices for shadow cull
+    GLuint shadowDrawIndirectBuffer = 0; // draw command populated by shadow cull compute
+
     // Per-tab geometry VAOs (owned by this SceneBuffers, NOT the shared mesh VAOs).
     // Each tab builds its own VAOs by pairing shared mesh geometry VBOs with its own
     // instance VBOs so that tabs never clobber each other's VAO attribute state.

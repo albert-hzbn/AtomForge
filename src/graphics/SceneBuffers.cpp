@@ -278,6 +278,29 @@ void SceneBuffers::init(GLuint sphereVbo,    GLuint sphereEbo,    int sphereIdxC
     setupAtomVAO(tabLowPolyVAO,   lowPolyVbo,   lowPolyEbo);
     setupAtomVAO(tabBillboardVAO, billboardVbo, billboardEbo);
 
+    // Geometry-only VAOs for GPU-driven indirect draw.
+    // Per-instance data comes from SSBOs inside the vertex shader, so only
+    // geometry slot 0 (position xyz) is bound here — no instance VBO attributes.
+    auto setupIndirectVAO = [&](GLuint& vaoOut, GLuint geomVbo, GLuint ebo)
+    {
+        if (geomVbo == 0) return;
+        glGenVertexArrays(1, &vaoOut);
+        glBindVertexArray(vaoOut);
+
+        glBindBuffer(GL_ARRAY_BUFFER, geomVbo);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+        if (ebo != 0)
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+
+        glBindVertexArray(0);
+    };
+
+    setupIndirectVAO(tabSphereVAO_indirect,    sphereVbo,    sphereEbo);
+    setupIndirectVAO(tabLowPolyVAO_indirect,   lowPolyVbo,   lowPolyEbo);
+    setupIndirectVAO(tabBillboardVAO_indirect, billboardVbo, billboardEbo);
+
     // Per-tab cylinder VAO (geometry slot 0 + bond instance slots 1-7)
     if (cylinderVbo != 0)
     {
@@ -351,12 +374,16 @@ void SceneBuffers::destroy()
     if (tabCylinderVAO)     { glDeleteVertexArrays(1, &tabCylinderVAO);     tabCylinderVAO = 0; }
     if (lineVAO)            { glDeleteVertexArrays(1, &lineVAO);            lineVAO = 0; }
     if (dislocationLineVAO) { glDeleteVertexArrays(1, &dislocationLineVAO); dislocationLineVAO = 0; }
+    if (tabSphereVAO_indirect)    { glDeleteVertexArrays(1, &tabSphereVAO_indirect);    tabSphereVAO_indirect = 0; }
+    if (tabLowPolyVAO_indirect)   { glDeleteVertexArrays(1, &tabLowPolyVAO_indirect);   tabLowPolyVAO_indirect = 0; }
+    if (tabBillboardVAO_indirect) { glDeleteVertexArrays(1, &tabBillboardVAO_indirect); tabBillboardVAO_indirect = 0; }
 
     GLuint vbos[] = {
         instanceVBO, colorVBO, scaleVBO, shininessVBO,
         bondStartVBO, bondEndVBO, bondColorAVBO, bondColorBVBO,
         bondRadiusVBO, bondShininessAVBO, bondShininessBVBO, lineVBO,
-        dislocationLineVBO
+        dislocationLineVBO, visibleIndexSSBO, drawIndirectBuffer,
+        shadowVisibleIndexSSBO, shadowDrawIndirectBuffer
     };
     for (GLuint& vbo : vbos)
     {
@@ -489,6 +516,45 @@ void SceneBuffers::upload(const StructureInstanceData& data,
                      data.shininess.size() * sizeof(float),
                      data.shininess.empty() ? nullptr : data.shininess.data(),
                      GL_STATIC_DRAW);
+    }
+
+    // Allocate GPU-driven culling buffers when GL 4.3 is available.
+    // instanceVBO and scaleVBO are reused as SSBOs (no data copy needed).
+    if (GLEW_VERSION_4_3 && atomCount > 0)
+    {
+        if (!visibleIndexSSBO)
+            glGenBuffers(1, &visibleIndexSSBO);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, visibleIndexSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER,
+                     (GLsizeiptr)(atomCount * sizeof(uint32_t)),
+                     nullptr, GL_STREAM_DRAW);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+        if (!drawIndirectBuffer)
+            glGenBuffers(1, &drawIndirectBuffer);
+        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, drawIndirectBuffer);
+        const uint32_t zeros[5] = {0u, 0u, 0u, 0u, 0u};
+        glBufferData(GL_DRAW_INDIRECT_BUFFER, sizeof(zeros), zeros, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+        if (!shadowVisibleIndexSSBO)
+            glGenBuffers(1, &shadowVisibleIndexSSBO);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, shadowVisibleIndexSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER,
+                     (GLsizeiptr)(atomCount * sizeof(uint32_t)), nullptr, GL_STREAM_DRAW);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+        if (!shadowDrawIndirectBuffer)
+            glGenBuffers(1, &shadowDrawIndirectBuffer);
+        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, shadowDrawIndirectBuffer);
+        glBufferData(GL_DRAW_INDIRECT_BUFFER, sizeof(zeros), zeros, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+        gpuCullingReady = true;
+    }
+    else
+    {
+        gpuCullingReady = false;
     }
 
     std::vector<glm::vec3> bondStartPositions;

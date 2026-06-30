@@ -347,8 +347,48 @@ void drawScene(Renderer& renderer,
                bool showDislocationLines,
                bool lightTheme)
 {
-    // Shadow passes first (render into shadow FBO at shadow resolution)
+    // GPU-driven frustum cull: one compute dispatch per frame builds a compact list
+    // of visible atom indices in sceneBuffers.visibleIndexSSBO and writes the
+    // instanceCount into sceneBuffers.drawIndirectBuffer.
+    // A second dispatch (cullAtomsForShadow) culls against the light frustum so
+    // only shadow-casting atoms are submitted to the shadow pass.
+    if (showAtoms && sceneBuffers.gpuCullingReady)
+    {
+        int indexCount = 0;
+        switch (sceneBuffers.renderMode)
+        {
+            case RenderingMode::StandardInstancing:  indexCount = sceneBuffers.tabSphereIndexCount;    break;
+            case RenderingMode::LowPolyInstancing:   indexCount = sceneBuffers.tabLowPolyIndexCount;   break;
+            case RenderingMode::BillboardImposters:  indexCount = sceneBuffers.tabBillboardIndexCount; break;
+        }
+        renderer.cullAtoms(sceneBuffers, frame.projection, frame.view, indexCount);
+        renderer.cullAtomsForShadow(sceneBuffers, frame.lightMVP, indexCount);
+    }
+
+    // Shadow passes (render into shadow FBO at shadow resolution).
+    // When GPU culling is active, use indirect shadow draw (only light-frustum atoms).
     if (showAtoms)
+    {
+    if (sceneBuffers.gpuCullingReady)
+    {
+        switch (sceneBuffers.renderMode)
+        {
+            case RenderingMode::StandardInstancing:
+                renderer.drawShadowPassIndirect(shadow, frame.lightMVP, sceneBuffers,
+                    sceneBuffers.tabSphereVAO_indirect);
+                break;
+            case RenderingMode::LowPolyInstancing:
+                renderer.drawShadowPassIndirect(shadow, frame.lightMVP, sceneBuffers,
+                    sceneBuffers.tabLowPolyVAO_indirect);
+                break;
+            case RenderingMode::BillboardImposters:
+                renderer.drawShadowPassBillboardIndirect(shadow, frame.lightMVP,
+                    frame.cameraPosition, sceneBuffers,
+                    sceneBuffers.tabBillboardVAO_indirect);
+                break;
+        }
+    }
+    else
     {
     switch (sceneBuffers.renderMode)
     {
@@ -367,6 +407,7 @@ void drawScene(Renderer& renderer,
                 sceneBuffers.tabBillboardVAO, sceneBuffers.tabBillboardIndexCount,
                 frame.lightMVP, frame.view, sceneBuffers.atomCount);
             break;
+    }
     }
     }
 
@@ -392,46 +433,113 @@ void drawScene(Renderer& renderer,
             sceneBuffers.bondCount);
     }
 
-    // Draw atoms based on rendering mode
+    // Depth prepass: write depth only (no color) for atoms so the color pass can use
+    // GL_LEQUAL and skip all over-drawn fragments.  Billboard mode is excluded because
+    // its FS computes per-fragment depth via gl_FragDepth, making a separate prepass
+    // incorrect (the billboard quad depth ≠ the reconstructed sphere-surface depth).
+    const bool doDepthPrepass = showAtoms &&
+        sceneBuffers.renderMode != RenderingMode::BillboardImposters &&
+        sceneBuffers.atomCount > 0;
+
+    if (doDepthPrepass)
+    {
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        const glm::mat4 mvp = frame.projection * frame.view;
+        if (sceneBuffers.gpuCullingReady)
+        {
+            GLuint prepassVAO = (sceneBuffers.renderMode == RenderingMode::StandardInstancing)
+                                ? sceneBuffers.tabSphereVAO_indirect
+                                : sceneBuffers.tabLowPolyVAO_indirect;
+            renderer.drawDepthPrepassIndirect(mvp, sceneBuffers, prepassVAO);
+        }
+        else
+        {
+            GLuint  prepassVAO    = (sceneBuffers.renderMode == RenderingMode::StandardInstancing)
+                                    ? sceneBuffers.tabSphereVAO
+                                    : sceneBuffers.tabLowPolyVAO;
+            int     prepassCount  = (sceneBuffers.renderMode == RenderingMode::StandardInstancing)
+                                    ? sceneBuffers.tabSphereIndexCount
+                                    : sceneBuffers.tabLowPolyIndexCount;
+            renderer.drawDepthPrepass(mvp, prepassVAO, prepassCount, sceneBuffers.atomCount);
+        }
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glDepthFunc(GL_LEQUAL);
+    }
+
+    // Draw atoms based on rendering mode.
+    // When GPU culling is available, use the indirect-draw path: the compute has
+    // already written only visible atom indices into visibleIndexSSBO so the vertex
+    // shader is invoked only for in-frustum atoms.  Otherwise fall back to the
+    // legacy vertex-shader-culling path (all instances submitted, clipped on GPU).
     if (showAtoms)
     {
-    switch (sceneBuffers.renderMode)
+    if (sceneBuffers.gpuCullingReady)
     {
-        case RenderingMode::StandardInstancing:
-            renderer.drawAtoms(
-                frame.projection,
-                frame.view,
-                frame.lightMVP,
-                frame.lightPosition,
-                frame.cameraPosition,
-                shadow,
-                sceneBuffers.tabSphereVAO, sceneBuffers.tabSphereIndexCount,
-                sceneBuffers.atomCount);
-            break;
-        case RenderingMode::LowPolyInstancing:
-            renderer.drawAtomsLowPoly(
-                frame.projection,
-                frame.view,
-                frame.lightMVP,
-                frame.lightPosition,
-                frame.cameraPosition,
-                shadow,
-                sceneBuffers.tabLowPolyVAO, sceneBuffers.tabLowPolyIndexCount,
-                sceneBuffers.atomCount);
-            break;
-        case RenderingMode::BillboardImposters:
-            renderer.drawAtomsBillboard(
-                frame.projection,
-                frame.view,
-                frame.lightMVP,
-                frame.lightPosition,
-                frame.cameraPosition,
-                shadow,
-                sceneBuffers.tabBillboardVAO, sceneBuffers.tabBillboardIndexCount,
-                sceneBuffers.atomCount);
-            break;
+        switch (sceneBuffers.renderMode)
+        {
+            case RenderingMode::StandardInstancing:
+                renderer.drawAtomsIndirect(
+                    frame.projection, frame.view, frame.lightMVP,
+                    frame.lightPosition, frame.cameraPosition,
+                    shadow, sceneBuffers);
+                break;
+            case RenderingMode::LowPolyInstancing:
+                renderer.drawAtomsLowPolyIndirect(
+                    frame.projection, frame.view, frame.lightMVP,
+                    frame.lightPosition, frame.cameraPosition,
+                    shadow, sceneBuffers);
+                break;
+            case RenderingMode::BillboardImposters:
+                renderer.drawAtomsBillboardIndirect(
+                    frame.projection, frame.view, frame.lightMVP,
+                    frame.lightPosition, frame.cameraPosition,
+                    shadow, sceneBuffers);
+                break;
+        }
+    }
+    else
+    {
+        switch (sceneBuffers.renderMode)
+        {
+            case RenderingMode::StandardInstancing:
+                renderer.drawAtoms(
+                    frame.projection,
+                    frame.view,
+                    frame.lightMVP,
+                    frame.lightPosition,
+                    frame.cameraPosition,
+                    shadow,
+                    sceneBuffers.tabSphereVAO, sceneBuffers.tabSphereIndexCount,
+                    sceneBuffers.atomCount);
+                break;
+            case RenderingMode::LowPolyInstancing:
+                renderer.drawAtomsLowPoly(
+                    frame.projection,
+                    frame.view,
+                    frame.lightMVP,
+                    frame.lightPosition,
+                    frame.cameraPosition,
+                    shadow,
+                    sceneBuffers.tabLowPolyVAO, sceneBuffers.tabLowPolyIndexCount,
+                    sceneBuffers.atomCount);
+                break;
+            case RenderingMode::BillboardImposters:
+                renderer.drawAtomsBillboard(
+                    frame.projection,
+                    frame.view,
+                    frame.lightMVP,
+                    frame.lightPosition,
+                    frame.cameraPosition,
+                    shadow,
+                    sceneBuffers.tabBillboardVAO, sceneBuffers.tabBillboardIndexCount,
+                    sceneBuffers.atomCount);
+                break;
+        }
     }
     }
+
+    if (doDepthPrepass)
+        glDepthFunc(GL_LESS);
 
     if (showBoundingBox)
     {

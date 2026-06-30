@@ -720,6 +720,224 @@ static const char* kSelWireFS = R"(
     }
 )";
 
+// ---------------------------------------------------------------------------
+// GPU-driven indirect rendering shaders (GL 4.3 / SSBO path)
+// ---------------------------------------------------------------------------
+
+// Compute shader: test each atom against 6 frustum planes; surviving atoms are
+// appended atomically to visibleIndices[] and cmd.instanceCount is incremented.
+// The instanceVBO (vec4 positions) and scaleVBO (float scales) are bound as SSBOs
+// at bindings 0 and 1 respectively — no data copy is needed.
+static const char* kCullCS = R"(
+    #version 430 core
+    layout(local_size_x = 256) in;
+
+    struct DrawCmd { uint count; uint instanceCount; uint firstIndex; uint baseVertex; uint baseInstance; };
+
+    layout(std430, binding = 0) readonly buffer Positions { vec4 positions[]; };
+    layout(std430, binding = 1) readonly buffer Scales    { float scales[];    };
+    layout(std430, binding = 2) writeonly buffer VisOut   { uint visibleIndices[]; };
+    layout(std430, binding = 3) buffer           CmdBuf   { DrawCmd cmd;       };
+
+    uniform vec4 frustumPlanes[6];
+    uniform uint totalAtoms;
+
+    void main()
+    {
+        uint idx = gl_GlobalInvocationID.x;
+        if (idx >= totalAtoms) return;
+
+        vec3  pos    = positions[idx].xyz;
+        float radius = scales[idx];
+
+        bool visible = true;
+        for (int i = 0; i < 6; ++i)
+            if (dot(frustumPlanes[i].xyz, pos) + frustumPlanes[i].w < -radius)
+                { visible = false; break; }
+
+        if (visible)
+        {
+            uint slot = atomicAdd(cmd.instanceCount, 1u);
+            visibleIndices[slot] = idx;
+        }
+    }
+)";
+
+// Vertex shader shared by Standard and LowPoly indirect paths.
+// Fetches per-instance data from SSBOs indexed by visibleIndices[gl_InstanceID].
+static const char* kAtomSSBOVS = R"(
+    #version 430 core
+
+    in vec3 position;
+
+    layout(std430, binding = 0) readonly buffer VisIdx { uint visibleIndices[]; };
+    layout(std430, binding = 1) readonly buffer AllPos { vec4  allPositions[];   };
+    layout(std430, binding = 2) readonly buffer AllCol { vec4  allColors[];      };
+    layout(std430, binding = 3) readonly buffer AllScl { float allScales[];      };
+    layout(std430, binding = 4) readonly buffer AllShn { float allShininess[];   };
+
+    uniform mat4 projection;
+    uniform mat4 view;
+    uniform mat4 lightMVP;
+
+    out vec3  fragColor;
+    out vec3  fragWorldPos;
+    out vec3  fragNormal;
+    out float fragShininess;
+    out vec4  FragPosLight;
+
+    void main()
+    {
+        uint origIdx        = visibleIndices[gl_InstanceID];
+        vec3  instancePos   = allPositions[origIdx].xyz;
+        vec3  instanceColor = allColors[origIdx].xyz;
+        float instanceScale = allScales[origIdx];
+        float instanceShin  = allShininess[origIdx];
+
+        vec3 worldPos = position * instanceScale + instancePos;
+        gl_Position   = projection * view * vec4(worldPos, 1.0);
+        FragPosLight  = lightMVP * vec4(worldPos, 1.0);
+        fragColor     = instanceColor;
+        fragWorldPos  = worldPos;
+        fragNormal    = normalize(position);
+        fragShininess = instanceShin;
+    }
+)";
+
+// Billboard SSBO vertex shader (same SSBO layout, different quad expansion).
+static const char* kAtomBillboardSSBOVS = R"(
+    #version 430 core
+
+    in vec3 position;
+
+    layout(std430, binding = 0) readonly buffer VisIdx { uint visibleIndices[]; };
+    layout(std430, binding = 1) readonly buffer AllPos { vec4  allPositions[];   };
+    layout(std430, binding = 2) readonly buffer AllCol { vec4  allColors[];      };
+    layout(std430, binding = 3) readonly buffer AllScl { float allScales[];      };
+    layout(std430, binding = 4) readonly buffer AllShn { float allShininess[];   };
+
+    uniform mat4 projection;
+    uniform mat4 view;
+    uniform mat4 lightMVP;
+    uniform vec3 viewPos;
+
+    out vec3  fragColor;
+    out vec3  fragWorldCenter;
+    out float fragRadius;
+    out float fragShininess;
+    out vec2  quad_uv;
+    out vec4  FragPosLight;
+    out mat4  fragView;
+    out mat4  fragProj;
+
+    void main()
+    {
+        uint origIdx        = visibleIndices[gl_InstanceID];
+        vec3  instancePos   = allPositions[origIdx].xyz;
+        vec3  instanceColor = allColors[origIdx].xyz;
+        float instanceScale = allScales[origIdx];
+        float instanceShin  = allShininess[origIdx];
+
+        vec3 viewDir = normalize(instancePos - viewPos);
+        vec3 right   = normalize(cross(vec3(0.0, 1.0, 0.0), viewDir));
+        vec3 up      = normalize(cross(viewDir, right));
+
+        vec3 quadOffset = right * position.x + up * position.y;
+        vec3 worldPos   = instancePos + quadOffset * instanceScale;
+
+        gl_Position     = projection * view * vec4(worldPos, 1.0);
+        FragPosLight    = lightMVP   * vec4(instancePos,  1.0);
+        fragColor       = instanceColor;
+        fragWorldCenter = instancePos;
+        fragRadius      = instanceScale;
+        fragShininess   = instanceShin;
+        quad_uv         = position.xy;
+        fragView        = view;
+        fragProj        = projection;
+    }
+)";
+
+// ---------------------------------------------------------------------------
+// Depth prepass shaders
+// ---------------------------------------------------------------------------
+
+// Legacy path: per-instance data comes from VAO vertex attributes (locations fixed
+// by createProgram's glBindAttribLocation calls).
+static const char* kDepthOnlyVS = R"(
+    #version 130
+    in vec3 position;
+    in vec3 instancePos;
+    in float instanceScale;
+    uniform mat4 uMVP;
+    void main() {
+        vec3 worldPos = position * instanceScale + instancePos;
+        gl_Position = uMVP * vec4(worldPos, 1.0);
+    }
+)";
+
+// SSBO path (GL 4.3+): per-instance data from visibleIndexSSBO + instance SSBOs.
+// Bindings match bindAtomSSBOs: 0=visIdx, 1=positions, 3=scales.
+static const char* kDepthOnlySSBOVS = R"(
+    #version 430 core
+    in vec3 position;
+    layout(std430, binding = 0) readonly buffer VisIdx { uint visibleIndices[]; };
+    layout(std430, binding = 1) readonly buffer AllPos { vec4 allPositions[]; };
+    layout(std430, binding = 3) readonly buffer AllScl { float allScales[]; };
+    uniform mat4 uMVP;
+    void main() {
+        uint origIdx  = visibleIndices[gl_InstanceID];
+        vec3 worldPos = position * allScales[origIdx] + allPositions[origIdx].xyz;
+        gl_Position   = uMVP * vec4(worldPos, 1.0);
+    }
+)";
+
+static const char* kDepthOnlyFS = R"(
+    #version 130
+    void main() {}
+)";
+
+// ---------------------------------------------------------------------------
+// Shadow SSBO shaders (GL 4.3+)
+// Used by drawShadowPassIndirect / drawShadowPassBillboardIndirect.
+// Read from shadowVisibleIndexSSBO (binding 0) and instance SSBOs (1=pos, 3=scale).
+// ---------------------------------------------------------------------------
+
+static const char* kShadowSSBOVS = R"(
+    #version 430 core
+    in vec3 position;
+    layout(std430, binding = 0) readonly buffer VisIdx { uint visibleIndices[]; };
+    layout(std430, binding = 1) readonly buffer AllPos { vec4 allPositions[]; };
+    layout(std430, binding = 3) readonly buffer AllScl { float allScales[]; };
+    uniform mat4 lightMVP;
+    void main() {
+        uint origIdx  = visibleIndices[gl_InstanceID];
+        vec3 worldPos = position * allScales[origIdx] + allPositions[origIdx].xyz;
+        gl_Position   = lightMVP * vec4(worldPos, 1.0);
+    }
+)";
+
+static const char* kShadowBillboardSSBOVS = R"(
+    #version 430 core
+    in vec3 position;
+    layout(std430, binding = 0) readonly buffer VisIdx { uint visibleIndices[]; };
+    layout(std430, binding = 1) readonly buffer AllPos { vec4 allPositions[]; };
+    layout(std430, binding = 3) readonly buffer AllScl { float allScales[]; };
+    uniform mat4 lightMVP;
+    uniform vec3 viewPos;
+    out vec2 quad_uv;
+    void main() {
+        uint origIdx        = visibleIndices[gl_InstanceID];
+        vec3  instancePos   = allPositions[origIdx].xyz;
+        float instanceScale = allScales[origIdx];
+        vec3 viewDir = normalize(instancePos - viewPos);
+        vec3 right   = normalize(cross(vec3(0.0, 1.0, 0.0), viewDir));
+        vec3 up      = normalize(cross(viewDir, right));
+        vec3 worldPos = instancePos + (right * position.x + up * position.y) * instanceScale;
+        gl_Position = lightMVP * vec4(worldPos, 1.0);
+        quad_uv = position.xy;
+    }
+)";
+
 // Build a unit icosahedron with 1 subdivision, return unique edge pairs for GL_LINES.
 static std::vector<float> buildSelWireGeometry()
 {
@@ -817,6 +1035,22 @@ void Renderer::init()
     shadowBillboardProgram = createProgram(kShadowBillboardVS, kShadowBillboardFS);
     bondShadowProgram = createProgram(kBondShadowVS, kShadowFS);
     lineProgram   = createProgram(kLineVS,   kLineFS);
+
+    // Depth prepass (legacy path, works on all GL versions).
+    depthPrepassProgram = createProgram(kDepthOnlyVS, kDepthOnlyFS);
+
+    // GPU-driven indirect rendering (GL 4.3+).
+    // createComputeProgram returns 0 on older GL — graceful fallback to legacy path.
+    if (GLEW_VERSION_4_3)
+    {
+        cullProgram                = createComputeProgram(kCullCS);
+        atomSSBOProgram            = createProgram(kAtomSSBOVS,              kAtomFS);
+        atomLowPolySSBOProgram     = createProgram(kAtomSSBOVS,              kAtomFS);
+        atomBillboardSSBOProgram   = createProgram(kAtomBillboardSSBOVS,     kAtomBillboardFS);
+        depthPrepassSSBOProgram    = createProgram(kDepthOnlySSBOVS,         kDepthOnlyFS);
+        shadowSSBOProgram          = createProgram(kShadowSSBOVS,            kShadowFS);
+        shadowBillboardSSBOProgram = createProgram(kShadowBillboardSSBOVS,   kShadowBillboardFS);
+    }
 
     // Selection wireframe — generate icosahedron edge geometry once.
     selWireProgram = createProgram(kSelWireVS, kSelWireFS);
@@ -1135,6 +1369,322 @@ void Renderer::drawLineLoop(const glm::mat4& projection,
     glBindVertexArray(lineVAO);
     glDrawArrays(GL_LINE_LOOP, 0, (GLsizei)vertexCount);
     glEnable(GL_DEPTH_TEST);
+}
+
+// ---------------------------------------------------------------------------
+// GPU-driven indirect rendering implementation
+// ---------------------------------------------------------------------------
+
+void Renderer::cullAtoms(const SceneBuffers& buf,
+                          const glm::mat4& projection,
+                          const glm::mat4& view,
+                          int indexCount)
+{
+    if (!buf.gpuCullingReady || cullProgram == 0 || buf.atomCount == 0)
+        return;
+
+    // Reset the draw command: write indexCount and zero the instanceCount that
+    // the compute will increment atomically.  Other fields stay 0 (firstIndex,
+    // baseVertex, baseInstance).
+    struct DrawCmd { uint32_t count, instanceCount, firstIndex, baseVertex, baseInstance; };
+    const DrawCmd cmd { (uint32_t)indexCount, 0u, 0u, 0u, 0u };
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buf.drawIndirectBuffer);
+    glBufferSubData(GL_DRAW_INDIRECT_BUFFER, 0, (GLsizeiptr)sizeof(cmd), &cmd);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+    const std::array<glm::vec4, 6> planes = extractFrustumPlanes(projection * view);
+
+    glUseProgram(cullProgram);
+    glUniform4fv(glGetUniformLocation(cullProgram, "frustumPlanes"), 6,
+                 glm::value_ptr(planes[0]));
+    glUniform1ui(glGetUniformLocation(cullProgram, "totalAtoms"),
+                 (GLuint)buf.atomCount);
+
+    // instanceVBO stores vec4 (xyz + padding) uploaded by SceneBuffers::upload().
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buf.instanceVBO);      // positions
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buf.scaleVBO);         // scales
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, buf.visibleIndexSSBO); // output list
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, buf.drawIndirectBuffer); // draw cmd
+
+    const GLuint groups = ((GLuint)buf.atomCount + 255u) / 256u;
+    glDispatchCompute(groups, 1, 1);
+
+    // Ensure SSBO writes are visible to vertex shaders and the indirect draw.
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_COMMAND_BARRIER_BIT);
+
+    for (int i = 0; i < 4; ++i)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, 0);
+    glUseProgram(0);
+}
+
+// Helper: bind the five per-instance SSBOs expected by the SSBO vertex shaders.
+static void bindAtomSSBOs(const SceneBuffers& buf)
+{
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buf.visibleIndexSSBO); // visible list
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buf.instanceVBO);      // positions (vec4)
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, buf.colorVBO);         // colors   (vec4)
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, buf.scaleVBO);         // scales   (float)
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, buf.shininessVBO);     // shininess(float)
+}
+
+static void unbindAtomSSBOs()
+{
+    for (int i = 0; i < 5; ++i)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, 0);
+}
+
+void Renderer::drawAtomsIndirect(const glm::mat4& projection,
+                                  const glm::mat4& view,
+                                  const glm::mat4& lightMVP,
+                                  const glm::vec3& lightPos,
+                                  const glm::vec3& viewPos,
+                                  const ShadowMap& shadow,
+                                  const SceneBuffers& buf)
+{
+    if (!buf.gpuCullingReady || atomSSBOProgram == 0 || buf.tabSphereVAO_indirect == 0)
+        return;
+
+    glUseProgram(atomSSBOProgram);
+
+    glUniformMatrix4fv(glGetUniformLocation(atomSSBOProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(glGetUniformLocation(atomSSBOProgram, "view"),       1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(atomSSBOProgram, "lightMVP"),   1, GL_FALSE, glm::value_ptr(lightMVP));
+    glUniform3fv(glGetUniformLocation(atomSSBOProgram, "lightPos"),  1, glm::value_ptr(lightPos));
+    glUniform3fv(glGetUniformLocation(atomSSBOProgram, "viewPos"),   1, glm::value_ptr(viewPos));
+    glUniform1f(glGetUniformLocation(atomSSBOProgram, "uAmbient"),           lightAmbient);
+    glUniform1f(glGetUniformLocation(atomSSBOProgram, "uSaturation"),        lightSaturation);
+    glUniform1f(glGetUniformLocation(atomSSBOProgram, "uContrast"),          lightContrast);
+    glUniform1f(glGetUniformLocation(atomSSBOProgram, "uSpecularIntensity"), materialSpecularIntensity);
+    glUniform1f(glGetUniformLocation(atomSSBOProgram, "uShadowStrength"),    lightShadowStrength);
+    glUniform1f(glGetUniformLocation(atomSSBOProgram, "uShininessScale"),    materialShininessScale);
+    glUniform1f(glGetUniformLocation(atomSSBOProgram, "uShininessFloor"),    materialShininessFloor);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
+    glUniform1i(glGetUniformLocation(atomSSBOProgram, "shadowMap"), 0);
+
+    bindAtomSSBOs(buf);
+    glBindVertexArray(buf.tabSphereVAO_indirect);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buf.drawIndirectBuffer);
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+    unbindAtomSSBOs();
+}
+
+void Renderer::drawAtomsLowPolyIndirect(const glm::mat4& projection,
+                                         const glm::mat4& view,
+                                         const glm::mat4& lightMVP,
+                                         const glm::vec3& lightPos,
+                                         const glm::vec3& viewPos,
+                                         const ShadowMap& shadow,
+                                         const SceneBuffers& buf)
+{
+    if (!buf.gpuCullingReady || atomLowPolySSBOProgram == 0 || buf.tabLowPolyVAO_indirect == 0)
+        return;
+
+    glUseProgram(atomLowPolySSBOProgram);
+
+    glUniformMatrix4fv(glGetUniformLocation(atomLowPolySSBOProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(glGetUniformLocation(atomLowPolySSBOProgram, "view"),       1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(atomLowPolySSBOProgram, "lightMVP"),   1, GL_FALSE, glm::value_ptr(lightMVP));
+    glUniform3fv(glGetUniformLocation(atomLowPolySSBOProgram, "lightPos"),  1, glm::value_ptr(lightPos));
+    glUniform3fv(glGetUniformLocation(atomLowPolySSBOProgram, "viewPos"),   1, glm::value_ptr(viewPos));
+    glUniform1f(glGetUniformLocation(atomLowPolySSBOProgram, "uAmbient"),           lightAmbient);
+    glUniform1f(glGetUniformLocation(atomLowPolySSBOProgram, "uSaturation"),        lightSaturation);
+    glUniform1f(glGetUniformLocation(atomLowPolySSBOProgram, "uContrast"),          lightContrast);
+    glUniform1f(glGetUniformLocation(atomLowPolySSBOProgram, "uSpecularIntensity"), materialSpecularIntensity);
+    glUniform1f(glGetUniformLocation(atomLowPolySSBOProgram, "uShadowStrength"),    lightShadowStrength);
+    glUniform1f(glGetUniformLocation(atomLowPolySSBOProgram, "uShininessScale"),    materialShininessScale);
+    glUniform1f(glGetUniformLocation(atomLowPolySSBOProgram, "uShininessFloor"),    materialShininessFloor);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
+    glUniform1i(glGetUniformLocation(atomLowPolySSBOProgram, "shadowMap"), 0);
+
+    bindAtomSSBOs(buf);
+    glBindVertexArray(buf.tabLowPolyVAO_indirect);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buf.drawIndirectBuffer);
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+    unbindAtomSSBOs();
+}
+
+void Renderer::drawAtomsBillboardIndirect(const glm::mat4& projection,
+                                           const glm::mat4& view,
+                                           const glm::mat4& lightMVP,
+                                           const glm::vec3& lightPos,
+                                           const glm::vec3& viewPos,
+                                           const ShadowMap& shadow,
+                                           const SceneBuffers& buf)
+{
+    if (!buf.gpuCullingReady || atomBillboardSSBOProgram == 0 || buf.tabBillboardVAO_indirect == 0)
+        return;
+
+    glUseProgram(atomBillboardSSBOProgram);
+
+    glUniformMatrix4fv(glGetUniformLocation(atomBillboardSSBOProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(glGetUniformLocation(atomBillboardSSBOProgram, "view"),       1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(atomBillboardSSBOProgram, "lightMVP"),   1, GL_FALSE, glm::value_ptr(lightMVP));
+    glUniform3fv(glGetUniformLocation(atomBillboardSSBOProgram, "lightPos"),  1, glm::value_ptr(lightPos));
+    glUniform3fv(glGetUniformLocation(atomBillboardSSBOProgram, "viewPos"),   1, glm::value_ptr(viewPos));
+    glUniform1f(glGetUniformLocation(atomBillboardSSBOProgram, "uAmbient"),           lightAmbient);
+    glUniform1f(glGetUniformLocation(atomBillboardSSBOProgram, "uSaturation"),        lightSaturation);
+    glUniform1f(glGetUniformLocation(atomBillboardSSBOProgram, "uContrast"),          lightContrast);
+    glUniform1f(glGetUniformLocation(atomBillboardSSBOProgram, "uSpecularIntensity"), materialSpecularIntensity);
+    glUniform1f(glGetUniformLocation(atomBillboardSSBOProgram, "uShadowStrength"),    lightShadowStrength);
+    glUniform1f(glGetUniformLocation(atomBillboardSSBOProgram, "uShininessScale"),    materialShininessScale);
+    glUniform1f(glGetUniformLocation(atomBillboardSSBOProgram, "uShininessFloor"),    materialShininessFloor);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
+    glUniform1i(glGetUniformLocation(atomBillboardSSBOProgram, "shadowMap"), 0);
+
+    bindAtomSSBOs(buf);
+    glBindVertexArray(buf.tabBillboardVAO_indirect);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buf.drawIndirectBuffer);
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+    unbindAtomSSBOs();
+}
+
+void Renderer::cullAtomsForShadow(const SceneBuffers& buf,
+                                   const glm::mat4& lightMVP,
+                                   int indexCount)
+{
+    if (!buf.gpuCullingReady || cullProgram == 0 || buf.atomCount == 0 ||
+        !buf.shadowVisibleIndexSSBO || !buf.shadowDrawIndirectBuffer)
+        return;
+
+    struct DrawCmd { uint32_t count, instanceCount, firstIndex, baseVertex, baseInstance; };
+    const DrawCmd cmd { (uint32_t)indexCount, 0u, 0u, 0u, 0u };
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buf.shadowDrawIndirectBuffer);
+    glBufferSubData(GL_DRAW_INDIRECT_BUFFER, 0, (GLsizeiptr)sizeof(cmd), &cmd);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+    const std::array<glm::vec4, 6> planes = extractFrustumPlanes(lightMVP);
+
+    glUseProgram(cullProgram);
+    glUniform4fv(glGetUniformLocation(cullProgram, "frustumPlanes"), 6, glm::value_ptr(planes[0]));
+    glUniform1ui(glGetUniformLocation(cullProgram, "totalAtoms"), (GLuint)buf.atomCount);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buf.instanceVBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buf.scaleVBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, buf.shadowVisibleIndexSSBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, buf.shadowDrawIndirectBuffer);
+
+    glDispatchCompute(((GLuint)buf.atomCount + 255u) / 256u, 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_COMMAND_BARRIER_BIT);
+
+    for (int i = 0; i < 4; ++i)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, 0);
+    glUseProgram(0);
+}
+
+void Renderer::drawDepthPrepass(const glm::mat4& mvp,
+                                 GLuint vao, int indexCount, size_t atomCount)
+{
+    if (depthPrepassProgram == 0 || vao == 0 || atomCount == 0)
+        return;
+
+    glUseProgram(depthPrepassProgram);
+    glUniformMatrix4fv(glGetUniformLocation(depthPrepassProgram, "uMVP"),
+                       1, GL_FALSE, glm::value_ptr(mvp));
+    glBindVertexArray(vao);
+    glDrawElementsInstanced(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
+    glBindVertexArray(0);
+    glUseProgram(0);
+}
+
+void Renderer::drawDepthPrepassIndirect(const glm::mat4& mvp,
+                                         const SceneBuffers& buf,
+                                         GLuint vao)
+{
+    if (!buf.gpuCullingReady || depthPrepassSSBOProgram == 0 || vao == 0)
+        return;
+
+    glUseProgram(depthPrepassSSBOProgram);
+    glUniformMatrix4fv(glGetUniformLocation(depthPrepassSSBOProgram, "uMVP"),
+                       1, GL_FALSE, glm::value_ptr(mvp));
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buf.visibleIndexSSBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buf.instanceVBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, buf.scaleVBO);
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buf.drawIndirectBuffer);
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
+    glBindVertexArray(0);
+    glUseProgram(0);
+}
+
+void Renderer::drawShadowPassIndirect(const ShadowMap& shadow,
+                                       const glm::mat4& lightMVP,
+                                       const SceneBuffers& buf,
+                                       GLuint vao)
+{
+    if (!buf.gpuCullingReady || shadowSSBOProgram == 0 || vao == 0 ||
+        !buf.shadowVisibleIndexSSBO || !buf.shadowDrawIndirectBuffer)
+        return;
+
+    beginShadowPass(shadow);
+
+    glUseProgram(shadowSSBOProgram);
+    glUniformMatrix4fv(glGetUniformLocation(shadowSSBOProgram, "lightMVP"),
+                       1, GL_FALSE, glm::value_ptr(lightMVP));
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buf.shadowVisibleIndexSSBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buf.instanceVBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, buf.scaleVBO);
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buf.shadowDrawIndirectBuffer);
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
+
+    endShadowPass();
+}
+
+void Renderer::drawShadowPassBillboardIndirect(const ShadowMap& shadow,
+                                                const glm::mat4& lightMVP,
+                                                const glm::vec3& viewPos,
+                                                const SceneBuffers& buf,
+                                                GLuint vao)
+{
+    if (!buf.gpuCullingReady || shadowBillboardSSBOProgram == 0 || vao == 0 ||
+        !buf.shadowVisibleIndexSSBO || !buf.shadowDrawIndirectBuffer)
+        return;
+
+    beginShadowPass(shadow);
+
+    glUseProgram(shadowBillboardSSBOProgram);
+    glUniformMatrix4fv(glGetUniformLocation(shadowBillboardSSBOProgram, "lightMVP"),
+                       1, GL_FALSE, glm::value_ptr(lightMVP));
+    glUniform3fv(glGetUniformLocation(shadowBillboardSSBOProgram, "viewPos"),
+                 1, glm::value_ptr(viewPos));
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buf.shadowVisibleIndexSSBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buf.instanceVBO);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, buf.scaleVBO);
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buf.shadowDrawIndirectBuffer);
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
+
+    endShadowPass();
 }
 
 void Renderer::drawSelectionWireframes(const glm::mat4& projection,
