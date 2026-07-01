@@ -444,13 +444,13 @@ void drawScene(Renderer& renderer,
     if (doDepthPrepass)
     {
         glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-        const glm::mat4 mvp = frame.projection * frame.view;
         if (sceneBuffers.gpuCullingReady)
         {
             GLuint prepassVAO = (sceneBuffers.renderMode == RenderingMode::StandardInstancing)
                                 ? sceneBuffers.tabSphereVAO_indirect
                                 : sceneBuffers.tabLowPolyVAO_indirect;
-            renderer.drawDepthPrepassIndirect(mvp, sceneBuffers, prepassVAO);
+            renderer.drawDepthPrepassIndirect(frame.projection, frame.view,
+                                              sceneBuffers, prepassVAO);
         }
         else
         {
@@ -460,7 +460,8 @@ void drawScene(Renderer& renderer,
             int     prepassCount  = (sceneBuffers.renderMode == RenderingMode::StandardInstancing)
                                     ? sceneBuffers.tabSphereIndexCount
                                     : sceneBuffers.tabLowPolyIndexCount;
-            renderer.drawDepthPrepass(mvp, prepassVAO, prepassCount, sceneBuffers.atomCount);
+            renderer.drawDepthPrepass(frame.projection, frame.view,
+                                      prepassVAO, prepassCount, sceneBuffers.atomCount);
         }
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         glDepthFunc(GL_LEQUAL);

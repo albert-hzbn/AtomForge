@@ -160,14 +160,14 @@ struct Renderer
                             int indexCount);
 
     // Depth prepass: writes only the depth buffer (color writes disabled by caller).
-    // Legacy path reads per-instance data from VAO vertex attributes.
-    void drawDepthPrepass(const glm::mat4& mvp,
+    // Separate projection + view (not a pre-multiplied MVP) must be passed so the
+    // GPU executes the identical fp operations as the colour-pass shaders.
+    void drawDepthPrepass(const glm::mat4& projection, const glm::mat4& view,
                           GLuint vao, int indexCount, size_t atomCount);
 
     // Depth prepass SSBO path: reads from visibleIndexSSBO + per-instance SSBOs.
-    void drawDepthPrepassIndirect(const glm::mat4& mvp,
-                                  const SceneBuffers& buf,
-                                  GLuint vao);
+    void drawDepthPrepassIndirect(const glm::mat4& projection, const glm::mat4& view,
+                                  const SceneBuffers& buf, GLuint vao);
 
     // Indirect shadow draw (Standard + LowPoly share kShadowSSBOVS).
     void drawShadowPassIndirect(const ShadowMap& shadow,

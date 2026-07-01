@@ -863,15 +863,19 @@ static const char* kAtomBillboardSSBOVS = R"(
 
 // Legacy path: per-instance data comes from VAO vertex attributes (locations fixed
 // by createProgram's glBindAttribLocation calls).
+// Uses separate projection + view uniforms (not a pre-multiplied MVP) so that the GPU
+// executes the exact same floating-point operations as the colour-pass shaders,
+// guaranteeing bit-identical depth values and preventing z-fighting with GL_LEQUAL.
 static const char* kDepthOnlyVS = R"(
     #version 130
     in vec3 position;
     in vec3 instancePos;
     in float instanceScale;
-    uniform mat4 uMVP;
+    uniform mat4 projection;
+    uniform mat4 view;
     void main() {
         vec3 worldPos = position * instanceScale + instancePos;
-        gl_Position = uMVP * vec4(worldPos, 1.0);
+        gl_Position = projection * view * vec4(worldPos, 1.0);
     }
 )";
 
@@ -883,11 +887,12 @@ static const char* kDepthOnlySSBOVS = R"(
     layout(std430, binding = 0) readonly buffer VisIdx { uint visibleIndices[]; };
     layout(std430, binding = 1) readonly buffer AllPos { vec4 allPositions[]; };
     layout(std430, binding = 3) readonly buffer AllScl { float allScales[]; };
-    uniform mat4 uMVP;
+    uniform mat4 projection;
+    uniform mat4 view;
     void main() {
         uint origIdx  = visibleIndices[gl_InstanceID];
         vec3 worldPos = position * allScales[origIdx] + allPositions[origIdx].xyz;
-        gl_Position   = uMVP * vec4(worldPos, 1.0);
+        gl_Position   = projection * view * vec4(worldPos, 1.0);
     }
 )";
 
@@ -1580,31 +1585,34 @@ void Renderer::cullAtomsForShadow(const SceneBuffers& buf,
     glUseProgram(0);
 }
 
-void Renderer::drawDepthPrepass(const glm::mat4& mvp,
+void Renderer::drawDepthPrepass(const glm::mat4& projection, const glm::mat4& view,
                                  GLuint vao, int indexCount, size_t atomCount)
 {
     if (depthPrepassProgram == 0 || vao == 0 || atomCount == 0)
         return;
 
     glUseProgram(depthPrepassProgram);
-    glUniformMatrix4fv(glGetUniformLocation(depthPrepassProgram, "uMVP"),
-                       1, GL_FALSE, glm::value_ptr(mvp));
+    glUniformMatrix4fv(glGetUniformLocation(depthPrepassProgram, "projection"),
+                       1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(glGetUniformLocation(depthPrepassProgram, "view"),
+                       1, GL_FALSE, glm::value_ptr(view));
     glBindVertexArray(vao);
     glDrawElementsInstanced(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0, (GLsizei)atomCount);
     glBindVertexArray(0);
     glUseProgram(0);
 }
 
-void Renderer::drawDepthPrepassIndirect(const glm::mat4& mvp,
-                                         const SceneBuffers& buf,
-                                         GLuint vao)
+void Renderer::drawDepthPrepassIndirect(const glm::mat4& projection, const glm::mat4& view,
+                                         const SceneBuffers& buf, GLuint vao)
 {
     if (!buf.gpuCullingReady || depthPrepassSSBOProgram == 0 || vao == 0)
         return;
 
     glUseProgram(depthPrepassSSBOProgram);
-    glUniformMatrix4fv(glGetUniformLocation(depthPrepassSSBOProgram, "uMVP"),
-                       1, GL_FALSE, glm::value_ptr(mvp));
+    glUniformMatrix4fv(glGetUniformLocation(depthPrepassSSBOProgram, "projection"),
+                       1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(glGetUniformLocation(depthPrepassSSBOProgram, "view"),
+                       1, GL_FALSE, glm::value_ptr(view));
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buf.visibleIndexSSBO);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buf.instanceVBO);
