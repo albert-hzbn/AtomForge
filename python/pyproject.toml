@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "atomforge-py"
+version = "0.1.0"
+description = "Python interface for AtomForge: load, edit, and view atomic structures"
+authors = [{ name = "AtomForge Contributors", email = "albert.hzbn@gmail.com" }]
+readme = { text = """
+atomforge — Python interface for AtomForge
+==========================================
+
+Load, programmatically edit, and launch the AtomForge GUI to view atomic
+structures directly from Python.
+
+Quick-start
+-----------
+
+.. code-block:: python
+
+    import atomforge as af
+
+    # Load any format (XYZ/extXYZ natively; CIF/VASP/PDB via ase extra)
+    s = af.load("crystal.cif")
+
+    # Build from scratch
+    s2 = af.Structure()
+    s2.set_cell(2.87, 2.87, 2.87)   # BCC iron unit cell
+    s2.add_atom("Fe", 0.0,   0.0,   0.0)
+    s2.add_atom("Fe", 1.435, 1.435, 1.435)
+
+    # Supercell + open in the AtomForge GUI (non-blocking)
+    s2.repeat(4, 4, 4).view()
+
+    # Edit and save
+    s2.translate(1, 0, 0).save("shifted.xyz")
+
+Formats
+-------
+XYZ and extended-XYZ are handled natively with no dependencies.
+CIF, VASP/POSCAR, PDB, LAMMPS, mol2, and all other ASE-supported formats
+are available via the ``ase`` extra::
+
+    pip install "atomforge[ase]"
+
+Viewing
+-------
+``structure.view()`` serialises the structure to a temporary XYZ file and
+launches the AtomForge executable as a detached subprocess.  Set the
+``ATOMFORGE_PATH`` environment variable to the full path of ``AtomForge.exe``
+if it is not on PATH.
+""", content-type = "text/x-rst" }
+requires-python = ">=3.8"
+license = "MIT"
+keywords = ["atomforge", "atoms", "crystal", "materials", "structure", "viewer"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+[project.optional-dependencies]
+ase = ["ase>=3.22"]
+
+[project.urls]
+Homepage = "https://github.com/albert-hzbn/AtomForge"
+Repository = "https://github.com/albert-hzbn/AtomForge"
+"Bug Tracker" = "https://github.com/albert-hzbn/AtomForge/issues"
