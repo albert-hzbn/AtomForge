@@ -78,6 +78,41 @@ AtomForge --help sss
 AtomForge --help custom
 ```
 
+## Python API
+
+AtomForge structures can be loaded, edited, and visualised directly from Python via the [`atomforge-py`](https://pypi.org/project/atomforge-py/) package.
+
+```bash
+pip install atomforge-py
+pip install "atomforge-py[ase]"   # adds CIF / VASP / PDB / LAMMPS support
+```
+
+```python
+import atomforge as af
+
+# Load any supported format
+s = af.load("crystal.cif")
+
+# Build from scratch
+s = af.Structure()
+s.set_cell(2.87, 2.87, 2.87)        # BCC iron unit cell (Å)
+s.add_atom("Fe", 0.0,   0.0,   0.0)
+s.add_atom("Fe", 1.435, 1.435, 1.435)
+
+# Supercell, filter, translate
+sup = s.repeat(4, 4, 4)
+fe  = sup.filter_species("Fe")
+fe.translate(1, 0, 0)
+
+# Open in the AtomForge GUI (non-blocking)
+sup.view()
+
+# Save to file
+sup.save("bcc_4x4x4.xyz")
+```
+
+Set `ATOMFORGE_PATH` to the full path of the AtomForge executable if it is not on your system PATH.
+
 ## Core controls
 
 ### Scene navigation
