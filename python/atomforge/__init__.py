@@ -1,10 +1,13 @@
 """
 atomforge — Python interface for AtomForge structures.
 
+No external dependencies required.  Supported formats (read + write):
+XYZ, extended-XYZ, VASP POSCAR/CONTCAR, PDB, CIF (P1), LAMMPS data.
+
 Quick-start
 -----------
 >>> import atomforge as af
->>> s = af.load("my_crystal.cif")
+>>> s = af.load("crystal.cif")
 >>> s.repeat(2, 2, 1).view()          # open in AtomForge GUI
 
 >>> s2 = af.Structure()

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "atomforge-py"
 version = "0.1.0"
-description = "Python interface for AtomForge: load, edit, and view atomic structures"
+description = "Python interface for AtomForge: load, edit, and view atomic structures (no external dependencies)"
 authors = [{ name = "AtomForge Contributors", email = "albert.hzbn@gmail.com" }]
 readme = { text = """
 atomforge — Python interface for AtomForge
@@ -21,7 +21,7 @@ Quick-start
 
     import atomforge as af
 
-    # Load any format (XYZ/extXYZ natively; CIF/VASP/PDB via ase extra)
+    # Load any supported format (XYZ, extXYZ, VASP, PDB, CIF, LAMMPS)
     s = af.load("crystal.cif")
 
     # Build from scratch
@@ -38,11 +38,8 @@ Quick-start
 
 Formats
 -------
-XYZ and extended-XYZ are handled natively with no dependencies.
-CIF, VASP/POSCAR, PDB, LAMMPS, mol2, and all other ASE-supported formats
-are available via the ``ase`` extra::
-
-    pip install "atomforge[ase]"
+All formats are handled natively — no external dependencies required.
+Supported: XYZ, extended-XYZ, VASP POSCAR/CONTCAR, PDB, CIF (P1), LAMMPS data.
 
 Viewing
 -------
@@ -67,8 +64,6 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
 ]
 
-[project.optional-dependencies]
-ase = ["ase>=3.22"]
 
 [project.urls]
 Homepage = "https://github.com/albert-hzbn/AtomForge"
