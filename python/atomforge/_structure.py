@@ -152,10 +152,24 @@ class Structure:
 
     # ── Viewing / I/O ───────────────────────────────────────────────────────────
 
+    def _repr_html_(self) -> str:
+        """Jupyter inline renderer — called automatically when a Structure is the last expression in a cell."""
+        from ._notebook import structure_to_html
+        return structure_to_html(self)
+
     def view(self) -> None:
         """Open this structure in the AtomForge GUI (non-blocking)."""
         from ._viewer import view
         view(self)
+
+    def view_notebook(self, width: int = 620, height: int = 460) -> None:
+        """Explicitly display the inline 3D viewer in a Jupyter notebook cell."""
+        try:
+            from IPython.display import HTML, display
+            from ._notebook import structure_to_html
+            display(HTML(structure_to_html(self, width=width, height=height)))
+        except ImportError:
+            self.view()
 
     def save(self, path: str) -> None:
         """Save to file; format is inferred from the file extension."""
