@@ -14,8 +14,10 @@
 #include "util/PathUtils.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -51,13 +53,43 @@ static std::vector<std::string> findAllArgs(int argc, char* argv[], const char* 
 static double argDouble(int argc, char* argv[], const char* flag, double def)
 {
     const char* v = findArg(argc, argv, flag);
-    return v ? std::stod(v) : def;
+    if (!v)
+        return def;
+
+    try
+    {
+        std::size_t parsed = 0;
+        const std::string text(v);
+        const double value = std::stod(text, &parsed);
+        if (parsed != text.size() || !std::isfinite(value))
+            throw std::invalid_argument("not a finite number");
+        return value;
+    }
+    catch (const std::exception&)
+    {
+        throw std::invalid_argument(std::string("invalid numeric value '") + v + "' for " + flag);
+    }
 }
 
 static int argInt(int argc, char* argv[], const char* flag, int def)
 {
     const char* v = findArg(argc, argv, flag);
-    return v ? std::stoi(v) : def;
+    if (!v)
+        return def;
+
+    try
+    {
+        std::size_t parsed = 0;
+        const std::string text(v);
+        const int value = std::stoi(text, &parsed);
+        if (parsed != text.size())
+            throw std::invalid_argument("trailing characters");
+        return value;
+    }
+    catch (const std::exception&)
+    {
+        throw std::invalid_argument(std::string("invalid integer value '") + v + "' for " + flag);
+    }
 }
 
 // Detect Open Babel format string from output filename extension.
@@ -1634,19 +1666,25 @@ int runCLI(int argc, char* argv[])
         return 1;
     }
 
-    std::string m = mode;
-    if      (m == "bulk")      return runBulk     (argc, argv);
-    else if (m == "gb")        return runGB       (argc, argv);
-    else if (m == "poly")      return runPoly     (argc, argv);
-    else if (m == "nano")      return runNano     (argc, argv);
-    else if (m == "amorphous") return runAmorphous(argc, argv);
-    else if (m == "sss")       return runSSS      (argc, argv);
-    else if (m == "dislocation") return runDislocation(argc, argv);
-    else if (m == "custom")    return runCustom   (argc, argv);
-    else
+    try
     {
+        std::string m = mode;
+        if      (m == "bulk")        return runBulk       (argc, argv);
+        else if (m == "gb")          return runGB         (argc, argv);
+        else if (m == "poly")        return runPoly       (argc, argv);
+        else if (m == "nano")        return runNano       (argc, argv);
+        else if (m == "amorphous")   return runAmorphous  (argc, argv);
+        else if (m == "sss")         return runSSS        (argc, argv);
+        else if (m == "dislocation") return runDislocation(argc, argv);
+        else if (m == "custom")      return runCustom     (argc, argv);
+
         std::cerr << "Error: unknown build mode '" << m
                   << "'.  Valid modes: bulk | gb | poly | nano | amorphous | sss | dislocation | custom\n";
+        return 1;
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "Error: " << e.what() << "\n";
         return 1;
     }
 }

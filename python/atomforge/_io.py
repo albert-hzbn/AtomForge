@@ -180,11 +180,31 @@ def _load_vasp(path: str) -> "Structure":
     with open(path, encoding="utf-8", errors="replace") as fh:
         lines = [l.rstrip("\n") for l in fh]
 
+    if len(lines) < 8:
+        raise ValueError("invalid POSCAR: file is incomplete")
+
     scale = float(lines[1].split()[0])
-    cell = []
+    raw_cell = []
     for i in range(2, 5):
-        row = [float(v) * scale for v in lines[i].split()]
-        cell.append(row)
+        row = [float(v) for v in lines[i].split()[:3]]
+        if len(row) != 3:
+            raise ValueError("invalid POSCAR: each lattice vector needs three values")
+        raw_cell.append(row)
+
+    if scale == 0.0:
+        raise ValueError("invalid POSCAR: scale factor cannot be zero")
+    if scale < 0.0:
+        # A negative VASP scale specifies the desired cell volume.
+        a, b, c = raw_cell
+        volume = abs(
+            a[0] * (b[1]*c[2] - b[2]*c[1])
+            - a[1] * (b[0]*c[2] - b[2]*c[0])
+            + a[2] * (b[0]*c[1] - b[1]*c[0])
+        )
+        if volume <= 1e-15:
+            raise ValueError("invalid POSCAR: lattice vectors are singular")
+        scale = (-scale / volume) ** (1.0 / 3.0)
+    cell = [[value * scale for value in row] for row in raw_cell]
 
     # VASP5: species names on line 5, counts on line 6
     # VASP4: counts on line 5 (no species names)
@@ -199,7 +219,16 @@ def _load_vasp(path: str) -> "Structure":
         counts  = [int(x) for x in tok5]
         coord_line = 6
 
+    if coord_line >= len(lines):
+        raise ValueError("invalid POSCAR: missing coordinate mode")
+    if lines[coord_line].strip().lower().startswith("s"):
+        coord_line += 1
+    if coord_line >= len(lines):
+        raise ValueError("invalid POSCAR: missing coordinate mode")
     mode_line = lines[coord_line].strip().lower()
+    if not (mode_line.startswith("d") or mode_line.startswith("c") or
+            mode_line.startswith("k")):
+        raise ValueError(f"invalid POSCAR coordinate mode: {lines[coord_line]!r}")
     direct = mode_line.startswith("d")
     coord_line += 1
 
@@ -208,8 +237,12 @@ def _load_vasp(path: str) -> "Structure":
     for sym, count in zip(species, counts):
         sym = _clean_symbol(sym)
         for _ in range(count):
+            if coord_line >= len(lines):
+                raise ValueError("invalid POSCAR: fewer atom coordinates than declared")
             row = lines[coord_line].split()
             coord_line += 1
+            if len(row) < 3:
+                raise ValueError("invalid POSCAR: atom coordinate needs three values")
             fx, fy, fz = float(row[0]), float(row[1]), float(row[2])
             if direct:
                 x, y, z = _frac_to_cart(fx, fy, fz, cell)

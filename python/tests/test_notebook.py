@@ -133,6 +133,22 @@ def test_custom_dimensions():
     check("custom width in html", 'width="800"' in html)
     check("custom height in html", 'height="600"' in html)
 
+    for width, height in [(0, 100), (100, -1), (1.5, 100), (True, 100)]:
+        try:
+            structure_to_html(s, width=width, height=height)
+            check(f"reject invalid dimensions {width}x{height}", False)
+        except ValueError:
+            check(f"reject invalid dimensions {width}x{height}", True)
+
+
+def test_html_escapes_symbols():
+    print("\n[HTML escaping]")
+    s = af.Structure()
+    s.add_atom("<img src=x onerror=alert(1)>", 0, 0, 0)
+    html = structure_to_html(s)
+    check("symbol markup escaped", "<img src=x" not in html)
+    check("escaped symbol retained", "&lt;img src=x" in html)
+
 
 def test_large_structure_downsampling():
     print("\n[Large structure downsampling]")
@@ -253,6 +269,7 @@ if __name__ == "__main__":
         test_html_title,
         test_unique_ids,
         test_custom_dimensions,
+        test_html_escapes_symbols,
         test_large_structure_downsampling,
         test_empty_structure,
         test_repr_html_method,

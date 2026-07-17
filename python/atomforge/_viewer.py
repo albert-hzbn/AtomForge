@@ -6,11 +6,23 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from ._structure import Structure
+
+
+def _cleanup_after_process(process: subprocess.Popen, path: str) -> None:
+    """Wait for a launched viewer and remove its temporary structure file."""
+    try:
+        process.wait()
+    finally:
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
 
 
 def _find_atomforge() -> Optional[str]:
@@ -59,8 +71,8 @@ def view(s: "Structure") -> None:
 
     The structure is serialised to a temporary extXYZ file and AtomForge is
     launched as a detached subprocess.  The temp file is cleaned up after
-    AtomForge exits (on POSIX) or left to the OS temp-file sweeper (Windows),
-    because AtomForge must be able to read the file after this function returns.
+    AtomForge exits; a daemon cleanup thread allows this function to remain
+    non-blocking.
     """
     exe = _find_atomforge()
     if exe is None:
@@ -80,18 +92,32 @@ def view(s: "Structure") -> None:
     from ._io import _save_xyz
     _save_xyz(s, tmp_path)
 
-    if sys.platform == "win32":
-        # DETACHED_PROCESS: new console, parent death does not kill child
-        DETACHED_PROCESS = 0x00000008
-        CREATE_NEW_PROCESS_GROUP = 0x00000200
-        subprocess.Popen(
-            [exe, tmp_path],
-            creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
-            close_fds=True,
-        )
-    else:
-        subprocess.Popen(
-            [exe, tmp_path],
-            start_new_session=True,
-            close_fds=True,
-        )
+    try:
+        if sys.platform == "win32":
+            # DETACHED_PROCESS: new console, parent death does not kill child
+            DETACHED_PROCESS = 0x00000008
+            CREATE_NEW_PROCESS_GROUP = 0x00000200
+            process = subprocess.Popen(
+                [exe, tmp_path],
+                creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+                close_fds=True,
+            )
+        else:
+            process = subprocess.Popen(
+                [exe, tmp_path],
+                start_new_session=True,
+                close_fds=True,
+            )
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except FileNotFoundError:
+            pass
+        raise
+
+    threading.Thread(
+        target=_cleanup_after_process,
+        args=(process, tmp_path),
+        name="atomforge-temp-cleanup",
+        daemon=True,
+    ).start()

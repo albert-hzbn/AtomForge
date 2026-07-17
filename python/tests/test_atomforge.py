@@ -94,6 +94,19 @@ def test_structure_api():
     check("repeat atom count", len(sup) == 54)
     check("repeat cell", approx(sup.cell[0][0], 2.87 * 3))
 
+    for counts in [(0, 1, 1), (-1, 1, 1), (1.5, 1, 1), (True, 1, 1)]:
+        try:
+            _bcc_fe().repeat(*counts)
+            check(f"reject invalid repeat {counts}", False)
+        except ValueError:
+            check(f"reject invalid repeat {counts}", True)
+
+    try:
+        af.Structure().set_cell(1, 1, 1, gamma=180)
+        check("reject degenerate cell", False)
+    except ValueError:
+        check("reject degenerate cell", True)
+
     # non-periodic repr
     check("repr non-periodic", "non-periodic" in repr(_water()))
 
@@ -188,6 +201,32 @@ def test_vasp():
         # af.load dispatch
         s3 = af.load(name)
         check("af.load .vasp", s3.atoms[0].symbol == "Fe")
+
+        selective = _POSCAR_BCC.replace(
+            "Direct\n", "Selective dynamics\nDirect\n"
+        ).replace(
+            "  0.000000  0.000000  0.000000\n",
+            "  0.000000  0.000000  0.000000  T T T\n",
+        )
+        with tempfile.NamedTemporaryFile(suffix=".vasp", delete=False, mode="w") as sf:
+            sf.write(selective)
+            selective_name = sf.name
+        try:
+            ss = _load_vasp(selective_name)
+            check("vasp selective dynamics", len(ss) == 2)
+        finally:
+            os.unlink(selective_name)
+
+        negative_scale = _POSCAR_BCC.replace("1.0\n", "-8.0\n", 1)
+        with tempfile.NamedTemporaryFile(suffix=".vasp", delete=False, mode="w") as nf:
+            nf.write(negative_scale)
+            negative_name = nf.name
+        try:
+            ns = _load_vasp(negative_name)
+            check("vasp negative scale volume", approx(ns.cell[0][0], 2.0, 1e-6))
+            check("vasp negative scale coordinates", approx(ns.atoms[1].x, 1.0, 1e-6))
+        finally:
+            os.unlink(negative_name)
     finally:
         os.unlink(name)
 
@@ -374,6 +413,25 @@ def test_no_external_deps():
             check(f"no ase import in {mod_name}", not has_ase)
 
 
+def test_viewer_temp_cleanup():
+    print("\n[Viewer temporary file cleanup]")
+    from atomforge._viewer import _cleanup_after_process
+
+    class FinishedProcess:
+        def __init__(self):
+            self.waited = False
+
+        def wait(self):
+            self.waited = True
+
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        name = f.name
+    process = FinishedProcess()
+    _cleanup_after_process(process, name)
+    check("viewer process awaited", process.waited)
+    check("viewer temporary file removed", not os.path.exists(name))
+
+
 # ── Run all ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -390,6 +448,7 @@ if __name__ == "__main__":
         test_lammps,
         test_cross_format,
         test_no_external_deps,
+        test_viewer_temp_cleanup,
     ]:
         try:
             fn()

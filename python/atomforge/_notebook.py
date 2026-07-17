@@ -7,6 +7,7 @@ ray-casts against a sphere to produce correct depth, silhouette, and Phong shadi
 
 from __future__ import annotations
 
+import html as html_lib
 import json
 import math
 import random
@@ -37,6 +38,10 @@ _MAX_ATOMS_RENDER = 50_000   # downsample above this for performance
 
 def structure_to_html(s: "Structure", width: int = 620, height: int = 460) -> str:
     """Return a self-contained HTML string that renders *s* as an interactive 3D view."""
+
+    if (isinstance(width, bool) or not isinstance(width, int) or width <= 0 or
+            isinstance(height, bool) or not isinstance(height, int) or height <= 0):
+        raise ValueError("viewer width and height must be positive integers")
 
     uid = f"af{random.randint(10_000_000, 99_999_999)}"
     atoms = s.atoms
@@ -100,6 +105,7 @@ def structure_to_html(s: "Structure", width: int = 620, height: int = 460) -> st
     note = f" (showing 1/{step})" if downsampled else ""
     title = f"{formula}  —  {n_total} atoms{note}"
 
+    title        = html_lib.escape(title)
     atoms_json   = json.dumps(atom_data)
     cell_json    = json.dumps(cell_lines)
     init_scale   = round(min(width, height) * 0.38 / max(max_ext, 1.0), 3)

@@ -103,6 +103,9 @@ class Structure:
         """Return a new supercell replicated *nx × ny × nz* times.  Requires a unit cell."""
         if not self.cell:
             raise ValueError("repeat() requires a unit cell (set structure.cell first)")
+        if any(isinstance(n, bool) or not isinstance(n, int) or n <= 0
+               for n in (nx, ny, nz)):
+            raise ValueError("repeat counts must be positive integers")
         a, b, c = self.cell
         out = Structure()
         out.cell = [
@@ -136,6 +139,14 @@ class Structure:
         Uses the standard convention: **a** along x, **b** in the xy-plane.
         Returns self.
         """
+        values = (a, b, c, alpha, beta, gamma)
+        if not all(math.isfinite(v) for v in values):
+            raise ValueError("cell lengths and angles must be finite")
+        if min(a, b, c) <= 0:
+            raise ValueError("cell lengths must be positive")
+        if not all(0.0 < angle < 180.0 for angle in (alpha, beta, gamma)):
+            raise ValueError("cell angles must be between 0 and 180 degrees")
+
         rad = math.pi / 180.0
         ca = math.cos(alpha * rad)
         cb = math.cos(beta  * rad)
@@ -146,7 +157,10 @@ class Structure:
         by = b * sg
         cx = c * cb
         cy = c * (ca - cb * cg) / sg if sg > 1e-10 else 0.0
-        cz = math.sqrt(max(0.0, c * c - cx * cx - cy * cy))
+        cz_sq = c * c - cx * cx - cy * cy
+        if cz_sq <= 1e-12:
+            raise ValueError("cell parameters do not define a non-degenerate cell")
+        cz = math.sqrt(cz_sq)
         self.cell = [[ax, 0.0, 0.0], [bx, by, 0.0], [cx, cy, cz]]
         return self
 
