@@ -1,0 +1,1167 @@
+\chapter{Complete Python signatures and native CLI options}\label{ch:api-signatures}
+
+\section{Using this reference}
+
+The signatures below are generated from the public Python implementation. Property entries have no call parentheses. Private helpers and native-handle constructors are implementation details and are excluded. Atom's dataclass constructor is described explicitly. The workflow chapters explain physical interpretation, examples, and validation. Python indices are zero-based unless a function explicitly states otherwise.
+
+\begin{lstlisting}[language=Python]
+
+Atom(symbol, x, y, z, r=1.0, g=1.0, b=1.0)
+
+\end{lstlisting}
+
+Coordinates are Cartesian Angstrom. r/\allowbreak{}g/\allowbreak{}b here are colour components, not atomic radii. Structure.atoms is an editable list; Structure.cell is three lattice-vector rows or None. Prefer add\_\allowbreak{}atom for automatic element colours. Structure translation/\allowbreak{}scaling edits in place; repeat and filter\_\allowbreak{}species return new structures. Grid operations return new data.
+
+\section{Atom and Structure}
+
+\subsection{Atom}
+
+A single atom with Cartesian coordinates (Angstrom) and display colour.
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Atom.copy()
+\end{lstlisting}
+
+Return a separate atom with the same coordinates and colour.
+
+\end{samepage}
+
+
+
+\subsection{Structure}
+
+A collection of atoms with an optional periodic unit cell. atoms is a list of Atom objects with Cartesian positions in Angstrom. cell is three lattice-vector rows [[a1,a2,a3],[b1,b2,b3],[c1,c2,c3]], in Angstrom, or None for a nonperiodic cluster.
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Structure.__init__()
+\end{lstlisting}
+
+Create an empty structure with atoms=[] and cell=None.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Structure.copy()
+\end{lstlisting}
+
+Return a separate structure with copied atoms and cell vectors.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Structure.add_atom(symbol: str, x: float, y: float, z: float, r: float=-1.0, g: float=-1.0, b: float=-1.0)
+\end{lstlisting}
+
+Append an atom and return it.  Default colour is the element's CPK colour.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Structure.remove_atom(index: int)
+\end{lstlisting}
+
+Remove and return the atom at index.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Structure.translate(dx: float, dy: float, dz: float)
+\end{lstlisting}
+
+Shift all atoms in-place by (dx, dy, dz) Angstrom.  Returns self.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Structure.scale(factor: float)
+\end{lstlisting}
+
+Scale all Cartesian coordinates and cell vectors by factor.  Returns self.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Structure.repeat(nx: int, ny: int=1, nz: int=1)
+\end{lstlisting}
+
+Return a new supercell replicated nx x ny x nz times.  Requires a unit cell.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Structure.filter_species(*symbols: str)
+\end{lstlisting}
+
+Return a new Structure containing only atoms of the given element symbols.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Structure.set_cell(a: float, b: float, c: float, alpha: float=90.0, beta: float=90.0, gamma: float=90.0)
+\end{lstlisting}
+
+Set the unit cell from lattice parameters (lengths in Angstrom, angles in degrees).
+Uses the standard convention: a along x, b in the xy-plane.
+Returns self.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Structure.view()
+\end{lstlisting}
+
+Open this structure in the AtomForge GUI (non-blocking).
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Structure.view_notebook(width: int=620, height: int=460)
+\end{lstlisting}
+
+Explicitly display the inline 3D viewer in a Jupyter notebook cell.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Structure.save(path: str)
+\end{lstlisting}
+
+Save to file; format is inferred from the file extension.
+
+\end{samepage}
+
+
+
+\section{Structure file functions}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+load(path: str)
+\end{lstlisting}
+
+Load a structure; format is inferred from the filename.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+save(s: 'Structure', path: str)
+\end{lstlisting}
+
+Save a structure; format is inferred from the filename.
+
+\end{samepage}
+
+
+
+\section{Desktop viewer function}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+view(s: 'Structure')
+\end{lstlisting}
+
+Open s in the AtomForge GUI (non-blocking).
+
+The structure is serialised to a temporary extXYZ file and AtomForge is
+launched as a detached subprocess.  The temp file is cleaned up after
+AtomForge exits; a daemon cleanup thread allows this function to remain
+non-blocking.
+
+\end{samepage}
+
+
+
+\section{Electronic data types and operations}
+
+\subsection{Grid}
+
+Scalar grid in Angstrom; values use x-fastest order (z, y, x loops).
+
+cell contains three lattice/\allowbreak{}span vectors, as in Structure.cell.
+Periodic grids omit endpoints; finite grids include them. Operations return
+new grids. unit='e/\allowbreak{}A\textasciicircum{}3' enables density-derived energy calculations.
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.__init__(shape, cell, values, origin=(0, 0, 0), periodic=False, unit='raw')
+\end{lstlisting}
+
+Create a scalar grid. shape contains three integers >=2; values has exactly their product in x-fastest order. cell has three vectors in Angstrom. origin is Cartesian. Periodic grids omit duplicate endpoints; finite grids include endpoints. The grid is limited to 100 million samples.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.shape
+\end{lstlisting}
+
+Read-only (nx, ny, nz) tuple.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.cell
+\end{lstlisting}
+
+Read-only tuple of the three span/\allowbreak{}lattice vectors in Angstrom.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.origin
+\end{lstlisting}
+
+Read-only Cartesian grid origin in Angstrom.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.periodic
+\end{lstlisting}
+
+Read-only Boolean periodic-grid convention.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.values
+\end{lstlisting}
+
+Return an independent list of scalar samples.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.unit
+\end{lstlisting}
+
+Read-only scalar unit label; do not infer it from a plotted colour.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.name
+\end{lstlisting}
+
+Read-only field name, including imported/\allowbreak{}derived channel identification.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.sites
+\end{lstlisting}
+
+Return (atomic\_\allowbreak{}number, x, y, z) rows; unknown species have number 0.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.with_sites(sites)
+\end{lstlisting}
+
+Return a grid with supplied (atomic\_\allowbreak{}number, x, y, z) site rows; positions are Cartesian Angstrom.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.__add__(other)
+\end{lstlisting}
+
+Return pointwise addition of aligned grids.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.__sub__(other)
+\end{lstlisting}
+
+Return pointwise subtraction of aligned grids, self minus other.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.__mul__(other)
+\end{lstlisting}
+
+Return pointwise grid multiplication or scalar scaling.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.__truediv__(other)
+\end{lstlisting}
+
+Return pointwise grid division or scalar division. Scalar zero is rejected.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.resample(target)
+\end{lstlisting}
+
+Interpolate this field on target grid geometry. This does not register displaced atoms or correct incompatible units.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.density_difference(*references, weights=None)
+\end{lstlisting}
+
+Return self - sum(weight * reference), in e/\allowbreak{}A\textasciicircum{}3.
+
+Use fragment densities calculated in the same cell and geometry.
+Alignment is required; resample explicitly when appropriate.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.threshold_mask(low, high)
+\end{lstlisting}
+
+Binary mask for the inclusive interval [low, high].
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.boolean(other, operation='intersection')
+\end{lstlisting}
+
+Combine binary masks: union, intersection, difference (self-other), xor.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.invert_mask()
+\end{lstlisting}
+
+Complement a binary mask within its cell.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.apply_mask(mask)
+\end{lstlisting}
+
+Keep density inside a binary mask, preserving the density unit.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.split_density()
+\end{lstlisting}
+
+Return accumulation and positive depletion-magnitude fields.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.charge_summary()
+\end{lstlisting}
+
+Electron accumulation, depletion magnitude and net change.
+
+Apply to a difference density. These integrals describe redistribution;
+they do not assign charge transfer to individual atoms or fragments.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.cumulative_charge(axis=2)
+\end{lstlisting}
+
+(Normal distance in A, cumulative electrons) from the lower cell face.
+
+The final row includes the full cell. Periodic profiles depend on the
+chosen cell origin; finite grids use trapezoidal quadrature.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.as_periodic(tolerance=1e-08)
+\end{lstlisting}
+
+Drop matching endpoint planes after checking all three boundaries.
+
+Only use when the finite grid spans a complete periodic cell. This
+conversion checks values, but cannot establish physical periodicity.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.gradient()
+\end{lstlisting}
+
+Return Cartesian x/\allowbreak{}y/\allowbreak{}z derivatives, including triclinic metric.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.laplacian()
+\end{lstlisting}
+
+Return the Cartesian Laplacian grid, including cell geometry; units are field units per Angstrom squared.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.energy_density(floor=1e-12)
+\end{lstlisting}
+
+Return approximate kinetic, potential and total density in eV/\allowbreak{}A\textasciicircum{}3.
+
+Nonnegative electron density is required; samples <= floor (e/\allowbreak{}A\textasciicircum{}3)
+are masked to zero. These are gradient-expansion/\allowbreak{}local-virial fields,
+not the kinetic energy evaluated from Kohn-Sham orbitals.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.smooth(sigma, radius=2)
+\end{lstlisting}
+
+Return Gaussian-smoothed grid. sigma is in Angstrom; radius bounds the kernel in grid steps.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.line_profile(start, end, count=200)
+\end{lstlisting}
+
+Return distance/\allowbreak{}value rows on the Cartesian segment start to end (Angstrom), using count samples.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.planar_average(axis=2)
+\end{lstlisting}
+
+Return normal distance in Angstrom and area-averaged field.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.macroscopic_average(axis=2, window=3)
+\end{lstlisting}
+
+Centered box average over an odd number of planar samples.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.section(origin, u, v, shape=(100, 100))
+\end{lstlisting}
+
+Sample origin + su + tv for 0<=s,t<=1 (Cartesian Angstrom).
+
+Returns a two-layer grid with identical layers; the first layer is
+the section. Use section\_\allowbreak{}values/\allowbreak{}contours for 2D data, not its volume.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.section_values
+\end{lstlisting}
+
+Return the first z layer as rows indexed by y, with x-fastest entries. Use on a section result.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.contours(level)
+\end{lstlisting}
+
+Return endpoint pairs for contour segments on grid z=0.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.integrate()
+\end{lstlisting}
+
+Return the whole-grid scalar integral with volume quadrature; density gives electrons.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.integrate_sphere(center, radius)
+\end{lstlisting}
+
+Return the scalar integral within a sphere with Cartesian center and radius in Angstrom.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.voronoi_integrate(sites=None)
+\end{lstlisting}
+
+Return (integral, volume) per site; equidistant samples share weight.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.peaks(limit=0)
+\end{lstlisting}
+
+Grid-local maxima as (x,y,z,value); deterministic adjacent tie break.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.structure_factors(indices)
+\end{lstlisting}
+
+Return (h,k,l,real,imag); phase convention is exp(+2pii*h.r).
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.fourier_synthesis(reflections)
+\end{lstlisting}
+
+Supply complete (h,k,l,real,imag) rows, including conjugate pairs.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.patterson()
+\end{lstlisting}
+
+Return the periodic autocorrelation/\allowbreak{}Patterson field. See the operation reference for normalisation and interpretation.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.atomic_structure_factors(indices, scattering, occupancies=None, b_factors=None)
+\end{lstlisting}
+
+Explicit complex scattering[reflection][site], occupancy and B(A\textasciicircum{}2).
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.ewald(charges, alpha, real_cutoff, reciprocal_cutoff)
+\end{lstlisting}
+
+Neutral periodic point charges; return energy(eV), potentials(V).
+
+alpha is in 1/\allowbreak{}A, real\_\allowbreak{}cutoff in A and reciprocal\_\allowbreak{}cutoff in 1/\allowbreak{}A
+(wavevector including 2*pi). Check convergence by increasing cutoffs.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.isosurface(level, color=None)
+\end{lstlisting}
+
+Return a Surface at level; optional aligned color grid supplies per-vertex scalar colour values.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.save(path, format=None)
+\end{lstlisting}
+
+Write this field. Explicit format is xsf, cube, or vasp. Without format, .cube/\allowbreak{}.cub and .xsf are recognised; other suffixes default to VASP.
+
+\end{samepage}
+
+
+
+\subsection{Volume}
+
+An imported collection of scalar channels and their atomic sites.
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Volume.fields
+\end{lstlisting}
+
+Read-only tuple of Grid channels. Select with a zero-based index after checking names and units.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Volume.save(path, format)
+\end{lstlisting}
+
+Write the imported volume using an explicit supported format. Check the selected format's channel capabilities.
+
+\end{samepage}
+
+
+
+\subsection{Surface}
+
+Triangles with per-vertex scalar coloring; vertices are not welded.
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Surface.vertices
+\end{lstlisting}
+
+Return the native triangle vertex rows with scalar data; triangles are not welded into a shared-vertex topology.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Surface.save(path)
+\end{lstlisting}
+
+Write OBJ (scalar comments) or .ply (a scalar vertex property).
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+load_volume(path, quantity='auto', cube_coordinates='bohr')
+\end{lstlisting}
+
+Read VASP, Cube or XSF. Cube/\allowbreak{}XSF 'auto' keeps scalar units raw.
+
+quantity: density, potential, elf, raw, auto. Cube density/\allowbreak{}potential are
+converted from atomic units. XSF scalars are assumed e/\allowbreak{}A\textasciicircum{}3 or eV only
+when explicitly requested; producer-specific units must be converted.
+
+\end{samepage}
+
+
+
+\section{Electronic model helpers}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+reciprocal_vectors(cell)
+\end{lstlisting}
+
+Reciprocal vectors without 2*pi, in inverse Angstrom.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+scattering_factor(s, a, b, c=0.0)
+\end{lstlisting}
+
+Gaussian X-ray form factor sum(a\_\allowbreak{}iexp(-b\_\allowbreak{}is\textasciicircum{}2))+c.
+
+Supply published coefficients and respect their stated valid s=sin(theta)/\allowbreak{}
+wavelength range. No anomalous-dispersion correction is added implicitly.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+model_density(geometry, coefficients=None, scattering_lengths=None, occupancies=None, b_factors=None)
+\end{lstlisting}
+
+Fourier model electron or nuclear scattering-length density.
+
+Exactly one mapping keyed by atomic number is required: coefficients
+\{Z: (a, b, c)\} for X-rays or scattering\_\allowbreak{}lengths \{Z: length\} for
+neutrons. Length units are caller-defined. Even-grid Nyquist planes are
+omitted to retain a real, conjugate-symmetric finite Fourier expansion.
+These are free-atom scattering models, not self-consistent densities.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+miller_section(grid, hkl, offset=0.0, width=5.0, height=5.0, shape=(100, 100))
+\end{lstlisting}
+
+Section centered on hx+ky+l*z=offset (fractional cell coordinates).
+
+Width/\allowbreak{}height are Angstrom. Finite inputs must contain the whole section.
+The orthonormal in-plane orientation is chosen deterministically.
+
+\end{samepage}
+
+
+
+\section{Native builder options}
+
+Use \code{AtomForge --help MODE} for detailed help. \code{AtomForge --build MODE --help} prints the general overview in this version. These option listings are extracted from the source help and checked against the normal executable. CLI defaults may differ from a dialog's remembered settings. The caret line continuations shown in help are for Windows cmd; use a single line or a subprocess argument list in PowerShell/Python.
+
+\clearpage
+
+\subsection{bulk}
+
+\begin{lstlisting}
+------------------------------------------------------------------
+BULK CRYSTAL  (--build bulk)
+------------------------------------------------------------------
+  --system     <name>         Crystal system: triclinic | monoclinic |
+                               orthorhombic | tetragonal | trigonal |
+                               hexagonal | cubic   (default: cubic)
+  --spacegroup <N>            Space-group number 1-230  (default: 225)
+  --a   <Ang>                 Lattice parameter a       (default: 4.0)
+  --b   <Ang>                 Lattice parameter b       (default: a)
+  --c   <Ang>                 Lattice parameter c       (default: a)
+  --alpha <deg>               Cell angle alpha          (default: 90)
+  --beta  <deg>               Cell angle beta           (default: 90)
+  --gamma <deg>               Cell angle gamma          (default: 90)
+  --atom  "SYMBOL fx fy fz"   Asymmetric unit atom (fractional coords).
+                               May be repeated for multiple atoms.
+                               Example: --atom "Cu 0 0 0"
+  --output <file>             Output file (format from extension)
+
+Example:
+  AtomForge --build bulk --system cubic --spacegroup 225 ^
+            --a 3.61 --atom "Cu 0 0 0" --output cu_fcc.cif
+\end{lstlisting}
+
+\clearpage
+
+\subsection{gb}
+
+\begin{lstlisting}
+------------------------------------------------------------------
+CSL GRAIN BOUNDARY  (--build gb)
+------------------------------------------------------------------
+  --input  <file>             Reference structure (must have a unit cell)
+  --axis   "u v w"            Rotation axis, e.g. "0 0 1"   (default: 0 0 1)
+  --sigma  <N>                Exact sigma value to use
+  --sigmamax <N>              Maximum sigma to search when --sigma is omitted
+                               (picks the smallest available sigma, default: 100)
+  --plane  <0|1|2>            GB-plane index within the sigma candidate (default: 0)
+  --uca    <N>                Grain-A unit-cell repetitions along stack dir (default: 1)
+  --ucb    <N>                Grain-B unit-cell repetitions along stack dir (default: 1)
+  --vacuum <Ang>              Vacuum padding on each side  (default: 0)
+  --gap    <Ang>              Interface gap between grains (default: 0)
+  --overlap <Ang>             Overlap removal radius       (default: 0)
+  --conventional              Keep conventional cell (skip primitive reduction)
+  --output <file>             Output file (format from extension)
+
+Example:
+  AtomForge --build gb --input cu_fcc.cif --axis "0 0 1" ^
+            --sigma 5 --plane 0 --uca 3 --ucb 3 ^
+            --vacuum 5.0 --output cu_sigma5_gb.cif
+\end{lstlisting}
+
+\clearpage
+
+\subsection{poly}
+
+\begin{lstlisting}
+------------------------------------------------------------------
+POLYCRYSTAL  (--build poly)
+------------------------------------------------------------------
+  --input  <file>             Reference structure (must have a unit cell)
+  --sizex  <Ang>              Box dimension X  (default: 50)
+  --sizey  <Ang>              Box dimension Y  (default: 50)
+  --sizez  <Ang>              Box dimension Z  (default: 50)
+  --grains <N>                Number of Voronoi grains  (default: 8)
+  --seed   <N>                Random seed for reproducibility  (default: 42)
+  --euler  "phi1 Phi phi2"    Bunge Euler angles (deg) for grain 0, 1, ...
+                               Specify once per grain in order. If fewer
+                               than --grains values are given, remaining
+                               grains get random orientations.
+  --output <file>             Output file (format from extension)
+
+Example:
+  AtomForge --build poly --input cu_fcc.cif ^
+            --sizex 100 --sizey 100 --sizez 100 ^
+            --grains 12 --seed 7 --output cu_poly.cif
+\end{lstlisting}
+
+\clearpage
+
+\subsection{nano}
+
+\begin{lstlisting}
+------------------------------------------------------------------
+NANOCRYSTAL  (--build nano)
+------------------------------------------------------------------
+  --input  <file>             Reference crystal (must have a unit cell)
+  --shape  <name>             sphere | ellipsoid | box | cylinder |
+                               octahedron | truncated-octahedron |
+                               cuboctahedron   (default: sphere)
+  --radius <Ang>              Sphere/octahedron/cuboctahedron radius (default: 15)
+  --rx <Ang>                  Ellipsoid half-extent X  (default: 15)
+  --ry <Ang>                  Ellipsoid half-extent Y  (default: 12)
+  --rz <Ang>                  Ellipsoid half-extent Z  (default: 10)
+  --hx <Ang>                  Box / truncated-oct half-extent X  (default: 15)
+  --hy <Ang>                  Box / truncated-oct half-extent Y  (default: 15)
+  --hz <Ang>                  Box / truncated-oct half-extent Z  (default: 15)
+  --trunc <Ang>               Truncated-octahedron truncation radius  (default: 12)
+  --cylradius <Ang>           Cylinder radius  (default: 12)
+  --cylheight <Ang>           Cylinder height  (default: 30)
+  --cylaxis   <0|1|2>         Cylinder axis: 0=X 1=Y 2=Z  (default: 2)
+  --vacuum <Ang>              Vacuum padding around particle  (default: 5)
+  --repa <N>                  Manual supercell replication A  (0 = auto)
+  --repb <N>                  Manual supercell replication B  (0 = auto)
+  --repc <N>                  Manual supercell replication C  (0 = auto)
+  --output <file>             Output file (format from extension)
+
+Example:
+  AtomForge --build nano --input cu.cif --shape sphere --radius 20 ^
+            --vacuum 5 --output cu_nano.xyz
+\end{lstlisting}
+
+\clearpage
+
+\subsection{amorphous}
+
+\begin{lstlisting}
+------------------------------------------------------------------
+AMORPHOUS STRUCTURE  (--build amorphous)
+------------------------------------------------------------------
+  --element "SYMBOL N"        Element species and atom count.
+                               Repeat for each species in the mixture.
+                               Example: --element "Si 80" --element "O 160"
+  --density <g/cm3>           Target density for auto box size  (default: 2.0)
+  --boxa <Ang>                Manual box length A (overrides --density)
+  --boxb <Ang>                Manual box length B (overrides --density)
+  --boxc <Ang>                Manual box length C (overrides --density)
+  --scale <factor>            Cell scale factor before packing  (default: 1.0)
+  --mindist "Z1 Z2 dist"      Minimum separation for element pair (Ang).
+                               Repeat for multiple pairs.
+  --covtol <frac>             Covalent-radii tolerance fraction  (default: 0.75)
+  --seed   <N>                RNG seed (0 = time-based)  (default: 42)
+  --attempts <N>              Max placement attempts per atom  (default: 1000)
+  --output <file>             Output file (format from extension)
+
+Example:
+  AtomForge --build amorphous --element "Si 80" --element "O 160" ^
+            --density 2.2 --seed 1 --output sio2.xyz
+\end{lstlisting}
+
+\clearpage
+
+\subsection{sss}
+
+\begin{lstlisting}
+------------------------------------------------------------------
+SUBSTITUTIONAL SOLID SOLUTION  (--build sss)
+------------------------------------------------------------------
+  --input  <file>             Host structure to substitute into
+  --frac   SYM=frac,...       Comma-separated element=fraction pairs.
+                               Fractions must sum to 1.
+                               Example: --frac "Cu=0.7,Zn=0.3"
+  --seed   <N>                RNG seed (0 = time-based)  (default: 12345)
+  --output <file>             Output file (format from extension)
+
+Example:
+  AtomForge --build sss --input cu.cif ^'
+            --frac "Cu=0.7,Zn=0.3" --seed 42 --output brass.cif
+\end{lstlisting}
+
+\clearpage
+
+\subsection{dislocation}
+
+\begin{lstlisting}
+------------------------------------------------------------------
+DISLOCATION  (--build dislocation)
+------------------------------------------------------------------
+  --input  <file>             Input structure (must have a unit cell)
+  --output <file>             Output file (format from extension)
+  --character <edge|screw|mixed>
+                              Dislocation character (default: edge)
+  --shape <halfplane|cylinder|sphere|ellipsoid|freeform>
+                              Application region shape (default: halfplane)
+  --manual-vectors            Disable automatic FCC/HCP/BCC vector presets
+  --plane   "h k l"          Slip-plane Miller indices (default: 1 1 1)
+  --burgers "u v w"          Burgers direction indices (default: 1 -1 0)
+  --line    "u v w"          Line direction indices (default: 1 1 -2)
+  --line-frac   "fx fy fz"   Dislocation line point in fractional coords
+  --line-offset "x y z"      Cartesian offset added to line point (A)
+  --bscale <f>                Burgers magnitude scale factor (default: 1.0)
+  --bmag <A>                  Explicit Burgers magnitude in Angstroms (overrides auto-detect)
+  --mixed-angle <deg>         Edge/screw mixing angle for mixed mode
+  --nu <f>                    Poisson ratio (default: 0.33)
+  --core <A>                  Core radius regularization (default: 1.2)
+  --cutoff <A>                Radial attenuation distance, 0=off (default: 20)
+  --line-half <A>             Half-length extent along line (default: 1e6)
+  --cyl-radius <A>            Cylinder radius for shape=cylinder
+  --sphere-radius <A>         Sphere radius for shape=sphere
+  --ellipsoid "rx ry rz"     Ellipsoid radii for shape=ellipsoid
+  --poly2d "x1 y1;x2 y2;..."  Freeform polygon for shape=freeform
+
+Example:
+  AtomForge --build dislocation --input base.cfg --character edge ^
+            --manual-vectors --line "0 0 1" --burgers "1 0 0" ^
+            --shape cylinder --cyl-radius 12 --output edge.cfg
+\end{lstlisting}
+
+\clearpage
+
+\subsection{custom}
+
+\begin{lstlisting}
+------------------------------------------------------------------
+CUSTOM MESH-FILL  (--build custom)
+------------------------------------------------------------------
+Fill a 3D mesh model with atoms from a reference crystal structure.
+
+  --input   <file>            Reference crystal file (CIF, XYZ, VASP, PDB, ...)
+  --mesh    <file>            3D model file (OBJ or STL)
+  --scale   <factor>          Angstrom per model unit  (default: 1.0)
+  --vacuum  <Ang>             Vacuum padding for output cell  (default: 5.0)
+  --repa <N>                  Manual replication along a  (0 = auto)
+  --repb <N>                  Manual replication along b  (0 = auto)
+  --repc <N>                  Manual replication along c  (0 = auto)
+  --rotx <deg>                Rotate crystal about X before fill  (default: 0)
+  --roty <deg>                Rotate crystal about Y before fill  (default: 0)
+  --rotz <deg>                Rotate crystal about Z before fill  (default: 0)
+  --miller  "h k l"          Align crystal direction [hkl] with mesh +Z axis
+                               (overrides --rotx/y/z when given)
+  --output  <file>            Output file (format from extension)
+
+Example:
+  AtomForge --build custom --input cu.cif --mesh bunny.stl ^
+            --scale 0.1 --vacuum 5 --output cu_bunny.xyz
+\end{lstlisting}

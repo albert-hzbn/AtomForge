@@ -169,7 +169,7 @@ python -m atomforge.electronic density.cube --quantity density --operation conve
 Choose channels with \code{--channel} (zero-based). Use \code{--quantity auto|raw|density|potential|elf} and \code{--cube-coordinates bohr|angstrom}. \code{--periodic} verifies and removes duplicate endpoints; it is not a generic instruction to make arbitrary data periodic. Operations other than info/integrate require an output. Additional choices include laplacian, patterson, kinetic, potential-energy, total-energy, and peaks. Charge-mask combinations are available through Python scripts and the GUI, not every one as a dedicated CLI choice.
 
 \section{Native builder CLI}
-\code{AtomForge --build MODE --help} prints the mode's accepted options. Available documented modes are bulk, sss, gb, nano, poly, amorphous, and custom. Each returns an output structure without requiring a GUI interaction. Use a subprocess argument list from Python to preserve spaces and avoid shell quoting problems:
+\code{AtomForge --help MODE} prints the mode's accepted options. Available modes are bulk, sss, gb, nano, poly, amorphous, dislocation, and custom. Each returns an output structure without requiring a GUI interaction. Appendix~\ref{ch:api-signatures} lists every mode's options and defaults. Use a subprocess argument list from Python to preserve spaces and avoid shell quoting problems:
 \begin{lstlisting}[language=Python]
 import os
 import subprocess
@@ -180,3 +180,10 @@ subprocess.run([
 ], check=True)
 \end{lstlisting}
 Check the return code and read error output on failure. Keep the exact input arguments and seed with generated files. The manual's example generator uses this pattern and verifies every produced structure can be loaded with a nonzero atom count.
+
+\section{Headless dislocation construction}
+The dislocation CLI applies the same displacement builder without opening its dialog. Supply a periodic structure, character, region, and elastic parameters. Automatic direction presets are used unless \code{--manual-vectors} is supplied. Manual mode takes \code{--plane}, \code{--burgers}, and \code{--line}; these represent a slip plane, Burgers direction, and line direction, respectively. \code{--bmag} explicitly overrides automatic Burgers magnitude and is a CLI option beyond the GUI scale control. \code{--line-frac} positions the line in fractional coordinates; \code{--line-offset} adds a Cartesian offset. Cutoff zero disables radial attenuation. The freeform region accepts semicolon-separated local coordinate pairs through \code{--poly2d}.
+\begin{lstlisting}
+AtomForge --build dislocation --input cu_host.cif --character edge --shape cylinder --cyl-radius 5 --core 1.2 --cutoff 8 --output cu_dislocation.cif
+\end{lstlisting}
+The added example preserves all 500 host atoms and reports 136 shifted atoms with $|b|=2.55265$ \angstrom. It also reports a lattice-family change warning (FCC-like to HCP-like); retain that warning with the example rather than treating it as a validated core. Check displacement and minimum-distance diagnostics and inspect the saved result. This is a starting geometry for further validation, not a relaxed core. Refer to the complete CLI listing for all shape and elastic options.

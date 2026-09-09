@@ -113,6 +113,14 @@
     ]
   },
   {
+    "file": "cu_dislocation.cif",
+    "atoms": 500,
+    "options": [
+      "dislocation", "--input", "examples/cu_host.cif", "--character", "edge",
+      "--shape", "cylinder", "--cyl-radius", "5", "--core", "1.2", "--cutoff", "8"
+    ]
+  },
+  {
     "file": "cu_mesh.xyz",
     "atoms": 224,
     "options": [

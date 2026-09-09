@@ -48,6 +48,9 @@ def main():
     fe = build("fe_bcc.cif", "bulk", "--system", "cubic", "--spacegroup", "229", "--a", "2.87", "--atom", "Fe 0 0 0")
     host = cu.repeat(5, 5, 5)
     host.save(str(examples / "cu_host.cif"))
+    build("cu_dislocation.cif", "dislocation", "--input", str(examples / "cu_host.cif"),
+          "--character", "edge", "--shape", "cylinder", "--cyl-radius", "5",
+          "--core", "1.2", "--cutoff", "8")
     alloy = build("cu_ni_alloy.cif", "sss", "--input", str(examples / "cu_host.cif"), "--frac", "Cu=0.7,Ni=0.3", "--seed", "42")
     nano = build("cu_sphere.xyz", "nano", "--input", str(examples / "cu_fcc.cif"), "--shape", "sphere", "--radius", "10", "--vacuum", "5")
     gb = build("cu_sigma5.cif", "gb", "--input", str(examples / "cu_fcc.cif"), "--axis", "0 0 1", "--sigma", "5", "--plane", "0", "--uca", "3", "--ucb", "3", "--overlap", "1.5")

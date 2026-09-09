@@ -13,7 +13,7 @@
 \hypersetup{colorlinks=true,linkcolor=accent,urlcolor=accent,pdftitle={AtomForge: Detailed User and Reference Manual},pdfauthor={AtomForge project}}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{4.5pt plus 1pt}
-\setcounter{tocdepth}{1}
+\setcounter{tocdepth}{2}
 \setcounter{secnumdepth}{2}
 \renewcommand{\topfraction}{0.85}
 \renewcommand{\textfraction}{0.08}
@@ -48,7 +48,7 @@
 \includegraphics[width=\linewidth]{figures/builder-gallery.png}
 \vfill
 {\large Documentation edition: 9 September 2026\par}
-Application source baseline: \code{0df0af2}.\par
+Application source audited at: \code{e43038c}.\par
 Includes reproducible examples, a CHGCAR walkthrough, desktop controls, command-line recipes, and Python integration.
 \end{titlepage}
 \pagenumbering{roman}
@@ -57,7 +57,7 @@ Includes reproducible examples, a CHGCAR walkthrough, desktop controls, command-
 \addcontentsline{toc}{chapter}{How to use this manual}
 Start with Chapter~\ref{ch:start} to open a file, construct a crystal, and save a result. Chapters~\ref{ch:builders}--\ref{ch:analysis} explain the structural workflows. Chapters~\ref{ch:electronic}--\ref{ch:reference} cover electronic loading, visualisation, charge redistribution, and the complete electronic operation catalogue. Chapter~\ref{ch:python} provides scripting recipes; the appendices cover installation, reproducibility, and troubleshooting.
 
-Menu names and controls describe the source baseline above and the Windows executable used to prepare the figures. Features controlled by build options are marked explicitly. A source file does not by itself mean a feature is accessible in the desktop menu. Common-neighbour analysis, angular-distribution analysis, and the interface builder are not exposed in the baseline menus; this manual does not present them as usable menu commands.
+Menu names and controls describe the source baseline above and the Windows executable used to prepare the figures. Features controlled by build options are marked explicitly. A source file does not by itself mean a feature is accessible in the desktop menu. Common-neighbour analysis, angular-distribution analysis, and the interface builder are not exposed in the baseline menus; their source interfaces are documented separately. The detailed builder, edit, and display control references supplement the worked examples. Appendix~\ref{ch:coverage} maps the feature families back to source and explains the documentation coverage check.
 
 GUI screenshots are captured from AtomForge. The builder gallery and CHGCAR plots are separately rendered scientific figures calculated from real AtomForge outputs; they are not interface mockups. Example structures are starting configurations, not validated equilibrium structures. The supplied CHGCAR is used to demonstrate the software; its physical system and calculation settings were not independently established.
 
@@ -67,8 +67,11 @@ All paths beginning with \code{examples/} are relative to this manual's folder. 
 \clearpage\pagenumbering{arabic}
 \input{chapters/01-start}
 \input{chapters/02-builders}
+\input{chapters/02-builder-controls}
 \input{chapters/03-editing}
+\input{chapters/03-edit-controls}
 \input{chapters/04-analysis}
+\input{chapters/04-display-controls}
 \input{chapters/05-electronic}
 \input{chapters/06-charge}
 \input{chapters/07-reference}
@@ -76,4 +79,6 @@ All paths beginning with \code{examples/} are relative to this manual's folder. 
 \appendix
 \input{chapters/09-installation}
 \input{chapters/10-reproducibility}
+\input{chapters/11-coverage}
+\input{chapters/12-api-signatures}
 \end{document}

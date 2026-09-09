@@ -1,0 +1,67 @@
+\section{Workspace, display, and analysis control reference}\label{sec:display-controls}
+\subsection{Structure tabs and file navigation}
+When several structures are open, select the desired structure tab before saving, editing, or analysing. Tabs can be reordered, and switching restores that tab's camera. The tab's close button closes that structure; File > Close is the active-structure command. Keep a saved copy of edits before closing. Two tabs can share a display title, so confirm the file and structure information rather than relying on the title alone.
+
+In the shared path picker, Back and Forward traverse navigation history, Up opens the parent folder, and the folder field jumps to a typed directory when Enter is pressed. Locations offers Home, Desktop, Documents, Downloads, Working folder, and available drive roots. Select a file then Open, or double-click it. The electronic picker includes extensionless files such as CHGCAR. In save mode, choose a folder and filename, then Save. Replace confirms overwriting an existing destination; Cancel in that confirmation returns without replacing it. The main structure browser also has a Format selector for save conversion. A filename extension should agree with the selected format.
+
+Builder source buttons and drop targets feed the currently open tool, not necessarily the main workspace. Read the resulting source label. An electronic Reference load fills the operand source; it does not become the active structure tab. Use Reload volume to reread a changed electronic input, and Clear to reset electronic data when starting a different study.
+
+\subsection{Main view, representation, and information}
+\begin{description}
+\item[Cartesian X/Y/Z and lattice a/b/c views.] Align the main camera to a Cartesian axis or input lattice direction. Lattice-direction buttons require a cell. The Rotate angle and adjacent X/Y/Z buttons apply a repeatable camera/view rotation; they do not edit atom coordinates despite the internal ``Rotate Crystal'' naming.
+\item[Isometric / Orthographic / Reset Default View.] Choose the intended projection/view preset and restore framing with Reset. This does not undo structural edits. Orbiting changes viewing direction; panning changes framing; zoom changes scale.
+\item[Show Element / Show Atoms / Show Bounding Box.] Toggle labels, atom rendering, and the cell enclosure separately. Hiding atoms does not delete them or exclude them from numerical analysis.
+\item[View Structure By.] Element Type uses chemical colours; Crystal Orientation uses available grain/orientation metadata; Grain Boundary uses boundary metadata; Dislocation Lines selects the available line-oriented presentation. Missing metadata cannot be recovered just by changing the colour mode.
+\item[View Atoms By.] Balls emphasises sites, Ball and Stick adds geometric connections, Space Filling emphasises occupied visual space, and Polyhedral uses coordination geometry when available. Representation does not alter the atom list.
+\item[Structure Info.] Read formula, species counts, total atoms, lattice lengths and angles, and cell volume. Symmetry information includes space-group number, international symbol, Hall symbol, and point group when the calculation succeeds. Wait while symmetry is computing; an error or unavailable cell is not a symmetry assignment. The positions table includes element, Cartesian coordinates, and direct coordinates where available.
+\item[Atom Info and measurements.] Select the intended atom(s), read the overlay, and clear selection when done. Measurements follow the selected displayed geometry. Save the selection/order and cell convention when a value is used quantitatively.
+\item[Help > Manual / About.] Manual opens the application's built-in help; the detailed PDF in this folder is the longer reference. About provides application information. A source-only feature is not made available by appearing in an older help description.
+\end{description}
+
+\subsection{Lattice Planes: every row and visibility control}
+Open View > Lattice Planes on a structure with a cell. The global Show control enables the collection. Enter nonzero H/K/L, Offset n, Opacity, and colour in the new-plane controls, then Add Plane. The offset specifies the member of the parallel plane family; it is not the electronic arbitrary-plane point. In the list, each plane has its own Visible checkbox, editable indices and offset, opacity/colour, and Delete. Individual visibility and global visibility must both allow a plane to be seen.
+
+For an initial cubic example, add $(100)$ at a convenient offset, then add $(110)$ in a contrasting colour. Orbit to inspect their normals. Adjust opacity to see atoms behind the guides. These overlays do not retain/delete atoms and have no effect on a saved charge density. Use Cell Sculptor for an atomic cut or the electronic 2D plane controls for a density intersection.
+
+\subsection{Miller Directions: vectors, length, and colour}
+Open View > Miller Directions. Enter nonzero U/V/W, Length in \angstrom, and colour, then Add Direction. Each row has its own Visible flag, editable direction, Length, colour, and Delete. The global Show Miller Directions toggle controls the collection. Length changes the drawn vector's size, not the cell length or the magnitude of a physical displacement. Compare $[100]$ and $[110]$ in a cubic reference, then repeat in a skew cell to distinguish direct-lattice directions from reciprocal plane normals.
+
+\subsection{Polyhedral Settings: selecting centres and ligands}
+\begin{description}
+\item[Max displayed centers.] Limits displayed coordination centres (1--2,000). A limit below the eligible count intentionally leaves some polyhedra undisplayed.
+\item[Nearest neighbors.] Sets the neighbour candidate count (4--64). This changes the geometry considered for the visual construction; it is not a fitted coordination number.
+\item[Specify center atom indices.] Enables Center atom IDs. Use one-based IDs, comma-separated, with ranges such as \code{1,4,10-20}. Inspect Parsed centers after editing. Recheck IDs after structural edits reorder atoms.
+\item[Show polyhedral edges / Face opacity / Edge opacity.] Toggle edges and set face/edge alpha independently from 0 to 1. Zero hides that visual component; one is opaque.
+\item[Filter center elements / Centers.] Restrict centres using comma-separated symbols such as \code{Ti,Zr,Fe}. A disabled filter does not restrict species.
+\item[Filter ligand elements / Ligands.] Restrict neighbours using symbols such as \code{O,N,S,F}. Centre and ligand filters serve different roles and can both be active.
+\item[Reset Defaults / Close.] Reset restores settings and clears index/species filter input. Close dismisses the dialog. Enable the corresponding View representation/overlay to inspect the configured result.
+\end{description}
+\textbf{Example.} For a metal oxide, filter centres to the metal and ligands to O. Start with a few specified centre IDs to inspect geometry, then broaden the selection. A blank view can result from hidden atoms/overlays, restrictive filters, insufficient neighbours, or zero opacity.
+
+\subsection{Atomic Sizes and Display Settings tabs}
+Atomic Sizes uses an element selector and Atomic Radius in \angstrom. Apply Literature Radius to Selected restores that species; Reset to Literature Defaults restores the set. Radius changes visual sphere size without moving centres. Record altered radii when comparing images or using tools that consume radius information.
+
+Display Settings has separate tabs. In \ui{Lighting}, Ambient sets shadow-side brightness (0--0.60, default 0.18); Saturation controls vividness (0.50--3.00, default 1.55); Contrast stretches dark-to-light response (0.50--2.50, default 1.25); Shadow Strength controls darkness (0--1, default 0.75). Reset Lighting Defaults restores all four.
+
+In \ui{Material}, Specular Intensity sets highlight brightness (0--2, default 0.65), Shininess Scale multiplies the per-element response (0.10--5, default 1.50), and Shininess Floor limits the minimum specular exponent (4--256, default 32). Reset Material Defaults restores these values. In \ui{Colors}, select an element in the periodic table, edit its colour, use Reset Color for that species, or Reset All Colors for the entire palette. Settings apply to rendering; they are not charge-density values or chemical substitutions.
+
+Light/Dark in View > Select Theme changes the desktop theme. Electronic Appearance has its own palette, range, and surface lighting controls. Keep these separate when trying to reproduce a figure.
+
+\subsection{RDF and SRO: run state and all numerical inputs}
+RDF Reference species and Target species determine the pair selection. Radius range provides both lower and upper distances in \angstrom; the GUI allows 0--50. Bins subdivides this interval, so nominal bin width is $(r_{\max}-r_{\min})/N_{\rm bins}$. Choose a range with $r_{\max}>r_{\min}$. PBC requires an available unit cell. Normalize to g(r), raw-count overlay, cumulative coordination overlay, and Smoothing passes have distinct purposes: normalisation changes interpretation, overlays add curves, and smoothing changes the profile presentation.
+
+Enable distortion analysis reveals shell-window controls. Auto shell window from first-shell minima estimates bounds; disabling it exposes Manual shell window in \angstrom. Confirm the selected interval contains the intended shell and inspect the reported distortion quantities. Run RDF starts the calculation; wait for completion before reading results. Changing controls requires a fresh run for a reproducible comparison. The plot is not an electronic CSV export; use the data interfaces actually offered by the selected analysis.
+
+SRO Number of shells is 1--8. Shell tolerance has GUI range 0.001--0.20 and groups distances into shells; it is not an atomic composition tolerance. Run Analysis computes the species/shell results. Read the counts and shell distances alongside Warren--Cowley values, particularly for dilute species or distorted shells. Close dismisses the analysis dialog. Neither RDF nor SRO changes the underlying structure.
+
+\subsection{Image export settings}
+In File > Export Image, choose Filename, Format (PNG/JPEG/SVG), Include background, Include orientation gizmo, and Resolution scale (1--8), then Export. Scale increases raster dimensions and memory requirements. Background and gizmo are independent choices; a transparent-background format is useful for composition in a document. JPEG cannot preserve an alpha channel like PNG. SVG support does not imply that every downstream editor reproduces all rendering details identically. Inspect the exported file. Cancel dismisses the export dialog without exporting.
+
+\subsection{Electronic display controls that are separate from calculations}
+The layout selector offers 3D and 2D, Only 3D, and Only 2D. In 3D, Render mode chooses Volume (interior density) or Isosurface (boundary). Set the 3D level, use Estimate level for a data-derived starting point, and Update surface when a mesh needs regeneration. Transparency is zero for opaque rendering and one for full transparency. Fit view and double-click reset camera framing; left drag orbits, right drag pans, and the wheel zooms. Show slice plane toggles the translucent 2D intersection guide without changing the section itself.
+
+The 2D selector offers bc/ac/ab planes normal to $a^*/b^*/c^*$, with Slice position as a fraction of the cell. Arbitrary plane instead takes a Point in fractional $a,b,c$ coordinates and a Normal in Cartesian $x,y,z$ components. A zero normal or a plane outside the cell cannot define a useful section. Show contour line toggles the numerical contour; 2D isovalue and Estimate 2D level operate independently of the 3D level. Reset 2D restores its view; the angle slider and left drag rotate within the plane, right drag pans, and the wheel zooms. Double-click also resets it.
+
+The 2D preview samples at a bounded resolution (up to 129 samples per direction). Use numerical section/contour operations at the requested resolution for quantitative export. The warning for a 2D level compares against that slice's values, while the 3D level is checked against the selected volume. An isovalue inside the full-volume range may still be outside a particular slice's range.
+
+Appearance offers Spectrum, Blue-white-red, and Sequential blue. Automatic range estimates colour limits; disabling it reveals Minimum and Maximum. Lighting reveals Specular and Shininess for surface shading. These surface appearance controls do not all apply to volume ray rendering: the volume colour bar uses the volume display bounds. Always read the displayed legend and unit. Results table shows a preview of up to 200 rows; CSV export retains the calculation table, not just those preview rows.

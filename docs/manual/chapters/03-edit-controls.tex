@@ -1,0 +1,84 @@
+\section{Detailed edit controls and application points}\label{sec:edit-controls}
+The main distinction between edit tools is when and where they change structure data. Table edits change the current structure immediately; Dislocation has a separate preview-generation and replacement step; Merge opens its committed result in a new tab; Interstitials commits to the current structure; Cell Sculptor commits to the current structure and closes on a valid Generate. Save an input checkpoint before a sequence of operations.
+
+\subsection{Atom selection and the right-click menu}
+\begin{description}
+\item[Box Select Mode / Lasso Select Mode.] The two Edit menu modes are mutually exclusive. Their projected selection includes atoms along the viewing direction. Change the view to check selection depth before deletion or substitution.
+\item[Substitute Atom.] Select the intended atoms, open the context menu, choose this action and an element, then apply. It changes the species of the selected underlying atoms. A displayed periodic image maps back to its base atom; selecting an image does not create an independent species assignment for that image.
+\item[Insert Atom at Midpoint.] Requires at least two selected atoms. Choose the new element and apply. With two selections, the new position is their displayed Cartesian midpoint. With more than two, the implementation uses the centroid of all selected displayed positions, $\mathbf r_{\rm new}=N^{-1}\sum_i\mathbf r_i$. It is not a periodic minimum-image midpoint. Select the appropriate images if atoms straddle a boundary.
+\item[Measure Distance / Measure Angle / Atom Info.] Context actions require exactly two, three, or one selected atom respectively. Choose the middle/vertex atom deliberately for angle measurements and inspect the overlay.
+\item[Delete / Deselect.] Delete removes selected base atoms from the structure; Deselect only clears selection. The context menu can be unavailable when large-scene CPU picking caches are disabled. A visible atom rendering alone does not guarantee that all interactive per-atom actions are enabled.
+\end{description}
+\textbf{Example.} Select two neighbouring Cu sites and insert H at their midpoint, then measure H--Cu distances and inspect for overlaps. This creates a geometric trial position, not a validated interstitial site. For systematic void-based insertion, use Add Interstitial Atoms below.
+
+\subsection{Edit Structure: exact effects of the table}
+\begin{description}
+\item[Cell vectors a, b, c.] Each row contains three Cartesian components in \angstrom. Editing a vector changes the cell and display buffers, but does not rescale atom positions. To double a periodic crystal with replicated sites, use Transform Structure instead of doubling a vector here.
+\item[Position Mode: Cartesian / Direct.] Cartesian fields edit positions in \angstrom. Direct fields convert fractional coefficients through the current cell. Direct mode is unavailable without a cell. Changing mode changes coordinate representation; it does not itself move the atom.
+\item[Atom position rows.] Edit the three coordinates in the chosen mode. Table edits take effect in the active scene; there is no separate global Apply for all coordinate changes.
+\item[Element button / Apply Element.] Choose a species in the periodic-table popup and apply it to the row being edited. This is a row-specific edit; use the context-menu substitution for a selected group.
+\item[Add Atom / Delete.] Add Atom starts an H atom at the origin. Set its species and coordinates immediately. Delete removes the corresponding row. Atom numbering can change after row removal, so recheck any saved index-based filter or selection.
+\end{description}
+\textbf{Cell-edit check.} Record one atom's Cartesian position, change only a lattice-vector component, then read the atom position again. Its Cartesian coordinates remain unchanged while its fractional coordinates generally change. This is why direct cell editing must not be mistaken for applying a homogeneous strain.
+
+\subsection{Transform Structure: matrix entry and validation}
+Each of the three displayed rows is an integer vector. Begin with the identity matrix to understand the entry layout, then set the requested transformation and Apply. A diagonal $(2,1,1)$ enlargement means diagonal entries 2, 1, 1 and all off-diagonal entries zero. It should double an ideal periodic atom count and volume. Entering three copies of the vector $(2,1,1)$ instead would make the matrix singular.
+
+For a non-diagonal transform, inspect the resulting cell vectors rather than inferring orientation solely from the matrix on screen. Cancel discards the pending transform. The command is disabled without a unit cell. A negative determinant changes handedness; zero determinant is invalid. Save the transformed result separately before performing a finite cut.
+
+\subsection{Merge Structures: component transforms and output cell}
+\begin{description}
+\item[Load/drop components.] Add each source to the component list. Select its row or preview object before changing its transform. The component label identifies which input the numeric controls affect.
+\item[Pos (A).] The three values translate the selected component in Cartesian \angstrom. Use these fields for reproducible offsets after coarse gizmo placement.
+\item[Rot (deg).] Three rotation values orient the selected component. The preview reflects its component transform; orbiting the camera changes the view of all components together.
+\item[Gizmo handles.] Drag translation/rotation handles of the selected component. Inspect from another camera direction to distinguish a transform from projection overlap.
+\item[Reset and removal actions.] Reset restores the selected component's transform. Remove and Delete Selected remove a component from the assembly. Clear All clears the assembly inputs. These actions do not delete the input files on disk.
+\item[Show Bounding Box.] Displays the assembly enclosure for inspection. This overlay is not a new periodic lattice definition.
+\item[Merge Structures.] Commits transformed atoms to the main scene. The current implementation explicitly clears the unit cell and grain metadata. The result is a nonperiodic assembly, even if both inputs were periodic. Cell-dependent tools will consequently be unavailable until a valid cell is supplied through an appropriate workflow. Save a coordinate format when no periodic cell is intended.
+\end{description}
+\textbf{Example.} Add two copies of the supplied Cu particle, translate one along X by more than the particle diameter, merge, and inspect the atom count. Reduce the offset only after checking the nearest interparticle contacts. Merge does not automatically remove overlaps.
+
+\subsection{Cell Sculptor: closing a region and defining each slab}
+\begin{description}
+\item[Use Scene / source / Clear.] Supply a periodic atomic source. Clear removes it from the tool. Set the source before defining crystallographic cuts.
+\item[Supercell $n_x,n_y,n_z$.] Set positive repetition counts (GUI range 1--30) to supply enough source sites. These counts describe available atomic coverage; the slabs determine retained geometry.
+\item[Slab $h,k,l$.] Each slab is the intersection of two parallel half-spaces with reciprocal-lattice normal $h\mathbf a^*+k\mathbf b^*+l\mathbf c^*$. The zero triplet is invalid. Edit the existing row or use the new-slab controls and Add Slab.
+\item[Periodic / Start / N.] Periodic mode uses a starting plane and an integer number of repeat intervals. Start can be negative; N is positive. Inspect the displayed spacing and retained sites because one crystallographic interval need not equal one chemically identical atomic layer.
+\item[Distance limits $d_1,d_2$.] With periodic mode off, enter the two slab limits in \angstrom. Ensure they enclose the desired interval. Add complementary slabs to bound other directions.
+\item[Remove.] Deletes only the chosen slab constraint. Removing a slab can reopen a previously bounded region and disable Generate.
+\item[Outside ghost alpha.] Sets visibility of excluded atoms in the guide preview. It does not change which atoms are retained.
+\item[Status / Generate / Close.] Generate is disabled until the slab normals bound a closed three-dimensional region. At least three independent normal directions are needed; three parallel slabs cannot close a volume. A successful nonempty Generate replaces the main scene and closes the dialog. Close alone dismisses the tool.
+\end{description}
+\textbf{Worked finite box.} Load FCC Cu, increase source repetitions, and add $(100)$, $(010)$, and $(001)$ slabs with finite intervals that overlap inside the source. Inspect the closed-region status and retained atom count, then Generate. To create a thin specimen, narrow the $(001)$ interval while retaining the two lateral bounds. A single slab describes an unbounded mathematical region and is insufficient for this tool's Generate condition.
+
+\subsection{Insert Dislocation: geometry, elastic controls, and commit}
+\begin{description}
+\item[Use Current Scene / Detect Lattice.] Load the reference or copy the scene, then inspect the detected lattice family. Detection is a guide to construction directions, not proof that every atom belongs to an ideal lattice.
+\item[Character.] Edge, Screw, and Mixed select the displacement construction. Mixed reveals Mixed angle in degrees (0--90). Check the resulting Burgers vector and line geometry before interpreting the character physically.
+\item[Auto lattice vectors.] Derives the construction directions. Disable it to enter integer Plane $(hkl)$, Burgers $[uvw]$, and Line $[uvw]$ triplets. A direction and a plane normal are different objects in a general lattice.
+\item[Line point in fractional coordinates.] Enables Line point frac, a position relative to the cell. Line point offset adds a Cartesian offset in \angstrom. Use the preview to verify the final location rather than treating a fractional coefficient as a distance.
+\item[Burgers scale.] Multiplies the selected Burgers magnitude. A continuously adjustable value can produce a geometric displacement that is not a crystallographically allowed perfect dislocation.
+\item[Poisson ratio.] Elastic input to the displacement model. The GUI restricts it to 0.05--0.49. This is not fitted automatically from the structure.
+\item[Core radius.] Regularisation length in \angstrom\ near the line. Inspect core contacts and displacement maxima when changing it.
+\item[Cutoff radius / Line half length.] Cutoff controls radial attenuation in \angstrom; zero turns attenuation off. Line half length limits the extent along the dislocation line. Use the preview and result summary to assess how much of the specimen is affected.
+\item[Shape.] Half-plane uses the plane-based construction. Cylinder and Sphere expose their respective radius. Ellipsoid exposes three radii. Freeform 2D exposes polygon points in local $(x,y)$ about the line: Add Point appends a vertex; Remove Last removes the final vertex; edit each coordinate pair to trace the intended region. Use a sensible non-self-intersecting polygon.
+\item[Generate Dislocation.] Calculates a result preview. Inspect Shifted atoms, $|b|$, RMS displacement, maximum displacement, minimum interatomic distance, and lattice family before/after.
+\item[Replace Main Scene.] Commits the generated structure and its line-overlay information. Generate alone is not this replacement action. Close dismisses the dialog; save after replacement and before external relaxation.
+\end{description}
+
+\subsection{Add Interstitial Atoms: finding, filtering, and occupying voids}
+This workflow has two stages: detect candidate voids in the host, then choose where to insert a selected element. Re-run detection after a substantial host change.
+\begin{description}
+\item[Source / Use Current Scene.] Supply the host and inspect it in the preview. The host used by this tool must be the intended edited structure, not an earlier file with the same name.
+\item[Grid / Max Voids.] Grid controls the search sampling (8--30 in the GUI); Max Voids caps the retained candidates. Increasing sampling can reveal sites missed by a coarse search and increases work.
+\item[Min Clearance / Min Separation.] These are distinct detection controls in \angstrom: clearance filters available space around a candidate; separation prevents retaining nearby duplicate candidates. They are not the requested number of inserted atoms.
+\item[Detect Voids.] Run after changing detection inputs. Inspect the resulting void count and types before attempting insertion.
+\item[Void type filters.] Select All Types and Clear All Types toggle the type filters together. Individual type checkboxes restrict eligible candidates. Show Void Polyhedra displays their local geometric environments; it does not insert atoms.
+\item[Select Element.] Choose the chemical identity of the atoms to add. This does not assign a charge state or relax the host.
+\item[Random placement.] Select from the eligible voids using the seed and target. The target can be By percentage or By atom count. Percentage is of the filtered candidate pool, not atomic percent of the final structure. The desired count is rounded and capped to the pool size. Inspect actual added count after applying because constraints can reduce it.
+\item[Inside OBJ/STL.] Load/drop a closed region mesh into the preview. The eligible candidates must also lie in that region. Use Translate (T), Rotate (R), or Scale (S) gizmo modes; shortcuts act when a text field is not being edited. Numeric Scale, Translate, and Rotate (deg) provide precise transforms. Reset Transform restores unit scale, zero translation, and zero rotation.
+\item[Manual placement.] Select the desired void centres in the preview. This mode inserts at the selected centres rather than using the percentage/count target. Inspect the displayed Selected centers count.
+\item[Seed / Min Insert Distance.] Seed controls stochastic selection; zero is a deterministic seed in this tool, unlike builders where zero explicitly means time. Min Insert Distance checks separation from host atoms and already inserted atoms, using minimum-image distances when a usable cell is present. It is separate from void-search clearance and candidate deduplication distance. The implementation considers the requested number of shuffled candidates; rejected candidates are not necessarily replaced from the rest of the pool.
+\item[Apply Interstitials.] Requires a source and detected voids; mesh mode additionally requires a loaded mesh, and manual mode requires a selection. A successful action updates the main scene and this tool's source, with the number of added atoms reported. Inspect the composition and contacts before applying again.
+\end{description}
+\textbf{Troubleshooting.} If Apply is disabled, check the mode-specific prerequisites rather than only the visible host. If the result adds fewer atoms than requested, compare type filtering, mesh placement, selected candidates, and minimum insertion distance. A 100\% target is not a guarantee that every detected site can be occupied simultaneously without violating constraints.

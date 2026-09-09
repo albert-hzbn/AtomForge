@@ -2,6 +2,8 @@
 \section{Common builder workflow}
 Choose the appropriate command under \ui{Build}, supply a periodic reference where required, set parameters, inspect the preview, and run the build action. Read status messages before saving the result. Source previews and generated previews serve different purposes: changing a parameter may update an illustrative preview while the atomic result still needs rebuilding.
 
+Successful Build-menu results open in a new structure tab through the main application's builder callback, preserving the source tab. Merge uses this same new-tab route. Select the generated tab before saving or running another tool. Direct atom edits, Cell Sculptor, Dislocation replacement, and Interstitial insertion update the current structure instead. In the detailed controls below, ``updates the main scene'' refers to the displayed result; it does not mean that every builder overwrites the original tab.
+
 Use modest cells first. Replicating a structure multiplies its atom count; a $10\times10\times10$ replication of a four-atom cell contains 4,000 atoms before cuts. Increasing all three dimensions by two multiplies the workload by eight. Once the geometry is correct, increase size and inspect boundary contacts. A builder does not automatically relax strained bonds or remove every physically undesirable local environment.
 
 \section{Bulk Crystal}
@@ -22,7 +24,7 @@ For lower-symmetry cells, set \code{--b}, \code{--c}, and angles \code{--alpha},
 \section{Substitutional Solid Solution}
 \textbf{Purpose.} Assign species to existing lattice sites with requested fractions. This changes chemical labels on a host structure; it does not search for a special quasirandom structure or optimise chemical short-range order.
 
-\textbf{Procedure.} Open a host with enough sites to represent the composition, then choose \ui{Build > Substitutional Solid Solution}. Select the source and species fractions. Fractions must describe the intended whole assignment and sum to one. Choose a fixed seed for reproducibility. Generate the alloy and check the resulting species counts before export. For small hosts, integer atom counts limit the achievable composition.
+\textbf{Procedure.} Open a host with enough sites to represent the composition, then choose \ui{Build > Substitutional Solid Solution}. Select the source and species percentages. The GUI uses at\%, with the final row automatically balancing the total to 100\%; the CLI uses fractions summing to one. Choose a fixed seed for reproducibility. Generate the alloy and check the resulting species counts before export. For small hosts, integer atom counts limit the achievable composition.
 
 The example host is a $5\times5\times5$ repetition of conventional FCC Cu: 500 sites. The 70\% Cu / 30\% Ni assignment uses seed 42. Keep the same host atom ordering and seed when reproducing an assignment; changing the host can change which particular sites are substituted.
 \begin{lstlisting}
@@ -110,7 +112,7 @@ The example has 120 atoms with a 1:2 Si:O ratio. The deliberately low packing de
 \section{Optional and unavailable builder menus}
 The stacking-fault builder is compiled into the desktop menu only with \code{ATOMFORGE_ENABLE_SFE_BUILDER=ON}; the default is OFF. Its purpose is to construct faulted configurations, not to calculate a stacking-fault energy. In an enabled build, open \ui{Build > Stacking Faults}, supply a reference with \ui{Use Current Scene} or the source workflow, and click \ui{Detect Structure}. Select a supported Plane, choose \ui{Smallest Unit Cell} or \ui{Orthogonal Cell}, and set Layers (2--96). Click \ui{Generate Sequence}, use the Structure slider to inspect its members, and choose \ui{Use Selected Structure} to adopt one. \ui{Export All Structures} writes the sequence to the specified Folder/Subfolder; \ui{Use Source Folder} supplies a convenient base when available. Validate the stacking geometry and calculate energies externally. This optional path was inspected in source but not enabled in the screenshot executable.
 
-The interface-builder source exists but is not connected to the current main menu and dialog drawing sequence. Use the exposed merge/transform workflows for manual assembly rather than searching for an unavailable menu command.
+The interface-builder dialog has a drawing call but no current main-menu entry to open it. Its source/API capabilities are described in Appendix~\ref{ch:coverage}. Use the exposed merge/transform workflows for manual assembly in the current executable.
 
 \section{Worked study: compare bulk and finite Cu environments}
 This exercise connects building, file inspection, and structural analysis. It uses only generated structures and does not require an electronic calculation.

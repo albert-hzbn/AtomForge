@@ -1,0 +1,101 @@
+\section{Builder control reference}\label{sec:builder-controls}
+The following reference supplements the worked examples with the controls that are easy to miss in a scrolled dialog. Open the appropriate Build command, then scroll its settings panel independently of its preview. Drag numeric fields for exploration; Ctrl+click an ImGui drag field to enter a precise value. Check the result after rebuilding: changing a parameter does not necessarily regenerate the atomic structure.
+
+\subsection{Bulk Crystal: symmetry, lattice, and site editor}
+\begin{description}
+\item[Crystal system.] Select the system first. This restricts the space-group list and determines which lattice parameters can be entered. Changing system can change the valid group selection, so recheck the group before building.
+\item[Space group.] Choose the numbered group in the filtered list. The asymmetric-unit sites are expanded using this symmetry. A site on a special position has fewer distinct equivalents than a general site.
+\item[Lattice parameters.] Lengths are in \angstrom; angles are degrees. Triclinic exposes all six values. Monoclinic exposes $a,b,c,\beta$ with $\alpha=\gamma=90^\circ$. Orthorhombic exposes $a,b,c$ with right angles. Tetragonal exposes $a,c$ with $b=a$. Trigonal uses the hexagonal setting, as does Hexagonal: $b=a$, $\alpha=\beta=90^\circ$, $\gamma=120^\circ$. Cubic exposes $a$, with $b=c=a$ and right angles. Do not enter rhombohedral primitive-cell parameters into the trigonal hexagonal-setting controls.
+\item[\normalfont\ui{+ Add}, \ui{Clear}, \ui{Delete}.] Add creates an independent site row. Clear empties the asymmetric-unit list; Delete removes only its row. A nonempty valid site list is required for a useful build.
+\item[Site coordinates.] The three values are direct coordinates, not Cartesian distances. Enter one representative of each independent site. Negative or out-of-cell input should be checked in the symmetry-expanded result rather than treated as an extra supercell site.
+\item[Element button and Apply Element.] Click the row's element button, choose an element in the periodic table, and apply it to that row. This selects chemical identity; it does not set oxidation state, occupancy, magnetic moment, or a pseudopotential.
+\item[Build and Close.] Build generates the expanded crystal and updates the main scene when successful. Read the status and inspect atom count. Close dismisses the dialog; save the generated scene with File > Save As.
+\end{description}
+\textbf{Diagnostic example.} For NaCl, use group 225 and independent Na $(0,0,0)$ and Cl $(1/2,1/2,1/2)$ sites. The conventional cell should contain four of each species. Use an appropriate lattice parameter for the intended study. If the count is wrong, check group, coordinates, and duplicated independent rows before expanding the cell.
+
+\subsection{Substitutional Solid Solution: every composition control}
+\begin{description}
+\item[Source / Use Current Scene.] Load a host or copy the current scene into the source preview. Composition controls become useful after a nonempty host is present. The host supplies the sites to relabel.
+\item[Element rows.] Click an element symbol to select a species. \ui{+ Add Element} adds another species; the row's X removes it when more than one row exists. Avoid duplicate species rows when specifying a composition.
+\item[at\%.] The GUI uses atomic percentages from 0 to 100. The \emph{last row is a read-only remainder}: its percentage is 100 minus the preceding rows. To make Cu--Ni 70:30, put Cu first and Ni last, then enter 70 for Cu. To make a ternary 50:30:20, enter 50 and 30 in the first two rows. The last row becomes 20. Recheck the whole table after adding or removing a row.
+\item[Atom count.] The displayed count is a consequence of the percentage and host size, not an independent composition input. Integer site allocation limits resolution to approximately $100/N$ percentage points for $N$ sites.
+\item[RNG seed.] A positive fixed integer makes the site assignment reproducible for the same input ordering. Zero selects a random/time-dependent assignment; negative input is clamped to zero.
+\item[Build Solid Solution.] Apply the assignment, then verify counts in Structure Info. The CLI equivalent uses fractions such as \code{Cu=0.7,Ni=0.3}; do not paste GUI percentages into \code{--frac}.
+\end{description}
+\textbf{If a percentage cannot be edited:} first check whether it is the last row. This is the balancing row, not a disabled builder. Change the preceding rows or their ordering/composition instead.
+
+\subsection{CSL Grain Boundary: search, geometry, and result}
+\begin{description}
+\item[{Rotation axis $[uvw]$.}] Enter a nonzero integer direction for the cubic reference. Changing the axis requires a new candidate search.
+\item[Maximum Sigma and Find.] The maximum bounds the candidate search; Find populates the Sigma selector. A larger bound expands the search, not the physical sample size.
+\item[Sigma and GB plane.] Select a coincidence candidate, then a boundary plane from the generated choices. The plane selector contains candidate planes; the CLI index 0, 1, or 2 selects one of these choices. It is not the value of $h$, $k$, or $l$.
+\item[Grain A (uc), Grain B (uc).] Set repetitions used to thicken each grain along the stacking construction. Use both controls to study symmetric or unequal thicknesses. These are integer cell repetitions, not distances in \angstrom.
+\item[Vacuum (A), Gap (A).] Vacuum adds the specified outside spacing in the construction; Gap separates the stacked grains. Both alter geometry. Neither is a relaxation or a search over rigid translations.
+\item[Overlap distance (A).] Remove interfacial close contacts within the chosen cutoff. Inspect the removed-atom count and resulting stoichiometry. Set a conservative cutoff and compare before raising it.
+\item[Conventional cell.] Retain the conventional construction when enabled; otherwise the builder attempts its primitive grain-boundary cell reduction. This can change the final cell representation and atom count.
+\item[Build and result summary.] Build updates the main structure. Record Sigma, misorientation angle, boundary plane/type, axis, CSL matrix, grain repetitions, gap, vacuum, input/generated counts, and removed overlaps. These identify the geometry more precisely than a filename containing only Sigma.
+\end{description}
+\textbf{Troubleshooting.} If Find produces no appropriate candidate, verify the axis and cubic reference first. If Build produces too few atoms, compare overlap removal and primitive reduction before changing the reference. This dialog has no general rigid-translation energy-search control.
+
+\subsection{Nanocrystal: shape parameters and shared output controls}
+All shape dimensions below refer to the local shape coordinates about the chosen centre. For relative coordinates $(x,y,z)$, the implemented cuts are:
+\begin{longtable}{p{.24\linewidth}p{.67\linewidth}}
+\toprule Shape & Parameters and membership rule \\ \midrule\endhead
+Sphere & Radius $R$: $x^2+y^2+z^2\leq R^2$. \\
+Ellipsoid & Semi-axis $a,b,c$: $(x/a)^2+(y/b)^2+(z/c)^2\leq1$. \\
+Box & Half-size X/Y/Z: each absolute coordinate is bounded by its half-size. \\
+Cylinder & Radius and full Height, with Axis X/Y/Z selecting the longitudinal direction. \\
+Octahedron & Octahedron radius $R$: $|x|+|y|+|z|\leq R$. \\
+Truncated octahedron & Octahedron R and Truncation R: both the octahedron bound and $\max(|x|,|y|,|z|)\leq R_t$ apply. \\
+Cuboctahedron & The currently named cut uses the three bounds $|x|+|y|\leq R$, $|y|+|z|\leq R$, $|x|+|z|\leq R$. Use this implemented definition when reproducing its geometry. \\
+\bottomrule
+\end{longtable}
+\begin{description}
+\item[Auto-center from atoms / Center X,Y,Z.] Automatic centring follows the reference atoms. Disable it to specify a Cartesian centre in \angstrom. A shift smaller than a lattice spacing can still change the surface termination.
+\item[Auto-replicate / Rep a,b,c.] Automatic mode sizes the source coverage. Manual mode uses the three integer repetitions; increase all necessary directions if the shape is clipped by insufficient source coverage.
+\item[Rectangular cell / Vacuum.] Choose a rectangular enclosing output cell where needed and add the requested surrounding vacuum in \angstrom. Inspect the saved cell in a periodic format; a plain XYZ consumer may ignore the cell.
+\item[Wulff family editor.] Each row has $h,k,l$, a positive relative energy, a display colour, and Remove. Add Family adds a row. The last remaining family cannot simply be removed with the row control. Add enough symmetry-related constraints to bound the shape; zero indices or nonpositive energies are not meaningful input.
+\item[Max radius and plane preview.] Max radius sets the distance of the highest-energy family, with others proportional to energy. Family colour changes the plane preview, not surface energy. Build the atoms again after changing family energies or geometry.
+\end{description}
+
+\subsection{Custom Structure: reference, mesh, and orientation}
+\begin{description}
+\item[Reference source, Clear, Use Current Scene.] Load a periodic reference or copy the current scene. Clear removes that source. The separate mesh Clear control clears the mesh, not the atomic reference.
+\item[OBJ/STL source and Scale.] Load the enclosing mesh and enter \angstrom\ per model unit. A unit-radius mesh at scale 12 represents a 12 \angstrom\ radius along the corresponding model axes. Verify the preview's physical extent before building.
+\item[Auto-center / Center X,Y,Z.] Automatic centring derives placement from the reference; manual values specify the centre. Inspect reference and mesh together to avoid filling an unintended region.
+\item[Apply crystal orientation.] Enables the orientation controls. The current radio labels \ui{1} and \ui{2} select Euler-angle and Miller-direction modes respectively. In mode 1 enter Rot X/Y/Z in degrees. In mode 2 enter $h,k,l$ for direction alignment. This rotates the crystal filling relative to the mesh; orbiting the preview camera does not substitute for it.
+\item[Auto-replicate / Rep a,b,c.] Ensure enough periodic sites to cover the whole mesh. Manual undercoverage can look like a broken mesh cut.
+\item[Output enclosure.] Set rectangular output cell and Vacuum configure the enclosure and surrounding spacing. These do not repair holes in the mesh or close a non-watertight boundary.
+\item[Build Fill / Close.] Build Fill generates the atomic product from both inputs. Verify the count and thin sections before saving. Close dismisses the builder.
+\end{description}
+
+\subsection{Polycrystal: dimensions, randomisation, and individual grains}
+\begin{description}
+\item[Reference and X/Y/Z.] Supply a periodic reference and the three target box lengths in \angstrom. The dimensions define the total specimen, not the size of every grain.
+\item[Number of grains.] Sets the number of Voronoi seeds/grains. Increasing it at fixed volume reduces typical grain size. Check that grains contain sufficient interior sites for the intended analysis.
+\item[Seed.] Keep a fixed seed to reproduce the stochastic construction along with all other inputs.
+\item[All Random.] Generate all orientations randomly.
+\item[All Specified.] Edit the Bunge Euler triplet $(\phi_1,\Phi,\phi_2)$ in degrees for every grain. The table grows with the grain count and may require scrolling.
+\item[Partial (specify some, rest random).] Enter \ui{Grain \#} using the GUI's one-based numbering, then \ui{Add Grain Orientation}. Duplicate grain entries are not added. Edit that grain's three angles; X removes the explicit override so the grain returns to random assignment. Unspecified grains remain random.
+\item[Build / Close.] Build the sample and inspect orientation colouring and boundary contacts. Preserve the generated \code{.atomforge-ipf} sidecar beside an associated exported structure when retaining orientation metadata. Close leaves the generated scene available for saving.
+\end{description}
+
+\subsection{Amorphous Structure: composition and packing constraints}
+\begin{description}
+\item[Element and Count rows.] Choose each species with its element button, enter its integer atom count, and use X or Add Element to change the list. Check the total and formula before choosing density.
+\item[Auto from target density.] Enter mass density in $\mathrm{g\,cm^{-3}}$. The builder estimates a cubic box using the total atomic mass. The displayed side length includes the Cell scale factor.
+\item[Manual dimensions.] Enter $a,b,c$ in \angstrom\ to set box lengths explicitly. This mode replaces density-derived sizing.
+\item[Cell scale factor.] Multiplies box lengths before packing. Scaling lengths by $s$ multiplies volume by $s^3$, so a density-derived box has effective density $\rho/s^3$. For example, $s=1.1$ yields approximately $0.751\rho$. The target-density label alone therefore does not describe the final density when scaling is enabled.
+\item[Periodic boundary conditions (attach unit cell).] Controls whether the output carries the unit cell. The current packing implementation checks minimum-image separations across the box even when this output-cell option is off. Retain a cell-capable format for subsequent periodic analysis and inspect cross-boundary contacts.
+\item[Advanced Settings.] Expand this section to reveal placement controls and the element-pair table. These are part of the builder, not separate menu commands.
+\item[Covalent radius tolerance.] The fallback minimum separation is $(r_i^{\rm cov}+r_j^{\rm cov})t$. Smaller $t$ permits closer contacts; it does not calculate bonding.
+\item[RNG seed (0 = time).] Use a nonzero integer to repeat the random placement. Zero requests a time-dependent seed.
+\item[Max attempts per atom.] Bounds trials for each requested atom. Raising it increases work but cannot guarantee a feasible packing.
+\item[Element-pair minimum distances.] Check a pair's row to enable its explicit minimum distance in \angstrom. An unchecked row uses the displayed covalent-radius fallback. Apply different overrides only when their chemical/geometrical interpretation is intentional.
+\item[Build and status.] Compare requested and inserted counts. If atoms are skipped or placement fails, increase box size, reduce a conflicting minimum distance, or revise composition before simply increasing attempts. Save the final structure and record the actual density.
+\end{description}
+
+\subsection{Optional Stacking Faults: sequence and export controls}
+In a build with the SFE option enabled, \ui{Detect Structure} classifies the reference and populates supported plane choices. Select the Plane and the Smallest Unit Cell or Orthogonal Cell mode, then set Layers. \ui{Interval} controls the increment of the displacement sequence; \ui{Max Displacement} controls its maximum displacement factor. These are sequence-construction parameters, not energies in eV. Smaller intervals create more configurations and more export files.
+
+Choose \ui{Generate Sequence} after changing these inputs. The \ui{Structure} slider selects a zero-based member of the generated sequence for preview. \ui{Use Selected Structure} replaces the main scene with that member. For batch output, enter the base \ui{Folder} and \ui{Subfolder}, or use \ui{Use Source Folder} where available, then \ui{Export All Structures}. Unlike the current general file picker, this optional source implementation still contains text folder fields. Record each member's displacement alongside its externally calculated energy before constructing a stacking-fault-energy curve. This optional dialog was audited in source, not enabled for the manual screenshots.

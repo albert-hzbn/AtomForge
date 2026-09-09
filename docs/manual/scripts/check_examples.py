@@ -23,6 +23,12 @@ def main():
     cu = af.load(str(examples / "cu_fcc.cif"))
     assert len(cu.repeat(5, 5, 5)) == 500
     host = af.load(str(examples / "cu_host.cif"))
+    dislocation = af.load(str(examples / "cu_dislocation.cif"))
+    assert len(dislocation) == len(host) == 500
+    assert dislocation.cell is not None
+    assert all(math.isfinite(value) for atom in dislocation.atoms for value in (atom.x, atom.y, atom.z))
+    assert any(math.dist((a.x, a.y, a.z), (b.x, b.y, b.z)) > 0.01
+               for a, b in zip(host.atoms, dislocation.atoms))
     copy = host.copy().translate(0.1, 0, 0).scale(1.01)
     copy.save(str(scratch / "edited.cif"))
     assert len(af.load(str(scratch / "edited.cif"))) == 500
@@ -77,7 +83,7 @@ def main():
         path = scratch / ("surface." + extension)
         grid.isosurface(1.1).save(str(path))
         assert path.stat().st_size > 0
-    print("Validated eight builder outputs, host/alloy counts, and Python numerical recipes.")
+    print(f"Validated {len(records)} builder outputs, host/alloy/dislocation checks, and Python numerical recipes.")
 
 
 if __name__ == "__main__":

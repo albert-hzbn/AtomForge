@@ -1,0 +1,62 @@
+\chapter{Feature coverage and source-only interfaces}\label{ch:coverage}
+\section{Feature checklist}
+This checklist maps the user-facing feature families to their detailed instructions. It includes optional and currently unexposed source implementations separately. The accompanying \code{coverage.json} records source fingerprints and UI control declarations. The check script detects changed/new source files and stale generated API or CLI reference material. It is a maintenance alarm, not an automated proof that prose explains every possible runtime state. The control descriptions were reviewed against the implementation.
+
+\begin{longtable}{p{.47\linewidth}p{.44\linewidth}}
+\toprule Feature family & Documentation \\ \midrule\endhead
+Open, recent files, close, save, Save As, formats, drag/drop, tabs & Chapter~\ref{ch:start}; Section~\ref{sec:display-controls}. \\
+Bulk Crystal, all crystal systems, groups, site editing & Chapter~\ref{ch:builders}; Section~\ref{sec:builder-controls}. \\
+Substitutional Solid Solution, composition, seed & Chapter~\ref{ch:builders}; Section~\ref{sec:builder-controls}. \\
+CSL search, grain geometry, overlap removal, reduction & Chapter~\ref{ch:builders}; Section~\ref{sec:builder-controls}. \\
+All seven nanocrystal cuts and Wulff family construction & Chapter~\ref{ch:builders}; Section~\ref{sec:builder-controls}. \\
+Custom OBJ/STL fill, orientation, replication & Chapter~\ref{ch:builders}; Section~\ref{sec:builder-controls}. \\
+Polycrystal, random/specified/partial grain orientation & Chapter~\ref{ch:builders}; Section~\ref{sec:builder-controls}. \\
+Amorphous packing, density, scale, pair constraints & Chapter~\ref{ch:builders}; Section~\ref{sec:builder-controls}. \\
+Optional Stacking Faults sequence and export & Chapter~\ref{ch:builders}; Section~\ref{sec:builder-controls}. \\
+Selection, undo/redo, context substitution, centroid insertion & Chapter~\ref{ch:editing}; Section~\ref{sec:edit-controls}. \\
+Atom/cell table, integer transform, merge & Chapter~\ref{ch:editing}; Section~\ref{sec:edit-controls}. \\
+Cell Sculptor and bounded slab intersections & Chapter~\ref{ch:editing}; Section~\ref{sec:edit-controls}. \\
+Dislocation character, vectors, regions, preview/replace & Chapter~\ref{ch:editing}; Section~\ref{sec:edit-controls}. \\
+Interstitial detection, type filters, random/mesh/manual insertion & Chapter~\ref{ch:editing}; Section~\ref{sec:edit-controls}. \\
+Camera, colouring, representations, visibility, themes & Chapters~\ref{ch:start}, \ref{ch:analysis}; Section~\ref{sec:display-controls}. \\
+Structure/Atom Info, distance, angle & Chapter~\ref{ch:analysis}; Section~\ref{sec:display-controls}. \\
+RDF, shell distortion, SRO & Chapter~\ref{ch:analysis}; Section~\ref{sec:display-controls}. \\
+Planes, directions, Voronoi, coordination polyhedra & Chapter~\ref{ch:analysis}; Section~\ref{sec:display-controls}. \\
+Atomic radii, lighting, material, colours, image export & Chapter~\ref{ch:analysis}; Section~\ref{sec:display-controls}. \\
+VASP/Cube/XSF input, quantity/units, channel selection & Chapter~\ref{ch:electronic}. \\
+Electronic 3D volume/surface, 2D arbitrary slices, contours & Chapter~\ref{ch:electronic}; Section~\ref{sec:display-controls}. \\
+Charge difference, masks, Boolean operations, regional charge & Chapter~\ref{ch:charge}. \\
+All general electronic operations and exports & Chapter~\ref{ch:reference}. \\
+Python structures, I/O, desktop/notebook viewer & Chapter~\ref{ch:python}; Appendix~\ref{ch:api-signatures}. \\
+Python electronic grids, models, surfaces and tables & Chapter~\ref{ch:python}; Appendix~\ref{ch:api-signatures}. \\
+All eight native builder CLI modes and Python electronic CLI & Chapter~\ref{ch:python}; Appendix~\ref{ch:api-signatures}. \\
+CNA, ADF, interface matching source APIs & This appendix. \\
+Installation, build options, troubleshooting, example regeneration & Previous appendices and \code{docs/manual/README.md}. \\
+\bottomrule
+\end{longtable}
+
+\section{Common-neighbour analysis: source/API availability}
+CNA is implemented in \code{src/algorithms/CommonNeighbourAnalysis.h} and its companion source. Its Analysis menu registration is commented out as not ready. The drawing call alone does not open it. There is no documented Python wrapper or native builder CLI mode for this analysis.
+
+For C++ integration, call \code{atomforge::analysis::computeCna(structure, params)}. \code{CnaParams} supplies \code{cutoffScale} (default 1.18) and \code{usePbc} (default true). The result contains \code{valid}, \code{message}, atom/pair counts, \code{pbcUsed}, signature counts, environment counts, and per-atom rows with index, species, coordination, dominant signature/count, and environment. A signature records common-neighbour count, bonds, and chain information. Check validity before consuming these tables.
+
+The unexposed dialog provides Use PBC when unit cell is available, Bond cutoff scale (1.00--1.60), and Run CNA. Changing cutoff changes the bond graph and therefore the classification. These source controls are documented for developers and future integration; this manual does not claim their menu workflow is enabled or validated in the normal desktop build.
+
+\section{Angular-distribution analysis: source/API availability}
+ADF is implemented in \code{src/algorithms/AngularDistributionAnalysis.h}; its Analysis menu registration is also commented out. C++ callers use \code{computeADF(structure, params)} with \code{AdfParams}. The neighbour cutoff \code{rCutoff} is in \angstrom\ (default 3.5); \code{binCount} divides 0--180 degrees (default 180); \code{usePbc} controls periodic geometry. \code{centreMode} selects All, ByElement, or ByPair. Set \code{centreSymbol} for element-specific centres, plus \code{neighSymbol1} and \code{neighSymbol2} for the neighbour pair in ByPair mode.
+
+\code{normalize} scales to peak 1, and \code{smoothPasses} sets smoothing (default 2). This normalisation is not the RDF density normalisation. \code{AdfResult} contains validity/message, echoed settings, atom/centre/triplet counts, PBC status, histogram rows (angle, raw count, displayed value), detected peaks, and per-centre-element coordination mean, standard deviation, and count.
+
+The source dialog adds peak markers, raw-count display, plot range, and coordination statistics. Run/Compute ADF would refresh its calculation if the dialog were connected to a reachable command. Interpret peaks as angle distributions under the chosen neighbour definition; a label near a familiar ideal angle does not by itself identify a unique structure.
+
+\section{Interface matching: source-only workflow and controls}
+\code{InterfaceBuilderDialog.cpp} is drawn from the desktop but has no current main-menu entry. It is distinct from Merge Structures. Its source workflow searches matching in-plane supercells of two periodic inputs, strains an interface construction, and assembles layers. No Python convenience wrapper or \code{--build interface} command is exposed by the documented CLI.
+
+The source dialog loads structures A and B. Orientation relationship choices are None, Manual angle, or Plane + direction; the last takes a plane and in-plane direction for each crystal. Orientation tolerance limits acceptable angle matching. Search controls include maximum integer coefficients for each side (nmax/mmax), maximum cell counts, layers A/B, maximum mean strain, and maximum rotation. Geometry controls include Z gap, vacuum, and X/Y output repetition. The stiffness target selects A or B for a $6\times6$ stiffness matrix used by the ranking calculation. These material constants must be supplied consistently; they are not inferred from element labels.
+
+Find Matches produces candidate combinations; inspect and select a candidate before Build. Broad coefficient/cell limits increase search work. Small reported strain does not validate chemical termination or interfacial energy. The output must be inspected for contacts and relaxed externally where appropriate.
+
+For C++ use, \code{get2DBasis} extracts the in-plane basis; \code{generateUniqueSupercells} enumerates bounded integer supercells; \code{strainComponents} and \code{meanAbsStrain} assess matching; \code{cubicElasticDensity} evaluates the implemented elastic ranking expression. \code{makeSupercell2D}, \code{repeatLayersZ}, and \code{applyTransform2D} construct the chosen components. \code{assembleInterface} combines them with gap/vacuum, and \code{repeatInterfaceXY} repeats the product. \code{orientationAngleFromPlaneDir} derives an in-plane orientation from plane/direction data. Consult the declared types in \code{src/algorithms/InterfaceBuilder.h} when integrating; these functions are developer interfaces, not buttons available in the normal application.
+
+\section{Keeping the documentation complete as code changes}
+Run \code{python docs/manual/scripts/check_coverage.py} before building a release manual. A failure identifies a changed source fingerprint, missing source mapping, or stale API/CLI reference. Review the changed feature, update its prose, then intentionally refresh the snapshot with \code{--refresh}. Refreshing alone does not document a feature. The generated API appendix uses Python AST signatures and docstrings without importing native libraries; native CLI reference text is extracted from the help definitions and checked against the executable during this edition's validation.
