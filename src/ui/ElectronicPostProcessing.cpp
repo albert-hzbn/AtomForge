@@ -16,6 +16,61 @@ using namespace atomforge::electronic;
 namespace
 {
 glm::dvec3 vector(const float* p) { return {p[0],p[1],p[2]}; }
+
+// Match the padded label/value rows used by the other analysis dialogs.
+template<class DrawControl>
+bool field(const char* label, DrawControl drawControl)
+{
+    bool changed = false;
+    ImGui::PushID(label);
+    if (ImGui::BeginTable("Field",2,ImGuiTableFlags_SizingStretchProp))
+    {
+        ImGui::TableSetupColumn("Label",ImGuiTableColumnFlags_WidthStretch,.40f);
+        ImGui::TableSetupColumn("Value",ImGuiTableColumnFlags_WidthStretch,.60f);
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextWrapped("%s",label);
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        changed = drawControl();
+        ImGui::EndTable();
+    }
+    ImGui::PopID();
+    return changed;
+}
+
+bool combo(const char* label, int* selected, const char* items)
+{
+    return field(label,[&] { return ImGui::Combo("##value",selected,items); });
+}
+
+void inputFloat(const char* label, float* value, float step=0, float fastStep=0, const char* format="%.3f")
+{
+    field(label,[&] { return ImGui::InputFloat("##value",value,step,fastStep,format); });
+}
+
+void inputInt(const char* label, int* value)
+{
+    field(label,[&] { return ImGui::InputInt("##value",value); });
+}
+
+void inputVector(const char* label, float* value)
+{
+    field(label,[&] { return ImGui::InputFloat3("##value",value); });
+}
+
+void slider(const char* label, float* value, float low, float high, const char* format)
+{
+    field(label,[&] { return ImGui::SliderFloat("##value",value,low,high,format); });
+}
+
+void filename(const char* label, const std::string& path)
+{
+    if (path.empty()) return;
+    ImGui::TextWrapped("%s: %s",label,std::filesystem::u8path(path).filename().u8string().c_str());
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s",path.c_str());
+}
 }
 
 void ElectronicPostProcessingDialog::drawMenuItem()
@@ -47,7 +102,7 @@ void ElectronicPostProcessingDialog::drawDialog()
                 else m_error = "Combined surfaces exceed the mesh limit; clear or replace the surface.";
                 m_result.mesh = {};
             }
-            if (m_result.referenceLoaded) { m_referenceVolume = m_result.volume; m_reference = 0; }
+            if (m_result.referenceLoaded) { m_referenceVolume = m_result.volume; m_reference = 0; m_referencePath=m_result.sourcePath; }
             else if (m_result.loaded)
             {
                 m_volume = m_result.volume; m_selected = m_reference = 0;
@@ -65,84 +120,86 @@ void ElectronicPostProcessingDialog::drawDialog()
     if (!m_open) return;
     ImGui::SetNextWindowSize(ImVec2(1080,700),ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSizeConstraints(ImVec2(780,480),ImVec2(FLT_MAX,FLT_MAX));
-    if (!ImGui::Begin("Electronic Post-processing",&m_open,ImGuiWindowFlags_NoScrollbar)) { ImGui::End(); return; }
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(6,3));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,ImVec2(6,5));
-    const float sidebar = std::clamp(ImGui::GetContentRegionAvail().x * .32f,290.0f,360.0f);
+    if (!ImGui::Begin("Electronic Post-processing",&m_open,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
+    const float sidebar = std::clamp(ImGui::GetContentRegionAvail().x * .38f,340.0f,440.0f);
     ImGui::BeginChild("Electronic controls",ImVec2(sidebar,0),true);
-    ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * .60f);
     ImGui::BeginDisabled(m_task.running());
-    if (ImGui::Button("Open...")) { m_pickerAction=0; m_picker.open("Open electronic volume",false,m_input); }
+    const float buttonWidth = (ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
+    if (ImGui::Button("Open volume...",ImVec2(buttonWidth,0))) { m_pickerAction=0; m_picker.open("Open electronic volume",false,m_loadedPath); }
     ImGui::SameLine();
-    if (ImGui::Button("Reference...")) { m_pickerAction=1; m_picker.open("Open reference volume",false,m_input); }
+    if (ImGui::Button("Reference...",ImVec2(buttonWidth,0))) { m_pickerAction=1; m_picker.open("Open reference volume",false,m_referencePath.empty() ? m_loadedPath : m_referencePath); }
+    ImGui::BeginDisabled(m_loadedPath.empty());
+    if (ImGui::Button("Reload volume",ImVec2(buttonWidth,0))) load(m_loadedPath,false);
+    ImGui::EndDisabled();
     ImGui::SameLine();
-    if (ImGui::Button("Clear"))
+    if (ImGui::Button("Clear",ImVec2(buttonWidth,0)))
     {
         m_volume={}; m_referenceVolume={}; m_result={}; m_surface={};
-        m_viewport.setMesh(m_surface); m_selected=m_reference=0; m_sliceField=-1; m_loadedPath.clear(); resetCamera();
+        m_viewport.setMesh(m_surface); m_selected=m_reference=0; m_sliceField=-1; m_loadedPath.clear(); m_referencePath.clear(); resetCamera();
     }
-    if (!m_loadedPath.empty())
-    {
-        ImGui::TextDisabled("%s",std::filesystem::u8path(m_loadedPath).filename().u8string().c_str());
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s",m_loadedPath.c_str());
-    }
+    filename("Volume",m_loadedPath);
+    filename("Reference",m_referencePath);
+    ImGui::Spacing();
     if (ImGui::CollapsingHeader("Import options"))
     {
-        ImGui::Combo("Quantity",&m_quantity,"Auto (Cube/XSF: raw)\0Density\0Potential\0ELF\0Raw\0");
-        ImGui::Combo("Cube units",&m_cubeUnits,"Bohr\0Angstrom\0");
-        ImGui::SetNextItemWidth(-1);
-        ImGui::InputText("##input",m_input,sizeof(m_input));
-        if (ImGui::Button("Reload")) load(false);
+        combo("Quantity",&m_quantity,"Auto (Cube/XSF: raw)\0Density\0Potential\0ELF\0Raw\0");
+        combo("Cube units",&m_cubeUnits,"Bohr\0Angstrom\0");
+        ImGui::TextWrapped("Choose import settings before browsing, or reload the selected volume to apply changes.");
     }
     if (!m_volume.fields.empty())
     {
         auto selectField = [&](const char* label, int& selected, const Volume& volume)
         {
             selected = std::clamp(selected,0,static_cast<int>(volume.fields.size())-1);
-            if (ImGui::BeginCombo(label,volume.fields[selected].name.c_str()))
+            field(label,[&]
             {
-                for (int i = 0; i < static_cast<int>(volume.fields.size()); ++i)
+                if (ImGui::BeginCombo("##value",volume.fields[selected].name.c_str()))
                 {
-                    ImGui::PushID(i);
-                    if (ImGui::Selectable(volume.fields[i].name.c_str(),i == selected)) selected = i;
-                    ImGui::PopID();
+                    for (int i = 0; i < static_cast<int>(volume.fields.size()); ++i)
+                    {
+                        ImGui::PushID(i);
+                        if (ImGui::Selectable(volume.fields[i].name.c_str(),i == selected)) selected = i;
+                        ImGui::PopID();
+                    }
+                    ImGui::EndCombo();
                 }
-                ImGui::EndCombo();
-            }
+                return false;
+            });
         };
         selectField("Field",m_selected,m_volume);
         const auto& referenceVolume = m_referenceVolume.fields.empty() ? m_volume : m_referenceVolume;
         m_reference = std::clamp(m_reference,0,static_cast<int>(referenceVolume.fields.size())-1);
         const Grid& g = m_volume.fields[m_selected];
         ImGui::TextDisabled("%d x %d x %d | %s",g.shape[0],g.shape[1],g.shape[2],g.unit.c_str());
-        ImGui::Combo("Tool",&m_operation,
+        combo("Tool",&m_operation,
             "Total integral\0Add reference\0Subtract reference (difference density)\0Multiply reference\0Divide by reference\0Scale\0Gaussian smoothing\0Cartesian gradient\0Laplacian\0Energy-density conversion\0Line profile\0Planar average\0Macroscopic average\0Plane section\0Contour segments (z=0)\0Peak search\0Voronoi site integration\0Sphere integration\0Structure factors\0Fourier synthesis\0Patterson density\0Ewald site potentials\0Isosurface\0Resample onto reference\0Verify periodic endpoint planes\0");
         if ((m_operation >= 1 && m_operation <= 4) || m_operation == 23 || m_operation == 22) selectField("Reference",m_reference,referenceVolume);
-        if (m_operation == 5) ImGui::InputFloat("Scale factor",&m_scalar);
-        if (m_operation == 6) { ImGui::InputFloat("Sigma (A)",&m_sigma); ImGui::InputInt("Radius (steps)",&m_radius); }
+        if (m_operation == 5) inputFloat("Scale factor",&m_scalar);
+        if (m_operation == 6) { inputFloat("Sigma (A)",&m_sigma); inputInt("Radius (steps)",&m_radius); }
         if (m_operation == 9) ImGui::TextWrapped("Gradient-expansion kinetic and local-virial energy densities (eV/A^3). Requires nonnegative e/A^3. Samples <= 1e-12 e/A^3 are masked to zero.");
-        if (m_operation == 10 || m_operation == 13 || m_operation == 17) ImGui::InputFloat3("Origin (A)",m_start);
-        if (m_operation == 10) ImGui::InputFloat3("End (A)",m_end);
-        if (m_operation == 10 || m_operation == 13) ImGui::InputInt("Sample count",&m_count);
-        if (m_operation == 11 || m_operation == 12) ImGui::Combo("Plane normal",&m_axis,"a*\0b*\0c*\0");
-        if (m_operation == 12) ImGui::InputInt("Window (odd)",&m_window);
-        if (m_operation == 13) { ImGui::InputFloat3("Plane span u (A)",m_u); ImGui::InputFloat3("Plane span v (A)",m_v); }
-        if (m_operation == 14 || m_operation == 22) ImGui::InputFloat("Isovalue",&m_scalar);
-        if (m_operation == 17) ImGui::InputFloat("Sphere radius (A)",&m_scalar);
+        if (m_operation == 10 || m_operation == 13 || m_operation == 17) inputVector("Origin (A)",m_start);
+        if (m_operation == 10) inputVector("End (A)",m_end);
+        if (m_operation == 10 || m_operation == 13) inputInt("Sample count",&m_count);
+        if (m_operation == 11 || m_operation == 12) combo("Plane normal",&m_axis,"a*\0b*\0c*\0");
+        if (m_operation == 12) inputInt("Window (odd)",&m_window);
+        if (m_operation == 13) { inputVector("Plane span u (A)",m_u); inputVector("Plane span v (A)",m_v); }
+        if (m_operation == 14 || m_operation == 22) inputFloat("Isovalue",&m_scalar);
+        if (m_operation == 17) inputFloat("Sphere radius (A)",&m_scalar);
         if (m_operation == 15) ImGui::TextWrapped("26-neighbor grid maxima; adjacent equal values use a deterministic tie break. Refine the grid to check peak positions.");
         if (m_operation == 16) ImGui::TextWrapped("Integrates nearest-site Voronoi cells around imported atoms. Boundary samples share weight. These are geometric partitions, not Bader basins.");
         if (m_operation == 18 || m_operation == 19)
         {
-            ImGui::TextUnformatted(m_operation == 18 ? "One h k l per line" : "One h k l real imag per line; include conjugate pairs");
+            ImGui::TextWrapped("%s",m_operation == 18 ? "One h k l per line" : "One h k l real imag per line; include conjugate pairs");
             ImGui::InputTextMultiline("##reflections",m_reflections,sizeof(m_reflections),ImVec2(-1,100));
         }
         if (m_operation == 21)
         {
             ImGui::TextWrapped("Explicit charges in electron units, one per imported atom in file order. Requires a neutral cell; conducting boundary. Increase both cutoffs to check convergence.");
-            ImGui::InputTextMultiline("Charges",m_charges,sizeof(m_charges),ImVec2(-1,70));
-            ImGui::InputFloat("Ewald alpha (1/A)",&m_alpha);
-            ImGui::InputFloat("Real cutoff (A)",&m_realCutoff);
-            ImGui::InputFloat("Reciprocal cutoff (1/A, includes 2*pi)",&m_reciprocalCutoff);
+            ImGui::TextUnformatted("Charges");
+            ImGui::InputTextMultiline("##charges",m_charges,sizeof(m_charges),ImVec2(-1,90));
+            inputFloat("Ewald alpha (1/A)",&m_alpha);
+            inputFloat("Real cutoff (A)",&m_realCutoff);
+            inputFloat("Reciprocal cutoff (1/A, includes 2*pi)",&m_reciprocalCutoff);
         }
         if (m_operation == 22)
         {
@@ -150,7 +207,8 @@ void ElectronicPostProcessingDialog::drawDialog()
             ImGui::Checkbox("Append surface level",&m_appendSurface);
         }
         if (m_operation == 24) ImGui::TextWrapped("For Cube/XSF covering a complete periodic cell: checks all opposite endpoint values, then removes duplicate planes. Matching values alone do not establish physical periodicity.");
-        if (ImGui::Button("Calculate"))
+        ImGui::Spacing();
+        if (ImGui::Button("Calculate",ImVec2(-FLT_MIN,0)))
         {
             const Grid source = g, reference = referenceVolume.fields[m_reference];
             const auto sites = m_volume.sites;
@@ -254,34 +312,46 @@ void ElectronicPostProcessingDialog::drawDialog()
                 return out;
             });
         }
-        if (ImGui::CollapsingHeader("Export"))
+        ImGui::Spacing();
+        if (ImGui::CollapsingHeader("Export",ImGuiTreeNodeFlags_DefaultOpen))
         {
-            if (ImGui::Combo("Format",&m_exportFormat,"Grid: XSF\0Grid: Cube\0Grid: VASP\0Table: CSV\0Surface: OBJ\0Surface: PLY\0"))
-                std::snprintf(m_output,sizeof(m_output),"electronic-result%s",std::array<const char*,6>{".xsf",".cube",".vasp",".csv",".obj",".ply"}[m_exportFormat]);
-            if (ImGui::Button("Save as...")) { m_pickerAction=2; m_picker.open("Save electronic result",true,m_output); }
+            if (combo("Format",&m_exportFormat,"Grid: XSF\0Grid: Cube\0Grid: VASP\0Table: CSV\0Surface: OBJ\0Surface: PLY\0"))
+            {
+                auto output = std::filesystem::u8path(m_output);
+                output.replace_extension(std::array<const char*,6>{".xsf",".cube",".vasp",".csv",".obj",".ply"}[m_exportFormat]);
+                std::snprintf(m_output,sizeof(m_output),"%s",output.u8string().c_str());
+            }
+            if (ImGui::Button("Save as...",ImVec2(-FLT_MIN,0)))
+            {
+                auto output = std::filesystem::u8path(m_output);
+                if (!output.has_parent_path() && !m_loadedPath.empty())
+                    output = std::filesystem::u8path(m_loadedPath).parent_path()/output;
+                m_pickerAction=2;
+                m_picker.open("Save electronic result",true,output.u8string());
+            }
         }
     }
     ImGui::EndDisabled();
     if (m_task.running()) ImGui::TextUnformatted("Calculating...");
     if (!m_error.empty()) ImGui::TextWrapped("%s",m_error.c_str());
+    ImGui::Spacing();
     if (ImGui::CollapsingHeader("Appearance",ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::Combo("Colors",&m_palette,"Spectrum\0Blue-white-red\0Sequential blue\0");
+        combo("Colors",&m_palette,"Spectrum\0Blue-white-red\0Sequential blue\0");
         if (ImGui::Checkbox("Automatic range",&m_autoRange) && m_autoRange) { m_colorLow=m_autoLow; m_colorHigh=m_autoHigh; }
         if (!m_autoRange)
         {
-            ImGui::InputFloat("Minimum",&m_colorLow,0,0,"%.5g");
-            ImGui::InputFloat("Maximum",&m_colorHigh,0,0,"%.5g");
+            inputFloat("Minimum",&m_colorLow,0,0,"%.5g");
+            inputFloat("Maximum",&m_colorHigh,0,0,"%.5g");
         }
-        ImGui::SliderFloat("Opacity",&m_opacity,.05f,1,"%.2f");
+        slider("Opacity",&m_opacity,.05f,1,"%.2f");
         if (ImGui::TreeNode("Lighting"))
         {
-            ImGui::SliderFloat("Specular",&m_specular,0,1,"%.2f");
-            ImGui::SliderFloat("Shininess",&m_shininess,4,128,"%.0f");
+            slider("Specular",&m_specular,0,1,"%.2f");
+            slider("Shininess",&m_shininess,4,128,"%.0f");
             ImGui::TreePop();
         }
     }
-    ImGui::PopItemWidth();
     ImGui::EndChild();
     ImGui::SameLine();
     ImGui::BeginChild("Electronic results",ImVec2(0,0),false,ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoScrollbar);
@@ -306,18 +376,17 @@ void ElectronicPostProcessingDialog::drawDialog()
     }
     drawPreview();
     ImGui::EndChild();
-    ImGui::PopStyleVar(2);
     if (auto path=m_picker.draw())
     {
         if (m_pickerAction==2) save(*path);
-        else { std::snprintf(m_input,sizeof(m_input),"%s",path->c_str()); load(m_pickerAction==1); }
+        else load(*path,m_pickerAction==1);
     }
     ImGui::End();
 }
 
-void ElectronicPostProcessingDialog::load(bool reference)
+void ElectronicPostProcessingDialog::load(const std::string& path, bool reference)
 {
-    const std::string path(m_input), q=std::array<const char*,5>{"auto","density","potential","elf","raw"}[m_quantity];
+    const std::string q=std::array<const char*,5>{"auto","density","potential","elf","raw"}[m_quantity];
     const std::string units=m_cubeUnits ? "angstrom" : "bohr";
     m_error.clear();
     if (!m_task.start([path,q,units,reference]
@@ -361,8 +430,7 @@ void ElectronicPostProcessingDialog::resetCamera()
 void ElectronicPostProcessingDialog::drawPreview()
 {
     if (ImGui::Button("Fit view")) resetCamera();
-    ImGui::SameLine();
-    ImGui::TextDisabled("Drag: orbit | Right drag: pan | Wheel: zoom");
+    ImGui::TextWrapped("Drag: orbit | Right drag: pan | Wheel: zoom");
     const auto pos=ImGui::GetCursorScreenPos();
     const ImVec2 size(std::max(100.0f,ImGui::GetContentRegionAvail().x),std::max(150.0f,ImGui::GetContentRegionAvail().y-52));
     ImGui::InvisibleButton("Electronic viewport",size,ImGuiButtonFlags_MouseButtonLeft|ImGuiButtonFlags_MouseButtonRight);
@@ -418,7 +486,10 @@ void ElectronicPostProcessingDialog::drawPreview()
                 ImVec2(pos.x+size.x*std::min(x+stride,g.shape[0])/g.shape[0],pos.y+size.y*(1.0f-static_cast<float>(y)/g.shape[1])),
                 ImGui::ColorConvertFloat4ToU32(ImVec4(color.x,color.y,color.z,1)));
         }
-        draw->AddText(ImVec2(pos.x+12,pos.y+12),IM_COL32(30,40,55,255),"2D grid slice - Calculate an isosurface to orbit in 3D");
+        const char* caption = "2D grid slice\nCalculate an isosurface to orbit in 3D";
+        const float captionHeight = ImGui::CalcTextSize(caption,nullptr,false,size.x-24).y+24;
+        draw->AddRectFilled(pos,ImVec2(pos.x+size.x,pos.y+captionHeight),IM_COL32(245,247,251,255));
+        draw->AddText(nullptr,0,ImVec2(pos.x+12,pos.y+12),IM_COL32(30,40,55,255),caption,nullptr,size.x-24);
     }
     else draw->AddText(ImVec2(pos.x+20,pos.y+25),IM_COL32(90,100,115,255),"Open a charge-density, potential, Cube or XSF file.");
     draw->PopClipRect();

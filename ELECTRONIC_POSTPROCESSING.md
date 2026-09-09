@@ -158,10 +158,16 @@ atomic units; XSF export retains internal scalar units.
 
 ## Desktop controls
 
-The electronic workspace places compact controls beside the viewport. **Open**,
+The electronic workspace uses the application's standard button padding and
+label/value table spacing beside the viewport. Its title bar cannot collapse.
+**Open volume**,
 **Reference** and **Save as** reuse the application's directory navigation and
-file list, including drive shortcuts, editable paths and overwrite confirmation.
-Import options, export settings and lighting controls expand when needed.
+file list, including location/drive shortcuts and overwrite confirmation.
+Click folders and select a file to load it; no path entry is required. The optional
+address bar supports direct folder navigation. **Save as** starts in the source
+folder, supplies a filename, and remembers the chosen destination across format
+changes. Source and reference filenames are displayed separately; **Reload volume**
+always reloads the source. Import options and lighting controls expand when needed.
 
 Drag in the viewport to orbit, right-drag to pan, and use the wheel to zoom.
 **Fit view** or a double-click resets the camera. The viewport keeps the computed

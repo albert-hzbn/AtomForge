@@ -28,11 +28,10 @@ private:
         std::string sourcePath;
     };
     void drawPreview();
-    void load(bool reference);
+    void load(const std::string& path, bool reference);
     void save(const std::string& path);
     void resetCamera();
     bool m_open = false;
-    char m_input[2048]{};
     char m_output[2048] = "electronic-result.xsf";
     char m_reflections[8192] = "0 0 0\n1 0 0\n-1 0 0";
     char m_charges[8192]{};
@@ -68,6 +67,7 @@ private:
     bool m_autoRange = true;
     std::string m_colorUnit = "raw";
     std::string m_loadedPath;
+    std::string m_referencePath;
     int m_sliceField = -1;
     float m_sliceLow = 0, m_sliceHigh = 1;
     int m_pickerAction = 0;

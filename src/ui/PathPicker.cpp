@@ -13,6 +13,7 @@ void PathPicker::navigate(const std::string& path)
     std::snprintf(m_path,sizeof(m_path),"%s",m_directory.c_str());
     m_error.clear();
     m_overwrite.clear();
+    if (!m_save) m_filename[0] = '\0';
 }
 
 void PathPicker::open(const std::string& title, bool save, const std::string& initialPath)
@@ -43,30 +44,50 @@ std::optional<std::string> PathPicker::draw()
     std::optional<std::string> chosen;
     const std::string title = m_title + "###ElectronicPathPicker";
     if (m_requested) { ImGui::OpenPopup(title.c_str()); m_requested = false; }
-    ImGui::SetNextWindowSize(ImVec2(720,500),ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize(ImVec2(800,560),ImGuiCond_Appearing);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(640,480),ImVec2(FLT_MAX,FLT_MAX));
     bool open = true;
-    if (ImGui::BeginPopupModal(title.c_str(),&open))
+    if (ImGui::BeginPopupModal(title.c_str(),&open,ImGuiWindowFlags_NoCollapse))
     {
         if (ImGui::Button("<") && m_historyIndex > 0)
         {
             m_directory = m_history[--m_historyIndex];
             std::snprintf(m_path,sizeof(m_path),"%s",m_directory.c_str());
+            if (!m_save) m_filename[0] = '\0';
+            m_error.clear();
         }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Back");
         ImGui::SameLine();
         if (ImGui::Button(">") && m_historyIndex+1 < static_cast<int>(m_history.size()))
         {
             m_directory = m_history[++m_historyIndex];
             std::snprintf(m_path,sizeof(m_path),"%s",m_directory.c_str());
+            if (!m_save) m_filename[0] = '\0';
+            m_error.clear();
         }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Forward");
         ImGui::SameLine();
         if (ImGui::Button("Up")) navigate(parentPath(m_directory));
         ImGui::SameLine();
         ImGui::SetNextItemWidth(-1);
         if (ImGui::InputText("##folder",m_path,sizeof(m_path),ImGuiInputTextFlags_EnterReturnsTrue)) navigate(m_path);
-        const float height = std::max(100.0f,ImGui::GetContentRegionAvail().y - 115);
-        ImGui::BeginChild("Locations",ImVec2(125,height),true);
+        ImGui::Separator();
+        const float height = std::max(100.0f,ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeightWithSpacing()*3 - ImGui::GetTextLineHeightWithSpacing()*2);
+        ImGui::BeginChild("Locations",ImVec2(150,height),true);
         ImGui::TextDisabled("Locations");
         if (ImGui::Selectable("Home")) navigate(detectHomePath());
+        for (const char* name : {"Desktop","Documents","Downloads"})
+        {
+            const auto location = std::filesystem::u8path(detectHomePath())/name;
+            std::error_code error;
+            if (std::filesystem::is_directory(location,error) && ImGui::Selectable(name))
+                navigate(location.u8string());
+        }
+        std::error_code currentError;
+        const auto current = std::filesystem::current_path(currentError);
+        if (!currentError && ImGui::Selectable("Working folder")) navigate(current.u8string());
+        ImGui::Spacing();
+        ImGui::TextDisabled("Drives");
         ImGui::Separator();
         for (const auto& root : getDriveRoots()) if (ImGui::Selectable(root.c_str())) navigate(root);
         ImGui::EndChild();
@@ -79,8 +100,14 @@ std::optional<std::string> PathPicker::draw()
             drawDirectoryEntries(entries,m_filename,0,[&](const std::string& name) { navigate(joinPath(m_directory,name)); },&accepted);
         else ImGui::TextDisabled("Unable to open folder");
         ImGui::EndChild();
+        ImGui::Spacing();
+        ImGui::TextWrapped("%s",m_save ? "Choose a folder and filename." : "Select a file, then Open. Double-click a file to open it directly.");
         ImGui::SetNextItemWidth(-85);
-        if (ImGui::InputText("Filename",m_filename,sizeof(m_filename),ImGuiInputTextFlags_EnterReturnsTrue)) accepted = true;
+        if (m_save)
+        {
+            if (ImGui::InputText("Filename",m_filename,sizeof(m_filename),ImGuiInputTextFlags_EnterReturnsTrue)) accepted = true;
+        }
+        else ImGui::TextWrapped("Selected: %s",m_filename[0] ? m_filename : "No file selected");
         if (!m_error.empty()) ImGui::TextWrapped("%s",m_error.c_str());
         if (ImGui::Button(m_save ? "Save" : "Open",ImVec2(100,0))) accepted = true;
         ImGui::SameLine();
@@ -108,6 +135,11 @@ std::optional<std::string> PathPicker::draw()
             if (chosen) ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
+    }
+    if (chosen)
+    {
+        // Keep subsequent browsing in the selected folder, including absolute filenames.
+        navigate(std::filesystem::u8path(*chosen).parent_path().u8string());
     }
     return chosen;
 }
