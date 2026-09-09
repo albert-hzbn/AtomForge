@@ -283,7 +283,6 @@ if(BUILD_PORTABLE)
     endif()
     install(DIRECTORY python/atomforge DESTINATION "${ATOMFORGE_PORTABLE_ROOT}/python"
         PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
-    install(FILES ELECTRONIC_POSTPROCESSING.md DESTINATION "${ATOMFORGE_PORTABLE_ROOT}")
     install(FILES README.md DESTINATION "${ATOMFORGE_PORTABLE_ROOT}")
 
     # Bundle Open Babel plugin files (.obf), including versioned subdirectories.
@@ -321,7 +320,6 @@ if(BUILD_PORTABLE)
 else()
     # Standard installation (system-wide)
     install(TARGETS atomforge_electronic RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
-    install(FILES ELECTRONIC_POSTPROCESSING.md DESTINATION share/doc/atomforge)
     if(WIN32)
         install(TARGETS AtomForge DESTINATION bin)
     else()
