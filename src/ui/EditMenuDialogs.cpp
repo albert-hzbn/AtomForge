@@ -465,7 +465,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
             if (pendingDelete >= 0 && pendingDelete < (int)structure.atoms.size())
             {
                 const AtomSite deletedAtom = structure.atoms[pendingDelete];
-                structure.atoms.erase(structure.atoms.begin() + pendingDelete);
+                structure.eraseAtom(static_cast<std::size_t>(pendingDelete));
                 if (m_selectedEditAtom >= (int)structure.atoms.size())
                     m_selectedEditAtom = std::max(0, (int)structure.atoms.size() - 1);
                 std::cout << "[Operation] Deleted atom (edit structure row): "

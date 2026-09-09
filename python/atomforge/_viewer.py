@@ -90,9 +90,8 @@ def view(s: "Structure") -> None:
     tmp.close()
 
     from ._io import _save_xyz
-    _save_xyz(s, tmp_path)
-
     try:
+        _save_xyz(s, tmp_path)
         if sys.platform == "win32":
             # DETACHED_PROCESS: new console, parent death does not kill child
             DETACHED_PROCESS = 0x00000008

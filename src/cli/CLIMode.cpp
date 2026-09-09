@@ -1559,7 +1559,12 @@ static int runSSS(int argc, char* argv[])
             std::string sym  = token.substr(0, eq);
             std::string fstr = token.substr(eq + 1);
             float frac;
-            try { frac = std::stof(fstr); }
+            try {
+                std::size_t parsed = 0;
+                frac = std::stof(fstr, &parsed);
+                if (parsed != fstr.size() || !std::isfinite(frac))
+                    throw std::invalid_argument("invalid fraction");
+            }
             catch (...)
             {
                 std::cerr << "Error: cannot parse fraction '" << fstr

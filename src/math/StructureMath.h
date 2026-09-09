@@ -24,7 +24,7 @@ inline bool tryMakeCellMatrices(const Structure& structure, glm::mat3& cell, glm
 
     cell = makeCellMatrix(structure);
     const float det = glm::determinant(cell);
-    if (std::abs(det) <= 1e-8f)
+    if (!std::isfinite(det) || std::abs(det) <= 1e-8f)
         return false;
 
     invCell = glm::inverse(cell);

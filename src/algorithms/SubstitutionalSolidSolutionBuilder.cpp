@@ -36,15 +36,15 @@ SSSResult buildSubstitutionalSolidSolution(const Structure& base,
             result.message = "Invalid atomic number in composition.";
             return result;
         }
-        if (ef.fraction < 0.0f)
+        if (!std::isfinite(ef.fraction) || ef.fraction < 0.0f)
         {
-            result.message = "Negative fraction in composition.";
+            result.message = "Composition fractions must be finite and non-negative.";
             return result;
         }
     }
 
     // Normalise fractions so they sum to exactly 1.
-    float totalFrac = 0.0f;
+    double totalFrac = 0.0;
     for (const SSSElementFraction& ef : params.composition)
         totalFrac += ef.fraction;
 
@@ -60,14 +60,14 @@ SSSResult buildSubstitutionalSolidSolution(const Structure& base,
     // so that the counts always sum exactly to N.
     const int numEl = static_cast<int>(params.composition.size());
     std::vector<int> counts(numEl, 0);
-    std::vector<float> remainders(numEl, 0.0f);
+    std::vector<double> remainders(numEl, 0.0);
 
     int assigned = 0;
     for (int i = 0; i < numEl; ++i)
     {
-        const float exact = (params.composition[i].fraction / totalFrac) * (float)N;
+        const double exact = (params.composition[i].fraction / totalFrac) * N;
         counts[i]     = static_cast<int>(std::floor(exact));
-        remainders[i] = exact - (float)counts[i];
+        remainders[i] = exact - counts[i];
         assigned     += counts[i];
     }
 

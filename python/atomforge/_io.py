@@ -69,6 +69,129 @@ _COLORS: dict[str, Tuple[float, float, float]] = {
 }
 
 
+# Atomic masses shared with src/util/ElementData.cpp.
+_MASSES = {
+    "H": 1.008,
+    "He": 4.0026,
+    "Li": 6.941,
+    "Be": 9.0122,
+    "B": 10.811,
+    "C": 12.011,
+    "N": 14.007,
+    "O": 15.999,
+    "F": 18.998,
+    "Ne": 20.180,
+    "Na": 22.990,
+    "Mg": 24.305,
+    "Al": 26.982,
+    "Si": 28.086,
+    "P": 30.974,
+    "S": 32.060,
+    "Cl": 35.453,
+    "Ar": 39.948,
+    "K": 39.098,
+    "Ca": 40.078,
+    "Sc": 44.956,
+    "Ti": 47.867,
+    "V": 50.942,
+    "Cr": 51.996,
+    "Mn": 54.938,
+    "Fe": 55.845,
+    "Co": 58.933,
+    "Ni": 58.693,
+    "Cu": 63.546,
+    "Zn": 65.38,
+    "Ga": 69.723,
+    "Ge": 72.630,
+    "As": 74.922,
+    "Se": 78.971,
+    "Br": 79.904,
+    "Kr": 83.798,
+    "Rb": 85.468,
+    "Sr": 87.62,
+    "Y": 88.906,
+    "Zr": 91.224,
+    "Nb": 92.906,
+    "Mo": 95.96,
+    "Tc": 98.0,
+    "Ru": 101.07,
+    "Rh": 102.906,
+    "Pd": 106.42,
+    "Ag": 107.868,
+    "Cd": 112.411,
+    "In": 114.818,
+    "Sn": 118.710,
+    "Sb": 121.760,
+    "Te": 127.60,
+    "I": 126.904,
+    "Xe": 131.293,
+    "Cs": 132.905,
+    "Ba": 137.327,
+    "La": 138.905,
+    "Ce": 140.116,
+    "Pr": 140.908,
+    "Nd": 144.242,
+    "Pm": 145.0,
+    "Sm": 150.36,
+    "Eu": 151.964,
+    "Gd": 157.25,
+    "Tb": 158.925,
+    "Dy": 162.500,
+    "Ho": 164.930,
+    "Er": 167.259,
+    "Tm": 168.934,
+    "Yb": 173.045,
+    "Lu": 174.967,
+    "Hf": 178.49,
+    "Ta": 180.948,
+    "W": 183.84,
+    "Re": 186.207,
+    "Os": 190.23,
+    "Ir": 192.217,
+    "Pt": 195.084,
+    "Au": 196.967,
+    "Hg": 200.592,
+    "Tl": 204.38,
+    "Pb": 207.2,
+    "Bi": 208.980,
+    "Po": 209.0,
+    "At": 210.0,
+    "Rn": 222.0,
+    "Fr": 223.0,
+    "Ra": 226.0,
+    "Ac": 227.0,
+    "Th": 232.038,
+    "Pa": 231.036,
+    "U": 238.029,
+    "Np": 237.0,
+    "Pu": 244.0,
+    "Am": 243.0,
+    "Cm": 247.0,
+    "Bk": 247.0,
+    "Cf": 251.0,
+    "Es": 252.0,
+    "Fm": 257.0,
+    "Md": 258.0,
+    "No": 259.0,
+    "Lr": 266.0,
+    "Rf": 267.0,
+    "Db": 268.0,
+    "Sg": 269.0,
+    "Bh": 270.0,
+    "Hs": 277.0,
+    "Mt": 278.0,
+    "Ds": 281.0,
+    "Rg": 282.0,
+    "Cn": 285.0,
+    "Nh": 286.0,
+    "Fl": 289.0,
+    "Mc": 290.0,
+    "Lv": 293.0,
+    "Ts": 294.0,
+    "Og": 294.0,
+}
+
+
 def _default_color(symbol: str) -> Tuple[float, float, float]:
     return _COLORS.get(symbol, (0.8, 0.8, 0.8))
 
@@ -83,16 +206,8 @@ def _cell_from_params(a: float, b: float, c: float,
                       alpha: float, beta: float, gamma: float
                       ) -> List[List[float]]:
     """Build a 3×3 cell matrix from lattice parameters (lengths Å, angles °)."""
-    rad = math.pi / 180.0
-    ca, cb, cg = math.cos(alpha * rad), math.cos(beta * rad), math.cos(gamma * rad)
-    sg = math.sin(gamma * rad)
-    ax = a
-    bx = b * cg
-    by = b * sg
-    cx = c * cb
-    cy = c * (ca - cb * cg) / sg if sg > 1e-10 else 0.0
-    cz = math.sqrt(max(0.0, c * c - cx * cx - cy * cy))
-    return [[ax, 0.0, 0.0], [bx, by, 0.0], [cx, cy, cz]]
+    from ._structure import Structure
+    return Structure().set_cell(a, b, c, alpha, beta, gamma).cell
 
 
 def _frac_to_cart(fx: float, fy: float, fz: float,
@@ -115,7 +230,7 @@ def _cart_to_frac(x: float, y: float, z: float,
          - m[0][1] * (m[1][0]*m[2][2] - m[1][2]*m[2][0])
          + m[0][2] * (m[1][0]*m[2][1] - m[1][1]*m[2][0]))
     if abs(det) < 1e-12:
-        return x, y, z
+        raise ValueError("cannot convert coordinates with a singular cell")
     inv = [
         [(m[1][1]*m[2][2]-m[1][2]*m[2][1])/det,
          (m[0][2]*m[2][1]-m[0][1]*m[2][2])/det,
@@ -143,6 +258,8 @@ def _load_xyz(path: str) -> "Structure":
     if not lines:
         return s
     n = int(lines[0].strip())
+    if n < 0 or len(lines) < n + 2:
+        raise ValueError("invalid XYZ: incomplete file or negative atom count")
     comment = lines[1] if len(lines) > 1 else ""
     m = re.search(r'[Ll]attice="([^"]+)"', comment)
     if m:
@@ -152,7 +269,7 @@ def _load_xyz(path: str) -> "Structure":
     for line in lines[2:2 + n]:
         parts = line.split()
         if len(parts) < 4:
-            continue
+            raise ValueError("invalid XYZ: atom needs a symbol and three coordinates")
         sym = parts[0]
         x, y, z = float(parts[1]), float(parts[2]), float(parts[3])
         cr, cg, cb = _default_color(sym)
@@ -219,6 +336,8 @@ def _load_vasp(path: str) -> "Structure":
         counts  = [int(x) for x in tok5]
         coord_line = 6
 
+    if len(species) != len(counts) or not counts or any(n < 0 for n in counts):
+        raise ValueError("invalid POSCAR: species and non-negative counts must match")
     if coord_line >= len(lines):
         raise ValueError("invalid POSCAR: missing coordinate mode")
     if lines[coord_line].strip().lower().startswith("s"):
@@ -380,11 +499,14 @@ def _load_cif(path: str) -> "Structure":
     a     = _float("_cell_length_a")
     b     = _float("_cell_length_b")
     c     = _float("_cell_length_c")
-    alpha = _float("_cell_angle_alpha") or 90.0
-    beta  = _float("_cell_angle_beta")  or 90.0
-    gamma = _float("_cell_angle_gamma") or 90.0
+    alpha = _float("_cell_angle_alpha")
+    beta  = _float("_cell_angle_beta")
+    gamma = _float("_cell_angle_gamma")
+    alpha = 90.0 if alpha is None else alpha
+    beta = 90.0 if beta is None else beta
+    gamma = 90.0 if gamma is None else gamma
 
-    cell = _cell_from_params(a, b, c, alpha, beta, gamma) if (a and b and c) else None
+    cell = _cell_from_params(a, b, c, alpha, beta, gamma) if all(v is not None for v in (a, b, c)) else None
 
     # Find the _atom_site loop
     loop_m = re.search(r"(?i)loop_\s*((?:_atom_site_\S+\s*)+)", text)
@@ -401,15 +523,18 @@ def _load_cif(path: str) -> "Structure":
     data_end   = re.search(r"(?i)(loop_|data_)", text[data_start:])
     data_text  = text[data_start: data_start + data_end.start()] if data_end else text[data_start:]
 
-    rows = []
+    tokens = []
     for line in data_text.splitlines():
         line = line.strip()
-        if not line or line.startswith("_"):
+        if not line:
+            continue
+        if line.startswith("_"):
             break
         # Tokenise, respecting quoted strings
-        tokens = re.findall(r"'[^']*'|\"[^\"]*\"|\S+", line)
-        if tokens:
-            rows.append(tokens)
+        tokens.extend(re.findall(r"'[^']*'|\"[^\"]*\"|\S+", line))
+    if len(tokens) % len(tags):
+        raise ValueError("invalid CIF: incomplete atom-site loop row")
+    rows = [tokens[i:i + len(tags)] for i in range(0, len(tokens), len(tags))]
 
     def col(tag_suffix: str) -> int:
         for i, t in enumerate(tags):
@@ -485,9 +610,9 @@ def _save_cif(s: "Structure", path: str) -> None:
         "loop_\n",
         "_atom_site_type_symbol\n",
         "_atom_site_label\n",
-        "_atom_site_fract_x\n",
-        "_atom_site_fract_y\n",
-        "_atom_site_fract_z\n",
+        "_atom_site_fract_x\n" if s.cell else "_atom_site_Cartn_x\n",
+        "_atom_site_fract_y\n" if s.cell else "_atom_site_Cartn_y\n",
+        "_atom_site_fract_z\n" if s.cell else "_atom_site_Cartn_z\n",
     ]
     counts: dict[str, int] = {}
     for a in s.atoms:
@@ -559,7 +684,7 @@ def _load_lammps(path: str) -> "Structure":
             while i < len(lines):
                 mline = lines[i].strip()
                 i += 1
-                if not mline:
+                if not mline or mline.startswith("#"):
                     continue  # skip blank separator lines
                 if mline[0].isalpha():
                     i -= 1   # put the section header back
@@ -575,6 +700,10 @@ def _load_lammps(path: str) -> "Structure":
             continue
 
         elif line.startswith("Atoms"):
+            style = line.partition("#")[2].strip().split()
+            style = style[0].lower() if style else None
+            if style not in (None, "atomic", "full", "charge", "molecular", "bond", "angle"):
+                raise ValueError(f"unsupported LAMMPS atom style: {style}")
             i += 1
             while i < len(lines):
                 aline = lines[i].strip()
@@ -584,14 +713,19 @@ def _load_lammps(path: str) -> "Structure":
                 if aline[0].isalpha():
                     i -= 1
                     break
-                parts = aline.split()
+                parts = aline.partition("#")[0].split()
                 if len(parts) < 5:
                     continue
                 # atomic: id type x y z
                 # full:   id mol type charge x y z
                 try:
-                    if len(parts) >= 7:
+                    row_style = style or ("full" if len(parts) in (7, 10) else "atomic")
+                    if row_style == "full":
                         tid = int(parts[2]); x, y, z = float(parts[4]), float(parts[5]), float(parts[6])
+                    elif row_style == "charge":
+                        tid = int(parts[1]); x, y, z = map(float, parts[3:6])
+                    elif row_style in ("molecular", "bond", "angle"):
+                        tid = int(parts[2]); x, y, z = map(float, parts[3:6])
                     else:
                         tid = int(parts[1]); x, y, z = float(parts[2]), float(parts[3]), float(parts[4])
                     atoms.append((tid, x, y, z))
@@ -609,7 +743,7 @@ def _load_lammps(path: str) -> "Structure":
     for tid, x, y, z in atoms:
         sym = type_to_sym.get(tid, f"X{tid}")
         cr, cg, cb = _default_color(sym)
-        s.atoms.append(Atom(sym, x, y, z, cr, cg, cb))
+        s.atoms.append(Atom(sym, x - xlo, y - ylo, z - zlo, cr, cg, cb))
     return s
 
 
@@ -620,11 +754,36 @@ def _save_lammps(s: "Structure", path: str) -> None:
             seen.append(a.symbol)
     sym_to_tid = {sym: i + 1 for i, sym in enumerate(seen)}
 
-    cell = s.cell or [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-    # Only orthorhombic box supported for simplicity
-    xlo, xhi = 0.0, math.sqrt(sum(v*v for v in cell[0]))
-    ylo, yhi = 0.0, math.sqrt(sum(v*v for v in cell[1]))
-    zlo, zhi = 0.0, math.sqrt(sum(v*v for v in cell[2]))
+    if s.cell:
+        a, b, c = s.cell
+        # Express the cell and atoms in the restricted triclinic basis.
+        lx = math.sqrt(sum(v*v for v in a))
+        if lx <= 1e-12:
+            raise ValueError("LAMMPS export requires a non-degenerate cell")
+        ex = [v / lx for v in a]
+        xy = sum(b[i]*ex[i] for i in range(3))
+        by = [b[i] - xy*ex[i] for i in range(3)]
+        ly = math.sqrt(sum(v*v for v in by))
+        if ly <= 1e-12:
+            raise ValueError("LAMMPS export requires a non-degenerate cell")
+        ey = [v / ly for v in by]
+        ez = [ex[1]*ey[2] - ex[2]*ey[1], ex[2]*ey[0] - ex[0]*ey[2],
+              ex[0]*ey[1] - ex[1]*ey[0]]
+        xz = sum(c[i]*ex[i] for i in range(3))
+        yz = sum(c[i]*ey[i] for i in range(3))
+        lz = sum(c[i]*ez[i] for i in range(3))
+        if not all(math.isfinite(v) for v in (lx, ly, lz, xy, xz, yz)) or lz <= 1e-12:
+            raise ValueError("LAMMPS export requires a finite right-handed cell")
+        positions = [tuple(sum(v*d for v, d in zip((atom.x, atom.y, atom.z), axis))
+                           for axis in (ex, ey, ez)) for atom in s.atoms]
+        xlo, xhi, ylo, yhi, zlo, zhi = 0.0, lx, 0.0, ly, 0.0, lz
+    else:
+        positions = [(a.x, a.y, a.z) for a in s.atoms]
+        bounds = [(min((p[i] for p in positions), default=0.0) - 1.0,
+                   max((p[i] for p in positions), default=0.0) + 1.0)
+                  for i in range(3)]
+        (xlo, xhi), (ylo, yhi), (zlo, zhi) = bounds
+        xy = xz = yz = 0.0
 
     lines = [
         "AtomForge structure\n\n",
@@ -632,21 +791,18 @@ def _save_lammps(s: "Structure", path: str) -> None:
         f"{len(seen)} atom types\n\n",
         f"{xlo:.6f} {xhi:.6f} xlo xhi\n",
         f"{ylo:.6f} {yhi:.6f} ylo yhi\n",
-        f"{zlo:.6f} {zhi:.6f} zlo zhi\n\n",
+        f"{zlo:.6f} {zhi:.6f} zlo zhi\n",
+        f"{xy:.6f} {xz:.6f} {yz:.6f} xy xz yz\n\n",
         "Masses\n\n",
     ]
-    # Approximate masses
-    _MASSES = {
-        "H": 1.008, "C": 12.011, "N": 14.007, "O": 15.999,
-        "Al": 26.982, "Si": 28.086, "Fe": 55.845, "Cu": 63.546,
-        "Ni": 58.693, "Ti": 47.867, "W": 183.84, "Au": 196.967,
-    }
     for sym in seen:
-        mass = _MASSES.get(sym, 1.0)
+        if sym not in _MASSES:
+            raise ValueError(f"unknown atomic mass for element {sym!r}")
+        mass = _MASSES[sym]
         lines.append(f"  {sym_to_tid[sym]}  {mass:.3f}  # {sym}\n")
     lines.append("\nAtoms  # atomic\n\n")
-    for i, a in enumerate(s.atoms, 1):
-        lines.append(f"{i} {sym_to_tid[a.symbol]} {a.x:.6f} {a.y:.6f} {a.z:.6f}\n")
+    for i, (a, (x, y, z)) in enumerate(zip(s.atoms, positions), 1):
+        lines.append(f"{i} {sym_to_tid[a.symbol]} {x:.6f} {y:.6f} {z:.6f}\n")
     with open(path, "w", encoding="utf-8") as fh:
         fh.writelines(lines)
 
@@ -684,4 +840,6 @@ def save(s: "Structure", path: str) -> None:
     """Save a structure to file.  Format is inferred from the file extension."""
     ext = Path(path).suffix.lower()
     _, saver = _FORMAT_MAP.get(ext, (_load_xyz, _save_xyz))
+    if not ext and Path(path).name.upper() in ("POSCAR", "CONTCAR"):
+        saver = _save_vasp
     saver(s, path)

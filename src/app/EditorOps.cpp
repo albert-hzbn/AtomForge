@@ -897,7 +897,7 @@ void deleteSelectedAtoms(EditorState& state)
     for (int baseIndex : baseIndicesToDelete)
     {
         if (baseIndex >= 0 && baseIndex < (int)state.structure.atoms.size())
-            state.structure.atoms.erase(state.structure.atoms.begin() + baseIndex);
+            state.structure.eraseAtom(static_cast<std::size_t>(baseIndex));
     }
 
     std::cout << "[Operation] Deleted atoms (selection): " << baseIndicesToDelete.size() << std::endl;

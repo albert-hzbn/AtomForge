@@ -84,7 +84,6 @@ AtomForge structures can be loaded, edited, and visualised directly from Python 
 
 ```bash
 pip install atomforge-py
-pip install "atomforge-py[ase]"   # adds CIF / VASP / PDB / LAMMPS support
 ```
 
 ```python
@@ -112,6 +111,19 @@ sup.save("bcc_4x4x4.xyz")
 ```
 
 Set `ATOMFORGE_PATH` to the full path of the AtomForge executable if it is not on your system PATH.
+
+The Python package reads and writes XYZ/extXYZ, VASP POSCAR/CONTCAR, PDB,
+CIF (P1/pre-expanded), and LAMMPS data without external dependencies.
+LAMMPS export preserves triclinic geometry by rotating cells and coordinates
+into the restricted triclinic basis. Loading LAMMPS data shifts coordinates
+by the box origin because Python structures store a cell with origin zero.
+
+## Tests
+
+Configure and build with CMake, then run `ctest --test-dir build --output-on-failure`.
+The C++ regression tests run without a graphics context. When a Python interpreter
+is available at configure time, CTest also runs the Python suites and headless CLI
+integration tests. Set `-DBUILD_TESTING=OFF` to omit test targets.
 
 ## Core controls
 

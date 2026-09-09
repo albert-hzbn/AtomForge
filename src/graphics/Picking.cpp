@@ -1,6 +1,8 @@
 #include "Picking.h"
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <cmath>
+#include <algorithm>
 
 namespace
 {
@@ -53,22 +55,30 @@ int pickAtom(const glm::vec3& origin, const glm::vec3& dir,
 {
     int   best  = -1;
     float bestT = 1e30f;
+    const float dirLength = glm::length(dir);
+    if (!std::isfinite(dirLength) || dirLength <= 0.0f)
+        return -1;
+    const glm::vec3 rayDir = dir / dirLength;
 
     for (int i = 0; i < (int)positions.size(); ++i)
     {
         glm::vec3 oc = positions[i] - origin;
-        float t = glm::dot(oc, dir);
-        if (t < 0.0f) continue;
+        float t = glm::dot(oc, rayDir);
 
         float radius = fallbackRadius;
         if (i < (int)radii.size() && radii[i] > 0.0f)
             radius = radii[i];
 
         float d2 = glm::dot(oc, oc) - t * t;
-        if (d2 < radius * radius && t < bestT)
+        if (radius <= 0.0f || d2 > radius * radius) continue;
+        const float halfChord = std::sqrt(std::max(0.0f, radius * radius - d2));
+        if (t + halfChord < 0.0f) continue;
+        // Compare visible surfaces, since larger atoms may cover nearer centers.
+        const float hitT = std::max(0.0f, t - halfChord);
+        if (hitT < bestT)
         {
             best  = i;
-            bestT = t;
+            bestT = hitT;
         }
     }
     return best;

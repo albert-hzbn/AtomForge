@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <ctime>
+#include <limits>
 #include <random>
 #include <sstream>
 #include <unordered_map>
@@ -50,9 +51,19 @@ AmorphousResult buildAmorphousStructure(
     int totalAtoms = 0;
     for (const auto& e : params.elements)
     {
+        if (e.atomicNumber < 1 || e.atomicNumber > 118)
+        {
+            result.message = "Invalid atomic number in composition.";
+            return result;
+        }
         if (e.count < 0)
         {
             result.message = "Negative atom count for element Z=" + std::to_string(e.atomicNumber);
+            return result;
+        }
+        if (e.count > std::numeric_limits<int>::max() - totalAtoms)
+        {
+            result.message = "Total atom count exceeds the supported range.";
             return result;
         }
         totalAtoms += e.count;
@@ -100,9 +111,10 @@ AmorphousResult buildAmorphousStructure(
     boxB *= params.cellScaleFactor;
     boxC *= params.cellScaleFactor;
 
-    if (boxA < 0.1f || boxB < 0.1f || boxC < 0.1f)
+    if (!std::isfinite(boxA) || !std::isfinite(boxB) || !std::isfinite(boxC)
+        || boxA < 0.1f || boxB < 0.1f || boxC < 0.1f)
     {
-        result.message = "Computed box dimensions are too small (< 0.1 Å).";
+        result.message = "Computed box dimensions must be finite and at least 0.1 Å.";
         return result;
     }
 
@@ -264,12 +276,13 @@ AmorphousResult buildAmorphousStructure(
     Structure output;
     for (int ai = 0; ai < (int)positions.size(); ++ai)
     {
-        AtomSite site;
+        AtomSite site{};
         site.atomicNumber = placedZ[(size_t)ai];
         site.symbol       = elementSymbol(placedZ[(size_t)ai]);
         site.x            = (double)positions[(size_t)ai].x;
         site.y            = (double)positions[(size_t)ai].y;
         site.z            = (double)positions[(size_t)ai].z;
+        getDefaultElementColor(site.atomicNumber, site.r, site.g, site.b);
 
         const int z = placedZ[(size_t)ai];
         if (z >= 0 && z < (int)elementColors.size())

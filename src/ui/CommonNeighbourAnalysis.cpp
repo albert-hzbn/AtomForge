@@ -540,8 +540,8 @@ void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
                 CnaResult* result = new CnaResult();
                 *result = runCna(m_lastStructure, m_lastCutoffScale, m_lastUsePbc);
                 m_result = result;
-                m_isComputing = false;
                 m_computeCompleted = true;
+                m_isComputing = false;
             });
         }
 
@@ -554,7 +554,7 @@ void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
         }
 
         // Display results if available
-        if (m_result)
+        if (!m_isComputing.load() && m_result)
         {
             CnaResult* resultPtr = static_cast<CnaResult*>(m_result);
             drawCnaSummary(*resultPtr);

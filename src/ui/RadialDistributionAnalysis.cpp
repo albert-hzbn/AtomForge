@@ -746,8 +746,8 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
                                      m_lastManualDistortionMin,
                                      m_lastManualDistortionMax);
                     m_result = result;
-                    m_isComputing = false;
                     m_computeCompleted = true;
+                    m_isComputing = false;
                 });
             }
 
@@ -755,7 +755,7 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
             ImGui::BeginChild("##rdf-results-child", ImVec2(0.0f, 0.0f), true);
             
             // Display results if available
-            if (m_result)
+            if (!m_isComputing.load() && m_result)
             {
                 RdfResult* resultPtr = static_cast<RdfResult*>(m_result);
                 drawRdfSummary(*resultPtr);

@@ -7,15 +7,15 @@
 struct AtomSite
 {
     std::string symbol;
-    int atomicNumber;
+    int atomicNumber = 0;
 
-    double x;
-    double y;
-    double z;
+    double x = 0.0;
+    double y = 0.0;
+    double z = 0.0;
 
-    float r;
-    float g;
-    float b;
+    float r = 1.0f;
+    float g = 1.0f;
+    float b = 1.0f;
 };
 
 struct Structure
@@ -26,7 +26,7 @@ struct Structure
     // an accurate lattice-registered bounding box and show all atoms
     // in the full unit cell.
     bool hasUnitCell = false;
-    std::array<std::array<double, 3>, 3> cellVectors;
+    std::array<std::array<double, 3>, 3> cellVectors{};
     std::array<double, 3> cellOffset = {0.0, 0.0, 0.0};
 
     // When > 0, appendPbcBoundaryImages uses this instead of the
@@ -59,6 +59,23 @@ struct Structure
     // run once for this structure (regardless of whether it found anything).
     // Prevents the O(N) detection from re-running on every updateBuffers call.
     bool dislocationDetectionDone = false;
+
+    // Keep per-atom metadata aligned when an editor removes a site.
+    void eraseAtom(std::size_t index)
+    {
+        if (index >= atoms.size()) return;
+        if (grainColors.size() == atoms.size())
+            grainColors.erase(grainColors.begin() + index);
+        else
+            grainColors.clear();
+        if (grainRegionIds.size() == atoms.size())
+            grainRegionIds.erase(grainRegionIds.begin() + index);
+        else
+            grainRegionIds.clear();
+        atoms.erase(atoms.begin() + index);
+        dislocationLoopPoints.clear();
+        dislocationDetectionDone = false;
+    }
 };
 
 void getDefaultElementColor(int atomicNumber, float& r, float& g, float& b);

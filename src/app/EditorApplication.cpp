@@ -950,15 +950,14 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
 
         // Remove closed tabs
         {
-            const int prevActive = activeTabIdx;
-            int removed = 0;
+            const StructureTab* previousTab = tabs[activeTabIdx].get();
             for (int i = 0; i < (int)tabs.size(); )
             {
                 if (tabs[i]->pendingClose)
                 {
                     tabs[i]->state.sceneBuffers.destroy();
                     tabs.erase(tabs.begin() + i);
-                    if (i < prevActive) ++removed;
+                    if (i < activeTabIdx) --activeTabIdx;
                 }
                 else { ++i; }
             }
@@ -970,7 +969,9 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                                  billboardMesh, cylinder, renderer);
                 restoreCameraFromTab(camera, *tabs[0]);
             }
-            activeTabIdx = std::max(0, std::min(prevActive - removed, (int)tabs.size() - 1));
+            activeTabIdx = std::max(0, std::min(activeTabIdx, (int)tabs.size() - 1));
+            if (tabs[activeTabIdx].get() != previousTab)
+                restoreCameraFromTab(camera, *tabs[activeTabIdx]);
         }
 
         // Re-alias after possible tab vector changes
@@ -985,9 +986,13 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         {
             if ((int)tabs.size() > 1)
             {
+                activeState.sceneBuffers.destroy();
                 tabs.erase(tabs.begin() + activeTabIdx);
                 activeTabIdx = std::max(0, activeTabIdx - 1);
                 restoreCameraFromTab(camera, *tabs[activeTabIdx]);
+                // activeState refers to the destroyed tab; rebind next frame.
+                ImGui::EndFrame();
+                continue;
             }
             else
             {
