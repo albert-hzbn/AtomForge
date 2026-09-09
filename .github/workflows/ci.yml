@@ -72,7 +72,14 @@ jobs:
             mingw-w64-ucrt-x86_64-python
 
       - name: Configure
-        run: cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+        # FindPython can prefer the runner's registered CPython over MSYS2's
+        # interpreter. Use UCRT64 Python so ctypes can load the MinGW runtime DLLs.
+        run: |
+          python_executable="$(cygpath -m /ucrt64/bin/python.exe)"
+          "$python_executable" -c "import sys; print('Test interpreter:', sys.executable)"
+          cmake -S . -B build -G "MinGW Makefiles" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPython3_EXECUTABLE="$python_executable"
 
       - name: Build
         run: cmake --build build -j$(nproc)
