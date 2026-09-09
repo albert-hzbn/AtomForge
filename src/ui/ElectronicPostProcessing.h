@@ -3,6 +3,7 @@
 #include "electronic/Volume.h"
 #include "util/BackgroundTask.h"
 #include "ui/PathPicker.h"
+#include "ui/ElectronicSliceViewport.h"
 #include "graphics/ElectronicViewport.h"
 #include <string>
 #include <deque>
@@ -32,6 +33,7 @@ private:
         std::string sourcePath;
     };
     void drawPreview();
+    void draw3DPreview();
     void load(const std::string& path, bool reference);
     void save(const std::string& path);
     void resetCamera();
@@ -52,6 +54,10 @@ private:
     int m_radius = 2;
     int m_exportFormat = 0;
     float m_scalar = 0.1f;
+    float m_surfaceLevel = .1f;
+    bool m_generateSurface = false;
+    int m_viewLayout = 0;
+    ElectronicSliceViewport m_sliceViewport;
     float m_sigma = 0.5f;
     float m_start[3]{};
     float m_end[3] = {1, 0, 0};

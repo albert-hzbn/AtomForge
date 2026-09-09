@@ -96,6 +96,27 @@ int main()
         const auto segments = contours(slice,1);
         if (segments.empty() || segments.size()%2) throw std::runtime_error("Missing contour");
         for (auto p : segments) close(p.x,1);
+        // All three lattice-plane orientations, including boundary slices in
+        // a skewed cell, must preserve the selected fractional coordinate.
+        auto linear = constant(false);
+        for (int z=0;z<8;++z) for (int y=0;y<8;++y) for (int x=0;x<8;++x)
+            linear.values[linear.index(x,y,z)]=(x+2.0*y+3.0*z)/7;
+        for (int axis=0;axis<3;++axis) for (double position : {0.0,.5,1.0})
+        {
+            const int a=axis==0 ? 1 : 0, b=axis==2 ? 1 : 2;
+            const auto cut=section(linear,linear.origin+linear.cell[axis]*position,linear.cell[a],linear.cell[b],9,9);
+            for (int y=0;y<9;++y) for (int x=0;x<9;++x)
+            {
+                glm::dvec3 fraction(0); fraction[axis]=position; fraction[a]=x/8.0; fraction[b]=y/8.0;
+                close(cut.values[cut.index(x,y,0)],fraction.x+2*fraction.y+3*fraction.z);
+            }
+            for (double level : {2.0,3.0}) for (auto point : contours(cut,level))
+            {
+                const auto fraction=glm::inverse(linear.cell)*(point-linear.origin);
+                close(fraction[axis],position);
+                close(fraction.x+2*fraction.y+3*fraction.z,level);
+            }
+        }
         // Conventional NaCl cell, nearest-neighbor distance 1 Angstrom.
         const glm::dmat3 cell(2.0);
         const std::vector<glm::dvec3> sites{{0,0,0},{0,1,1},{1,0,1},{1,1,0},{1,0,0},{0,1,0},{0,0,1},{1,1,1}};

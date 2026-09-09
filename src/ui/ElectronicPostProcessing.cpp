@@ -111,7 +111,7 @@ void ElectronicPostProcessingDialog::drawDialog()
             else if (m_result.loaded)
             {
                 m_volume = m_result.volume; m_selected = m_reference = 0;
-                m_loadedPath=m_result.sourcePath; m_sliceField=-1;
+                m_loadedPath=m_result.sourcePath; m_sliceField=-1; m_sliceViewport.invalidate(); m_sliceViewport.reset();
                 m_surface = {}; m_viewport.setMesh(m_surface); resetCamera();
             }
             else if (!m_result.volume.fields.empty())
@@ -129,8 +129,8 @@ void ElectronicPostProcessingDialog::drawDialog()
         m_pendingDrops.pop_front();
         load(dropped.first,dropped.second);
     }
-    ImGui::SetNextWindowSize(ImVec2(1080,700),ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(780,480),ImVec2(FLT_MAX,FLT_MAX));
+    ImGui::SetNextWindowSize(ImVec2(1380,860),ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(980,680),ImVec2(FLT_MAX,FLT_MAX));
     if (!ImGui::Begin("Electronic Post-processing",&m_open,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
     const float sidebar = std::clamp(ImGui::GetContentRegionAvail().x * .38f,340.0f,440.0f);
     ImGui::BeginChild("Electronic controls",ImVec2(sidebar,0),true);
@@ -196,7 +196,7 @@ void ElectronicPostProcessingDialog::drawDialog()
         if (m_operation == 11 || m_operation == 12) combo("Plane normal",&m_axis,"a*\0b*\0c*\0");
         if (m_operation == 12) inputInt("Window (odd)",&m_window);
         if (m_operation == 13) { inputVector("Plane span u (A)",m_u); inputVector("Plane span v (A)",m_v); }
-        if (m_operation == 14 || m_operation == 22) inputFloat("Isovalue",&m_scalar);
+        if (m_operation == 14) inputFloat("Isovalue",&m_scalar);
         if (m_operation == 17) inputFloat("Sphere radius (A)",&m_scalar);
         if (m_operation == 15) ImGui::TextWrapped("26-neighbor grid maxima; adjacent equal values use a deterministic tie break. Refine the grid to check peak positions.");
         if (m_operation == 16) ImGui::TextWrapped("Integrates nearest-site Voronoi cells around imported atoms. Boundary samples share weight. These are geometric partitions, not Bader basins.");
@@ -221,12 +221,14 @@ void ElectronicPostProcessingDialog::drawDialog()
         }
         if (m_operation == 24) ImGui::TextWrapped("For Cube/XSF covering a complete periodic cell: checks all opposite endpoint values, then removes duplicate planes. Matching values alone do not establish physical periodicity.");
         ImGui::Spacing();
-        if (ImGui::Button("Calculate",ImVec2(-FLT_MIN,0)))
+        if (ImGui::Button("Calculate",ImVec2(-FLT_MIN,0)) || (m_generateSurface && !m_task.running()))
         {
             const Grid source = g, reference = referenceVolume.fields[m_reference];
             const auto sites = m_volume.sites;
-            const int op = m_operation, count = m_count, axis = m_axis, window = m_window, radius = m_radius;
-            const double scalar = m_scalar, sigma = m_sigma, alpha = m_alpha, realCutoff = m_realCutoff, reciprocalCutoff = m_reciprocalCutoff;
+            const int op = m_generateSurface ? 22 : m_operation;
+            m_generateSurface = false;
+            const int count = m_count, axis = m_axis, window = m_window, radius = m_radius;
+            const double scalar = op == 22 ? m_surfaceLevel : m_scalar, sigma = m_sigma, alpha = m_alpha, realCutoff = m_realCutoff, reciprocalCutoff = m_reciprocalCutoff;
             const auto start = vector(m_start), end = vector(m_end), u = vector(m_u), v = vector(m_v);
             const std::string reflectionText(m_reflections), chargeText(m_charges);
             const bool colored = m_colorSurface;
@@ -443,6 +445,59 @@ void ElectronicPostProcessingDialog::resetCamera()
 
 void ElectronicPostProcessingDialog::drawPreview()
 {
+    ImGui::SetNextItemWidth(-1);
+    ImGui::Combo("##view layout",&m_viewLayout,"3D and 2D\0Only 3D\0Only 2D\0");
+    if (m_volume.fields.empty())
+    {
+        ImGui::TextWrapped("Open or drop a VASP, Cube or XSF file to display both views.");
+        return;
+    }
+    const auto& grid=m_volume.fields[m_selected];
+    if (m_sliceField!=m_selected)
+    {
+        const auto range=std::minmax_element(grid.values.begin(),grid.values.end());
+        m_sliceLow=static_cast<float>(*range.first); m_sliceHigh=static_cast<float>(*range.second);
+        m_sliceField=m_selected;
+        m_sliceViewport.invalidate();
+        if (m_surface.vertices.empty())
+        {
+            m_autoLow=m_sliceLow; m_autoHigh=m_sliceHigh; m_colorUnit=grid.unit;
+            if (m_autoRange) { m_colorLow=m_autoLow; m_colorHigh=m_autoHigh; }
+        }
+    }
+    const float width=ImGui::GetContentRegionAvail().x;
+    const float viewWidth=m_viewLayout==0 ? (width-ImGui::GetStyle().ItemSpacing.x)*.5f : width;
+    const auto flags=ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse;
+    if (m_viewLayout!=2)
+    {
+        ImGui::BeginChild("3D view",ImVec2(viewWidth,0),true,flags);
+        ImGui::TextUnformatted("3D isosurface");
+        ImGui::BeginDisabled(m_task.running());
+        ImGui::TextUnformatted("3D isovalue");
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputFloat("##surface level",&m_surfaceLevel,0,0,"%.5g");
+        if (ImGui::Button("Update surface",ImVec2(-FLT_MIN,0))) m_generateSurface=true;
+        ImGui::EndDisabled();
+        draw3DPreview();
+        ImGui::EndChild();
+    }
+    if (m_viewLayout==0) ImGui::SameLine();
+    if (m_viewLayout!=1)
+    {
+        ImGui::BeginChild("2D view",ImVec2(viewWidth,0),true,flags);
+        try
+        {
+            // The section's density scale remains independent of a potential
+            // mapped onto the 3D surface.
+            m_sliceViewport.draw(grid,m_sliceLow,m_sliceHigh,m_palette);
+        }
+        catch (const std::exception& error) { ImGui::TextWrapped("%s",error.what()); }
+        ImGui::EndChild();
+    }
+}
+
+void ElectronicPostProcessingDialog::draw3DPreview()
+{
     if (ImGui::Button("Fit view")) resetCamera();
     ImGui::TextWrapped("Drag: orbit | Right drag: pan | Wheel: zoom");
     const auto pos=ImGui::GetCursorScreenPos();
@@ -480,32 +535,7 @@ void ElectronicPostProcessingDialog::drawPreview()
         }
         catch (const std::exception& e) { m_error=e.what(); }
     }
-    else if (!m_volume.fields.empty())
-    {
-        const auto& g=m_volume.fields[m_selected];
-        if (m_sliceField!=m_selected)
-        {
-            const auto range=std::minmax_element(g.values.begin(),g.values.end());
-            m_sliceLow=static_cast<float>(*range.first); m_sliceHigh=static_cast<float>(*range.second); m_sliceField=m_selected;
-        }
-        m_autoLow=m_sliceLow; m_autoHigh=m_sliceHigh; m_colorUnit=g.unit;
-        if(m_autoRange) { m_colorLow=m_autoLow; m_colorHigh=m_autoHigh; }
-        const int z=g.name=="section" ? 0 : g.shape[2]/2;
-        const int stride=std::max(1,(std::max(g.shape[0],g.shape[1])+255)/256);
-        for(int y=0;y<g.shape[1];y+=stride) for(int x=0;x<g.shape[0];x+=stride)
-        {
-            const float t=m_colorHigh>m_colorLow ? static_cast<float>((g.values[g.index(x,y,z)]-m_colorLow)/(m_colorHigh-m_colorLow)) : .5f;
-            const auto color=ElectronicViewport::color(t,m_palette);
-            draw->AddRectFilled(ImVec2(pos.x+size.x*x/g.shape[0],pos.y+size.y*(1.0f-static_cast<float>(std::min(y+stride,g.shape[1]))/g.shape[1])),
-                ImVec2(pos.x+size.x*std::min(x+stride,g.shape[0])/g.shape[0],pos.y+size.y*(1.0f-static_cast<float>(y)/g.shape[1])),
-                ImGui::ColorConvertFloat4ToU32(ImVec4(color.x,color.y,color.z,1)));
-        }
-        const char* caption = "2D grid slice\nCalculate an isosurface to orbit in 3D";
-        const float captionHeight = ImGui::CalcTextSize(caption,nullptr,false,size.x-24).y+24;
-        draw->AddRectFilled(pos,ImVec2(pos.x+size.x,pos.y+captionHeight),IM_COL32(245,247,251,255));
-        draw->AddText(nullptr,0,ImVec2(pos.x+12,pos.y+12),IM_COL32(30,40,55,255),caption,nullptr,size.x-24);
-    }
-    else draw->AddText(ImVec2(pos.x+20,pos.y+25),IM_COL32(90,100,115,255),"Open a charge-density, potential, Cube or XSF file.");
+    else draw->AddText(ImVec2(pos.x+20,pos.y+25),IM_COL32(90,100,115,255),"Set the 3D isovalue and click Update surface.");
     draw->PopClipRect();
     const auto bar=ImGui::GetCursorScreenPos();
     const float width=std::max(100.0f,size.x-4);
