@@ -1,343 +1,22 @@
 #include "ui/CommonNeighbourAnalysis.h"
 
-#include "ElementData.h"
-#include "math/StructureMath.h"
 #include "ui/ThemeUtils.h"
 #include "imgui.h"
 
-#include <glm/glm.hpp>
 
-#include <algorithm>
-#include <cstdint>
-#include <cmath>
 #include <cstdio>
-#include <map>
-#include <queue>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <utility>
-#include <vector>
-#include <thread>
-#include <memory>
-#include <atomic>
+
+using atomforge::analysis::CnaResult;
+using atomforge::analysis::Signature;
 
 namespace
 {
-constexpr float kDefaultCutoffScale = 1.18f;
-constexpr float kSpatialHashCellSize = 4.0f;
-
-struct Vec3iHash
-{
-    size_t operator()(const glm::ivec3& value) const
-    {
-        return ((size_t)value.x * 73856093u) ^ ((size_t)value.y * 19349663u) ^ ((size_t)value.z * 83492791u);
-    }
-};
-
-glm::ivec3 getGridCell(const glm::vec3& position)
-{
-    return glm::ivec3((int)std::floor(position.x / kSpatialHashCellSize),
-                      (int)std::floor(position.y / kSpatialHashCellSize),
-                      (int)std::floor(position.z / kSpatialHashCellSize));
-}
-
-struct Signature
-{
-    int common = 0;
-    int bonds = 0;
-    int chain = 0;
-
-    bool operator<(const Signature& other) const
-    {
-        if (common != other.common) return common < other.common;
-        if (bonds != other.bonds) return bonds < other.bonds;
-        return chain < other.chain;
-    }
-
-    bool operator==(const Signature& other) const
-    {
-        return common == other.common && bonds == other.bonds && chain == other.chain;
-    }
-};
-
-struct AtomRow
-{
-    int index = -1;
-    int atomicNumber = 0;
-    std::string symbol;
-    int coordination = 0;
-    Signature dominantSignature;
-    int dominantSignatureCount = 0;
-    std::string environment;
-};
-
-struct CnaResult
-{
-    bool valid = false;
-    std::string message;
-
-    int atomCount = 0;
-    int pairCount = 0;
-    bool pbcUsed = false;
-
-    std::map<Signature, int> signatureCounts;
-    std::map<std::string, int> environmentCounts;
-    std::vector<AtomRow> atomRows;
-};
-
 std::string signatureToString(const Signature& s)
 {
     char buffer[64];
     std::snprintf(buffer, sizeof(buffer), "1-%d-%d-%d", s.common, s.bonds, s.chain);
     return std::string(buffer);
-}
-
-std::string classifyEnvironment(const Signature& s)
-{
-    Signature fcc; fcc.common = 4; fcc.bonds = 2; fcc.chain = 1;
-    Signature hcp; hcp.common = 4; hcp.bonds = 2; hcp.chain = 2;
-    Signature bccA; bccA.common = 4; bccA.bonds = 4; bccA.chain = 1;
-    Signature bccB; bccB.common = 6; bccB.bonds = 6; bccB.chain = 1;
-    Signature ico; ico.common = 5; ico.bonds = 5; ico.chain = 1;
-
-    if (s == fcc) return "FCC-like";
-    if (s == hcp) return "HCP-like";
-    if (s == bccA || s == bccB) return "BCC-like";
-    if (s == ico) return "ICO-like";
-    return "Unknown";
-}
-
-uint64_t edgeKey(int a, int b)
-{
-    if (a > b) std::swap(a, b);
-    return ((uint64_t)(uint32_t)a << 32) | (uint32_t)b;
-}
-
-int longestChainLength(const std::vector<int>& commonNodes,
-                       const std::unordered_set<uint64_t>& edgeSet)
-{
-    if (commonNodes.empty())
-        return 0;
-    if (commonNodes.size() == 1)
-        return 1;
-
-    std::map<int, int> localIndex;
-    for (int i = 0; i < (int)commonNodes.size(); ++i)
-        localIndex[commonNodes[i]] = i;
-
-    std::vector<std::vector<int>> adjacency(commonNodes.size());
-    for (int i = 0; i < (int)commonNodes.size(); ++i)
-    {
-        for (int j = i + 1; j < (int)commonNodes.size(); ++j)
-        {
-            if (edgeSet.find(edgeKey(commonNodes[i], commonNodes[j])) != edgeSet.end())
-            {
-                adjacency[i].push_back(j);
-                adjacency[j].push_back(i);
-            }
-        }
-    }
-
-    int best = 1;
-    for (int src = 0; src < (int)commonNodes.size(); ++src)
-    {
-        std::vector<int> dist(commonNodes.size(), -1);
-        std::queue<int> q;
-        dist[src] = 0;
-        q.push(src);
-
-        while (!q.empty())
-        {
-            int u = q.front();
-            q.pop();
-            for (int v : adjacency[u])
-            {
-                if (dist[v] >= 0)
-                    continue;
-                dist[v] = dist[u] + 1;
-                best = std::max(best, dist[v] + 1);
-                q.push(v);
-            }
-        }
-    }
-
-    return best;
-}
-
-CnaResult runCna(const Structure& structure, float cutoffScale, bool usePbcRequest)
-{
-    CnaResult result;
-    result.atomCount = (int)structure.atoms.size();
-
-    if (structure.atoms.empty())
-    {
-        result.valid = false;
-        result.message = "No atoms available.";
-        return result;
-    }
-
-    std::vector<float> radii = makeLiteratureCovalentRadii();
-
-    glm::mat3 cell(1.0f);
-    glm::mat3 invCell(1.0f);
-    bool usePbc = false;
-    if (usePbcRequest && structure.hasUnitCell)
-    {
-        usePbc = tryMakeCellMatrices(structure, cell, invCell);
-    }
-    result.pbcUsed = usePbc;
-
-    std::vector<glm::vec3> positions(structure.atoms.size());
-    for (int i = 0; i < (int)structure.atoms.size(); ++i)
-    {
-        positions[i] = glm::vec3((float)structure.atoms[i].x,
-                                 (float)structure.atoms[i].y,
-                                 (float)structure.atoms[i].z);
-    }
-
-    std::vector<std::vector<int>> neighbors(structure.atoms.size());
-    std::unordered_set<uint64_t> edgeSet;
-
-    auto tryAddBond = [&](int i, int j)
-    {
-        if (j <= i)
-            return;
-
-        int zi = structure.atoms[i].atomicNumber;
-        float ri = (zi >= 0 && zi < (int)radii.size()) ? radii[zi] : 1.0f;
-        int zj = structure.atoms[j].atomicNumber;
-        float rj = (zj >= 0 && zj < (int)radii.size()) ? radii[zj] : 1.0f;
-
-        glm::vec3 delta = minimumImageDelta(positions[j] - positions[i], usePbc, cell, invCell);
-        float d = glm::length(delta);
-        if (d <= kMinBondDistance)
-            return;
-
-        float cutoff = (ri + rj) * cutoffScale;
-        if (d > cutoff)
-            return;
-
-        neighbors[i].push_back(j);
-        neighbors[j].push_back(i);
-        edgeSet.insert(edgeKey(i, j));
-    };
-
-    if (!usePbc)
-    {
-        std::unordered_map<glm::ivec3, std::vector<int>, Vec3iHash> grid;
-        grid.reserve(positions.size());
-        for (int i = 0; i < (int)positions.size(); ++i)
-            grid[getGridCell(positions[i])].push_back(i);
-
-        for (int i = 0; i < (int)positions.size(); ++i)
-        {
-            const glm::ivec3 cellCoord = getGridCell(positions[i]);
-            for (int dx = -1; dx <= 1; ++dx)
-            {
-                for (int dy = -1; dy <= 1; ++dy)
-                {
-                    for (int dz = -1; dz <= 1; ++dz)
-                    {
-                        const glm::ivec3 neighborCell(cellCoord.x + dx,
-                                                      cellCoord.y + dy,
-                                                      cellCoord.z + dz);
-                        std::unordered_map<glm::ivec3, std::vector<int>, Vec3iHash>::const_iterator it = grid.find(neighborCell);
-                        if (it == grid.end())
-                            continue;
-
-                        const std::vector<int>& candidates = it->second;
-                        for (int index = 0; index < (int)candidates.size(); ++index)
-                            tryAddBond(i, candidates[index]);
-                    }
-                }
-            }
-        }
-    }
-    else
-    {
-        for (int i = 0; i < (int)structure.atoms.size(); ++i)
-        {
-            for (int j = i + 1; j < (int)structure.atoms.size(); ++j)
-                tryAddBond(i, j);
-        }
-    }
-
-    for (int i = 0; i < (int)neighbors.size(); ++i)
-        std::sort(neighbors[i].begin(), neighbors[i].end());
-
-    std::vector<std::map<Signature, int>> atomSignatures(structure.atoms.size());
-
-    for (int i = 0; i < (int)structure.atoms.size(); ++i)
-    {
-        for (int t = 0; t < (int)neighbors[i].size(); ++t)
-        {
-            int j = neighbors[i][t];
-            if (j <= i)
-                continue;
-
-            std::vector<int> common;
-            common.reserve(std::min(neighbors[i].size(), neighbors[j].size()));
-            std::set_intersection(neighbors[i].begin(), neighbors[i].end(),
-                                  neighbors[j].begin(), neighbors[j].end(),
-                                  std::back_inserter(common));
-
-            int commonCount = (int)common.size();
-            int bondCount = 0;
-            for (int a = 0; a < (int)common.size(); ++a)
-            {
-                for (int b = a + 1; b < (int)common.size(); ++b)
-                {
-                    if (edgeSet.find(edgeKey(common[a], common[b])) != edgeSet.end())
-                        ++bondCount;
-                }
-            }
-
-            int chainLen = longestChainLength(common, edgeSet);
-
-            Signature sig;
-            sig.common = commonCount;
-            sig.bonds = bondCount;
-            sig.chain = chainLen;
-
-            ++result.signatureCounts[sig];
-            ++atomSignatures[i][sig];
-            ++atomSignatures[j][sig];
-            ++result.pairCount;
-        }
-    }
-
-    result.atomRows.reserve(structure.atoms.size());
-    for (int i = 0; i < (int)structure.atoms.size(); ++i)
-    {
-        AtomRow row;
-        row.index = i;
-        row.atomicNumber = structure.atoms[i].atomicNumber;
-        row.symbol = structure.atoms[i].symbol;
-        row.coordination = (int)neighbors[i].size();
-
-        Signature dominant;
-        int dominantCount = 0;
-        for (std::map<Signature, int>::const_iterator it = atomSignatures[i].begin(); it != atomSignatures[i].end(); ++it)
-        {
-            if (it->second > dominantCount)
-            {
-                dominant = it->first;
-                dominantCount = it->second;
-            }
-        }
-
-        row.dominantSignature = dominant;
-        row.dominantSignatureCount = dominantCount;
-        row.environment = (dominantCount > 0) ? classifyEnvironment(dominant) : "Unknown";
-
-        ++result.environmentCounts[row.environment];
-        result.atomRows.push_back(row);
-    }
-
-    result.valid = true;
-    result.message = "CNA completed.";
-    return result;
 }
 
 void drawSignatureTable(const CnaResult& result)
@@ -349,15 +28,15 @@ void drawSignatureTable(const CnaResult& result)
         ImGui::TableSetupColumn("Fraction", ImGuiTableColumnFlags_WidthFixed, 120.0f);
         ImGui::TableHeadersRow();
 
-        for (std::map<Signature, int>::const_iterator it = result.signatureCounts.begin(); it != result.signatureCounts.end(); ++it)
+        for (const auto& [signature, count] : result.signatureCounts)
         {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text("%s", signatureToString(it->first).c_str());
+            ImGui::Text("%s", signatureToString(signature).c_str());
             ImGui::TableSetColumnIndex(1);
-            ImGui::Text("%d", it->second);
+            ImGui::Text("%d", count);
             ImGui::TableSetColumnIndex(2);
-            float f = (result.pairCount > 0) ? (float)it->second / (float)result.pairCount : 0.0f;
+            float f = (result.pairCount > 0) ? (float)count / (float)result.pairCount : 0.0f;
             ImGui::Text("%.4f", f);
         }
 
@@ -374,15 +53,15 @@ void drawEnvironmentTable(const CnaResult& result)
         ImGui::TableSetupColumn("Fraction", ImGuiTableColumnFlags_WidthFixed, 120.0f);
         ImGui::TableHeadersRow();
 
-        for (std::map<std::string, int>::const_iterator it = result.environmentCounts.begin(); it != result.environmentCounts.end(); ++it)
+        for (const auto& [environment, count] : result.environmentCounts)
         {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text("%s", it->first.c_str());
+            ImGui::Text("%s", environment.c_str());
             ImGui::TableSetColumnIndex(1);
-            ImGui::Text("%d", it->second);
+            ImGui::Text("%d", count);
             ImGui::TableSetColumnIndex(2);
-            float f = (result.atomCount > 0) ? (float)it->second / (float)result.atomCount : 0.0f;
+            float f = (result.atomCount > 0) ? (float)count / (float)result.atomCount : 0.0f;
             ImGui::Text("%.4f", f);
         }
 
@@ -403,9 +82,8 @@ void drawAtomTable(const CnaResult& result)
         ImGui::TableSetupColumn("Environment", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableHeadersRow();
 
-        for (int i = 0; i < (int)result.atomRows.size(); ++i)
+        for (const auto& row : result.atomRows)
         {
-            const AtomRow& row = result.atomRows[i];
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("%d", row.index);
@@ -465,32 +143,19 @@ void drawCnaDetails(const CnaResult& result)
 
 } // namespace
 
-// Deleter function for the opaque result pointer
-void deleteCnaResult(void* ptr)
-{
-    if (ptr)
-    {
-        delete static_cast<CnaResult*>(ptr);
-    }
-}
-
-CommonNeighbourAnalysisDialog::~CommonNeighbourAnalysisDialog()
-{
-    if (m_computeThread && m_computeThread->joinable())
-        m_computeThread->join();
-    deleteCnaResult(m_result);
-}
-
 void CommonNeighbourAnalysisDialog::drawMenuItem(bool enabled)
 {
-    if (ImGui::MenuItem("Common Neighbour Analysis", NULL, false, enabled))
+    if (ImGui::MenuItem("Common Neighbour Analysis", nullptr, false, enabled))
         m_openRequested = true;
 }
 
 void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
 {
-    static bool usePbc = true;
-    static float cutoffScale = kDefaultCutoffScale;
+    if (m_task.poll())
+        m_computeCompleted = m_task.result().has_value();
+
+    bool& usePbc = m_params.usePbc;
+    float& cutoffScale = m_params.cutoffScale;
 
     if (m_openRequested)
     {
@@ -508,55 +173,37 @@ void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
         ImGui::SameLine();
         
         bool computeRequested = false;
-        if (ImGui::Button("Run CNA") && !m_isComputing)
+        if (ImGui::Button("Run CNA") && !m_task.running())
             computeRequested = true;
         
         ImGui::SameLine();
-        if (m_isComputing)
+        if (m_task.running())
             ImGui::TextColored(themeStatusComputing(), "Computing...");
         else if (m_computeCompleted)
             ImGui::TextColored(themeStatusGood(), "Done");
+        if (!m_task.error().empty())
+            ImGui::TextWrapped("%s", m_task.error().c_str());
 
         // Launch computation in background thread
-        if (computeRequested && !m_isComputing)
+        if (computeRequested && !m_task.running())
         {
-            // Store current parameters
-            m_lastStructure = structure;
-            m_lastCutoffScale = cutoffScale;
-            m_lastUsePbc = usePbc;
-            
-            // Join previous thread if it exists
-            if (m_computeThread && m_computeThread->joinable())
-                m_computeThread->join();
-            
-            // Clean up old result
-            deleteCnaResult(m_result);
-            m_result = nullptr;
-            
-            // Start new computation thread
-            m_isComputing = true;
             m_computeCompleted = false;
-            m_computeThread = std::make_unique<std::thread>([this]() {
-                CnaResult* result = new CnaResult();
-                *result = runCna(m_lastStructure, m_lastCutoffScale, m_lastUsePbc);
-                m_result = result;
-                m_computeCompleted = true;
-                m_isComputing = false;
+            m_task.start([snapshot = structure, params = m_params]() {
+                return atomforge::analysis::computeCna(snapshot, params);
             });
         }
 
-        if (changed && !m_isComputing)
+        if (changed && !m_task.running())
         {
             // Clear results if parameters change while not computing
-            deleteCnaResult(m_result);
-            m_result = nullptr;
+            m_task.clearResult();
             m_computeCompleted = false;
         }
 
         // Display results if available
-        if (!m_isComputing.load() && m_result)
+        if (m_task.result())
         {
-            CnaResult* resultPtr = static_cast<CnaResult*>(m_result);
+            const auto* resultPtr = &*m_task.result();
             drawCnaSummary(*resultPtr);
             drawCnaDetails(*resultPtr);
         }

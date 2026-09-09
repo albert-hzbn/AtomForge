@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../algorithms/ShortRangeOrderAnalysis.h"
-#include "../io/StructureLoader.h"
+#include "algorithms/ShortRangeOrderAnalysis.h"
+#include "model/Structure.h"
 #include <memory>
 #include <thread>
 #include <atomic>

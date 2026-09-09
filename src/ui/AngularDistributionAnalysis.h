@@ -1,18 +1,16 @@
 #pragma once
 
-#include "io/StructureLoader.h"
+#include "model/Structure.h"
 #include "algorithms/AngularDistributionAnalysis.h"
 
-#include <memory>
-#include <thread>
-#include <atomic>
+#include "util/BackgroundTask.h"
 #include <vector>
 #include <string>
 
 struct AngularDistributionAnalysisDialog
 {
     AngularDistributionAnalysisDialog()  = default;
-    ~AngularDistributionAnalysisDialog();
+    ~AngularDistributionAnalysisDialog() = default;
 
     AngularDistributionAnalysisDialog(const AngularDistributionAnalysisDialog&)            = delete;
     AngularDistributionAnalysisDialog& operator=(const AngularDistributionAnalysisDialog&) = delete;
@@ -44,12 +42,7 @@ private:
     // UI state
     bool  m_paramsDirty     = false;   // settings changed since last compute
 
-    // Background thread
-    std::unique_ptr<std::thread> m_workerThread;
-    std::atomic<bool>            m_isComputing{false};
-    std::atomic<bool>            m_computeCompleted{false};
-    Structure                    m_workerStructure;
-    AdfResult                    m_workerResult;
+    atomforge::BackgroundTask<AdfResult> m_task;
 
     // Results (main-thread safe after swap)
     AdfResult m_result;

@@ -5,7 +5,7 @@
 
 #include <glm/glm.hpp>
 
-#include "io/StructureLoader.h"
+#include "model/Structure.h"
 
 struct BulkCrystalBuilderDialog
 {

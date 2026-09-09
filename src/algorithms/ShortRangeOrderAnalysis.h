@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <map>
-#include "../io/StructureLoader.h"
+#include "model/Structure.h"
 
 /**
  * @struct SroEntry

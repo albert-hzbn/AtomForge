@@ -1,4 +1,5 @@
 #include "app/FileDropHandler.h"
+#include "io/StructureLoader.h"
 
 #include "app/EditorOps.h"
 #include "app/EditorState.h"

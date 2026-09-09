@@ -1,93 +1,21 @@
 #include "ui/RadialDistributionAnalysis.h"
 
 #include "ElementData.h"
-#include "math/StructureMath.h"
 #include "ui/ThemeUtils.h"
 #include "imgui.h"
 
-#include <glm/glm.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstdio>
-#include <limits>
-#include <map>
 #include <set>
 #include <string>
 #include <vector>
-#include <thread>
-#include <memory>
-#include <atomic>
+#include <utility>
+
+using atomforge::analysis::RdfResult;
 
 namespace
 {
-constexpr float kPi = 3.14159265358979323846f;
-constexpr float kMinDistance = 1e-6f;
-
-struct RdfBin
-{
-    float rCenter = 0.0f;
-    float g = 0.0f;
-    float rawCount = 0.0f;
-    float cumulative = 0.0f;
-};
-
-struct RdfResult
-{
-    bool valid = false;
-    std::string message;
-
-    bool pbcUsed = false;
-    bool normalized = false;
-    int atomCount = 0;
-    int refCount = 0;
-    int targetCount = 0;
-    float volume = 0.0f;
-    float density = 0.0f;
-    float rMin = 0.0f;
-    float rMax = 0.0f;
-    int binCount = 0;
-    float binWidth = 0.0f;
-
-    float firstPeakR = 0.0f;
-    float firstPeakValue = 0.0f;
-    float firstMinimumR = 0.0f;
-    float firstMinimumValue = 0.0f;
-    bool hasFirstPeak = false;
-    bool hasFirstMinimum = false;
-
-    bool hasDistortionMetrics = false;
-    bool distortionWindowAuto = true;
-    float distortionWindowMin = 0.0f;
-    float distortionWindowMax = 0.0f;
-    float shellMeanDistance = 0.0f;
-    float shellStdDev = 0.0f;
-    float shellRelativeDistortion = 0.0f;
-    float shellCoordination = 0.0f;
-    float firstPeakFwhm = 0.0f;
-    bool hasFirstPeakFwhm = false;
-
-    std::vector<RdfBin> bins;
-};
-
-float computeBoundingVolume(const Structure& structure)
-{
-    if (structure.atoms.empty())
-        return 0.0f;
-
-    glm::vec3 minP((float)structure.atoms[0].x, (float)structure.atoms[0].y, (float)structure.atoms[0].z);
-    glm::vec3 maxP = minP;
-    for (int i = 1; i < (int)structure.atoms.size(); ++i)
-    {
-        glm::vec3 p((float)structure.atoms[i].x, (float)structure.atoms[i].y, (float)structure.atoms[i].z);
-        minP = glm::min(minP, p);
-        maxP = glm::max(maxP, p);
-    }
-
-    glm::vec3 extents = glm::max(maxP - minP, glm::vec3(1.0f));
-    return extents.x * extents.y * extents.z;
-}
-
 void drawPlot(const RdfResult& result,
               bool showRawCounts,
               bool showCumulative)
@@ -206,327 +134,21 @@ void drawPlot(const RdfResult& result,
     ImGui::EndChild();
 }
 
-RdfResult runRdf(const Structure& structure,
-                 int refAtomicNumberFilter,
-                 int targetAtomicNumberFilter,
-                 bool usePbcRequest,
-                 bool normalize,
-                 float rMin,
-                 float rMax,
-                 int binCount,
-                 int smoothingPasses,
-                 bool enableDistortionAnalysis,
-                 bool autoDistortionWindow,
-                 float manualDistortionMin,
-                 float manualDistortionMax)
-{
-    RdfResult result;
-    result.atomCount = (int)structure.atoms.size();
-    result.normalized = normalize;
-    result.rMin = rMin;
-    result.rMax = rMax;
-    result.binCount = binCount;
-
-    if (structure.atoms.empty())
-    {
-        result.message = "No atoms available.";
-        return result;
-    }
-    if (rMax <= rMin)
-    {
-        result.message = "r_max must be greater than r_min.";
-        return result;
-    }
-    if (binCount < 8)
-    {
-        result.message = "Bin count too small.";
-        return result;
-    }
-
-    glm::mat3 cell(1.0f);
-    glm::mat3 invCell(1.0f);
-    bool usePbc = false;
-    float volume = 0.0f;
-    if (usePbcRequest && structure.hasUnitCell)
-    {
-        if (tryMakeCellMatrices(structure, cell, invCell))
-        {
-            volume = std::abs(glm::determinant(cell));
-            usePbc = true;
-        }
-    }
-    if (!usePbc)
-        volume = computeBoundingVolume(structure);
-
-    result.pbcUsed = usePbc;
-    result.volume = volume;
-    result.binWidth = (rMax - rMin) / (float)binCount;
-
-    std::vector<int> refIndices;
-    std::vector<int> targetIndices;
-    for (int i = 0; i < (int)structure.atoms.size(); ++i)
-    {
-        int z = structure.atoms[i].atomicNumber;
-        if (refAtomicNumberFilter <= 0 || z == refAtomicNumberFilter)
-            refIndices.push_back(i);
-        if (targetAtomicNumberFilter <= 0 || z == targetAtomicNumberFilter)
-            targetIndices.push_back(i);
-    }
-
-    result.refCount = (int)refIndices.size();
-    result.targetCount = (int)targetIndices.size();
-    if (refIndices.empty() || targetIndices.empty())
-    {
-        result.message = "Reference or target species selection is empty.";
-        return result;
-    }
-    if (volume <= 0.0f)
-    {
-        result.message = "Unable to determine analysis volume.";
-        return result;
-    }
-
-    std::vector<float> histogram(binCount, 0.0f);
-    std::vector<glm::vec3> positions(structure.atoms.size());
-    for (int i = 0; i < (int)structure.atoms.size(); ++i)
-        positions[i] = glm::vec3((float)structure.atoms[i].x, (float)structure.atoms[i].y, (float)structure.atoms[i].z);
-
-    for (int a = 0; a < (int)refIndices.size(); ++a)
-    {
-        int i = refIndices[a];
-        for (int b = 0; b < (int)targetIndices.size(); ++b)
-        {
-            int j = targetIndices[b];
-            if (i == j)
-                continue;
-
-            glm::vec3 delta = minimumImageDelta(positions[j] - positions[i], usePbc, cell, invCell);
-            float r = glm::length(delta);
-            if (r < rMin || r >= rMax || r <= kMinDistance)
-                continue;
-
-            int bin = (int)((r - rMin) / result.binWidth);
-            if (bin >= 0 && bin < binCount)
-                histogram[bin] += 1.0f;
-        }
-    }
-
-    if (smoothingPasses > 0)
-    {
-        for (int pass = 0; pass < smoothingPasses; ++pass)
-        {
-            std::vector<float> smoothed = histogram;
-            for (int i = 1; i + 1 < binCount; ++i)
-                smoothed[i] = 0.25f * histogram[i - 1] + 0.5f * histogram[i] + 0.25f * histogram[i + 1];
-            histogram.swap(smoothed);
-        }
-    }
-
-    const float rhoTarget = (float)targetIndices.size() / volume;
-    result.density = rhoTarget;
-    result.bins.resize(binCount);
-
-    float cumulative = 0.0f;
-    for (int i = 0; i < binCount; ++i)
-    {
-        float r0 = rMin + i * result.binWidth;
-        float r1 = r0 + result.binWidth;
-        float rc = 0.5f * (r0 + r1);
-        float shellVolume = (4.0f / 3.0f) * kPi * (r1 * r1 * r1 - r0 * r0 * r0);
-        float expected = (float)refIndices.size() * rhoTarget * shellVolume;
-        float g = normalize && expected > 1e-12f ? histogram[i] / expected : histogram[i];
-
-        cumulative += histogram[i] / (float)refIndices.size();
-
-        result.bins[i].rCenter = rc;
-        result.bins[i].rawCount = histogram[i];
-        result.bins[i].g = g;
-        result.bins[i].cumulative = cumulative;
-    }
-
-    float bestPeak = -std::numeric_limits<float>::max();
-    int peakIndex = -1;
-    for (int i = 1; i + 1 < binCount; ++i)
-    {
-        float y = result.bins[i].g;
-        if (y >= result.bins[i - 1].g && y >= result.bins[i + 1].g && y > bestPeak)
-        {
-            bestPeak = y;
-            peakIndex = i;
-        }
-    }
-    if (peakIndex >= 0)
-    {
-        result.hasFirstPeak = true;
-        result.firstPeakR = result.bins[peakIndex].rCenter;
-        result.firstPeakValue = result.bins[peakIndex].g;
-
-        int minIndex = -1;
-        for (int i = peakIndex + 1; i + 1 < binCount; ++i)
-        {
-            float y = result.bins[i].g;
-            if (y <= result.bins[i - 1].g && y <= result.bins[i + 1].g)
-            {
-                minIndex = i;
-                break;
-            }
-        }
-        if (minIndex >= 0)
-        {
-            result.hasFirstMinimum = true;
-            result.firstMinimumR = result.bins[minIndex].rCenter;
-            result.firstMinimumValue = result.bins[minIndex].g;
-        }
-
-        float halfHeight = 0.5f * result.firstPeakValue;
-        float leftCrossR = result.bins[peakIndex].rCenter;
-        float rightCrossR = result.bins[peakIndex].rCenter;
-
-        for (int i = peakIndex; i > 0; --i)
-        {
-            float y0 = result.bins[i - 1].g;
-            float y1 = result.bins[i].g;
-            if (y0 <= halfHeight && y1 >= halfHeight)
-            {
-                float t = std::abs(y1 - y0) > 1e-12f ? (halfHeight - y0) / (y1 - y0) : 0.0f;
-                float r0 = result.bins[i - 1].rCenter;
-                float r1 = result.bins[i].rCenter;
-                leftCrossR = r0 + t * (r1 - r0);
-                break;
-            }
-        }
-        for (int i = peakIndex; i + 1 < binCount; ++i)
-        {
-            float y0 = result.bins[i].g;
-            float y1 = result.bins[i + 1].g;
-            if (y0 >= halfHeight && y1 <= halfHeight)
-            {
-                float t = std::abs(y1 - y0) > 1e-12f ? (halfHeight - y0) / (y1 - y0) : 0.0f;
-                float r0 = result.bins[i].rCenter;
-                float r1 = result.bins[i + 1].rCenter;
-                rightCrossR = r0 + t * (r1 - r0);
-                break;
-            }
-        }
-
-        if (rightCrossR > leftCrossR)
-        {
-            result.hasFirstPeakFwhm = true;
-            result.firstPeakFwhm = rightCrossR - leftCrossR;
-        }
-    }
-
-    if (enableDistortionAnalysis)
-    {
-        float shellMin = manualDistortionMin;
-        float shellMax = manualDistortionMax;
-        bool hasWindow = false;
-
-        if (autoDistortionWindow)
-        {
-            if (result.hasFirstPeak)
-            {
-                int leftMinIndex = -1;
-                int rightMinIndex = -1;
-
-                for (int i = peakIndex - 1; i >= 1; --i)
-                {
-                    const float y = result.bins[i].g;
-                    if (y <= result.bins[i - 1].g && y <= result.bins[i + 1].g)
-                    {
-                        leftMinIndex = i;
-                        break;
-                    }
-                }
-                for (int i = peakIndex + 1; i + 1 < binCount; ++i)
-                {
-                    const float y = result.bins[i].g;
-                    if (y <= result.bins[i - 1].g && y <= result.bins[i + 1].g)
-                    {
-                        rightMinIndex = i;
-                        break;
-                    }
-                }
-
-                if (rightMinIndex >= 0)
-                {
-                    shellMin = (leftMinIndex >= 0) ? result.bins[leftMinIndex].rCenter : rMin;
-                    shellMax = result.bins[rightMinIndex].rCenter;
-                    hasWindow = shellMax > shellMin;
-                }
-            }
-        }
-        else
-        {
-            hasWindow = shellMax > shellMin;
-        }
-
-        if (hasWindow)
-        {
-            float sumW = 0.0f;
-            float sumWR = 0.0f;
-            float shellRawSum = 0.0f;
-
-            for (int i = 0; i < (int)result.bins.size(); ++i)
-            {
-                const float r = result.bins[i].rCenter;
-                if (r < shellMin || r > shellMax)
-                    continue;
-
-                const float w = result.bins[i].rawCount;
-                sumW += w;
-                sumWR += w * r;
-                shellRawSum += w;
-            }
-
-            if (sumW > 1e-8f && result.refCount > 0)
-            {
-                const float mean = sumWR / sumW;
-                float var = 0.0f;
-                for (int i = 0; i < (int)result.bins.size(); ++i)
-                {
-                    const float r = result.bins[i].rCenter;
-                    if (r < shellMin || r > shellMax)
-                        continue;
-
-                    const float w = result.bins[i].rawCount;
-                    const float d = r - mean;
-                    var += w * d * d;
-                }
-                var /= sumW;
-
-                result.hasDistortionMetrics = true;
-                result.distortionWindowAuto = autoDistortionWindow;
-                result.distortionWindowMin = shellMin;
-                result.distortionWindowMax = shellMax;
-                result.shellMeanDistance = mean;
-                result.shellStdDev = std::sqrt(std::max(var, 0.0f));
-                result.shellRelativeDistortion = mean > 1e-8f ? (result.shellStdDev / mean) * 100.0f : 0.0f;
-                result.shellCoordination = shellRawSum / (float)result.refCount;
-            }
-        }
-    }
-
-    result.valid = true;
-    result.message = normalize ? "RDF computed." : "Radial histogram computed.";
-    return result;
-}
-
 const char* speciesLabelGetter(void* userData, int idx)
 {
-    const std::vector<std::pair<int, std::string> >* entries = static_cast<const std::vector<std::pair<int, std::string> >*>(userData);
+    const std::vector<std::pair<int, std::string>>* entries = static_cast<const std::vector<std::pair<int, std::string>>*>(userData);
     return (*entries)[idx].second.c_str();
 }
 
-std::vector<std::pair<int, std::string> > buildSpeciesOptions(const Structure& structure)
+std::vector<std::pair<int, std::string>> buildSpeciesOptions(const Structure& structure)
 {
-    std::vector<std::pair<int, std::string> > options;
+    std::vector<std::pair<int, std::string>> options;
     options.push_back(std::make_pair(0, std::string("All elements")));
 
     std::set<int> seen;
-    for (int i = 0; i < (int)structure.atoms.size(); ++i)
+    for (const auto& atom : structure.atoms)
     {
-        const int z = structure.atoms[i].atomicNumber;
+        const int z = atom.atomicNumber;
         if (!seen.insert(z).second)
             continue;
 
@@ -598,44 +220,31 @@ void drawDistortionSummary(const RdfResult& result)
 
 } // namespace
 
-// Deleter function for the opaque result pointer
-void deleteRdfResult(void* ptr)
-{
-    if (ptr)
-    {
-        delete static_cast<RdfResult*>(ptr);
-    }
-}
-
-RadialDistributionAnalysisDialog::~RadialDistributionAnalysisDialog()
-{
-    if (m_computeThread && m_computeThread->joinable())
-        m_computeThread->join();
-    deleteRdfResult(m_result);
-}
-
 void RadialDistributionAnalysisDialog::drawMenuItem(bool enabled)
 {
-    if (ImGui::MenuItem("Radial Distribution Function", NULL, false, enabled))
+    if (ImGui::MenuItem("Radial Distribution Function", nullptr, false, enabled))
         m_openRequested = true;
 }
 
 void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
 {
-    static bool usePbc = true;
-    static bool normalize = true;
-    static bool showRawCounts = false;
-    static bool showCumulative = false;
-    static bool enableDistortionAnalysis = true;
-    static bool autoDistortionWindow = true;
-    static float manualDistortionMin = 1.8f;
-    static float manualDistortionMax = 3.2f;
-    static float rMin = 0.0f;
-    static float rMax = 8.0f;
-    static int binCount = 200;
-    static int smoothingPasses = 0;
-    static int refSpeciesIndex = 0;
-    static int targetSpeciesIndex = 0;
+    if (m_task.poll())
+        m_computeCompleted = m_task.result().has_value();
+
+    bool& usePbc = m_params.usePbc;
+    bool& normalize = m_params.normalize;
+    bool& showRawCounts = m_showRawCounts;
+    bool& showCumulative = m_showCumulative;
+    bool& enableDistortionAnalysis = m_params.enableDistortionAnalysis;
+    bool& autoDistortionWindow = m_params.autoDistortionWindow;
+    float& manualDistortionMin = m_params.manualDistortionMin;
+    float& manualDistortionMax = m_params.manualDistortionMax;
+    float& rMin = m_params.rMin;
+    float& rMax = m_params.rMax;
+    int& binCount = m_params.binCount;
+    int& smoothingPasses = m_params.smoothingPasses;
+    int& refSpeciesIndex = m_refSpeciesIndex;
+    int& targetSpeciesIndex = m_targetSpeciesIndex;
 
     if (m_openRequested)
     {
@@ -643,7 +252,7 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
         m_openRequested = false;
     }
 
-    std::vector<std::pair<int, std::string> > speciesOptions = buildSpeciesOptions(structure);
+    std::vector<std::pair<int, std::string>> speciesOptions = buildSpeciesOptions(structure);
     clampSpeciesSelectionIndices(refSpeciesIndex, targetSpeciesIndex, (int)speciesOptions.size());
 
     ImGui::SetNextWindowSize(ImVec2(1180.0f, 820.0f), ImGuiCond_FirstUseEver);
@@ -685,16 +294,18 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
             }
 
             bool computeRequested = false;
-            if (ImGui::Button("Run RDF", ImVec2(140.0f, 0.0f)) && !m_isComputing)
+            if (ImGui::Button("Run RDF", ImVec2(140.0f, 0.0f)) && !m_task.running())
                 computeRequested = true;
             ImGui::SameLine();
             if (ImGui::Button("Close", ImVec2(120.0f, 0.0f)))
                 dialogOpen = false;
             ImGui::SameLine();
-            if (m_isComputing)
+            if (m_task.running())
                 ImGui::TextColored(themeStatusComputing(), "Computing...");
             else if (m_computeCompleted)
                 ImGui::TextColored(themeStatusGood(), "Done");
+            if (!m_task.error().empty())
+                ImGui::TextWrapped("%s", m_task.error().c_str());
             
             if (changed)
                 m_computeCompleted = false;
@@ -702,52 +313,14 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
             ImGui::EndChild();
 
             // Launch computation in background thread
-            if (computeRequested && !m_isComputing)
+            if (computeRequested && !m_task.running())
             {
-                // Store current parameters
-                m_lastStructure = structure;
-                m_lastRefZ = speciesOptions[refSpeciesIndex].first;
-                m_lastTargetZ = speciesOptions[targetSpeciesIndex].first;
-                m_lastUsePbc = usePbc;
-                m_lastNormalize = normalize;
-                m_lastRmin = rMin;
-                m_lastRmax = rMax;
-                m_lastBinCount = binCount;
-                m_lastSmoothingPasses = smoothingPasses;
-                m_lastEnableDistortionAnalysis = enableDistortionAnalysis;
-                m_lastAutoDistortionWindow = autoDistortionWindow;
-                m_lastManualDistortionMin = manualDistortionMin;
-                m_lastManualDistortionMax = manualDistortionMax;
-                
-                // Join previous thread if it exists
-                if (m_computeThread && m_computeThread->joinable())
-                    m_computeThread->join();
-                
-                // Clean up old result
-                deleteRdfResult(m_result);
-                m_result = nullptr;
-                
-                // Start new computation thread
-                m_isComputing = true;
+                auto params = m_params;
+                params.refAtomicNumberFilter = speciesOptions[refSpeciesIndex].first;
+                params.targetAtomicNumberFilter = speciesOptions[targetSpeciesIndex].first;
                 m_computeCompleted = false;
-                m_computeThread = std::make_unique<std::thread>([this]() {
-                    RdfResult* result = new RdfResult();
-                    *result = runRdf(m_lastStructure,
-                                     m_lastRefZ,
-                                     m_lastTargetZ,
-                                     m_lastUsePbc,
-                                     m_lastNormalize,
-                                     m_lastRmin,
-                                     m_lastRmax,
-                                     m_lastBinCount,
-                                     m_lastSmoothingPasses,
-                                     m_lastEnableDistortionAnalysis,
-                                     m_lastAutoDistortionWindow,
-                                     m_lastManualDistortionMin,
-                                     m_lastManualDistortionMax);
-                    m_result = result;
-                    m_computeCompleted = true;
-                    m_isComputing = false;
+                m_task.start([snapshot = structure, params]() {
+                    return atomforge::analysis::computeRdf(snapshot, params);
                 });
             }
 
@@ -755,9 +328,9 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
             ImGui::BeginChild("##rdf-results-child", ImVec2(0.0f, 0.0f), true);
             
             // Display results if available
-            if (!m_isComputing.load() && m_result)
+            if (m_task.result())
             {
-                RdfResult* resultPtr = static_cast<RdfResult*>(m_result);
+                const auto* resultPtr = &*m_task.result();
                 drawRdfSummary(*resultPtr);
                 drawPlot(*resultPtr, showRawCounts, showCumulative);
                 drawDistortionSummary(*resultPtr);

@@ -1,4 +1,5 @@
 #include "app/StructureFileService.h"
+#include "io/StructureLoader.h"
 
 #include "graphics/StructureInstanceBuilder.h"
 

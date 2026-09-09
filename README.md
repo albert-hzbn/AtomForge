@@ -120,6 +120,9 @@ by the box origin because Python structures store a cell with origin zero.
 
 ## Tests
 
+See [Architecture and extension guide](ARCHITECTURE.md) for module boundaries,
+adding analyses/codecs, and building the reusable core without GUI dependencies.
+
 Configure and build with CMake, then run `ctest --test-dir build --output-on-failure`.
 The C++ regression tests run without a graphics context. When a Python interpreter
 is available at configure time, CTest also runs the Python suites and headless CLI

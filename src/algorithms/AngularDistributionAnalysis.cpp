@@ -1,5 +1,5 @@
 #include "AngularDistributionAnalysis.h"
-#include "../math/StructureMath.h"
+#include "math/StructureMath.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>

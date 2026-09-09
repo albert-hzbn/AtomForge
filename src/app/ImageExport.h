@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ui/FileBrowser.h"
-#include "io/StructureLoader.h"
+#include "model/Structure.h"
 
 #include <glm/glm.hpp>
 

@@ -1,4 +1,5 @@
 #include "ui/MergeStructuresDialog.h"
+#include "io/StructureLoader.h"
 
 #include "app/SceneView.h"
 #include "camera/Camera.h"

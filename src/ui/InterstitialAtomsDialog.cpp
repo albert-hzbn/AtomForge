@@ -1,4 +1,5 @@
-﻿#include "ui/InterstitialAtomsDialog.h"
+#include "ui/InterstitialAtomsDialog.h"
+#include "io/StructureLoader.h"
 
 #include "algorithms/MeshLoader.h"
 #include "algorithms/InterstitialVoidAnalysis.h"

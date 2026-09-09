@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../io/StructureLoader.h"
+#include "model/Structure.h"
 #include <string>
 #include <vector>
 #include <map>

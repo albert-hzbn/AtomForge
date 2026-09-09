@@ -1,7 +1,7 @@
 #pragma once
 
 #include "algorithms/VoronoiComputation.h"
-#include "io/StructureLoader.h"
+#include "model/Structure.h"
 
 #include <glm/glm.hpp>
 

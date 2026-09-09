@@ -6,9 +6,6 @@
 #include <iostream>
 #include <limits>
 
-// Keep these geometry/builder tests independent of Open Babel and a GL context.
-void getDefaultElementColor(int, float& r, float& g, float& b) { r = g = b = 1.0f; }
-
 static void check(bool condition, const char* message)
 {
     if (!condition) { std::cerr << message << '\n'; std::exit(1); }

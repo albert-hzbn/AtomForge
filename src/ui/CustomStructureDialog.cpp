@@ -1,4 +1,5 @@
 #include "ui/CustomStructureDialog.h"
+#include "io/StructureLoader.h"
 
 #include "algorithms/MeshLoader.h"
 #include "algorithms/NanoCrystalBuilder.h"

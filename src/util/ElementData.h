@@ -20,3 +20,6 @@ std::vector<glm::vec3> makeDefaultElementColors();
 // Standard atomic weight (g/mol or u) for atomic number z (1–118).
 // Returns 1.0 for out-of-range or unstable elements with no standard weight.
 double elementAtomicMass(int z);
+
+// CPK color components for an element, with a fallback for unknown numbers.
+void getDefaultElementColor(int atomicNumber, float& r, float& g, float& b);

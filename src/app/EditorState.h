@@ -3,7 +3,7 @@
 #include "UndoRedo.h"
 #include "algorithms/VoronoiComputation.h"
 #include "graphics/SceneBuffers.h"
-#include "io/StructureLoader.h"
+#include "model/Structure.h"
 #include "ui/AtomContextMenu.h"
 #include "ui/EditMenuDialogs.h"
 #include "ui/FileBrowser.h"

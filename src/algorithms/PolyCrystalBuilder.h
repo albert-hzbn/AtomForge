@@ -1,6 +1,6 @@
 #pragma once
 
-#include "io/StructureLoader.h"
+#include "model/Structure.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>

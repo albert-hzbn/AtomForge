@@ -14,6 +14,8 @@
 #include "util/PathUtils.h"
 
 #include <algorithm>
+#include <array>
+#include <string_view>
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -1610,6 +1612,46 @@ static int runSSS(int argc, char* argv[])
     return 0;
 }
 
+namespace
+{
+struct BuildMode
+{
+    std::string_view name;
+    int (*run)(int argc, char* argv[]);
+    void (*printHelp)();
+};
+
+// Register a mode once for both execution and topic-specific help.
+constexpr std::array<BuildMode, 8> kBuildModes{{
+    {"bulk", runBulk, printHelpBulk},
+    {"gb", runGB, printHelpGB},
+    {"poly", runPoly, printHelpPoly},
+    {"nano", runNano, printHelpNano},
+    {"amorphous", runAmorphous, printHelpAmorphous},
+    {"sss", runSSS, printHelpSSS},
+    {"dislocation", runDislocation, printHelpDislocation},
+    {"custom", runCustom, printHelpCustom},
+}};
+
+const BuildMode* findBuildMode(std::string_view name)
+{
+    const auto mode = std::find_if(kBuildModes.begin(), kBuildModes.end(),
+                                  [name](const BuildMode& entry) { return entry.name == name; });
+    return mode == kBuildModes.end() ? nullptr : &*mode;
+}
+
+std::string buildModeNames()
+{
+    std::string names;
+    for (const auto& mode : kBuildModes)
+    {
+        if (!names.empty()) names += " | ";
+        names += mode.name;
+    }
+    return names;
+}
+} // namespace
+
 // ── Public interface ──────────────────────────────────────────────────────────
 
 bool isCLIMode(int argc, char* argv[])
@@ -1641,21 +1683,14 @@ int runCLI(int argc, char* argv[])
 
         if (topic)
         {
-            std::string t = topic;
-            if      (t == "bulk")      { printHelpBulk();      return 0; }
-            else if (t == "gb")        { printHelpGB();        return 0; }
-            else if (t == "poly")      { printHelpPoly();      return 0; }
-            else if (t == "nano")      { printHelpNano();      return 0; }
-            else if (t == "amorphous") { printHelpAmorphous(); return 0; }
-            else if (t == "sss")       { printHelpSSS();       return 0; }
-            else if (t == "dislocation"){ printHelpDislocation(); return 0; }
-            else if (t == "custom")    { printHelpCustom();    return 0; }
-            else
+            if (const auto* mode = findBuildMode(topic))
             {
-                std::cerr << "Unknown help topic '" << t
-                          << "'.  Valid topics: bulk | gb | poly | nano | amorphous | sss | dislocation | custom\n";
-                return 1;
+                mode->printHelp();
+                return 0;
             }
+            std::cerr << "Unknown help topic '" << topic
+                      << "'.  Valid topics: " << buildModeNames() << "\n";
+            return 1;
         }
 
         // bare --help
@@ -1673,18 +1708,11 @@ int runCLI(int argc, char* argv[])
 
     try
     {
-        std::string m = mode;
-        if      (m == "bulk")        return runBulk       (argc, argv);
-        else if (m == "gb")          return runGB         (argc, argv);
-        else if (m == "poly")        return runPoly       (argc, argv);
-        else if (m == "nano")        return runNano       (argc, argv);
-        else if (m == "amorphous")   return runAmorphous  (argc, argv);
-        else if (m == "sss")         return runSSS        (argc, argv);
-        else if (m == "dislocation") return runDislocation(argc, argv);
-        else if (m == "custom")      return runCustom     (argc, argv);
+        if (const auto* entry = findBuildMode(mode))
+            return entry->run(argc, argv);
 
-        std::cerr << "Error: unknown build mode '" << m
-                  << "'.  Valid modes: bulk | gb | poly | nano | amorphous | sss | dislocation | custom\n";
+        std::cerr << "Error: unknown build mode '" << mode
+                  << "'.  Valid modes: " << buildModeNames() << "\n";
         return 1;
     }
     catch (const std::exception& e)

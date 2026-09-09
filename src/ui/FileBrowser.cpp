@@ -1,4 +1,5 @@
 #include "FileBrowser.h"
+#include "io/StructureLoader.h"
 #include "ElementData.h"
 #include "ImGuiSetup.h"
 #include "util/PathUtils.h"

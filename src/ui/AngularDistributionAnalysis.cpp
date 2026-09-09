@@ -9,16 +9,6 @@
 #include <cstdio>
 
 // ============================================================
-// Destructor
-// ============================================================
-
-AngularDistributionAnalysisDialog::~AngularDistributionAnalysisDialog()
-{
-    if (m_workerThread && m_workerThread->joinable())
-        m_workerThread->join();
-}
-
-// ============================================================
 // Menu item
 // ============================================================
 
@@ -40,11 +30,8 @@ void AngularDistributionAnalysisDialog::drawMenuItem(bool enabled)
 
 void AngularDistributionAnalysisDialog::startCompute(const Structure& structure)
 {
-    if (m_isComputing) return;
+    if (m_task.running()) return;
 
-    m_workerStructure  = structure;
-    m_isComputing      = true;
-    m_computeCompleted = false;
     m_paramsDirty      = false;
 
     AdfParams p;
@@ -64,23 +51,18 @@ void AngularDistributionAnalysisDialog::startCompute(const Structure& structure)
         default: p.centreMode = AdfCentreMode::ByPair;    break;
     }
 
-    if (m_workerThread && m_workerThread->joinable())
-        m_workerThread->join();
-
-    m_workerThread = std::make_unique<std::thread>([this, p]() {
-        m_workerResult     = computeADF(m_workerStructure, p);
-        m_computeCompleted = true;
-        m_isComputing      = false;
+    m_task.start([snapshot = structure, p]() {
+        return computeADF(snapshot, p);
     });
 }
 
 void AngularDistributionAnalysisDialog::pollWorker()
 {
-    if (m_computeCompleted.load())
+    if (m_task.poll() && m_task.result())
     {
-        m_result           = m_workerResult;
+        m_result           = *m_task.result();
         m_hasResult        = m_result.valid;
-        m_computeCompleted = false;
+        m_task.clearResult();
         m_xMin             = 0.0f;
         m_xMax             = 180.0f;
     }
@@ -137,7 +119,7 @@ void AngularDistributionAnalysisDialog::drawPlot()
 
     if (!m_hasResult || m_result.bins.empty())
     {
-        const char* msg = m_isComputing.load()
+        const char* msg = m_task.running()
             ? "Computing \xe2\x80\x94 please wait..."
             : "No data.  Configure parameters and click  Compute ADF.";
         ImVec2 ts = ImGui::CalcTextSize(msg);
@@ -435,7 +417,7 @@ void AngularDistributionAnalysisDialog::drawCoordStats()
 
 void AngularDistributionAnalysisDialog::drawSettings(const Structure& structure)
 {
-    const bool computing = m_isComputing.load();
+    const bool computing = m_task.running();
 
     // Label column wide enough for "Normalise" — the longest label used below.
     // Using a BeginTable instead of SameLine(offset) avoids all clipping issues
@@ -696,7 +678,10 @@ void AngularDistributionAnalysisDialog::drawDialog(const Structure& structure)
                                 ImGuiWindowFlags_NoScrollbar))
         return;
 
-    const bool computing = m_isComputing.load();
+    if (!m_task.error().empty())
+        ImGui::TextWrapped("%s", m_task.error().c_str());
+
+    const bool computing = m_task.running();
 
     // ── Left panel ────────────────────────────────────────────
     const float leftW        = 300.0f;

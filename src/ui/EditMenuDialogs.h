@@ -4,7 +4,7 @@
 #include <functional>
 #include <glm/glm.hpp>
 
-#include "io/StructureLoader.h"
+#include "model/Structure.h"
 
 // Owns the per-element radius and colour tables, and draws the Edit menu
 // items + the "Atomic Sizes" and "Display Settings" modal dialogs.

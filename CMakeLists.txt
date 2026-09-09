@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(AtomForge LANGUAGES CXX)
+project(AtomForge VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,6 +10,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
+option(ATOMFORGE_BUILD_APP "Build the OpenGL desktop application and CLI" ON)
 option(ATOMFORGE_ENABLE_SPGLIB "Enable spglib/symspg support when available" ON)
 option(BUILD_PORTABLE "Build portable package with bundled dependencies" OFF)
 
@@ -28,7 +29,7 @@ else()
     option(ATOMFORGE_LINUX_STATIC_LINK "Statically link Linux build dependencies" OFF)
 endif()
 
-if(UNIX AND NOT APPLE AND ATOMFORGE_LINUX_STATIC_LINK)
+if(ATOMFORGE_BUILD_APP AND UNIX AND NOT APPLE AND ATOMFORGE_LINUX_STATIC_LINK)
     set(PKG_CONFIG_ARGN --static)
     # Prefer static archives when available for find_package() results.
     set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
@@ -41,6 +42,15 @@ if(UNIX AND NOT APPLE AND ATOMFORGE_LINUX_STATIC_LINK)
             "Install static .a variants (for example libglfw.a and libopenbabel.a), or configure with "
             "-DATOMFORGE_LINUX_STATIC_LINK=OFF to build with shared system libraries.")
     endif()
+endif()
+
+include(CTest)
+include(cmake/AtomForgeCore.cmake)
+
+# Core algorithms and their tests can be built without desktop dependencies.
+if(NOT ATOMFORGE_BUILD_APP)
+    include(cmake/AtomForgeTests.cmake)
+    return()
 endif()
 
 find_package(PkgConfig REQUIRED)
@@ -69,7 +79,6 @@ set(ATOMFORGE_SOURCES
     src/app/SceneView.cpp
     src/app/StructureFileService.cpp
     src/app/WindowSetup.cpp
-    src/util/ElementData.cpp
     src/camera/Camera.cpp
     src/graphics/BillboardMesh.cpp
     src/graphics/CylinderMesh.cpp
@@ -77,7 +86,6 @@ set(ATOMFORGE_SOURCES
     src/graphics/CellSculptorShaders.cpp
     src/graphics/LowPolyMesh.cpp
     src/graphics/Renderer.cpp
-    src/graphics/Picking.cpp
     src/graphics/SceneBuffers.cpp
     src/graphics/Shader.cpp
     src/graphics/ShadowMap.cpp
@@ -114,20 +122,12 @@ set(ATOMFORGE_SOURCES
     src/ui/CellSculptorDialog.cpp
     src/util/PathUtils.cpp
     src/algorithms/CSLComputation.cpp
-    src/algorithms/MeshLoader.cpp
     src/algorithms/NanoCrystalBuilder.cpp
     src/algorithms/PolyCrystalBuilder.cpp
     src/algorithms/BulkCrystalBuilder.cpp
     src/algorithms/InterfaceBuilder.cpp
     src/algorithms/DislocationBuilder.cpp
     src/algorithms/StackingFaultBuilder.cpp
-    src/algorithms/VoronoiComputation.cpp
-    src/algorithms/SubstitutionalSolidSolutionBuilder.cpp
-    src/algorithms/AmorphousBuilder.cpp
-    src/algorithms/CellSculptorAlgo.cpp
-    src/algorithms/ShortRangeOrderAnalysis.cpp
-    src/algorithms/AngularDistributionAnalysis.cpp
-    src/algorithms/InterstitialVoidAnalysis.cpp
     src/cli/CLIMode.cpp
     src/io/StructureLoader.cpp
     imgui/imgui.cpp
@@ -175,7 +175,8 @@ set(ATOMFORGE_IMGUI_SOURCES
     imgui/imgui_impl_glfw.cpp
     imgui/imgui_impl_opengl3.cpp
 )
-set_source_files_properties(${ATOMFORGE_IMGUI_SOURCES} PROPERTIES COMPILE_FLAGS "-w")
+set_source_files_properties(${ATOMFORGE_IMGUI_SOURCES} PROPERTIES
+    COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:GNU,Clang>:-w>;$<$<CXX_COMPILER_ID:MSVC>:/w>")
 
 target_compile_options(AtomForge PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall>
@@ -187,6 +188,7 @@ target_compile_options(AtomForge PRIVATE
 )
 
 target_link_libraries(AtomForge PRIVATE
+    atomforge_core
     PkgConfig::GLFW3
     PkgConfig::GLEW
     PkgConfig::OPENBABEL
@@ -317,7 +319,7 @@ endif()
 # CPack Configuration
 # ============================================================================
 set(CPACK_PACKAGE_NAME "AtomForge")
-set(CPACK_PACKAGE_VERSION "0.2.0")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_PACKAGE_DESCRIPTION "Atomic structure builder for metallurgical simulation and atomistic modeling")
 
 # Expose the version string to the source code.
@@ -339,24 +341,4 @@ endif()
 
 include(CPack)
 
-include(CTest)
-if(BUILD_TESTING)
-    add_executable(atomforge_core_tests
-        tests/core_regressions.cpp
-        src/graphics/Picking.cpp
-        src/algorithms/SubstitutionalSolidSolutionBuilder.cpp
-        src/algorithms/AmorphousBuilder.cpp
-        src/util/ElementData.cpp)
-    target_include_directories(atomforge_core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-    add_test(NAME core_regressions COMMAND atomforge_core_tests)
-    find_package(Python3 COMPONENTS Interpreter QUIET)
-    if(Python3_Interpreter_FOUND)
-        foreach(suite test_atomforge test_notebook test_regressions)
-            add_test(NAME python_${suite}
-                COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/python/tests/${suite}.py)
-        endforeach()
-        add_test(NAME cli_smoke
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/cli_smoke.py $<TARGET_FILE:AtomForge>)
-        set_tests_properties(cli_smoke PROPERTIES TIMEOUT 180)
-    endif()
-endif()
+include(cmake/AtomForgeTests.cmake)

@@ -3,7 +3,7 @@
 #include "algorithms/NanoCrystalBuilder.h"
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
-#include "io/StructureLoader.h"
+#include "model/Structure.h"
 
 #include <functional>
 #include <string>

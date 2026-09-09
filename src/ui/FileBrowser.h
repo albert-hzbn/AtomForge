@@ -1,6 +1,6 @@
 #pragma once
 
-#include "StructureLoader.h"
+#include "model/Structure.h"
 #include "ui/BulkCrystalBuilderDialog.h"
 #include "ui/CSLGrainBoundaryDialog.h"
 #include "ui/NanoCrystalBuilderDialog.h"

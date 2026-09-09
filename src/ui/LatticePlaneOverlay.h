@@ -1,6 +1,6 @@
 #pragma once
 
-#include "io/StructureLoader.h"
+#include "model/Structure.h"
 #include "ui/FileBrowser.h"
 
 #include <glm/glm.hpp>

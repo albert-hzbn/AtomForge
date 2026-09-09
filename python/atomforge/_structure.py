@@ -1,7 +1,6 @@
 """Core data types: Atom and Structure."""
 
 import copy
-import math
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -66,7 +65,7 @@ class Structure:
     def add_atom(self, symbol: str, x: float, y: float, z: float,
                  r: float = -1.0, g: float = -1.0, b: float = -1.0) -> Atom:
         """Append an atom and return it.  Default colour is the element's CPK colour."""
-        from ._io import _default_color
+        from ._elements import _default_color
         cr, cg, cb = _default_color(symbol)
         atom = Atom(symbol, float(x), float(y), float(z),
                     r=cr if r < 0 else r,
@@ -139,29 +138,8 @@ class Structure:
         Uses the standard convention: **a** along x, **b** in the xy-plane.
         Returns self.
         """
-        values = (a, b, c, alpha, beta, gamma)
-        if not all(math.isfinite(v) for v in values):
-            raise ValueError("cell lengths and angles must be finite")
-        if min(a, b, c) <= 0:
-            raise ValueError("cell lengths must be positive")
-        if not all(0.0 < angle < 180.0 for angle in (alpha, beta, gamma)):
-            raise ValueError("cell angles must be between 0 and 180 degrees")
-
-        rad = math.pi / 180.0
-        ca = math.cos(alpha * rad)
-        cb = math.cos(beta  * rad)
-        cg = math.cos(gamma * rad)
-        sg = math.sin(gamma * rad)
-        ax = a
-        bx = b * cg
-        by = b * sg
-        cx = c * cb
-        cy = c * (ca - cb * cg) / sg if sg > 1e-10 else 0.0
-        cz_sq = c * c - cx * cx - cy * cy
-        if cz_sq <= 1e-12:
-            raise ValueError("cell parameters do not define a non-degenerate cell")
-        cz = math.sqrt(cz_sq)
-        self.cell = [[ax, 0.0, 0.0], [bx, by, 0.0], [cx, cy, cz]]
+        from ._cell import _cell_from_params
+        self.cell = _cell_from_params(a, b, c, alpha, beta, gamma)
         return self
 
     # ── Viewing / I/O ───────────────────────────────────────────────────────────
