@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "atomforge-py"
 version = "0.1.0"
-description = "Python interface for AtomForge: load, edit, and view atomic structures (no external dependencies)"
+description = "Atomic structures and native electronic post-processing for AtomForge"
 authors = [{ name = "AtomForge Contributors", email = "albert.hzbn@gmail.com" }]
 readme = { text = """
 atomforge — Python interface for AtomForge

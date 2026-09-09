@@ -22,8 +22,22 @@ add_library(atomforge_core STATIC
     ${PROJECT_SOURCE_DIR}/src/algorithms/VoronoiComputation.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/MeshLoader.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/CellSculptorAlgo.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/Volume.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/VolumeIO.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/FieldAnalysis.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/DensityIntegration.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/FourierAnalysis.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/Electrostatics.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/Isosurface.cpp
 )
 add_library(AtomForge::Core ALIAS atomforge_core)
+set_target_properties(atomforge_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+add_library(atomforge_electronic SHARED ${PROJECT_SOURCE_DIR}/src/electronic/PythonAPI.cpp)
+target_link_libraries(atomforge_electronic PRIVATE AtomForge::Core)
+set_target_properties(atomforge_electronic PROPERTIES PREFIX "")
+if(NOT ATOMFORGE_BUILD_APP)
+    install(TARGETS atomforge_electronic RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
+endif()
 target_compile_features(atomforge_core PUBLIC cxx_std_17)
 target_include_directories(atomforge_core PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(atomforge_core PUBLIC Threads::Threads)

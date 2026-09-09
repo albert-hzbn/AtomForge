@@ -112,3 +112,14 @@ The refactor does not replace every legacy UI or algorithm implementation.
 Vendored dependencies are unchanged. Interactive GUI behavior, Linux/static
 packaging, and wheel installation have not been validated in this pass; the
 available Python interpreter does not include setuptools or IPython.
+
+## Electronic post-processing extension
+
+`src/electronic` contains the independent scalar-grid model, format adapters,
+field calculus, density integration, Fourier analysis, electrostatics and mesh
+extraction. It is part of `AtomForge::Core`. `PythonAPI.cpp` exposes a versioned,
+exception-safe C boundary in `atomforge_electronic`; the lazy ctypes facade in
+`python/atomforge/electronic` shares the native calculations with the desktop.
+`ElectronicPostProcessingDialog` owns fields/results and uses `BackgroundTask`
+for loading and computation. Scientific conventions and supported scope are in
+[ELECTRONIC_POSTPROCESSING.md](ELECTRONIC_POSTPROCESSING.md).

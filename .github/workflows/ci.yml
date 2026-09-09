@@ -39,6 +39,9 @@ jobs:
       - name: Build
         run: cmake --build build -j$(nproc)
 
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
   # --------------------------------------------------------------------------
   # Windows – MinGW-w64 (MSYS2 UCRT64), mirrors the documented quick-start
   # --------------------------------------------------------------------------
@@ -66,9 +69,13 @@ jobs:
             mingw-w64-ucrt-x86_64-openbabel
             mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-spglib
+            mingw-w64-ucrt-x86_64-python
 
       - name: Configure
         run: cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         run: cmake --build build -j$(nproc)
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure

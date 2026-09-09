@@ -60,6 +60,7 @@ set(_exclude_post ".*/[Ww][Ii][Nn][Dd][Oo][Ww][Ss]/.*"  ".*/System/Library/.*")
 # Pass 1: resolve direct dependencies of the executable.
 file(GET_RUNTIME_DEPENDENCIES
     EXECUTABLES "${_atomforge_exe}"
+    LIBRARIES "${_atomforge_bin_dir}/@ATOMFORGE_ELECTRONIC_LIBRARY_NAME@"
     RESOLVED_DEPENDENCIES_VAR _resolved
     UNRESOLVED_DEPENDENCIES_VAR _unresolved
     DIRECTORIES ${_search_dirs}

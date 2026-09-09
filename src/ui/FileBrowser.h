@@ -21,6 +21,7 @@
 #include "ui/TransformAtomsDialog.h"
 #include "ui/EditMenuDialogs.h"
 #include "ui/CellSculptorDialog.h"
+#include "ui/ElectronicPostProcessing.h"
 
 #include <array>
 #include <functional>
@@ -522,6 +523,7 @@ private:
     CellSculptorDialog cellSculptorDialog;
     CommonNeighbourAnalysisDialog cnaDialog;
     RadialDistributionAnalysisDialog rdfDialog;
+    ElectronicPostProcessingDialog electronicDialog;
     ShortRangeOrderDialogState shortRangeOrderDialog;
     AngularDistributionAnalysisDialog angularDistributionDialog;
     TransformAtomsDialog transformDialog;

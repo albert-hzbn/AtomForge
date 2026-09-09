@@ -18,6 +18,7 @@ AtomForge is an interactive atomic structure builder for metallurgical simulatio
 - Create Wulff-style and shape-based nanocrystals, including non-cubic periodic references.
 - Merge multiple loaded structures in an interactive 3D workflow with per-structure transforms.
 - Analyze structures with CNA, RDF, angular distribution, short-range order, and interstitial/void analysis tools.
+- Post-process VASP, Gaussian Cube and XSF scalar grids with electronic analysis, isosurfaces and Python APIs. See [methods, coverage and examples](ELECTRONIC_POSTPROCESSING.md).
 - Inspect and edit structures interactively with atom selection, box select, measurement overlays, and structure editing dialogs.
 - Export simulation structures and publication-ready rendered images (PNG, JPEG, SVG).
 - Use dark/light themes with HiDPI-aware UI scaling.
@@ -34,6 +35,8 @@ For dependency lists, build commands, portable packaging, and troubleshooting se
 Structure files (open/save): `.xyz`, `.cif`, `.pdb`, `.sdf`, `.mol`, `.vasp`, `.mol2`, `.pwi`, `.gjf`
 
 Rendered image export: `.png`, `.jpg`, `.svg`
+
+Electronic grids (Analysis → Electronic Post-processing): VASP charge/potential/ELF, `.cube`, `.cub`, `.xsf`. Analysis tables export to CSV and surfaces to OBJ/PLY.
 
 You can also open a structure at launch by passing a file path, for example:
 

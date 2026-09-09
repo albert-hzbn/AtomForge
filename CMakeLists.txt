@@ -103,6 +103,7 @@ set(ATOMFORGE_SOURCES
     src/ui/CommonNeighbourAnalysis.cpp
     src/ui/EditMenuDialogs.cpp
     src/ui/FileBrowser.cpp
+    src/ui/ElectronicPostProcessing.cpp
     src/ui/ImGuiSetup.cpp
     src/ui/LatticePlaneOverlay.cpp
     src/ui/MillerDirectionOverlay.cpp
@@ -272,6 +273,15 @@ endif()
 # ============================================================================
 if(BUILD_PORTABLE)
     install(TARGETS AtomForge DESTINATION "${ATOMFORGE_PORTABLE_BIN_DIR}")
+    install(TARGETS atomforge_electronic
+        RUNTIME DESTINATION "${ATOMFORGE_PORTABLE_BIN_DIR}"
+        LIBRARY DESTINATION "${ATOMFORGE_PORTABLE_BIN_DIR}")
+    if(UNIX AND NOT APPLE)
+        set_target_properties(atomforge_electronic PROPERTIES INSTALL_RPATH "$ORIGIN")
+    endif()
+    install(DIRECTORY python/atomforge DESTINATION "${ATOMFORGE_PORTABLE_ROOT}/python"
+        PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
+    install(FILES ELECTRONIC_POSTPROCESSING.md DESTINATION "${ATOMFORGE_PORTABLE_ROOT}")
     install(FILES README.md DESTINATION "${ATOMFORGE_PORTABLE_ROOT}")
 
     # Bundle Open Babel plugin files (.obf), including versioned subdirectories.
@@ -283,6 +293,7 @@ if(BUILD_PORTABLE)
     endif()
 
     set(ATOMFORGE_PORTABLE_EXE_NAME "AtomForge${CMAKE_EXECUTABLE_SUFFIX}")
+    set(ATOMFORGE_ELECTRONIC_LIBRARY_NAME "atomforge_electronic${CMAKE_SHARED_LIBRARY_SUFFIX}")
     get_filename_component(ATOMFORGE_CXX_COMPILER_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
 
     # Collect library directories from pkg-config so the dependency scanner
@@ -307,6 +318,8 @@ if(BUILD_PORTABLE)
     install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/InstallPortableDependencies.cmake")
 else()
     # Standard installation (system-wide)
+    install(TARGETS atomforge_electronic RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
+    install(FILES ELECTRONIC_POSTPROCESSING.md DESTINATION share/doc/atomforge)
     if(WIN32)
         install(TARGETS AtomForge DESTINATION bin)
     else()
