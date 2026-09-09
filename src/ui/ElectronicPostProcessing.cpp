@@ -187,8 +187,16 @@ void ElectronicPostProcessingDialog::drawDialog()
         m_reference = std::clamp(m_reference,0,static_cast<int>(referenceVolume.fields.size())-1);
         const Grid& g = m_volume.fields[m_selected];
         ImGui::TextDisabled("%d x %d x %d | %s",g.shape[0],g.shape[1],g.shape[2],g.unit.c_str());
-        combo("Tool",&m_operation,
-            "Total integral\0Add reference\0Subtract reference (difference density)\0Multiply reference\0Divide by reference\0Scale\0Gaussian smoothing\0Cartesian gradient\0Laplacian\0Energy-density conversion\0Line profile\0Planar average\0Macroscopic average\0Plane section\0Contour segments (z=0)\0Peak search\0Voronoi site integration\0Sphere integration\0Structure factors\0Fourier synthesis\0Patterson density\0Ewald site potentials\0Isosurface\0Resample onto reference\0Verify periodic endpoint planes\0Weighted density difference\0Threshold mask\0Boolean masks\0Apply mask\0Split accumulation / depletion\0Charge redistribution summary\0Cumulative charge profile\0Invert mask\0");
+        if (combo("Tool group",&m_toolGroup,"General analysis\0Charge transfer and masks\0"))
+            m_operation=m_toolGroup==1 ? 25 : 0;
+        if (m_toolGroup==1)
+        {
+            int selected=m_operation-25;
+            if (combo("Tool",&selected,"Weighted density difference\0Threshold mask\0Boolean masks\0Apply mask\0Split accumulation / depletion\0Charge redistribution summary\0Cumulative charge profile\0Invert mask\0"))
+                m_operation=selected+25;
+        }
+        else combo("Tool",&m_operation,
+            "Total integral\0Add reference\0Subtract reference (difference density)\0Multiply reference\0Divide by reference\0Scale\0Gaussian smoothing\0Cartesian gradient\0Laplacian\0Energy-density conversion\0Line profile\0Planar average\0Macroscopic average\0Plane section\0Contour segments (z=0)\0Peak search\0Voronoi site integration\0Sphere integration\0Structure factors\0Fourier synthesis\0Patterson density\0Ewald site potentials\0Isosurface\0Resample onto reference\0Verify periodic endpoint planes\0");
         if ((m_operation >= 1 && m_operation <= 4) || m_operation == 23 || m_operation == 22) selectField("Reference",m_reference,referenceVolume);
         if (m_operation == 5) inputFloat("Scale factor",&m_scalar);
         if (m_operation == 6) { inputFloat("Sigma (A)",&m_sigma); inputInt("Radius (steps)",&m_radius); }

@@ -76,6 +76,13 @@ int main()
         viewport.setVolume(volume);
         const auto constantVolume=pixels(viewport.renderVolume(128,128,0,0,1,{0,0},.5f,.4f,.4f,.4f,0));
         if(clear==constantVolume) throw std::runtime_error("Constant field volume was not rendered");
+        const auto opaque=pixels(viewport.renderVolume(128,128,0,0,1,{0,0},1,.4f,0,1,0));
+        const auto expected=ElectronicViewport::color(.4f,0);
+        for (int channel=0;channel<3;++channel)
+            if (std::abs(static_cast<int>(opaque[center+channel])-std::lround(expected[channel]*255))>1)
+                throw std::runtime_error("Zero transparency still mixes the volume with the background");
+        const auto transparent=pixels(viewport.renderVolume(128,128,0,0,1,{0,0},0,.4f,0,1,0));
+        if (transparent!=clear) throw std::runtime_error("Full transparency does not hide the volume");
         if(glGetError()!=GL_NO_ERROR) throw std::runtime_error("OpenGL error during viewport rendering");
         std::cout << "Viewport pixels, orbit, lighting, palette and GL state passed\n";
     }

@@ -294,7 +294,10 @@ void main() {
         float value=texture(density,(p*(dimensions-1.0)+.5)/dimensions).r;
         if(value<threshold) continue;
         float t=high>low ? clamp((value-low)/(high-low),0.0,1.0) : .5;
-        float alpha=1.0-exp(-opacity*12.0*max(.05,t)*stepLength);
+        // Optical depth tends to infinity at zero transparency. Handle that
+        // endpoint explicitly so even thin, low-density regions are opaque.
+        float opticalDepth=.65*opacity/max(1e-6,1.0-opacity);
+        float alpha=opacity>=1.0 ? 1.0 : 1.0-exp(-opticalDepth*12.0*max(.05,t)*stepLength);
         accumulated.rgb+=(1.0-accumulated.a)*alpha*ramp(t);
         accumulated.a+=(1.0-accumulated.a)*alpha;
         if(accumulated.a>.995) break;

@@ -49,6 +49,7 @@ private:
     int m_reference = 0;
     bool m_localReference = false;
     int m_operation = 22;
+    int m_toolGroup = 0;
     int m_axis = 2;
     int m_count = 100;
     int m_window = 3;
