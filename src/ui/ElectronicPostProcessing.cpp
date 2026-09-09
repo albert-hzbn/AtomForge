@@ -1,6 +1,7 @@
 #include "ui/ElectronicPostProcessing.h"
 #include "electronic/DisplayRange.h"
 #include "electronic/ChargeAnalysis.h"
+#include "ui/DialogLayout.h"
 #include "imgui.h"
 
 #include <algorithm>
@@ -137,8 +138,9 @@ void ElectronicPostProcessingDialog::drawDialog()
     const float sidebar = std::clamp(ImGui::GetContentRegionAvail().x * .38f,340.0f,440.0f);
     ImGui::BeginChild("Electronic controls",ImVec2(sidebar,0),true);
     ImGui::BeginDisabled(m_task.running());
+    dialogLayout::section("Input data");
     const float buttonWidth = (ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
-    if (ImGui::Button("Open volume...",ImVec2(buttonWidth,0))) { m_pickerAction=0; m_picker.open("Open electronic volume",false,m_loadedPath); }
+    if (dialogLayout::primaryButton("Open volume...",ImVec2(buttonWidth,0))) { m_pickerAction=0; m_picker.open("Open electronic volume",false,m_loadedPath); }
     ImGui::SameLine();
     if (ImGui::Button("Reference...",ImVec2(buttonWidth,0))) { m_pickerAction=1; m_picker.open("Open reference volume",false,m_referencePath.empty() ? m_loadedPath : m_referencePath); }
     ImGui::BeginDisabled(m_loadedPath.empty());
@@ -181,6 +183,7 @@ void ElectronicPostProcessingDialog::drawDialog()
                 return false;
             });
         };
+        dialogLayout::section("Analysis");
         selectField("Field",m_selected,m_volume);
         if (!m_referenceVolume.fields.empty()) ImGui::Checkbox("Use loaded/result field as reference",&m_localReference);
         const auto& referenceVolume = m_referenceVolume.fields.empty() || m_localReference ? m_volume : m_referenceVolume;
@@ -251,7 +254,7 @@ void ElectronicPostProcessingDialog::drawDialog()
             ImGui::TextWrapped("Cumulative electrons from the lower cell face. The final row includes the whole cell; periodic profiles depend on the cell origin.");
         }
         ImGui::Spacing();
-        if (ImGui::Button("Calculate",ImVec2(-FLT_MIN,0)) || (m_generateSurface && !m_task.running()))
+        if (dialogLayout::primaryButton("Calculate",ImVec2(-FLT_MIN,0)) || (m_generateSurface && !m_task.running()))
         {
             const Grid source = g, reference = referenceVolume.fields[m_reference];
             const auto sites = m_volume.sites;
@@ -397,7 +400,7 @@ void ElectronicPostProcessingDialog::drawDialog()
     if (!m_pendingDrops.empty()) ImGui::Text("Queued files: %zu",m_pendingDrops.size());
     if (!m_error.empty()) ImGui::TextWrapped("%s",m_error.c_str());
     ImGui::Spacing();
-    if (ImGui::CollapsingHeader("Appearance",ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("Appearance"))
     {
         combo("Colors",&m_palette,"Spectrum\0Blue-white-red\0Sequential blue\0");
         if (ImGui::Checkbox("Automatic range",&m_autoRange) && m_autoRange) { m_colorLow=m_autoLow; m_colorHigh=m_autoHigh; }

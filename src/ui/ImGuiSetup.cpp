@@ -7,10 +7,11 @@
 #include <GLFW/glfw3.h>
 
 #include <algorithm>
+#include <filesystem>
 
 namespace
 {
-constexpr float kBaseFontSizePixels = 16.0f;
+constexpr float kBaseFontSizePixels = 18.0f;
 
 ImGuiStyle gBaseStyle;
 float gUiScale = 1.0f;
@@ -73,15 +74,9 @@ void rebuildFonts()
 
     ImFontConfig fontConfig;
     fontConfig.SizePixels = kBaseFontSizePixels * gUiScale;
-    io.Fonts->AddFontDefault(&fontConfig);
     io.FontGlobalScale = 1.0f;
 
-    // Merge a small set of Unicode glyphs (navigation arrows + folder triangle)
-    // from a system TTF so they render correctly without replacing the default font.
-    static const ImWchar kNavGlyphRanges[] = {
-        0x2190, 0x2192, // U+2190 ← U+2191 ↑ U+2192 →
-        0,
-    };
+    // Prefer the platform UI font, with a built-in fallback on minimal systems.
 #ifdef _WIN32
     static const char* kSystemFontCandidates[] = {
         "C:/Windows/Fonts/segoeui.ttf",
@@ -97,19 +92,24 @@ void rebuildFonts()
     };
 #endif
     ImFontConfig mergeConfig;
-    mergeConfig.MergeMode   = true;
+    mergeConfig.MergeMode   = false;
     mergeConfig.SizePixels  = kBaseFontSizePixels * gUiScale;
     mergeConfig.OversampleH = 2;
     mergeConfig.OversampleV = 1;
+    bool loaded = false;
+    static const ImWchar ranges[] = {0x20,0xFF,0x2190,0x2192,0};
     for (int i = 0; kSystemFontCandidates[i]; ++i)
     {
+        std::error_code error;
+        if (!std::filesystem::is_regular_file(kSystemFontCandidates[i],error)) continue;
         if (io.Fonts->AddFontFromFileTTF(
                 kSystemFontCandidates[i],
                 kBaseFontSizePixels * gUiScale,
                 &mergeConfig,
-                kNavGlyphRanges))
-            break; // merged successfully; stop trying
+                ranges))
+        { loaded = true; break; }
     }
+    if (!loaded) io.Fonts->AddFontDefault(&fontConfig);
 
     if (gImGuiBackendsReady)
     {
@@ -123,8 +123,8 @@ void applyCommonStyle()
 {
     ImGuiStyle& style = ImGui::GetStyle();
 
-    style.WindowPadding = ImVec2(14.0f, 12.0f);
-    style.FramePadding = ImVec2(10.0f, 7.0f);
+    style.WindowPadding = ImVec2(18.0f, 16.0f);
+    style.FramePadding = ImVec2(12.0f, 7.0f);
     style.CellPadding = ImVec2(8.0f, 6.0f);
     style.ItemSpacing = ImVec2(10.0f, 8.0f);
     style.ItemInnerSpacing = ImVec2(8.0f, 6.0f);
@@ -133,10 +133,10 @@ void applyCommonStyle()
     style.ScrollbarSize = 14.0f;
     style.GrabMinSize = 10.0f;
 
-    style.WindowRounding = 12.0f;
-    style.ChildRounding = 10.0f;
-    style.FrameRounding = 9.0f;
-    style.PopupRounding = 12.0f;
+    style.WindowRounding = 8.0f;
+    style.ChildRounding = 6.0f;
+    style.FrameRounding = 5.0f;
+    style.PopupRounding = 8.0f;
     style.ScrollbarRounding = 12.0f;
     style.GrabRounding = 12.0f;
     style.TabRounding = 10.0f;
@@ -174,7 +174,7 @@ void applyDarkTheme()
     colors[ImGuiCol_TitleBgCollapsed]     = ImVec4(0.07f, 0.09f, 0.12f, 0.80f);
     colors[ImGuiCol_MenuBarBg]            = ImVec4(0.09f, 0.12f, 0.16f, 1.00f);
 
-    colors[ImGuiCol_Button]               = ImVec4(0.15f, 0.39f, 0.46f, 1.00f);
+    colors[ImGuiCol_Button]               = ImVec4(0.18f, 0.25f, 0.31f, 1.00f);
     colors[ImGuiCol_ButtonHovered]        = ImVec4(0.20f, 0.52f, 0.60f, 1.00f);
     colors[ImGuiCol_ButtonActive]         = ImVec4(0.24f, 0.60f, 0.68f, 1.00f);
 
@@ -215,7 +215,7 @@ void applyLightTheme()
     colors[ImGuiCol_TitleBgCollapsed]     = ImVec4(0.88f, 0.89f, 0.91f, 0.80f);
     colors[ImGuiCol_MenuBarBg]            = ImVec4(0.90f, 0.91f, 0.93f, 1.00f);
 
-    colors[ImGuiCol_Button]               = ImVec4(0.22f, 0.52f, 0.60f, 1.00f);
+    colors[ImGuiCol_Button]               = ImVec4(0.83f, 0.89f, 0.93f, 1.00f);
     colors[ImGuiCol_ButtonHovered]        = ImVec4(0.28f, 0.60f, 0.68f, 1.00f);
     colors[ImGuiCol_ButtonActive]         = ImVec4(0.18f, 0.45f, 0.52f, 1.00f);
 
@@ -248,7 +248,7 @@ void initImGui(GLFWwindow* window)
     ImGui_ImplOpenGL3_Init("#version 130");
     gImGuiBackendsReady = true;
 
-    // Always build the font atlas here so the Unicode glyph merge in
+    // Always build the font atlas here so font selection in
     // rebuildFonts() runs even on non-HiDPI displays where updateImGuiScale
     // would return early (newScale == gUiScale == 1.0).
     rebuildFonts();

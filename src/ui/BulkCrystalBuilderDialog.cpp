@@ -4,6 +4,7 @@
 #include "ElementData.h"
 #include "imgui.h"
 #include "ui/PeriodicTableDialog.h"
+#include "ui/DialogLayout.h"
 
 #include <glm/glm.hpp>
 
@@ -134,6 +135,7 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
     }
 
     ImGui::SetNextWindowSize(ImVec2(720.0f, 540.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(640,520),ImVec2(FLT_MAX,FLT_MAX));
     bool dialogOpen = true;
     if (ImGui::BeginPopupModal("Build Bulk Crystal", &dialogOpen, ImGuiWindowFlags_None))
     {
@@ -145,7 +147,10 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
         };
 
         const float halfWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
-
+        dialogLayout::section("Crystal symmetry");
+        ImGui::TextUnformatted("Crystal system");
+        ImGui::SameLine(ImGui::GetStyle().WindowPadding.x+halfWidth+ImGui::GetStyle().ItemSpacing.x);
+        ImGui::TextUnformatted("Space group");
         ImGui::PushItemWidth(halfWidth);
         if (ImGui::Combo("##system", &crystalSystemIndex, systemLabels, 7))
         {
@@ -176,11 +181,12 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
             selectedSpaceGroup = range.first + sgIndex;
         ImGui::PopItemWidth();
 
-        ImGui::Separator();
+        dialogLayout::section("Lattice parameters (A / degrees)");
         drawLatticeParameterInputs((CrystalSystem)crystalSystemIndex, latticeParams);
 
         ImGui::Separator();
-        ImGui::Text("Asymmetric Unit  ");
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("Asymmetric unit");
         ImGui::SameLine();
         if (ImGui::Button("+ Add"))
         {
@@ -207,6 +213,8 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
         if (listHeight < 60.0f) listHeight = 60.0f;
         if (ImGui::BeginChild("##bulk-atom-rows", ImVec2(-1.0f, listHeight), true))
         {
+            ImGui::TextDisabled("Sites / fractional coordinates (x, y, z) / element");
+            ImGui::Separator();
             for (int i = 0; i < (int)asymmetricAtoms.size(); ++i)
             {
                 AtomSite& atom = asymmetricAtoms[i];
@@ -249,8 +257,8 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
                 ImGui::SetScrollY(ImGui::GetScrollMaxY());
                 scrollRowsToBottom = false;
             }
-            ImGui::EndChild();
         }
+        ImGui::EndChild();
 
         if (pendingDelete >= 0 && pendingDelete < (int)asymmetricAtoms.size())
         {
@@ -264,7 +272,7 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
         }
 
         ImGui::Separator();
-            if (ImGui::Button("Build"))
+        if (dialogLayout::primaryButton("Build",dialogLayout::actionSize()))
         {
             applySystemConstraints((CrystalSystem)crystalSystemIndex, latticeParams);
             lastResult = buildBulkCrystal(structure,
@@ -290,7 +298,7 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Close"))
+        if (ImGui::Button("Close",dialogLayout::actionSize()))
         {
             dialogOpen = false;
             ImGui::CloseCurrentPopup();

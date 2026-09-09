@@ -267,7 +267,7 @@ void drawDirectoryEntries(const std::vector<DirectoryEntry>& entries,
         ImGui::PushID(static_cast<int>(i) + idBase);
         if (isDir)
         {
-            // Leave room for the hand-drawn folder icon (5 spaces ≈ icon width)
+            // Reserve measured space: proportional fonts have narrow spaces.
             const ImVec4 windowBg = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
             const float bgLuma = 0.2126f * windowBg.x + 0.7152f * windowBg.y + 0.0722f * windowBg.z;
             const ImVec4 folderTextColor = (bgLuma > 0.55f)
@@ -275,7 +275,9 @@ void drawDirectoryEntries(const std::vector<DirectoryEntry>& entries,
                 : ImVec4(0.55f, 0.78f, 1.00f, 1.0f);
 
             ImGui::PushStyleColor(ImGuiCol_Text, folderTextColor);
-            std::string label = std::string("     ") + name + "##dir";
+            const float iconSpace=ImGui::GetTextLineHeight()*1.10f+ImGui::GetStyle().ItemInnerSpacing.x+4;
+            const int spaces=static_cast<int>(iconSpace/ImGui::CalcTextSize(" ").x)+1;
+            std::string label = std::string(spaces,' ') + name + "##dir";
             const bool clicked = ImGui::Selectable(label.c_str());
             ImGui::PopStyleColor();
 

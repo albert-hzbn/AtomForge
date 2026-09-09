@@ -1,6 +1,7 @@
 #include "TransformAtomsDialog.h"
 
 #include "imgui.h"
+#include "ui/DialogLayout.h"
 
 namespace
 {
@@ -51,7 +52,8 @@ void TransformAtomsDialog::drawDialog(const std::function<void()>& onApply)
     bool transformAtomsOpen = true;
     if (ImGui::BeginPopupModal(kTransformPopupTitle, &transformAtomsOpen, ImGuiWindowFlags_AlwaysAutoResize))
     {
-        ImGui::Text("Enter 3x3 integer transformation matrix:");
+        dialogLayout::section("Transformation matrix");
+        ImGui::TextUnformatted("Enter three rows of integer coefficients.");
 
         for (int row = 0; row < kMatrixSize; ++row)
         {
@@ -60,7 +62,9 @@ void TransformAtomsDialog::drawDialog(const std::function<void()>& onApply)
             ImGui::PopID();
         }
 
-        if (ImGui::Button("Apply"))
+        ImGui::Spacing();
+        ImGui::Separator();
+        if (dialogLayout::primaryButton("Apply",dialogLayout::actionSize()))
         {
             copyMatrix(pendingMatrix, transformMatrix);
 
@@ -68,6 +72,8 @@ void TransformAtomsDialog::drawDialog(const std::function<void()>& onApply)
             ImGui::CloseCurrentPopup();
             onApply();
         }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel",dialogLayout::actionSize())) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
     if (!transformAtomsOpen)

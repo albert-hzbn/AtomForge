@@ -1,6 +1,7 @@
 #include "ui/PathPicker.h"
 #include "util/PathUtils.h"
 #include "imgui.h"
+#include "ui/DialogLayout.h"
 
 #include <cstdio>
 #include <algorithm>
@@ -102,6 +103,7 @@ std::optional<std::string> PathPicker::draw()
         ImGui::EndChild();
         ImGui::Spacing();
         ImGui::TextWrapped("%s",m_save ? "Choose a folder and filename." : "Select a file, then Open. Double-click a file to open it directly.");
+        ImGui::Separator();
         ImGui::SetNextItemWidth(-85);
         if (m_save)
         {
@@ -109,7 +111,9 @@ std::optional<std::string> PathPicker::draw()
         }
         else ImGui::TextWrapped("Selected: %s",m_filename[0] ? m_filename : "No file selected");
         if (!m_error.empty()) ImGui::TextWrapped("%s",m_error.c_str());
-        if (ImGui::Button(m_save ? "Save" : "Open",ImVec2(100,0))) accepted = true;
+        ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(),ImGui::GetWindowHeight()-ImGui::GetStyle().WindowPadding.y-ImGui::GetFrameHeight()));
+        ImGui::SetCursorPosX(std::max(ImGui::GetStyle().WindowPadding.x,ImGui::GetWindowWidth()-ImGui::GetStyle().WindowPadding.x-200-ImGui::GetStyle().ItemSpacing.x));
+        if (dialogLayout::primaryButton(m_save ? "Save" : "Open",ImVec2(100,0))) accepted = true;
         ImGui::SameLine();
         if (ImGui::Button("Cancel",ImVec2(100,0))) ImGui::CloseCurrentPopup();
         if (accepted)
