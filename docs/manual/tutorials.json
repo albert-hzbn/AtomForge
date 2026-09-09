@@ -1,0 +1,1483 @@
+{
+  "capture_date": "2026-09-09",
+  "application_source_baseline": "e43038c",
+  "notes": "Windows GUI captures plus native nanocrystal output plots. See each caption for input state and validation limits.",
+  "required_tutorials": [
+    "build-menu",
+    "bulk",
+    "crystal-systems",
+    "element-picker",
+    "alloy",
+    "csl",
+    "csl-options",
+    "nano-modes",
+    "shape-sphere",
+    "shape-ellipsoid",
+    "shape-box",
+    "shape-cylinder",
+    "shape-octahedron",
+    "shape-truncated-octahedron",
+    "shape-cuboctahedron",
+    "wulff",
+    "custom",
+    "custom-euler",
+    "custom-miller",
+    "polycrystal",
+    "poly-orientations",
+    "amorphous",
+    "amorphous-advanced",
+    "amorphous-box",
+    "selection",
+    "context",
+    "atom-information",
+    "edit-table",
+    "transform",
+    "merge",
+    "sculptor",
+    "sculptor-manual",
+    "dislocation",
+    "dislocation-regions",
+    "dislocation-commit",
+    "void-detection",
+    "void-selection",
+    "interstitial-random",
+    "interstitial-manual",
+    "interstitial-mesh",
+    "files",
+    "camera",
+    "colouring",
+    "representations",
+    "planes",
+    "directions",
+    "polyhedra",
+    "radii",
+    "lighting",
+    "material",
+    "colours",
+    "theme",
+    "structure-info",
+    "image-export",
+    "rdf",
+    "sro",
+    "sro-tabs",
+    "electronic-volume",
+    "electronic-plane",
+    "electronic-operations"
+  ],
+  "groups": [
+    {
+      "title": "Build: source, symmetry, and composition",
+      "tutorials": [
+        {
+          "id": "build-menu",
+          "title": "Choose a builder",
+          "start": "Open AtomForge. All structure examples below are in \\code{docs/manual/examples/}.",
+          "images": [
+            {
+              "file": "tutorials/build-menu.jpg",
+              "bounds": [
+                95,
+                26,
+                333,
+                262
+              ],
+              "caption": "The standard Build menu. Stacking Faults requires an optional build flag and is absent here."
+            }
+          ],
+          "steps": [
+            "Choose \\ui{Build}, then the tool matching your intended geometry: Bulk for a reference cell; alloy for relabelling sites; CSL for a bicrystal; Nanocrystal for a finite cut; Custom for a mesh; Polycrystal for many grains; Amorphous for packing.",
+            "Load a periodic source where the tool asks for one. A source is the structure copied or repeated by the builder. Its name in the dialog should match the intended file.",
+            "Build a small example, select its new structure tab, inspect \\ui{View > Structure Info}, and save it under a new name."
+          ],
+          "check": "Build-menu outputs normally open in a new tab. The original source tab remains available.",
+          "options": "A grey Build button usually means required input is missing. A main-scene structure is not automatically loaded into every builder: use its drop target or \\ui{Use Current Scene} when offered."
+        },
+        {
+          "id": "bulk",
+          "title": "Build FCC copper",
+          "start": "Choose \\ui{Build > Bulk Crystal}.",
+          "images": [
+            {
+              "file": "tutorials/bulk-controls.jpg",
+              "bounds": [
+                600,
+                257,
+                1320,
+                797
+              ],
+              "caption": "Bulk Crystal at initial settings; change H and the lattice parameter for this exercise."
+            }
+          ],
+          "steps": [
+            "Select Cubic and space group 225. Enter $a=3.61$ \\angstrom.",
+            "Click the initial H element button, choose Cu, and apply it. Keep the one independent site at direct coordinates $(0,0,0)$.",
+            "Choose \\ui{Build}. Inspect the new structure, then save as \\code{cu_fcc_tutorial.cif}."
+          ],
+          "check": "Four Cu atoms should be present in the conventional cell. The supplied \\code{examples/cu_fcc.cif} is a reference result.",
+          "options": "Use \\ui{+ Add} for additional independent sites, \\ui{Delete} for one row, or \\ui{Clear} to start the site list again. Try BCC Fe: Cubic, group 229, $a=2.87$ \\angstrom, Fe at the origin; expect two atoms."
+        },
+        {
+          "id": "crystal-systems",
+          "title": "Change crystal system and lattice constraints",
+          "start": "Open \\ui{Bulk Crystal}; work in a fresh builder rather than changing a saved reference.",
+          "images": [
+            {
+              "file": "tutorials/bulk-systems.jpg",
+              "bounds": [
+                600,
+                257,
+                1320,
+                797
+              ],
+              "caption": "The crystal-system selector exposes all seven supported systems."
+            }
+          ],
+          "steps": [
+            "Select Triclinic and group 1. Enter $a=4$, $b=5$, $c=6$ \\angstrom, $\\alpha=80^\\circ$, $\\beta=95^\\circ$, $\\gamma=110^\\circ$, and one Cu site at the origin.",
+            "Build and inspect all six cell parameters in Structure Info.",
+            "Reopen the builder and switch through the other systems, checking which independent fields remain available and reselecting a compatible space group."
+          ],
+          "check": "The group-1 example has one site and a skew cell. System changes constrain the lattice fields; they do not infer the intended material.",
+          "options": "Monoclinic exposes $a,b,c,\\beta$; Orthorhombic $a,b,c$; Tetragonal $a,c$; Cubic $a$. Trigonal and Hexagonal use the hexagonal setting with $a,c$ and $\\gamma=120^\\circ$. Do not enter rhombohedral primitive parameters into that setting."
+        },
+        {
+          "id": "element-picker",
+          "title": "Choose an element for a site or species row",
+          "start": "Open an element button in Bulk Crystal, the alloy builder, or Edit Structure.",
+          "images": [
+            {
+              "file": "tutorials/element-picker.jpg",
+              "bounds": [
+                480,
+                285,
+                1440,
+                772
+              ],
+              "caption": "The shared periodic-table element selector, captured from the alloy workflow."
+            }
+          ],
+          "steps": [
+            "Select the required chemical symbol in the periodic table. Read the selected symbol or atomic number before applying.",
+            "Use the dialog\\textquotesingle s \\ui{Apply Element} action where present, then check the original row.",
+            "For a two-species example, add a second row and choose a different element. Recheck both rows before building."
+          ],
+          "check": "Only the intended site/species row should acquire the selected identity. Choosing an element does not assign a charge state or pseudopotential.",
+          "options": "Settings > Colors and Atomic Sizes also use a periodic table, but those dialogs change appearance/radius settings rather than substituting atoms."
+        },
+        {
+          "id": "alloy",
+          "title": "Create a reproducible Cu--Ni alloy",
+          "start": "Open \\code{examples/cu_host.cif}, then \\ui{Build > Substitutional Solid Solution}.",
+          "images": [
+            {
+              "file": "tutorials/alloy-controls.jpg",
+              "bounds": [
+                460,
+                197,
+                1460,
+                857
+              ],
+              "caption": "A 500-site source with the initial Cu 90 / Ni 10 rows. The tutorial changes these to 70 / 30."
+            }
+          ],
+          "steps": [
+            "Choose \\ui{Use Current Scene}. Set Cu as the first species and Ni as the last species.",
+            "Enter 70 in the Cu at\\% field. Ni is the read-only remainder and should become 30. Set RNG seed to 42.",
+            "Choose \\ui{Build Solid Solution}, inspect the new tab, and save."
+          ],
+          "check": "Expect 350 Cu and 150 Ni atoms, matching \\code{examples/cu_ni_alloy.cif}. Coordinates remain on host sites.",
+          "options": "\\ui{+ Add Element} creates another species row; remove a row with its X. For a ternary 50:30:20, enter 50 and 30 in the first two rows. Keep seed and input ordering fixed to reproduce site assignment; seed zero requests a random assignment."
+        },
+        {
+          "id": "csl",
+          "title": "Find and build a Sigma-5 boundary",
+          "start": "Choose \\ui{Build > CSL Grain Boundary}; drop \\code{examples/cu_fcc.cif} into its reference preview.",
+          "images": [
+            {
+              "file": "tutorials/csl-search.jpg",
+              "bounds": [
+                430,
+                297,
+                1490,
+                757
+              ],
+              "caption": "CSL candidate search before loading a reference. Find can populate candidates while Build still needs a source."
+            }
+          ],
+          "steps": [
+            "Set rotation axis $[001]$ and Maximum Sigma to 200, then \\ui{Find}. Select Sigma 5 and candidate plane 0, shown here as $(2,-1,0)$.",
+            "Set Grain A and Grain B to 3 each, Gap and Vacuum to 0, and Overlap distance to 1.5 \\angstrom. Leave Conventional cell off for the supplied example.",
+            "Scroll down to Build, generate, and inspect the interface and outer periodic contacts."
+          ],
+          "check": "The supplied \\code{examples/cu_sigma5.cif} has 60 atoms. The candidate angle shown here is approximately $53.13^\\circ$.",
+          "options": "Find must be repeated after changing the axis. The plane selector chooses a candidate, not an arbitrary Miller triplet. Increase grain thickness for a larger sample; an overlap cutoff can change atom count and stoichiometry."
+        },
+        {
+          "id": "csl-options",
+          "title": "Compare grain-boundary cell options",
+          "start": "Use the preceding Sigma-5 exercise and retain a saved copy of its result.",
+          "images": [
+            {
+              "file": "tutorials/csl-options.jpg",
+              "bounds": [
+                430,
+                297,
+                1490,
+                757
+              ],
+              "caption": "The lower portion of the CSL settings after scrolling; Conventional cell and Build are now visible."
+            }
+          ],
+          "steps": [
+            "Rebuild with Conventional cell enabled. Compare cell vectors, volume, and atom count against the reduced output.",
+            "Return to the baseline inputs. Add a small Gap, for example 1 \\angstrom, rebuild, and inspect the interface separation.",
+            "Restore Gap to zero and vary Vacuum independently. Save each output with its settings."
+          ],
+          "check": "The three controls serve different purposes: cell representation, internal separation, and outside spacing. Changing them is not an energy minimisation.",
+          "options": "Vary Grain A and Grain B separately to make unequal thicknesses. Raise Maximum Sigma only when searching additional coincidence candidates; it does not enlarge a chosen bicrystal."
+        }
+      ]
+    },
+    {
+      "title": "Build: finite shapes and meshes",
+      "tutorials": [
+        {
+          "id": "nano-modes",
+          "title": "Choose a nanocrystal construction",
+          "start": "Open \\ui{Build > Nanocrystal} and drop \\code{examples/cu_fcc.cif} into the reference input.",
+          "images": [
+            {
+              "file": "tutorials/nano-controls.jpg",
+              "bounds": [
+                380,
+                77,
+                1540,
+                977
+              ],
+              "caption": "Shape Cut controls before loading a periodic reference. Wulff is the alternative construction mode."
+            }
+          ],
+          "steps": [
+            "Select \\ui{Shape Cut}, choose Sphere, and enter radius 10 \\angstrom.",
+            "Keep automatic centring and replication, use a rectangular output cell with 5 \\angstrom\\ vacuum, and Build.",
+            "Inspect the finite particle from two directions, then save a coordinate file."
+          ],
+          "check": "The native example has 336 atoms. \\code{examples/shapes/sphere.xyz} supplies the corresponding output.",
+          "options": "Manual centre changes surface termination. Manual replication must cover the entire requested shape. The output vacuum changes its enclosure rather than its surface cut. The next exercises show every shape option with native output images."
+        },
+        {
+          "id": "shape-sphere",
+          "title": "Shape Cut: sphere",
+          "start": "Load \\code{examples/cu_fcc.cif} in Nanocrystal, select Shape Cut, then sphere.",
+          "images": [
+            {
+              "file": "tutorials/shape-sphere.png",
+              "caption": "Scientific plot of actual native builder output; this is not a GUI screenshot."
+            }
+          ],
+          "steps": [
+            "Set Radius to 10 Angstrom.",
+            "Use automatic centre/replication and 5 \\angstrom\\ vacuum. Build and save.",
+            "Open \\code{examples/shapes/sphere.xyz} to compare the supplied result."
+          ],
+          "check": "336 Cu atoms in the supplied native example. A different centre or source basis can change the count.",
+          "options": "Compare radius 8 and 12. The particle should grow in every direction; counts change in discrete steps."
+        },
+        {
+          "id": "shape-ellipsoid",
+          "title": "Shape Cut: ellipsoid",
+          "start": "Load \\code{examples/cu_fcc.cif} in Nanocrystal, select Shape Cut, then ellipsoid.",
+          "images": [
+            {
+              "file": "tutorials/shape-ellipsoid.png",
+              "caption": "Scientific plot of actual native builder output; this is not a GUI screenshot."
+            }
+          ],
+          "steps": [
+            "Set the X, Y, Z radii to 12, 8, 5 Angstrom.",
+            "Use automatic centre/replication and 5 \\angstrom\\ vacuum. Build and save.",
+            "Open \\code{examples/shapes/ellipsoid.xyz} to compare the supplied result."
+          ],
+          "check": "172 Cu atoms in the supplied native example. A different centre or source basis can change the count.",
+          "options": "Swap the X and Z radii to exchange the long and short axes. These inputs are half-extents, not diameters."
+        },
+        {
+          "id": "shape-box",
+          "title": "Shape Cut: box",
+          "start": "Load \\code{examples/cu_fcc.cif} in Nanocrystal, select Shape Cut, then box.",
+          "images": [
+            {
+              "file": "tutorials/shape-box.png",
+              "caption": "Scientific plot of actual native builder output; this is not a GUI screenshot."
+            }
+          ],
+          "steps": [
+            "Set the X, Y, Z half-lengths to 10, 7, 5 Angstrom.",
+            "Use automatic centre/replication and 5 \\angstrom\\ vacuum. Build and save.",
+            "Open \\code{examples/shapes/box.xyz} to compare the supplied result."
+          ],
+          "check": "288 Cu atoms in the supplied native example. A different centre or source basis can change the count.",
+          "options": "The nominal full dimensions are 20 by 14 by 10 Angstrom. Inspect the discretised outermost lattice sites."
+        },
+        {
+          "id": "shape-cylinder",
+          "title": "Shape Cut: cylinder",
+          "start": "Load \\code{examples/cu_fcc.cif} in Nanocrystal, select Shape Cut, then cylinder.",
+          "images": [
+            {
+              "file": "tutorials/shape-cylinder.png",
+              "caption": "Scientific plot of actual native builder output; this is not a GUI screenshot."
+            }
+          ],
+          "steps": [
+            "Set cylinder radius to 7 Angstrom, full height to 20 Angstrom, and axis Z.",
+            "Use automatic centre/replication and 5 \\angstrom\\ vacuum. Build and save.",
+            "Open \\code{examples/shapes/cylinder.xyz} to compare the supplied result."
+          ],
+          "check": "312 Cu atoms in the supplied native example. A different centre or source basis can change the count.",
+          "options": "Change the axis to X or Y while retaining the dimensions. Radius is transverse to the chosen axis; height is not a half-length."
+        },
+        {
+          "id": "shape-octahedron",
+          "title": "Shape Cut: octahedron",
+          "start": "Load \\code{examples/cu_fcc.cif} in Nanocrystal, select Shape Cut, then octahedron.",
+          "images": [
+            {
+              "file": "tutorials/shape-octahedron.png",
+              "caption": "Scientific plot of actual native builder output; this is not a GUI screenshot."
+            }
+          ],
+          "steps": [
+            "Set the octahedral radius parameter to 12 Angstrom.",
+            "Use automatic centre/replication and 5 \\angstrom\\ vacuum. Build and save.",
+            "Open \\code{examples/shapes/octahedron.xyz} to compare the supplied result."
+          ],
+          "check": "224 Cu atoms in the supplied native example. A different centre or source basis can change the count.",
+          "options": "The local cut is $|x|+|y|+|z|\\leq12$ Angstrom. The radius reaches the axis vertices, not every surface point."
+        },
+        {
+          "id": "shape-truncated-octahedron",
+          "title": "Shape Cut: truncated octahedron",
+          "start": "Load \\code{examples/cu_fcc.cif} in Nanocrystal, select Shape Cut, then truncated octahedron.",
+          "images": [
+            {
+              "file": "tutorials/shape-truncated-octahedron.png",
+              "caption": "Scientific plot of actual native builder output; this is not a GUI screenshot."
+            }
+          ],
+          "steps": [
+            "Set the octahedral radius to 15 Angstrom and truncation radius to 8 Angstrom.",
+            "Use automatic centre/replication and 5 \\angstrom\\ vacuum. Build and save.",
+            "Open \\code{examples/shapes/truncated-octahedron.xyz} to compare the supplied result."
+          ],
+          "check": "216 Cu atoms in the supplied native example. A different centre or source basis can change the count.",
+          "options": "The cut combines $|x|+|y|+|z|\\leq15$ and $\\max(|x|,|y|,|z|)\\leq8$. Vary the cap to expose or suppress truncating faces."
+        },
+        {
+          "id": "shape-cuboctahedron",
+          "title": "Shape Cut: cuboctahedron",
+          "start": "Load \\code{examples/cu_fcc.cif} in Nanocrystal, select Shape Cut, then cuboctahedron.",
+          "images": [
+            {
+              "file": "tutorials/shape-cuboctahedron.png",
+              "caption": "Scientific plot of actual native builder output; this is not a GUI screenshot."
+            }
+          ],
+          "steps": [
+            "Select the option named Cuboctahedron and set its radius parameter to 12 Angstrom.",
+            "Use automatic centre/replication and 5 \\angstrom\\ vacuum. Build and save.",
+            "Open \\code{examples/shapes/cuboctahedron.xyz} to compare the supplied result."
+          ],
+          "check": "276 Cu atoms in the supplied native example. A different centre or source basis can change the count.",
+          "options": "The implementation tests each pairwise absolute sum: $|x|+|y|$, $|y|+|z|$, and $|z|+|x|$ must be at most the parameter. This is the implemented geometry, not the usual ideal cuboctahedron definition."
+        },
+        {
+          "id": "wulff",
+          "title": "Build a Wulff particle from facet families",
+          "start": "Open Nanocrystal, select Wulff Construction, and load \\code{examples/cu_fcc.cif}.",
+          "images": [
+            {
+              "file": "tutorials/wulff-controls.jpg",
+              "bounds": [
+                380,
+                77,
+                1540,
+                977
+              ],
+              "caption": "Initial Wulff controls with one family, before loading the reference. Scroll the options panel for additional controls."
+            }
+          ],
+          "steps": [
+            "Use family $(100)$ with energy 1.0, then add $(111)$ with energy 0.9. Choose distinct family colours.",
+            "Set Max radius to 20 \\angstrom. Keep automatic centring/replication and a rectangular cell with 5 \\angstrom\\ vacuum.",
+            "Inspect the Wulff Plane View, build the atomic result, and compare facets against the guide planes."
+          ],
+          "check": "The families should define a bounded intersection. A family hidden behind other bounding planes may contribute no exposed facet.",
+          "options": "Change a positive energy ratio and rebuild to compare facet areas. Add/remove families using the row controls. The highest-energy family is placed at Max radius; that value is not necessarily the farthest vertex radius. The demonstration energies are illustrative, not measured surface energies."
+        },
+        {
+          "id": "custom",
+          "title": "Fill an OBJ mesh with copper sites",
+          "start": "Prepare \\code{examples/cu_fcc.cif} and the supplied closed \\code{examples/octahedron.obj}.",
+          "images": [
+            {
+              "file": "tutorials/custom-controls.jpg",
+              "bounds": [
+                420,
+                147,
+                1500,
+                907
+              ],
+              "caption": "Custom Structure input panels and fill options before either input is supplied."
+            }
+          ],
+          "steps": [
+            "Open \\ui{Build > Custom Structure}. Drop the crystal into the left input and the OBJ into the right. Alternatively copy an appropriate periodic scene using \\ui{Use Current Scene}.",
+            "Set Scale to 12 \\angstrom\\ per model unit, automatic centring, and rectangular output with 5 \\angstrom\\ vacuum.",
+            "Leave crystal orientation disabled for the baseline exercise. Build Fill and inspect the result."
+          ],
+          "check": "The supplied native example \\code{examples/cu_mesh.xyz} contains 224 Cu atoms. The OBJ has six unit-axis vertices and eight triangular faces.",
+          "options": "Scale converts mesh units to physical distances. A non-watertight mesh or a feature smaller than lattice spacing can produce a missing fill. Use a closed mesh, verify its dimensions, and confirm sufficient replication before raising sample size."
+        },
+        {
+          "id": "custom-euler",
+          "title": "Orient the lattice inside a mesh",
+          "start": "Use the preceding mesh-fill inputs and save the unrotated result.",
+          "images": [
+            {
+              "file": "tutorials/custom-euler.jpg",
+              "bounds": [
+                420,
+                607,
+                1500,
+                902
+              ],
+              "caption": "The orientation portion of Custom Structure with Type 1 enabled. Lower controls require scrolling."
+            }
+          ],
+          "steps": [
+            "Enable \\ui{Apply crystal orientation}. Select Type 1 and enter Rot X $=0$, Rot Y $=0$, Rot Z $=45^\\circ$.",
+            "Build again and compare lattice rows against the same mesh outline.",
+            "Return angles to zero and rebuild when checking the original result."
+          ],
+          "check": "The lattice alignment and discrete surface termination can change. Orbiting the preview alone does not perform this orientation operation.",
+          "options": "Try rotations about one axis at a time, then combine them. Record all three angles and the order convention from the detailed controls when reproducing a fill."
+        },
+        {
+          "id": "custom-miller",
+          "title": "Align a crystallographic direction to the mesh",
+          "start": "Use the same periodic reference and closed mesh as the Custom Structure tutorial.",
+          "images": [
+            {
+              "file": "tutorials/custom-miller.jpg",
+              "bounds": [
+                420,
+                607,
+                1500,
+                902
+              ],
+              "caption": "Type 2 exposes the crystallographic direction triplet instead of Euler-angle inputs."
+            }
+          ],
+          "steps": [
+            "Enable crystal orientation, select Type 2, and enter $[111]$.",
+            "Build and inspect the lattice direction aligned to mesh +Z.",
+            "Compare against $[001]$ with the same scale and centre."
+          ],
+          "check": "The direction must be nonzero. It is a direct-lattice direction, which differs from a reciprocal plane normal for a general skew cell.",
+          "options": "Switching orientation type changes which inputs define the transform. Recheck the active type before reproducing an Euler-angle recipe."
+        }
+      ]
+    },
+    {
+      "title": "Build: grains and random packing",
+      "tutorials": [
+        {
+          "id": "polycrystal",
+          "title": "Build a four-grain copper sample",
+          "start": "Open \\ui{Build > Polycrystal} and drop \\code{examples/cu_fcc.cif} onto the reference preview.",
+          "images": [
+            {
+              "file": "tutorials/polycrystal-controls.jpg",
+              "bounds": [
+                550,
+                177,
+                1370,
+                877
+              ],
+              "caption": "Polycrystal controls at their initial values, before loading a reference. The exercise uses a smaller box and four grains."
+            }
+          ],
+          "steps": [
+            "Enter X, Y, Z box dimensions of 25 \\angstrom\\ each and Number of Grains 4.",
+            "Set Random Seed to 7 and Grain Orientations to All Random.",
+            "Build, inspect boundaries, and save the structure together with any orientation sidecar."
+          ],
+          "check": "The supplied \\code{examples/cu_polycrystal.cif} has 1,329 atoms. Orientation colouring needs corresponding metadata.",
+          "options": "Increase box size at fixed grain count to enlarge typical grain interiors. Increase grain count at fixed size to refine the partition. Save seed and dimensions; the grain count alone does not reproduce a sample."
+        },
+        {
+          "id": "poly-orientations",
+          "title": "Specify all or selected grain orientations",
+          "start": "Use a four-grain polycrystal exercise with a fixed seed and box.",
+          "images": [
+            {
+              "file": "tutorials/polycrystal-modes.jpg",
+              "bounds": [
+                550,
+                177,
+                1370,
+                877
+              ],
+              "caption": "All Random, All Specified, and Partial are separate grain-orientation modes."
+            }
+          ],
+          "steps": [
+            "Choose \\ui{All Specified}. Enter a Bunge Euler triplet for each grain; begin with $(0,0,0)$ for one and $(45,0,0)$ degrees for another.",
+            "Choose \\ui{Partial} for a second trial. Add Grain 1 with $(0,0,0)$ and leave the other grains unspecified.",
+            "Build each trial and compare orientation colouring and the saved orientation information."
+          ],
+          "check": "All Specified should supply every grain; Partial fixes selected grains and randomises the rest. GUI grain numbers are one-based.",
+          "options": "Use Add Grain Orientation to append an entry, edit its three angles, and remove an unwanted row. Avoid duplicate grain IDs. Changing seed can still alter grain positions even when orientations are specified."
+        },
+        {
+          "id": "amorphous",
+          "title": "Pack a Si--O starting configuration",
+          "start": "Choose \\ui{Build > Amorphous Structure}.",
+          "images": [
+            {
+              "file": "tutorials/amorphous-controls.jpg",
+              "bounds": [
+                663,
+                239,
+                1256,
+                815
+              ],
+              "caption": "Initial composition and density controls; replace the single Si row with the tutorial composition."
+            }
+          ],
+          "steps": [
+            "Set Si count to 40. Use \\ui{+ Add element} to add O with count 80.",
+            "Choose Auto from target density, enter 1.5 $\\mathrm{g\\,cm^{-3}}$, retain Cell scale factor 1 and the unit-cell checkbox.",
+            "Open Advanced Settings, set seed 7, Build, and inspect the placement status."
+          ],
+          "check": "Expect 120 atoms, with Si:O = 1:2. \\code{examples/sio2_pack.xyz} is the supplied packing example.",
+          "options": "Counts determine composition; at% is derived. Remove a species with its row X. Cell scale multiplies all lengths, so density is divided by its cube. This is random packing, not an equilibrated glass."
+        },
+        {
+          "id": "amorphous-advanced",
+          "title": "Control packing distances and repeatability",
+          "start": "Use the Si--O composition from the preceding exercise.",
+          "images": [
+            {
+              "file": "tutorials/amorphous-advanced.jpg",
+              "bounds": [
+                663,
+                680,
+                1256,
+                1012
+              ],
+              "caption": "Expanded advanced controls, captured with the initial single-species composition. Each enabled pair row can override its default distance."
+            }
+          ],
+          "steps": [
+            "Keep a fixed RNG seed. Start with the default covalent-radius tolerance and maximum attempts.",
+            "For a deliberate pair constraint, enable that pair row and enter its minimum separation in Angstrom, then rebuild.",
+            "Compare inserted count and failure messages before and after changing the constraint."
+          ],
+          "check": "An impossible packing should not be treated as a complete structure. Stronger minimum distances can require a larger box or a lower target density.",
+          "options": "Increasing attempts spends more effort on the same constraints. It does not make contradictory density/distance requirements feasible. Seed zero uses time; record a positive seed for reproducibility."
+        },
+        {
+          "id": "amorphous-box",
+          "title": "Use an explicit packing box",
+          "start": "Open the amorphous builder with the intended species counts.",
+          "images": [
+            {
+              "file": "tutorials/amorphous-manual.jpg",
+              "bounds": [
+                663,
+                449,
+                1256,
+                1018
+              ],
+              "caption": "Manual dimensions replace the density-derived box. Advanced constraints remain available below."
+            }
+          ],
+          "steps": [
+            "Select \\ui{Manual dimensions}; enter $a=20$, $b=20$, $c=20$ \\angstrom\\ and Cell scale factor 1.",
+            "Keep seed and distance settings fixed, Build, and inspect the actual box and count.",
+            "Repeat with scale 1.1 to see how extra volume affects placement."
+          ],
+          "check": "At fixed counts, scale 1.1 multiplies volume by 1.331 and lowers number/mass density accordingly.",
+          "options": "The Periodic boundary conditions checkbox attaches a unit cell to the output; packing still uses minimum-image distance checks. Do not interpret this checkbox as switching to a different nonperiodic packing algorithm."
+        }
+      ]
+    },
+    {
+      "title": "Edit: selection, coordinates, and assembly",
+      "tutorials": [
+        {
+          "id": "selection",
+          "title": "Select atoms and recover an edit",
+          "start": "Open a working copy of \\code{examples/cu_host.cif}.",
+          "images": [
+            {
+              "file": "tutorials/edit-menu.jpg",
+              "bounds": [
+                53,
+                26,
+                299,
+                384
+              ],
+              "caption": "The Edit menu groups history, selection, direct editing, and specialised construction tools."
+            }
+          ],
+          "steps": [
+            "Click an atom, then Ctrl+click another to extend the selection. Use Ctrl+D to clear it.",
+            "Enable \\ui{Box Select Mode} and right-drag a rectangle. Repeat with \\ui{Lasso Select Mode} and an irregular right-drag path.",
+            "Inspect the selected atoms from another view, delete a small selected set, then use Undo and Redo where enabled. Restore or reload the saved example afterwards."
+          ],
+          "check": "Projected selection can include atoms behind those visible at the front. Undo/Redo restores supported structure changes; Reset Default View only restores framing.",
+          "options": "Use Ctrl+A to select all, Ctrl+Z to undo, and Ctrl+Y or Ctrl+Shift+Z to redo when no text field is active. Save checkpoints before larger operations."
+        },
+        {
+          "id": "context",
+          "title": "Use atom context actions",
+          "start": "Open a working copy of the copper host; select atoms in the main viewport.",
+          "images": [
+            {
+              "file": "tutorials/atom-context.jpg",
+              "bounds": [
+                936,
+                819,
+                1180,
+                1032
+              ],
+              "caption": "Context menu for one selected atom. Midpoint, distance, and angle require larger selections and are disabled here."
+            }
+          ],
+          "steps": [
+            "With one atom selected, right-click and use \\ui{Substitute Atom}; choose Ni and apply. Inspect the species count.",
+            "With two nearby sites selected, choose \\ui{Insert Atom at Midpoint}, select H, and inspect the added position.",
+            "Try \\ui{Delete} on the added atom, or \\ui{Deselect} to clear selection without deleting it. Save only the intended result."
+          ],
+          "check": "Substitution preserves the site count; insertion adds one atom; deletion removes selected base atoms. A periodic image maps to its base atom.",
+          "options": "For more than two selected sites, midpoint insertion uses their displayed Cartesian centroid. It is not a minimum-image midpoint. Use exactly two selections for distance, three for angle, and one for Atom Info."
+        },
+        {
+          "id": "atom-information",
+          "title": "Check coordinates and nearest neighbours",
+          "start": "Open \\code{examples/cu_host.cif} and select one Cu atom.",
+          "images": [
+            {
+              "file": "tutorials/atom-info.jpg",
+              "bounds": [
+                720,
+                423,
+                1200,
+                631
+              ],
+              "caption": "Atom Info on the ideal copper host: coordination 12 and nearest-neighbour length about 2.5527 Angstrom."
+            }
+          ],
+          "steps": [
+            "Open \\ui{Atom Info} from View or the right-click menu. Read Cartesian and Direct coordinates and neighbour statistics.",
+            "Close the dialog, select two neighbouring displayed sites, and choose \\ui{Measure Distance}.",
+            "For an angle, select three sites in the intended order and inspect which site is the vertex."
+          ],
+          "check": "The ideal FCC nearest-neighbour distance is $3.61/\\sqrt{2}\\approx2.5527$ \\angstrom. Displayed periodic images affect the measurement geometry.",
+          "options": "Use Distance/Angle on the toolbar for the same measurement workflow. Clear selection before starting a different measurement to avoid accidentally retaining extra sites."
+        },
+        {
+          "id": "edit-table",
+          "title": "Move, add, delete, or relabel an atom",
+          "start": "Save a working copy, then open \\ui{Edit > Edit Structure}.",
+          "images": [
+            {
+              "file": "tutorials/edit-structure.jpg",
+              "bounds": [
+                470,
+                207,
+                1450,
+                847
+              ],
+              "caption": "Edit Structure shows Cartesian lattice vectors and per-atom rows for the 500-site host."
+            }
+          ],
+          "steps": [
+            "Choose Cartesian mode and change one atom\\textquotesingle s X coordinate by 0.1 \\angstrom. Switch to Direct to inspect the same position in fractional form.",
+            "Use \\ui{Add Atom}; set the initial H row to the intended element and a non-overlapping position. Click a row element to substitute that row.",
+            "Delete the trial row if unwanted. Close the dialog and inspect coordinates and composition before saving."
+          ],
+          "check": "Coordinate edits apply immediately to the active structure. Switching coordinate mode alone does not move an atom.",
+          "options": "Cell-vector edits change the cell but do not rescale Cartesian atom positions. Direct mode requires a cell. Check row indices after deletion because numbering can change."
+        },
+        {
+          "id": "transform",
+          "title": "Make a periodic supercell",
+          "start": "Open \\code{examples/cu_fcc.cif}, then \\ui{Edit > Transform Structure}.",
+          "images": [
+            {
+              "file": "tutorials/transform-controls.jpg",
+              "bounds": [
+                798,
+                372,
+                1123,
+                682
+              ],
+              "caption": "Transform Structure starts with the identity matrix. Enter all nine coefficients deliberately."
+            }
+          ],
+          "steps": [
+            "Enter rows $(2,0,0)$, $(0,2,0)$, and $(0,0,2)$.",
+            "Choose \\ui{Apply}; inspect cell lengths, volume, and atom count.",
+            "Save under a new filename. Reopen the reference before comparing a different transform."
+          ],
+          "check": "Expect 32 atoms and eight times the four-atom reference volume. Diagonal $(2,1,1)$ instead gives eight atoms and twice the reference volume.",
+          "options": "Non-diagonal integer matrices mix lattice directions. A zero determinant is invalid; negative determinant reverses handedness. Cancel discards the pending matrix. This tool requires a periodic cell."
+        },
+        {
+          "id": "merge",
+          "title": "Assemble two separated particles",
+          "start": "Use two copies of \\code{examples/cu_sphere.xyz}. Open \\ui{Edit > Merge Structures}.",
+          "images": [
+            {
+              "file": "tutorials/merge-controls.jpg",
+              "bounds": [
+                160,
+                47,
+                1760,
+                1007
+              ],
+              "caption": "Merge Structures before components are dropped. Selecting a loaded component reveals its position and rotation controls below the preview."
+            }
+          ],
+          "steps": [
+            "Drop both components, select the second in the list, and enter a +25 Angstrom X translation with zero Y/Z and zero rotation.",
+            "Orbit the arrangement and use Show Bounding Box to inspect the gap. Translate/rotate handles and the T/R shortcuts provide coarse adjustment; numeric fields give repeatable values.",
+            "Choose Merge Structures and save the new output tab."
+          ],
+          "check": "Two 336-atom inputs should produce 672 atoms. The merger does not remove overlaps and clears the periodic cell and grain metadata.",
+          "options": "Reset restores the selected component transform; Remove/Delete Selected removes one component; Clear All empties the assembly. These actions do not remove source files. Do not expect cell-dependent tools to work on the nonperiodic merged result."
+        },
+        {
+          "id": "sculptor",
+          "title": "Preview a crystallographic slab",
+          "start": "Open \\code{examples/cu_host.cif}, choose \\ui{Edit > Cell Sculptor}, and \\ui{Use Scene}.",
+          "images": [
+            {
+              "file": "tutorials/sculptor-periodic.jpg",
+              "bounds": [
+                360,
+                107,
+                1560,
+                947
+              ],
+              "caption": "A loaded 500-site host with one periodic (100) slab. Generate is disabled because one normal does not enclose a 3D cell."
+            }
+          ],
+          "steps": [
+            "Keep source supercell counts at 1. Add a $(100)$ slab and keep Periodic enabled, Start 0, N 1.",
+            "Inspect the two translucent bounding planes and the cut preview.",
+            "Add independent $(010)$ and $(001)$ slabs with finite intervals to close the region, then inspect the Generate status."
+          ],
+          "check": "Three independent normal directions can close a region; three parallel slabs cannot. The preview can be nonempty even while Generate is disabled.",
+          "options": "Change Start to shift a periodic interval or N to change its thickness. Increase source repetitions when the cuts extend beyond available sites. Clear removes the source; Remove deletes a slab constraint."
+        },
+        {
+          "id": "sculptor-manual",
+          "title": "Cut with explicit slab distances",
+          "start": "Use the loaded Cell Sculptor example and retain the source file.",
+          "images": [
+            {
+              "file": "tutorials/sculptor-manual.jpg",
+              "bounds": [
+                360,
+                107,
+                1560,
+                947
+              ],
+              "caption": "Disabling Periodic exposes distance limits. The shown single (100) interval retains a 300-atom preview but is still unbounded mathematically."
+            }
+          ],
+          "steps": [
+            "Disable Periodic on a slab and enter $d_1=-5$, $d_2=5$ \\angstrom. Inspect the changed retained count.",
+            "Add independent lateral bounds for a closed volume. Narrow one interval to make a thin specimen.",
+            "Adjust outside ghost alpha for clarity, Generate the valid closed result, and save the changed current structure."
+          ],
+          "check": "The distance limits select atoms; ghost opacity only changes the guide display. Generate commits and closes; Close alone does not commit.",
+          "options": "A slab normal is reciprocal-lattice based. In a skew cell its (hkl) normal differs from the corresponding direct-lattice direction. Check which side is retained before committing."
+        }
+      ]
+    },
+    {
+      "title": "Edit: dislocations and interstitials",
+      "tutorials": [
+        {
+          "id": "dislocation",
+          "title": "Configure a dislocation preview",
+          "start": "Open \\code{examples/cu_host.cif}, choose \\ui{Edit > Insert Dislocation}, and \\ui{Use Current Scene}.",
+          "images": [
+            {
+              "file": "tutorials/dislocation-controls.jpg",
+              "bounds": [
+                340,
+                137,
+                1580,
+                917
+              ],
+              "caption": "The copper host has been copied and detected as FCC-like. Upper settings define character, line position, and elastic inputs."
+            }
+          ],
+          "steps": [
+            "Inspect Detect Lattice. Keep Edge, Half-plane, automatic lattice vectors, fractional line point $(0.5,0.5,0.5)$, and zero offset.",
+            "Use Burgers scale 1, Poisson ratio 0.33, Core radius 1.2 \\angstrom, Cutoff radius 20 \\angstrom, and the displayed long line half length.",
+            "Scroll to Generate Dislocation and calculate the preview."
+          ],
+          "check": "Generation alone does not replace the main structure. Inspect the output geometry and validation summary first.",
+          "options": "Screw changes character; Mixed exposes an angle from 0 to 90 degrees. Disable Auto lattice vectors to enter Plane, Burgers, and Line triplets. Fractional point and Cartesian offset use different units."
+        },
+        {
+          "id": "dislocation-regions",
+          "title": "Restrict the displaced region",
+          "start": "Use the preceding dislocation inputs; save the original host separately.",
+          "images": [
+            {
+              "file": "tutorials/dislocation-preview.jpg",
+              "bounds": [
+                340,
+                137,
+                1580,
+                917
+              ],
+              "caption": "Generated half-plane preview. A lattice-family validation warning is shown and must not be ignored."
+            }
+          ],
+          "steps": [
+            "Change Shape to Cylinder and its radius to 5 Angstrom; set cutoff to 8 Angstrom. Generate a fresh preview.",
+            "Compare Sphere with its radius, then Ellipsoid with three radii. These are alternative spatial restrictions, not changes to the host composition.",
+            "For Freeform 2D, Add Point for each local polygon vertex, edit its coordinates, and Remove Last to correct the outline. Use a simple closed polygon without self-intersections."
+          ],
+          "check": "The supplied native cylindrical example \\code{examples/cu_dislocation.cif} preserves 500 atoms and reports 136 shifted sites. The screenshot uses the different half-plane settings, with 306 shifted sites.",
+          "options": "Core radius regularises near-line displacement. Cutoff attenuates radially; zero disables attenuation. Line half length limits axial extent. Regenerate after changing any of these values and compare the minimum distance."
+        },
+        {
+          "id": "dislocation-commit",
+          "title": "Review and commit a defect",
+          "start": "Generate a dislocation preview, then scroll to Result summary.",
+          "images": [
+            {
+              "file": "tutorials/dislocation-summary.jpg",
+              "bounds": [
+                340,
+                137,
+                1580,
+                917
+              ],
+              "caption": "Validation and Replace Main Scene are below Generate in the settings panel."
+            }
+          ],
+          "steps": [
+            "Read shifted atoms, Burgers magnitude, RMS and maximum displacement, minimum distance, and family before/after.",
+            "For the shown half-plane trial, note the FCC-like to HCP-like warning. Treat it as a starting geometry requiring review, not a relaxed defect.",
+            "Only when the geometry is the intended trial, choose \\ui{Replace Main Scene}. Save the result under a new name."
+          ],
+          "check": "The shown Burgers magnitude is about 2.5527 \\angstrom; the minimum distance is about 1.8801 \\angstrom. These describe this trial, not every character or region.",
+          "options": "Close leaves the uncommitted source unchanged. A numerical Burgers scale is not automatically a physically allowed perfect-dislocation vector. Compare core contacts and external relaxation before a physical study."
+        },
+        {
+          "id": "void-detection",
+          "title": "Find candidate interstitial sites",
+          "start": "Open \\code{examples/cu_host.cif}, then \\ui{Edit > Add Interstitial Atoms > Use Current Scene}.",
+          "images": [
+            {
+              "file": "tutorials/interstitial-detection.jpg",
+              "bounds": [
+                410,
+                167,
+                1510,
+                887
+              ],
+              "caption": "Void-detection controls with the 500-atom host loaded."
+            }
+          ],
+          "steps": [
+            "Set Grid 14, Max Voids 0, Min Clearance 0.60 \\angstrom, and Min Separation 0.80 \\angstrom.",
+            "Choose \\ui{Detect Voids}. Inspect the marker cloud, type list, and selected-void information.",
+            "Repeat with another grid resolution to assess whether the candidate set is stable."
+          ],
+          "check": "The captured run found 1,500 candidate voids. This is a search result, not 1,500 atoms already inserted.",
+          "options": "Max Voids 0 means retain all detected candidates. Clearance measures space around a candidate; separation deduplicates nearby candidates. Increasing Grid increases work and can change classifications."
+        },
+        {
+          "id": "void-selection",
+          "title": "Inspect and filter candidate environments",
+          "start": "Run Detect Voids on the copper host.",
+          "images": [
+            {
+              "file": "tutorials/interstitial-voids.jpg",
+              "bounds": [
+                410,
+                167,
+                1510,
+                887
+              ],
+              "caption": "Detected void markers and type counts. Selected-void details appear further down the panel."
+            }
+          ],
+          "steps": [
+            "Click a candidate centre to inspect it. Ctrl+click adds or removes centres from the selection.",
+            "Read its type, coordination, volume, clearance, and centre coordinates. Toggle Show Void Polyhedra to compare the environment with and without its guide.",
+            "Use Select All Types, Clear All Types, and individual type checkboxes to choose which classes are eligible for distribution."
+          ],
+          "check": "A highlighted void is a candidate location, not an inserted atom. The selected-centre count and the type-filtered pool are different quantities.",
+          "options": "Record the detection parameters with any candidate count. A coarse search can split or merge geometrically similar types, so do not assign chemistry from a displayed type label alone."
+        },
+        {
+          "id": "interstitial-random",
+          "title": "Insert a small random population",
+          "start": "Use the detected host and choose the desired candidate types.",
+          "images": [
+            {
+              "file": "tutorials/interstitial-placement.jpg",
+              "bounds": [
+                410,
+                167,
+                1510,
+                887
+              ],
+              "caption": "Placement controls after detection, including type filters, element selection, and percentage target."
+            }
+          ],
+          "steps": [
+            "Choose \\ui{Select Element}, select H, and use Random distribution.",
+            "Choose By atom count and request 5, set seed 42 and Min Insert Distance 0.60 \\angstrom.",
+            "Apply Interstitials, then inspect the reported added count and the current structure composition."
+          ],
+          "check": "If all five trial sites pass constraints, the structure has 505 atoms; otherwise use the actual reported number. Rejected candidates are not necessarily replaced from the rest of the pool.",
+          "options": "By percentage refers to eligible voids, not final atomic percent. Seed zero is deterministic in this tool. Apply updates the current structure and tool source; detect again after substantial host changes."
+        },
+        {
+          "id": "interstitial-manual",
+          "title": "Insert only at selected centres",
+          "start": "Detect voids and choose the intended inserted element.",
+          "images": [
+            {
+              "file": "tutorials/interstitial-modes.jpg",
+              "bounds": [
+                998,
+                388,
+                1480,
+                817
+              ],
+              "caption": "The placement menu offers Random, Inside OBJ/STL, and Manual modes."
+            }
+          ],
+          "steps": [
+            "Select \\ui{Manual (selected voids only)}.",
+            "Click one candidate centre; Ctrl+click to extend or reduce the set. Check the selected-centre count and clearance.",
+            "Apply Interstitials and inspect the exact new positions and added count."
+          ],
+          "check": "Manual mode requires selected centres. It does not use the percentage/count target as a replacement for the selection.",
+          "options": "Use the minimum insertion distance to reject overlaps. Clear or adjust selection if Apply is disabled. Hiding the guide polyhedra does not deselect the centres."
+        },
+        {
+          "id": "interstitial-mesh",
+          "title": "Confine insertion to an OBJ/STL region",
+          "start": "Detect voids in the host and prepare the closed \\code{examples/octahedron.obj}.",
+          "images": [
+            {
+              "file": "tutorials/interstitial-mesh.jpg",
+              "bounds": [
+                410,
+                167,
+                1510,
+                887
+              ],
+              "caption": "Mesh-region controls before a mesh is dropped; Apply is disabled until the required region is available."
+            }
+          ],
+          "steps": [
+            "Select Inside OBJ/STL mesh region, then drop the mesh onto the preview.",
+            "Set Scale 5 and translate the region near the host centre; use T, R, S gizmo modes or numeric translation/rotation to align it.",
+            "Choose a small atom-count target, fixed seed, and minimum insertion distance. Apply and inspect where atoms were added."
+          ],
+          "check": "Eligible candidates must pass the type filters and lie inside the transformed mesh. An empty or misplaced mesh can yield no insertions.",
+          "options": "Reset Transform restores unit scale and zero translation/rotation. The mesh limits candidate selection; it does not cut the existing host atoms. Use Cell Sculptor for an atomic cut."
+        }
+      ]
+    },
+    {
+      "title": "File, View, and Settings options",
+      "tutorials": [
+        {
+          "id": "files",
+          "title": "Open, save, convert, and manage tabs",
+          "start": "Locate this manual\textquotesingle s examples folder on your machine.",
+          "images": [
+            {
+              "file": "tutorials/file-browser.jpg",
+              "bounds": [
+                600,
+                272,
+                1320,
+                783
+              ],
+              "caption": "The real structure browser with a generated example selected. The filename can be selected from the listing."
+            }
+          ],
+          "steps": [
+            "Choose \\ui{File > Open}, browse to the examples folder, select \\code{cu_host.cif}, and Load. Double-clicking a listed structure also opens it.",
+            "Use \\ui{Save As} for a separate working copy. Select a format, choose a matching extension, and confirm replacement only for the intended destination.",
+            "Open another example in a second tab. Select the intended tab before an edit or save, and close a tab after saving required changes."
+          ],
+          "check": "Opening a structure should show its tab and the expected atom count. Converting to a format that lacks cell/metadata can lose information; reopen to check.",
+          "options": "Back/Forward traverse folder history; Up opens the parent; the folder field accepts a directory on Enter. File > Open Recent revisits inputs. Ctrl+S saves, Ctrl+Shift+S opens Save As, Ctrl+W closes. Drag/drop feeds an open tool when its drop workflow is active."
+        },
+        {
+          "id": "camera",
+          "title": "Orient and frame the structure",
+          "start": "Open \\code{examples/cu_host.cif}.",
+          "images": [
+            {
+              "file": "tutorials/view-menu.jpg",
+              "bounds": [
+                147,
+                26,
+                349,
+                663
+              ],
+              "caption": "View menu: projection, overlays, information, measurements, and Reset Default View are separate commands."
+            }
+          ],
+          "steps": [
+            "Use toolbar X, Y, Z to view Cartesian axes, then a, b, c to compare lattice directions.",
+            "Left-drag to orbit, right-drag to pan when no selection mode is active, and use the wheel to zoom.",
+            "Set the toolbar rotation increment to 5 degrees and click an axis rotation button. Compare Isometric and Orthographic View, then Reset Default View."
+          ],
+          "check": "Coordinates and atom count must remain unchanged. These controls move the camera, even where internal code calls them Rotate Crystal.",
+          "options": "Show Element toggles labels; Show Atoms and Show Bounding Box independently toggle geometry visibility. Hidden atoms remain in the structure and numerical analyses. Turn off Box/Lasso selection to restore right-drag panning."
+        },
+        {
+          "id": "colouring",
+          "title": "Choose structure colouring",
+          "start": "Open \\code{examples/cu_ni_alloy.cif} for element colour, or the supplied polycrystal with its orientation sidecar.",
+          "images": [
+            {
+              "file": "tutorials/structure-colouring.jpg",
+              "bounds": [
+                147,
+                26,
+                522,
+                228
+              ],
+              "caption": "View Structure By exposes element and metadata-based presentations."
+            }
+          ],
+          "steps": [
+            "Choose Element Type to distinguish species. Confirm Cu and Ni with Structure Info.",
+            "Choose Crystal Orientation on a structure with orientation information; compare Grain Boundary on a suitable grain-labelled result.",
+            "For a generated defect with retained line information, inspect Dislocation Lines and the separate Show Dislocation Lines toggle."
+          ],
+          "check": "Changing colouring does not create missing grain or dislocation metadata. Keep source sidecars with files when required.",
+          "options": "Select Element Type again to return to chemistry colours. The Colours settings palette and the electronic density palette are independent."
+        },
+        {
+          "id": "representations",
+          "title": "Compare atom representations and overlays",
+          "start": "Open a small periodic example to keep the comparison readable.",
+          "images": [
+            {
+              "file": "tutorials/atom-representation.jpg",
+              "bounds": [
+                147,
+                26,
+                490,
+                245
+              ],
+              "caption": "View Atoms By: Balls, Ball and Stick, Space Filling, and Polyhedral."
+            }
+          ],
+          "steps": [
+            "Switch between Balls, Ball and Stick, and Space Filling. Inspect the same bond/void region after each switch.",
+            "Choose Polyhedral and configure Settings > Polyhedral Settings. Also inspect the separate Polyhedral Viewer overlay where available.",
+            "Toggle Show Voronoi Volume to inspect the available Voronoi geometry, then return to the original representation."
+          ],
+          "check": "The atom list is unchanged. Geometric bonds and rendered occupied space are not electronic bonding or a measured charge-density boundary.",
+          "options": "Restrict centres/neighbours for a readable polyhedral view. Zero opacity, hidden atoms, or restrictive filters can make a configured representation appear empty."
+        },
+        {
+          "id": "planes",
+          "title": "Add and manage lattice-plane guides",
+          "start": "Open the copper host, then \\ui{View > Lattice Planes}.",
+          "images": [
+            {
+              "file": "tutorials/lattice-planes.jpg",
+              "bounds": [
+                570,
+                267,
+                1350,
+                787
+              ],
+              "caption": "New-plane controls and an editable saved (100) row. Global and row visibility are both enabled."
+            }
+          ],
+          "steps": [
+            "Enter $(100)$, Offset $n=1$, Opacity 0.2, and a colour; choose Add Plane.",
+            "Add $(110)$ in a contrasting colour. Close the dialog and orbit to compare the guides.",
+            "Reopen the dialog. Toggle a row, change its offset, then Delete it to compare the effects."
+          ],
+          "check": "Both global Show lattice planes and the row visibility must be on. These guides do not remove atoms or calculate a density section.",
+          "options": "Use opacity 0 to hide faces and 1 for opaque guides. Change a colour swatch for a different guide colour. Plane offsets are not the fractional point control used by electronic arbitrary sections."
+        },
+        {
+          "id": "directions",
+          "title": "Draw crystallographic directions",
+          "start": "Open \\ui{View > Miller Directions} on a structure with a cell.",
+          "images": [
+            {
+              "file": "tutorials/miller-directions.jpg",
+              "bounds": [
+                620,
+                287,
+                1300,
+                767
+              ],
+              "caption": "Miller Directions with a saved [100] vector of length 5 Angstrom."
+            }
+          ],
+          "steps": [
+            "Enter $[100]$, length 5 \\angstrom, and a colour, then Add Direction.",
+            "Add $[110]$ with a second colour and compare both from an oblique view.",
+            "Edit a saved row\textquotesingle s length or direction, toggle its visibility, and delete the trial row when finished."
+          ],
+          "check": "Length controls the drawing, not a lattice parameter or physical displacement. The direction must be nonzero.",
+          "options": "Global Show Miller directions controls the collection. In a skew cell, a direct-lattice direction and the corresponding reciprocal-plane normal generally differ."
+        },
+        {
+          "id": "polyhedra",
+          "title": "Limit and style coordination polyhedra",
+          "start": "Enable an appropriate polyhedral representation or overlay in View.",
+          "images": [
+            {
+              "file": "tutorials/polyhedral-settings.jpg",
+              "bounds": [
+                650,
+                267,
+                1270,
+                787
+              ],
+              "caption": "Polyhedral Settings separates candidate counts, centre selection, element filters, and face/edge visibility."
+            }
+          ],
+          "steps": [
+            "Start with Max displayed centers 10 and Nearest neighbors 12 on copper, or an appropriate neighbour count for another structure.",
+            "Enable Specify center atom indices and enter \\code{1,4,10-20}. Inspect the parsed centre count.",
+            "Enable centre/ligand element filters for an oxide, choosing the metal as centres and O as ligands. Adjust face and edge opacity independently."
+          ],
+          "check": "A filter or centre cap intentionally limits displayed environments. It does not delete those atoms.",
+          "options": "GUI centre IDs are one-based and can change after edits. Neighbours ranges from 4 to 64 and centres from 1 to 2000. Reset Defaults clears filters and restores display values; Show polyhedral edges toggles edges separately."
+        },
+        {
+          "id": "radii",
+          "title": "Adjust an element radius",
+          "start": "Open \\ui{Settings > Atomic Sizes} with a copper structure visible.",
+          "images": [
+            {
+              "file": "tutorials/atomic-sizes.jpg",
+              "bounds": [
+                464,
+                191,
+                1455,
+                863
+              ],
+              "caption": "Atomic Sizes: select a species first, then edit or restore its radius."
+            }
+          ],
+          "steps": [
+            "Select Cu in the periodic table and record its current radius.",
+            "Change the Atomic Radius to inspect how sphere size affects visibility of interstitial space.",
+            "Use Apply Literature Radius To Selected Element to restore Cu, or Reset to Literature Defaults for the full set."
+          ],
+          "check": "Atomic centres remain fixed. A displayed sphere boundary is not an electron-density isosurface.",
+          "options": "Record radius overrides in comparable images. Radius information can also be consumed by geometry tools, so restore intended values before reproducing their results."
+        },
+        {
+          "id": "lighting",
+          "title": "Tune scene illumination",
+          "start": "Open \\ui{Settings > Display Settings > Lighting}.",
+          "images": [
+            {
+              "file": "tutorials/display-lighting.jpg",
+              "bounds": [
+                716,
+                342,
+                1203,
+                713
+              ],
+              "caption": "Lighting controls captured with custom Ambient and Shadow Strength values, not the source defaults."
+            }
+          ],
+          "steps": [
+            "Adjust Ambient to reveal shadow-side atoms. Change Shadow Strength independently to compare contrast between front and rear layers.",
+            "Adjust Saturation and Contrast while keeping a visible reference species.",
+            "Use Reset Lighting Defaults to return to the baseline appearance."
+          ],
+          "check": "Lighting changes must not be interpreted as a change in local density or composition.",
+          "options": "Ambient controls background illumination; Saturation changes vividness; Contrast stretches the light/dark response. Electronic surface lighting has separate controls in its Appearance panel."
+        },
+        {
+          "id": "material",
+          "title": "Control highlights on atoms and bonds",
+          "start": "Open \\ui{Display Settings > Material}.",
+          "images": [
+            {
+              "file": "tutorials/display-material.jpg",
+              "bounds": [
+                716,
+                342,
+                1206,
+                674
+              ],
+              "caption": "Material controls are separate from scene illumination."
+            }
+          ],
+          "steps": [
+            "Lower Specular Intensity to reduce bright highlights, then compare a larger value.",
+            "Change Shininess Scale and Shininess Floor one at a time to inspect highlight concentration.",
+            "Use Reset Material Defaults and compare with the original view."
+          ],
+          "check": "The same atomic geometry should remain visible. Specular highlights are a rendering effect.",
+          "options": "Intensity controls highlight strength, Scale multiplies element response, and Floor sets the minimum exponent. Keep material settings fixed across a comparison series."
+        },
+        {
+          "id": "colours",
+          "title": "Change a species display colour",
+          "start": "Open \\ui{Display Settings > Colors}.",
+          "images": [
+            {
+              "file": "tutorials/display-colors.jpg",
+              "bounds": [
+                716,
+                342,
+                1707,
+                1032
+              ],
+              "caption": "Colors tab with a selected element and its RGB controls. Scroll to reach additional reset actions if needed."
+            }
+          ],
+          "steps": [
+            "Select Cu, then change its colour using the visible values or colour control.",
+            "Select Ni and give it a distinguishable colour. Inspect the same alloy from a second view.",
+            "Use Reset Color for one species, or Reset All Colors to restore the palette."
+          ],
+          "check": "Colour edits do not substitute species. Verify chemistry using labels or Structure Info.",
+          "options": "The element picker used for a builder serves a different purpose. Do not confuse changing a species colour with changing a charge-density colour range."
+        },
+        {
+          "id": "theme",
+          "title": "Select a light or dark desktop theme",
+          "start": "Open \\ui{View > Select Theme}.",
+          "images": [
+            {
+              "file": "tutorials/theme-options.jpg",
+              "bounds": [
+                147,
+                618,
+                440,
+                688
+              ],
+              "caption": "Theme selection under View. Light is selected in these captures."
+            }
+          ],
+          "steps": [
+            "Choose Dark and inspect text, controls, and scene contrast.",
+            "Choose Light to return to the theme used in this manual."
+          ],
+          "check": "Theme selection should preserve structure contents and numerical results.",
+          "options": "Choose a theme that leaves labels and thin guides readable in exported or captured figures. Electronic field palettes are configured separately."
+        },
+        {
+          "id": "structure-info",
+          "title": "Verify composition, cell, and symmetry",
+          "start": "Open \\code{examples/cu_ni_alloy.cif}, then \\ui{View > Structure Info}.",
+          "images": [
+            {
+              "file": "tutorials/structure-info.jpg",
+              "bounds": [
+                470,
+                177,
+                1450,
+                877
+              ],
+              "caption": "Structure Info for the supplied 70:30 Cu--Ni alloy, showing 500 atoms and a cubic 18.05 Angstrom cell."
+            }
+          ],
+          "steps": [
+            "Check total atoms, species counts, formula, and unit-cell availability.",
+            "Read lengths, angles, volume, and symmetry. Wait for symmetry calculation to finish before recording it.",
+            "Scroll the atomic-position table to compare Cartesian coordinates with direct coordinates."
+          ],
+          "check": "Expect 350 Cu, 150 Ni, and volume about 5880.7344 \\angstrom$^3$. The chemical decoration can lower symmetry even while positions lie on an FCC parent lattice.",
+          "options": "Use Atom Info for one selected site. A missing cell or failed symmetry calculation is not an assignment to a particular space group."
+        },
+        {
+          "id": "image-export",
+          "title": "Export a structure illustration",
+          "start": "Frame the intended structure and clear unwanted selections.",
+          "images": [
+            {
+              "file": "tutorials/export-image.jpg",
+              "bounds": [
+                600,
+                578,
+                1320,
+                777
+              ],
+              "caption": "Lower Export Image controls. The folder browser is above these fields; the final action buttons may require scrolling."
+            }
+          ],
+          "steps": [
+            "Choose \\ui{File > Export Image}. Browse to an output folder and enter a filename.",
+            "Select PNG, JPEG, or SVG. Choose Include background and Include orientation gizmo independently. Start with resolution scale 1 before trying a larger export.",
+            "Scroll to Export, save, and open the actual output image to check labels, framing, and transparency."
+          ],
+          "check": "PNG supports alpha; JPEG does not. Higher raster scale increases pixel dimensions and memory use. Inspect SVG in the intended downstream viewer.",
+          "options": "Scale ranges from 1 to 8. Cancel dismisses the operation. The image is a rendered view, so also save the structure file and settings needed to reproduce it."
+        }
+      ]
+    },
+    {
+      "title": "Analysis and electronic display",
+      "tutorials": [
+        {
+          "id": "rdf",
+          "title": "Run an RDF and inspect its shell window",
+          "start": "Open \\code{examples/cu_ni_alloy.cif}, then \\ui{Analysis > Radial Distribution Function}.",
+          "images": [
+            {
+              "file": "tutorials/rdf-analysis.jpg",
+              "bounds": [
+                370,
+                117,
+                1550,
+                937
+              ],
+              "caption": "Actual RDF of the ideal-position Cu--Ni alloy, all species, PBC, 0--8 Angstrom, 200 bins, no smoothing."
+            }
+          ],
+          "steps": [
+            "Set Reference and Target species to All elements, enable PBC and normalisation, choose range 0--8 Angstrom and 200 bins, and leave smoothing at zero.",
+            "Enable distortion analysis and its automatic first-shell window, then Run RDF.",
+            "Compare partial Cu--Ni and Cu--Cu selections, rerunning after each input change."
+          ],
+          "check": "The displayed first peak is the 2.54 \\angstrom\\ bin centre, consistent with the exact ideal distance near 2.5527 \\angstrom\\ at bin width 0.04 \\angstrom. Total first-shell coordination is 12 here.",
+          "options": "Raw-count and cumulative-coordination overlays add different quantities. Disable auto shell window to choose a manual interval. Smoothing changes presentation; it does not improve the original spatial resolution. For a finite particle, reconsider PBC and normalisation."
+        },
+        {
+          "id": "sro",
+          "title": "Run SRO and validate the shell diagnostics",
+          "start": "Open \\code{examples/cu_ni_alloy.cif}, then \\ui{Analysis > Short-Range Order (SRO)}.",
+          "images": [
+            {
+              "file": "tutorials/sro-warren.jpg",
+              "bounds": [
+                500,
+                187,
+                1420,
+                867
+              ],
+              "caption": "SRO on the supplied alloy. This capture demonstrates controls and an observed diagnostic discrepancy; its numerical results are not validated."
+            }
+          ],
+          "steps": [
+            "Set Neighbor shells to 2 and Shell tolerance to 0.050 Angstrom, then Run Analysis.",
+            "Read the Warren--Cowley pair rows together with centre/neighbor species, pair counts, and composition.",
+            "Open Shells and compare its distances and coordination against the RDF and ideal lattice geometry before interpreting the order parameters."
+          ],
+          "check": "This captured executable reports shell distances 20.5489 and 47.1105 \\angstrom, inconsistent with ideal FCC first shells near 2.5527 and 3.61 \\angstrom. Treat this run as failing validation; do not use its SRO numbers as a scientific benchmark.",
+          "options": "Shell tolerance groups near-equal distances; it is not composition tolerance. The displayed composition is correctly 70:30, which alone does not validate neighbour selection or shell statistics."
+        },
+        {
+          "id": "sro-tabs",
+          "title": "Read the SRO result tabs",
+          "start": "Run SRO and retain the parameter and diagnostic context from the preceding exercise.",
+          "images": [
+            {
+              "file": "tutorials/sro-rao.jpg",
+              "bounds": [
+                500,
+                187,
+                1420,
+                867
+              ],
+              "caption": "Rao--Curtin tab from the same diagnostic run. Validate shells before using either convention."
+            }
+          ],
+          "steps": [
+            "Compare Warren--Cowley directional conditional probabilities with the Rao--Curtin symmetric pair presentation.",
+            "Inspect Shells for distances and average coordination. Use Guide to locate the in-app interpretation and method comparison.",
+            "Record the chosen convention, species pair, shell definition, and finite-size/seed variation with any valid result."
+          ],
+          "check": "The two conventions should not be mixed in one comparison without stating their definitions. The shell discrepancy in this captured run affects its use regardless of tab.",
+          "options": "The Guide is explanatory UI text, not evidence of an energetic preference. Pair frequencies in a single random finite structure do not establish interaction energies or equilibrium ordering."
+        },
+        {
+          "id": "electronic-volume",
+          "title": "Compare electronic volume and surface views",
+          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic Post-processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
+          "images": [
+            {
+              "file": "electronic-volume.png",
+              "caption": "Real CHGCAR capture from the main electronic walkthrough; the selected field controls the visualisation."
+            }
+          ],
+          "steps": [
+            "Choose a density field, select a layout with 3D, and use Estimate level for a data-derived starting level.",
+            "Compare Volume with Isosurface. Set transparency to zero for opaque rendering, then increase it to reveal internal overlap.",
+            "Orbit with left drag, pan with right drag, zoom with the wheel, and use Fit view to reset framing."
+          ],
+          "check": "An isosurface is a boundary; volume mode depicts interior values. Read the range warning and legend rather than treating a brighter colour as a different quantity.",
+          "options": "Update surface regenerates the mesh when needed. Appearance offers Spectrum, Blue-white-red, Sequential blue, automatic/manual range, and surface specular/shininess controls. Layout can show both views or only one."
+        },
+        {
+          "id": "electronic-plane",
+          "title": "Choose a 2D intersection and its guide",
+          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic Post-processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
+          "images": [
+            {
+              "file": "electronic-arbitrary.png",
+              "caption": "Real CHGCAR arbitrary-plane capture. The translucent guide locates the section in the 3D volume."
+            }
+          ],
+          "steps": [
+            "Select a layout containing 2D. Compare bc, ac, and ab sections at fractional position 0.5.",
+            "Select Arbitrary plane, enter point $(0.5,0.5,0.5)$ in fractional cell coordinates and a nonzero Cartesian normal such as $(1,1,1)$.",
+            "Toggle Show slice plane in 3D. Estimate the 2D level, toggle its contour, and use left drag/angle for in-plane rotation, right drag for pan, wheel for zoom, and Reset 2D."
+          ],
+          "check": "The 2D level is independent of the 3D level and must lie within that section\textquotesingle s range. A valid volume level may be out of range for a particular slice.",
+          "options": "Hiding the translucent guide does not remove the section. The display preview is bounded in resolution; use Numerical plane section and Contour segments for quantitative coordinate export."
+        },
+        {
+          "id": "electronic-operations",
+          "title": "Run charge-transfer and general operations",
+          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic Post-processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
+          "images": [
+            {
+              "file": "electronic-volume.png",
+              "caption": "Electronic workspace; calculation controls and the reference operand are separate from view controls."
+            }
+          ],
+          "steps": [
+            "Load primary field A. For two-input operations, use the Reference browser to load compatible B. Reference means the second operand, not an equilibrium standard.",
+            "Choose Charge transfer tools for density difference, accumulation/depletion, masks, Boolean operations, or regional charge; choose General analysis for other operations. Set the operation-specific inputs and Calculate.",
+            "Select the derived field or inspect the result table, then use the matching field/CSV/surface export browser."
+          ],
+          "check": "For aligned identical inputs, $A-A$ is zero. For a physical study, density, units, grids, cells, electron counts, and reference calculation conventions must match.",
+          "options": "Chapters~\\ref{ch:charge} and \\ref{ch:reference} give procedures and checks for all 33 operation choices, including profiles, integration, derivatives, smoothing, sections, contours, Fourier, electrostatics, surfaces, and exports. Reload rereads a changed volume; Clear resets the electronic study."
+        }
+      ]
+    }
+  ]
+}

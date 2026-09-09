@@ -1,0 +1,86 @@
+[
+  {
+    "shape": "sphere",
+    "options": [
+      "--radius",
+      "10"
+    ],
+    "atoms": 336,
+    "file": "shapes/sphere.xyz",
+    "dimensions": "Radius 10 A"
+  },
+  {
+    "shape": "ellipsoid",
+    "options": [
+      "--rx",
+      "12",
+      "--ry",
+      "8",
+      "--rz",
+      "5"
+    ],
+    "atoms": 172,
+    "file": "shapes/ellipsoid.xyz",
+    "dimensions": "Radii 12, 8, 5 A"
+  },
+  {
+    "shape": "box",
+    "options": [
+      "--hx",
+      "10",
+      "--hy",
+      "7",
+      "--hz",
+      "5"
+    ],
+    "atoms": 288,
+    "file": "shapes/box.xyz",
+    "dimensions": "Half-lengths 10, 7, 5 A"
+  },
+  {
+    "shape": "cylinder",
+    "options": [
+      "--cylradius",
+      "7",
+      "--cylheight",
+      "20",
+      "--cylaxis",
+      "2"
+    ],
+    "atoms": 312,
+    "file": "shapes/cylinder.xyz",
+    "dimensions": "Radius 7 A; height 20 A; Z"
+  },
+  {
+    "shape": "octahedron",
+    "options": [
+      "--radius",
+      "12"
+    ],
+    "atoms": 224,
+    "file": "shapes/octahedron.xyz",
+    "dimensions": "Octahedral bound 12 A"
+  },
+  {
+    "shape": "truncated-octahedron",
+    "options": [
+      "--radius",
+      "15",
+      "--trunc",
+      "8"
+    ],
+    "atoms": 216,
+    "file": "shapes/truncated-octahedron.xyz",
+    "dimensions": "Octahedral bound 15 A; cap 8 A"
+  },
+  {
+    "shape": "cuboctahedron",
+    "options": [
+      "--radius",
+      "12"
+    ],
+    "atoms": 276,
+    "file": "shapes/cuboctahedron.xyz",
+    "dimensions": "Pairwise absolute-sum bound 12 A"
+  }
+]

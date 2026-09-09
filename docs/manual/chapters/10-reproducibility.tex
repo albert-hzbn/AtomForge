@@ -17,6 +17,9 @@ The following structures were generated through AtomForge's actual builder CLI, 
 \end{longtable}
 \code{octahedron.obj} is an original procedural mesh included with the examples. The builder gallery plots actual output coordinates with Matplotlib. No external 3D model or Blender-generated asset is needed to reproduce these examples.
 
+\section{Nanocrystal shape examples}
+The seven shape-cut examples in \code{examples/shapes/} supplement the inventory above. \code{shape-results.json} records the native command options and atom counts. Chapter~\ref{ch:tutorials} shows each shape and provides an exercise for rebuilding it. The example checker verifies all seven files for count, Cu species, and finite coordinates.
+
 \section{CHGCAR provenance}
 The original file remains at the user-supplied location and is not redistributed. \code{chgcar-summary.json} records its SHA-256 hash, dimensions, cell vectors, sites, units, range, integral, and periodicity. The manual includes derived \code{chgcar-planar.csv} and \code{chgcar-cumulative.csv} plus figures. A different CHGCAR will generally produce different numbers and images; the filename alone is not a unique identifier.
 
@@ -29,17 +32,20 @@ Build AtomForge and install the local Python package/native library first. The p
 \begin{lstlisting}
 python -m pip install numpy matplotlib
 python docs/manual/scripts/generate_examples.py --chgcar "C:/path/to/CHGCAR"
+python docs/manual/scripts/generate_shape_gallery.py
 \end{lstlisting}
 Omit \code{--chgcar} to regenerate only structure examples and the builder gallery. Set \code{ATOMFORGE_PATH} if the executable is outside the normal build folder. The optional \code{MANUAL_PYTHON_DEPS} variable can point to a separate plotting-package directory when using an isolated embedded Python runtime.
 
 The script overwrites the generated examples and scientific figures in this manual folder. Review new counts and the provenance JSON after changing software versions. It does not automate GUI screenshots: recapture those from the actual application when controls change. Keep scientific plots and interface captures labelled distinctly.
 
 \section{Compile the LaTeX manual}
+The illustrated exercises are maintained in \code{tutorials.json}. After changing their steps, captions, or image crops, run \code{python docs/manual/scripts/render_tutorials.py --write}. It validates image availability, bounds, tutorial identifiers, and required exercise fields before regenerating the chapter. Normal builds check that the generated chapter is current. Original Windows screenshots are retained in \code{figures/tutorials/}; crops are applied in LaTeX, without redrawing the interface. This collection also retains alternative option panels for reuse.
+
 Install a LaTeX distribution providing pdfLaTeX and the packages used by \code{manual.tex}: Latin Modern, microtype, geometry, graphicx, xcolor, booktabs, longtable, tabularx, amsmath, enumitem, listings, fancyhdr, tcolorbox, and hyperref. Then run:
 \begin{lstlisting}
 python docs/manual/scripts/build_manual.py
 \end{lstlisting}
-The script compiles three passes for contents, page references, and PDF bookmarks. It places intermediates in \code{docs/manual/build/} and the distributable PDF at \code{docs/manual/AtomForge-manual.pdf}. The \code{build/} folder is ignored by Git. No raw CHGCAR is required to compile the checked-in manual because its published figures are included.
+The script runs three passes for contents, references, and bookmarks. It writes \code{docs/manual/AtomForge-manual.pdf}; intermediates go into the ignored \code{docs/manual/build/} folder. Published figures are included, so compilation requires no original CHGCAR.
 
 After editing, inspect the compiler log for overfull boxes, missing references, and missing characters. Render the PDF to page images and inspect figures, captions, tables, code wrapping, and page breaks. A successful LaTeX exit code alone does not establish a readable document. Keep screenshots at sufficient resolution for labels to remain legible at the chosen page width.
 

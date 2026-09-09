@@ -12,7 +12,7 @@
 
 AtomForge is an interactive atomic structure builder for metallurgical simulation and atomistic modeling. It is designed to help researchers and engineers create, edit, inspect, and export structures used in molecular dynamics (MD) and first-principles workflows.
 
-Read the [detailed user manual (PDF)](docs/manual/AtomForge-manual.pdf) for feature-by-feature instructions, screenshots, charge-density workflows, Python/CLI recipes, and worked examples. The [LaTeX sources and reproducible examples](docs/manual/README.md) are maintained in `docs/manual/`.
+Read the [detailed user manual (PDF)](docs/manual/AtomForge-manual.pdf) for feature-by-feature instructions, 60 illustrated quick tutorials covering Build, Edit, View, Settings, and analysis, charge-density workflows, and Python/CLI recipes. The [LaTeX sources and reproducible examples](docs/manual/README.md) are maintained in `docs/manual/`.
 
 ## Features
 

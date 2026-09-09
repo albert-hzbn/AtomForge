@@ -20,6 +20,14 @@ def main():
     records = json.loads((examples / "builder-results.json").read_text())
     for record in records:
         assert len(af.load(str(examples / record["file"]))) == record["atoms"]
+    shapes = json.loads((examples / "shape-results.json").read_text())
+    assert len({record["shape"] for record in shapes}) == 7
+    for record in shapes:
+        structure = af.load(str(examples / record["file"]))
+        assert len(structure) == record["atoms"] > 0
+        assert all(atom.symbol == "Cu" for atom in structure.atoms)
+        assert all(math.isfinite(value) for atom in structure.atoms
+                   for value in (atom.x, atom.y, atom.z))
     cu = af.load(str(examples / "cu_fcc.cif"))
     assert len(cu.repeat(5, 5, 5)) == 500
     host = af.load(str(examples / "cu_host.cif"))
@@ -83,7 +91,8 @@ def main():
         path = scratch / ("surface." + extension)
         grid.isosurface(1.1).save(str(path))
         assert path.stat().st_size > 0
-    print(f"Validated {len(records)} builder outputs, host/alloy/dislocation checks, and Python numerical recipes.")
+    print(f"Validated {len(records)} builder outputs, {len(shapes)} shape examples, "
+          "host/alloy/dislocation checks, and Python numerical recipes.")
 
 
 if __name__ == "__main__":

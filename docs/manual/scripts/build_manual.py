@@ -8,6 +8,7 @@ import sys
 def main():
     manual = Path(__file__).resolve().parents[1]
     subprocess.run([sys.executable, str(manual / "scripts/check_coverage.py")], check=True)
+    subprocess.run([sys.executable, str(manual / "scripts/render_tutorials.py")], check=True)
     build = manual / "build"
     build.mkdir(exist_ok=True)
     executable = shutil.which("pdflatex")
