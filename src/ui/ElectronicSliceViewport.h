@@ -22,6 +22,7 @@ private:
     float m_angle = 0;
     glm::vec2 m_pan{0};
     bool m_dirty = true;
+    bool m_showContour = false;
     bool m_estimateLevel = true;
     atomforge::electronic::Grid m_slice;
     std::vector<double> m_visibleValues;

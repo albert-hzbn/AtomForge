@@ -138,6 +138,29 @@ void ElectronicPostProcessingDialog::drawDialog()
     const float sidebar = std::clamp(ImGui::GetContentRegionAvail().x * .38f,340.0f,440.0f);
     ImGui::BeginChild("Electronic controls",ImVec2(sidebar,0),true);
     ImGui::BeginDisabled(m_task.running());
+    dialogLayout::section("Tools");
+    if (ImGui::RadioButton("Charge transfer",m_toolGroup==1)) { m_toolGroup=1; m_operation=25; }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("General analysis",m_toolGroup==0)) { m_toolGroup=0; m_operation=0; }
+    if (m_toolGroup==1)
+    {
+        const char* labels[]={"Density difference","Threshold mask","Boolean masks","Apply mask",
+                              "Accumulation / depletion","Charge summary","Cumulative profile","Invert mask"};
+        if (ImGui::BeginTable("Charge tools",2,ImGuiTableFlags_SizingStretchSame))
+        {
+            for (int i=0;i<8;++i)
+            {
+                ImGui::TableNextColumn();
+                ImGui::PushID(i);
+                if (ImGui::Selectable(labels[i],m_operation==25+i)) m_operation=25+i;
+                ImGui::PopID();
+            }
+            ImGui::EndTable();
+        }
+        if (m_volume.fields.empty()) ImGui::TextWrapped("Load a density file below to use the selected tool.");
+    }
+    else combo("Tool",&m_operation,
+            "Total integral\0Add reference\0Subtract reference (difference density)\0Multiply reference\0Divide by reference\0Scale\0Gaussian smoothing\0Cartesian gradient\0Laplacian\0Energy-density conversion\0Line profile\0Planar average\0Macroscopic average\0Plane section\0Contour segments (z=0)\0Peak search\0Voronoi site integration\0Sphere integration\0Structure factors\0Fourier synthesis\0Patterson density\0Ewald site potentials\0Isosurface\0Resample onto reference\0Verify periodic endpoint planes\0");
     dialogLayout::section("Input data");
     const float buttonWidth = (ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
     if (dialogLayout::primaryButton("Open volume...",ImVec2(buttonWidth,0))) { m_pickerAction=0; m_picker.open("Open electronic volume",false,m_loadedPath); }
@@ -190,16 +213,6 @@ void ElectronicPostProcessingDialog::drawDialog()
         m_reference = std::clamp(m_reference,0,static_cast<int>(referenceVolume.fields.size())-1);
         const Grid& g = m_volume.fields[m_selected];
         ImGui::TextDisabled("%d x %d x %d | %s",g.shape[0],g.shape[1],g.shape[2],g.unit.c_str());
-        if (combo("Tool group",&m_toolGroup,"General analysis\0Charge transfer and masks\0"))
-            m_operation=m_toolGroup==1 ? 25 : 0;
-        if (m_toolGroup==1)
-        {
-            int selected=m_operation-25;
-            if (combo("Tool",&selected,"Weighted density difference\0Threshold mask\0Boolean masks\0Apply mask\0Split accumulation / depletion\0Charge redistribution summary\0Cumulative charge profile\0Invert mask\0"))
-                m_operation=selected+25;
-        }
-        else combo("Tool",&m_operation,
-            "Total integral\0Add reference\0Subtract reference (difference density)\0Multiply reference\0Divide by reference\0Scale\0Gaussian smoothing\0Cartesian gradient\0Laplacian\0Energy-density conversion\0Line profile\0Planar average\0Macroscopic average\0Plane section\0Contour segments (z=0)\0Peak search\0Voronoi site integration\0Sphere integration\0Structure factors\0Fourier synthesis\0Patterson density\0Ewald site potentials\0Isosurface\0Resample onto reference\0Verify periodic endpoint planes\0");
         if ((m_operation >= 1 && m_operation <= 4) || m_operation == 23 || m_operation == 22) selectField("Reference",m_reference,referenceVolume);
         if (m_operation == 5) inputFloat("Scale factor",&m_scalar);
         if (m_operation == 6) { inputFloat("Sigma (A)",&m_sigma); inputInt("Radius (steps)",&m_radius); }

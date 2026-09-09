@@ -62,6 +62,7 @@ void ElectronicSliceViewport::draw(const Grid& grid, float low, float high, int 
         for (auto p : geometry.boundary) m_visibleValues.push_back(grid.sample(p));
     }
     if (m_estimateLevel) { m_level=static_cast<float>(displayRange(m_visibleValues).suggested); m_estimateLevel=false; }
+    ImGui::Checkbox("Show contour line",&m_showContour);
     ImGui::TextUnformatted("2D isovalue (contour)");
     ImGui::SetNextItemWidth(-1);
     bool levelChanged = ImGui::InputFloat("##level",&m_level,0,0,"%.5g");
@@ -140,12 +141,11 @@ void ElectronicSliceViewport::draw(const Grid& grid, float low, float high, int 
         if (points.size()>=3) draw->AddConvexPolyFilled(points.data(),static_cast<int>(points.size()),ImGui::ColorConvertFloat4ToU32(ImVec4(c.x,c.y,c.z,1)));
     }
     draw->Flags=flags;
-    for (std::size_t i=0;i+1<m_contours.size();i+=2)
+    for (std::size_t i=0;m_showContour && i+1<m_contours.size();i+=2)
     {
         auto start=m_contours[i], end=m_contours[i+1];
         if (m_axis==3 && !clipSegmentToCell(grid,start,end)) continue;
         const auto a=screen(start), b=screen(end);
-        draw->AddLine(a,b,IM_COL32(255,255,255,255),3);
         draw->AddLine(a,b,IM_COL32(30,40,55,255),1);
     }
     draw->PopClipRect();
