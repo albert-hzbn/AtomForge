@@ -2449,6 +2449,16 @@ bool FileBrowser::isSubstitutionalSolidSolutionDialogOpen() const
     return substitutionalSolidSolutionDialog.isOpen();
 }
 
+bool FileBrowser::isElectronicDialogOpen() const
+{
+    return electronicDialog.isOpen();
+}
+
+void FileBrowser::feedDropToElectronicDialog(const std::string& path)
+{
+    electronicDialog.feedDroppedFile(path);
+}
+
 bool FileBrowser::isAnyDialogOpen() const
 {
     return openStructurePopup
@@ -2471,6 +2481,7 @@ bool FileBrowser::isAnyDialogOpen() const
         || isAmorphousBuilderDialogOpen()
         || isInterstitialAtomsDialogOpen()
         || isCellSculptorDialogOpen()
+        || isElectronicDialogOpen()
         || showAbout
         || showManual
         || showEditColors

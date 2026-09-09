@@ -19,6 +19,7 @@ AtomForge is an interactive atomic structure builder for metallurgical simulatio
 - Merge multiple loaded structures in an interactive 3D workflow with per-structure transforms.
 - Analyze structures with CNA, RDF, angular distribution, short-range order, and interstitial/void analysis tools.
 - Post-process VASP, Gaussian Cube and XSF scalar grids with electronic analysis, isosurfaces and Python APIs.
+  With Electronic Post-processing open, drop files onto the app to load them. Enable **Drop files as reference** to load a reference volume instead; files dropped during a calculation are queued.
 - Inspect and edit structures interactively with atom selection, box select, measurement overlays, and structure editing dialogs.
 - Export simulation structures and publication-ready rendered images (PNG, JPEG, SVG).
 - Use dark/light themes with HiDPI-aware UI scaling.

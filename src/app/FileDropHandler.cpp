@@ -120,6 +120,12 @@ void processDroppedFiles(EditorState& state)
             continue;
         }
 
+        if (state.fileBrowser.isElectronicDialogOpen())
+        {
+            state.fileBrowser.feedDropToElectronicDialog(droppedFile);
+            continue;
+        }
+
         Structure loadedStructure;
         std::string loadError;
         if (!loadStructureFromFile(droppedFile, loadedStructure, loadError))

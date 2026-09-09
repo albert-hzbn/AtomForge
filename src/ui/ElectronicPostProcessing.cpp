@@ -78,6 +78,11 @@ void ElectronicPostProcessingDialog::drawMenuItem()
     if (ImGui::MenuItem("Electronic Post-processing...")) m_open = true;
 }
 
+void ElectronicPostProcessingDialog::feedDroppedFile(const std::string& path)
+{
+    if (m_open && !path.empty()) m_pendingDrops.emplace_back(path,m_dropReference);
+}
+
 void ElectronicPostProcessingDialog::drawDialog()
 {
     if (m_task.poll())
@@ -117,7 +122,13 @@ void ElectronicPostProcessingDialog::drawDialog()
         }
         m_task.clearResult();
     }
-    if (!m_open) return;
+    if (!m_open) { m_pendingDrops.clear(); return; }
+    if (!m_task.running() && !m_pendingDrops.empty())
+    {
+        const auto dropped = std::move(m_pendingDrops.front());
+        m_pendingDrops.pop_front();
+        load(dropped.first,dropped.second);
+    }
     ImGui::SetNextWindowSize(ImVec2(1080,700),ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSizeConstraints(ImVec2(780,480),ImVec2(FLT_MAX,FLT_MAX));
     if (!ImGui::Begin("Electronic Post-processing",&m_open,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
@@ -134,11 +145,13 @@ void ElectronicPostProcessingDialog::drawDialog()
     ImGui::SameLine();
     if (ImGui::Button("Clear",ImVec2(buttonWidth,0)))
     {
-        m_volume={}; m_referenceVolume={}; m_result={}; m_surface={};
+        m_volume={}; m_referenceVolume={}; m_result={}; m_surface={}; m_pendingDrops.clear();
         m_viewport.setMesh(m_surface); m_selected=m_reference=0; m_sliceField=-1; m_loadedPath.clear(); m_referencePath.clear(); resetCamera();
     }
     filename("Volume",m_loadedPath);
     filename("Reference",m_referencePath);
+    ImGui::Checkbox("Drop files as reference",&m_dropReference);
+    ImGui::TextWrapped("Drop a VASP, Cube or XSF file onto the app to load it here.");
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Import options"))
     {
@@ -333,6 +346,7 @@ void ElectronicPostProcessingDialog::drawDialog()
     }
     ImGui::EndDisabled();
     if (m_task.running()) ImGui::TextUnformatted("Calculating...");
+    if (!m_pendingDrops.empty()) ImGui::Text("Queued files: %zu",m_pendingDrops.size());
     if (!m_error.empty()) ImGui::TextWrapped("%s",m_error.c_str());
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Appearance",ImGuiTreeNodeFlags_DefaultOpen))

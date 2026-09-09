@@ -369,6 +369,8 @@ struct FileBrowser
 
     // Returns true if any builder/analysis/file dialog is currently open.
     bool isAnyDialogOpen() const;
+    bool isElectronicDialogOpen() const;
+    void feedDropToElectronicDialog(const std::string& path);
 
     // Show a modal error popup for file-load failures.
     void showLoadError(const std::string& message);

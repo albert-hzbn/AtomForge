@@ -5,11 +5,15 @@
 #include "ui/PathPicker.h"
 #include "graphics/ElectronicViewport.h"
 #include <string>
+#include <deque>
+#include <utility>
 
 struct ElectronicPostProcessingDialog
 {
     void drawMenuItem();
     void drawDialog();
+    bool isOpen() const { return m_open; }
+    void feedDroppedFile(const std::string& path);
 
 private:
     struct Output
@@ -32,6 +36,8 @@ private:
     void save(const std::string& path);
     void resetCamera();
     bool m_open = false;
+    bool m_dropReference = false;
+    std::deque<std::pair<std::string,bool>> m_pendingDrops;
     char m_output[2048] = "electronic-result.xsf";
     char m_reflections[8192] = "0 0 0\n1 0 0\n-1 0 0";
     char m_charges[8192]{};
