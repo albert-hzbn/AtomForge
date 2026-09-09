@@ -7,7 +7,7 @@ class ElectronicSliceViewport
 {
 public:
     void draw(const atomforge::electronic::Grid& grid, float low, float high, int palette);
-    void invalidate() { m_dirty = true; }
+    void invalidate() { m_dirty = true; m_estimateLevel = true; }
     void reset() { m_zoom = 1; m_angle = 0; m_pan = glm::vec2(0); }
 
 private:
@@ -18,6 +18,7 @@ private:
     float m_angle = 0;
     glm::vec2 m_pan{0};
     bool m_dirty = true;
+    bool m_estimateLevel = true;
     atomforge::electronic::Grid m_slice;
     std::vector<glm::dvec3> m_contours;
 };

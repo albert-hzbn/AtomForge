@@ -55,6 +55,9 @@ private:
     int m_exportFormat = 0;
     float m_scalar = 0.1f;
     float m_surfaceLevel = .1f;
+    float m_suggestedLevel = .1f;
+    int m_renderMode = 0;
+    bool m_volumeDirty = true;
     bool m_generateSurface = false;
     int m_viewLayout = 0;
     ElectronicSliceViewport m_sliceViewport;
@@ -68,7 +71,7 @@ private:
     float m_reciprocalCutoff = 12;
     float m_yaw = 0.6f;
     float m_pitch = 0.4f;
-    float m_opacity = 1.0f;
+    float m_opacity = .35f;
     float m_zoom = 1.0f;
     glm::vec2 m_pan{0.0f};
     float m_specular = 0.28f;

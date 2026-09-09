@@ -1,4 +1,5 @@
 #include "ui/ElectronicSliceViewport.h"
+#include "electronic/DisplayRange.h"
 #include "graphics/ElectronicViewport.h"
 #include "imgui.h"
 
@@ -15,9 +16,24 @@ void ElectronicSliceViewport::draw(const Grid& grid, float low, float high, int 
     ImGui::TextUnformatted("Slice position (fraction of cell)");
     ImGui::SetNextItemWidth(-1);
     m_dirty |= ImGui::SliderFloat("##position",&m_position,0,1,"%.3f");
+    if (m_dirty)
+    {
+        const int a=m_axis==0 ? 1 : 0, b=m_axis==2 ? 1 : 2;
+        // Preview sampling is bounded; the native section/contour tools retain
+        // their full user-selected resolution for numerical work and export.
+        const int nu=std::clamp(grid.shape[a]+(grid.periodic ? 1 : 0),2,129);
+        const int nv=std::clamp(grid.shape[b]+(grid.periodic ? 1 : 0),2,129);
+        m_slice=section(grid,grid.origin+grid.cell[m_axis]*static_cast<double>(m_position),grid.cell[a],grid.cell[b],nu,nv);
+    }
+    if (m_estimateLevel) { m_level=static_cast<float>(displayRange(m_slice.values).suggested); m_estimateLevel=false; }
     ImGui::TextUnformatted("2D isovalue (contour)");
     ImGui::SetNextItemWidth(-1);
-    const bool levelChanged = ImGui::InputFloat("##level",&m_level,0,0,"%.5g");
+    bool levelChanged = ImGui::InputFloat("##level",&m_level,0,0,"%.5g");
+    if (ImGui::Button("Estimate 2D level"))
+    {
+        m_level=static_cast<float>(displayRange(m_slice.values.empty() ? grid.values : m_slice.values).suggested);
+        levelChanged=true;
+    }
     if (ImGui::Button("Reset 2D")) reset();
     ImGui::SameLine();
     ImGui::SetNextItemWidth(-1);
@@ -29,17 +45,16 @@ void ElectronicSliceViewport::draw(const Grid& grid, float low, float high, int 
         ImGui::TextWrapped("Enter a finite 2D isovalue.");
         return;
     }
-    if (m_dirty)
-    {
-        const int a=m_axis==0 ? 1 : 0, b=m_axis==2 ? 1 : 2;
-        // Preview sampling is bounded; the native section/contour tools retain
-        // their full user-selected resolution for numerical work and export.
-        const int nu=std::clamp(grid.shape[a]+(grid.periodic ? 1 : 0),2,129);
-        const int nv=std::clamp(grid.shape[b]+(grid.periodic ? 1 : 0),2,129);
-        m_slice=section(grid,grid.origin+grid.cell[m_axis]*static_cast<double>(m_position),grid.cell[a],grid.cell[b],nu,nv);
-    }
     if (m_dirty || levelChanged) m_contours=contours(m_slice,m_level);
     m_dirty=false;
+    const auto bounds=std::minmax_element(m_slice.values.begin(),m_slice.values.end());
+    if (m_level<*bounds.first || m_level>*bounds.second)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text,ImVec4(.85f,.32f,.08f,1));
+        ImGui::TextWrapped("Warning: contour value is outside this slice's range (%.5g to %.5g %s).",*bounds.first,*bounds.second,grid.unit.c_str());
+        ImGui::PopStyleColor();
+    }
+    else if (*bounds.first==*bounds.second) ImGui::TextWrapped("Constant slice: no distinct contour exists.");
     ImGui::TextWrapped("Range: %.5g to %.5g %s",low,high,grid.unit.c_str());
 
     const auto pos=ImGui::GetCursorScreenPos();

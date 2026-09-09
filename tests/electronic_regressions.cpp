@@ -1,4 +1,5 @@
 #include "electronic/Volume.h"
+#include "electronic/DisplayRange.h"
 
 #include <cmath>
 #include <iostream>
@@ -34,6 +35,15 @@ int main()
 {
     try
     {
+        const auto signedRange=displayRange({-3,-1,1,4});
+        close(signedRange.suggested,0);
+        if (signedRange.contains(-4) || signedRange.contains(5) || !signedRange.contains(-3) || !signedRange.contains(4))
+            throw std::runtime_error("Display range validation failed");
+        close(displayRange({2,2,2}).suggested,2);
+        std::vector<double> skewed(1000,.02); skewed[0]=0; skewed.back()=1000;
+        close(displayRange(skewed).suggested,.02);
+        const auto sparse=displayRange({0,0,0,0,0,0,0,0,0,1});
+        if (!(sparse.suggested>0 && sparse.suggested<1)) throw std::runtime_error("Sparse density estimate is outside usable range");
         for (bool periodic : {false,true})
         {
             const auto g = constant(periodic);

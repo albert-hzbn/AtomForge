@@ -53,6 +53,23 @@ int main()
         if(c[center]<=a[center]) throw std::runtime_error("Changing the density range did not change the surface color");
         const auto d=pixels(viewport.render(128,128,0,0,1,{0,0},1,0,1,0,0,40));
         if(a==d) throw std::runtime_error("Specular lighting did not affect the surface");
+        atomforge::electronic::Grid volume;
+        volume.shape={16,16,16}; volume.values.resize(16*16*16);
+        for(int z=0;z<16;++z) for(int y=0;y<16;++y) for(int x=0;x<16;++x)
+        {
+            const auto p=glm::dvec3(x,y,z)/15.0-glm::dvec3(.5);
+            volume.values[volume.index(x,y,z)]=std::exp(-24*glm::dot(p,p));
+        }
+        viewport.setVolume(volume);
+        const auto clear=pixels(viewport.renderVolume(128,128,0,0,1,{0,0},0,.05f,0,1,0));
+        const auto filled=pixels(viewport.renderVolume(128,128,0,0,1,{0,0},.5f,.05f,0,1,0));
+        if(clear[center]<240 || clear==filled) throw std::runtime_error("Volume transparency did not reveal interior density");
+        const auto empty=pixels(viewport.renderVolume(128,128,0,0,1,{0,0},.5f,2,0,1,0));
+        if(clear!=empty) throw std::runtime_error("Volume threshold did not exclude out-of-range data");
+        volume.values.assign(16*16*16,.4);
+        viewport.setVolume(volume);
+        const auto constantVolume=pixels(viewport.renderVolume(128,128,0,0,1,{0,0},.5f,.4f,.4f,.4f,0));
+        if(clear==constantVolume) throw std::runtime_error("Constant field volume was not rendered");
         if(glGetError()!=GL_NO_ERROR) throw std::runtime_error("OpenGL error during viewport rendering");
         std::cout << "Viewport pixels, orbit, lighting, palette and GL state passed\n";
     }

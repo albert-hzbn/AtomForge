@@ -1,4 +1,5 @@
 #include "ui/ElectronicPostProcessing.h"
+#include "electronic/DisplayRange.h"
 #include "imgui.h"
 
 #include <algorithm>
@@ -238,6 +239,8 @@ void ElectronicPostProcessingDialog::drawDialog()
             m_error.clear();
             m_task.start([=]
             {
+                if (op==22 && !displayRange(source.values).contains(scalar))
+                    throw std::invalid_argument("3D isovalue is outside the selected field's range.");
                 Output out;
                 out.volume.sites = sites;
                 auto add = [&](Grid f) { out.volume.fields.push_back(std::move(f)); };
@@ -360,7 +363,6 @@ void ElectronicPostProcessingDialog::drawDialog()
             inputFloat("Minimum",&m_colorLow,0,0,"%.5g");
             inputFloat("Maximum",&m_colorHigh,0,0,"%.5g");
         }
-        slider("Opacity",&m_opacity,.05f,1,"%.2f");
         if (ImGui::TreeNode("Lighting"))
         {
             slider("Specular",&m_specular,0,1,"%.2f");
@@ -455,8 +457,10 @@ void ElectronicPostProcessingDialog::drawPreview()
     const auto& grid=m_volume.fields[m_selected];
     if (m_sliceField!=m_selected)
     {
-        const auto range=std::minmax_element(grid.values.begin(),grid.values.end());
-        m_sliceLow=static_cast<float>(*range.first); m_sliceHigh=static_cast<float>(*range.second);
+        const auto range=displayRange(grid.values);
+        m_sliceLow=static_cast<float>(range.low); m_sliceHigh=static_cast<float>(range.high);
+        m_surfaceLevel=m_suggestedLevel=static_cast<float>(range.suggested);
+        m_volumeDirty=true;
         m_sliceField=m_selected;
         m_sliceViewport.invalidate();
         if (m_surface.vertices.empty())
@@ -471,13 +475,34 @@ void ElectronicPostProcessingDialog::drawPreview()
     if (m_viewLayout!=2)
     {
         ImGui::BeginChild("3D view",ImVec2(viewWidth,0),true,flags);
-        ImGui::TextUnformatted("3D isosurface");
+        ImGui::TextUnformatted("3D view");
+        ImGui::SetNextItemWidth(-1);
+        ImGui::Combo("##render mode",&m_renderMode,"Volume (interior density)\0Isosurface (boundary)\0");
         ImGui::BeginDisabled(m_task.running());
-        ImGui::TextUnformatted("3D isovalue");
+        ImGui::TextUnformatted(m_renderMode==0 ? "Density threshold" : "3D isovalue");
         ImGui::SetNextItemWidth(-1);
         ImGui::InputFloat("##surface level",&m_surfaceLevel,0,0,"%.5g");
-        if (ImGui::Button("Update surface",ImVec2(-FLT_MIN,0))) m_generateSurface=true;
+        if (ImGui::Button("Estimate level")) m_surfaceLevel=m_suggestedLevel;
+        ImGui::TextWrapped("Field range: %.5g to %.5g %s",m_sliceLow,m_sliceHigh,grid.unit.c_str());
+        const bool invalid=!std::isfinite(m_surfaceLevel) || m_surfaceLevel<m_sliceLow || m_surfaceLevel>m_sliceHigh;
+        if (invalid)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text,ImVec4(.85f,.32f,.08f,1));
+            ImGui::TextWrapped("Warning: value is outside the field range. Choose a value within the range above.");
+            ImGui::PopStyleColor();
+        }
+        else if (m_sliceLow==m_sliceHigh) ImGui::TextWrapped("Constant field: no distinct isosurface exists.");
+        if (m_renderMode==1)
+        {
+            ImGui::BeginDisabled(invalid || m_sliceLow==m_sliceHigh);
+            if (ImGui::Button("Update surface",ImVec2(-FLT_MIN,0))) m_generateSurface=true;
+            ImGui::EndDisabled();
+        }
         ImGui::EndDisabled();
+        ImGui::TextUnformatted("Transparency");
+        ImGui::SetNextItemWidth(-1);
+        float transparency=1-m_opacity;
+        if (ImGui::SliderFloat("##transparency",&transparency,0,1,"%.2f")) m_opacity=1-transparency;
         draw3DPreview();
         ImGui::EndChild();
     }
@@ -521,16 +546,23 @@ void ElectronicPostProcessingDialog::draw3DPreview()
     auto* draw=ImGui::GetWindowDrawList();
     draw->PushClipRect(pos,ImVec2(pos.x+size.x,pos.y+size.y),true);
     draw->AddRectFilled(pos,ImVec2(pos.x+size.x,pos.y+size.y),IM_COL32(245,247,251,255));
-    if (!m_surface.vertices.empty())
+    if (m_renderMode==0 || !m_surface.vertices.empty())
     {
         try
         {
             if (!std::isfinite(m_colorLow) || !std::isfinite(m_colorHigh) || m_colorHigh<m_colorLow)
                 throw std::invalid_argument("Color range must be finite with maximum >= minimum.");
             const auto scale=ImGui::GetIO().DisplayFramebufferScale;
-            const auto texture=m_viewport.render(static_cast<int>(size.x*scale.x),static_cast<int>(size.y*scale.y),m_yaw,m_pitch,m_zoom,m_pan,m_opacity,m_colorLow,m_colorHigh,m_palette,m_specular,m_shininess);
+            GLuint texture;
+            if (m_renderMode==0)
+            {
+                if (m_volumeDirty) { m_viewport.setVolume(m_volume.fields[m_selected]); m_volumeDirty=false; }
+                const float threshold=std::isfinite(m_surfaceLevel) ? m_surfaceLevel : m_sliceHigh;
+                texture=m_viewport.renderVolume(static_cast<int>(size.x*scale.x),static_cast<int>(size.y*scale.y),m_yaw,m_pitch,m_zoom,m_pan,m_opacity,threshold,m_sliceLow,m_sliceHigh,m_palette);
+            }
+            else texture=m_viewport.render(static_cast<int>(size.x*scale.x),static_cast<int>(size.y*scale.y),m_yaw,m_pitch,m_zoom,m_pan,m_opacity,m_colorLow,m_colorHigh,m_palette,m_specular,m_shininess);
             draw->AddImage((ImTextureID)(intptr_t)texture,pos,ImVec2(pos.x+size.x,pos.y+size.y),ImVec2(0,1),ImVec2(1,0));
-            const std::string caption=std::to_string(m_surface.vertices.size()/3)+" triangles";
+            const std::string caption=m_renderMode==0 ? "Volume density" : std::to_string(m_surface.vertices.size()/3)+" triangles";
             draw->AddText(ImVec2(pos.x+12,pos.y+12),IM_COL32(70,80,95,255),caption.c_str());
         }
         catch (const std::exception& e) { m_error=e.what(); }
@@ -545,6 +577,7 @@ void ElectronicPostProcessingDialog::draw3DPreview()
         draw->AddRectFilled(ImVec2(bar.x+width*i/128,bar.y),ImVec2(bar.x+width*(i+1)/128,bar.y+10),ImGui::ColorConvertFloat4ToU32(ImVec4(c.x,c.y,c.z,1)));
     }
     ImGui::Dummy(ImVec2(width,12));
-    ImGui::Text("%.5g",m_colorLow); ImGui::SameLine(width*.4f); ImGui::TextUnformatted(m_colorUnit.c_str());
-    ImGui::SameLine(std::max(width-85.0f,150.0f)); ImGui::Text("%.5g",m_colorHigh);
+    ImGui::Text("%.5g",m_renderMode==0 ? m_sliceLow : m_colorLow); ImGui::SameLine(width*.4f);
+    ImGui::TextUnformatted(m_renderMode==0 ? m_volume.fields[m_selected].unit.c_str() : m_colorUnit.c_str());
+    ImGui::SameLine(std::max(width-85.0f,150.0f)); ImGui::Text("%.5g",m_renderMode==0 ? m_sliceHigh : m_colorHigh);
 }
