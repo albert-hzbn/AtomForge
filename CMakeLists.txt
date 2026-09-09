@@ -104,6 +104,8 @@ set(ATOMFORGE_SOURCES
     src/ui/EditMenuDialogs.cpp
     src/ui/FileBrowser.cpp
     src/ui/ElectronicPostProcessing.cpp
+    src/ui/PathPicker.cpp
+    src/graphics/ElectronicViewport.cpp
     src/ui/ImGuiSetup.cpp
     src/ui/LatticePlaneOverlay.cpp
     src/ui/MillerDirectionOverlay.cpp

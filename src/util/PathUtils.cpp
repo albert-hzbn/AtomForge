@@ -18,6 +18,19 @@
 #include <sys/stat.h>
 #endif
 
+std::vector<std::string> getDriveRoots()
+{
+    std::vector<std::string> roots;
+#ifdef _WIN32
+    const DWORD mask = GetLogicalDrives();
+    for (int i = 0; i < 26; ++i)
+        if (mask & (1u << i)) roots.push_back(std::string(1,static_cast<char>('A'+i))+":/");
+#else
+    roots.push_back("/");
+#endif
+    return roots;
+}
+
 void pushDirectoryHistory(std::vector<std::string>& history, int& historyIndex, const std::string& dir)
 {
     if (historyIndex + 1 < (int)history.size())

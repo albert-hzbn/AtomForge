@@ -2,6 +2,8 @@
 
 #include "electronic/Volume.h"
 #include "util/BackgroundTask.h"
+#include "ui/PathPicker.h"
+#include "graphics/ElectronicViewport.h"
 #include <string>
 
 struct ElectronicPostProcessingDialog
@@ -20,8 +22,15 @@ private:
         bool loaded = false;
         bool referenceLoaded = false;
         bool appendMesh = false;
+        bool surfaceReady = false;
+        double colorLow = 0, colorHigh = 1;
+        std::string colorUnit;
+        std::string sourcePath;
     };
     void drawPreview();
+    void load(bool reference);
+    void save(const std::string& path);
+    void resetCamera();
     bool m_open = false;
     char m_input[2048]{};
     char m_output[2048] = "electronic-result.xsf";
@@ -31,7 +40,7 @@ private:
     int m_cubeUnits = 0;
     int m_selected = 0;
     int m_reference = 0;
-    int m_operation = 0;
+    int m_operation = 22;
     int m_axis = 2;
     int m_count = 100;
     int m_window = 3;
@@ -48,7 +57,23 @@ private:
     float m_reciprocalCutoff = 12;
     float m_yaw = 0.6f;
     float m_pitch = 0.4f;
-    float m_opacity = 0.75f;
+    float m_opacity = 1.0f;
+    float m_zoom = 1.0f;
+    glm::vec2 m_pan{0.0f};
+    float m_specular = 0.28f;
+    float m_shininess = 40.0f;
+    float m_colorLow = 0, m_colorHigh = 1;
+    float m_autoLow = 0, m_autoHigh = 1;
+    int m_palette = 0;
+    bool m_autoRange = true;
+    std::string m_colorUnit = "raw";
+    std::string m_loadedPath;
+    int m_sliceField = -1;
+    float m_sliceLow = 0, m_sliceHigh = 1;
+    int m_pickerAction = 0;
+    PathPicker m_picker;
+    ElectronicViewport m_viewport;
+    atomforge::electronic::Mesh m_surface;
     bool m_colorSurface = false;
     bool m_appendSurface = false;
     std::string m_error;

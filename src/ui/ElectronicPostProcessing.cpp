@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -14,11 +15,6 @@ using namespace atomforge::electronic;
 
 namespace
 {
-ImU32 scalarColor(double value, double low, double high, float alpha = 1)
-{
-    const float t = high > low ? static_cast<float>(std::clamp((value - low) / (high - low),0.0,1.0)) : 0.5f;
-    return ImGui::ColorConvertFloat4ToU32(ImVec4(t, 0.25f + 0.5f * (1 - std::abs(2*t-1)), 1-t, alpha));
-}
 glm::dvec3 vector(const float* p) { return {p[0],p[1],p[2]}; }
 }
 
@@ -34,15 +30,30 @@ void ElectronicPostProcessingDialog::drawDialog()
         m_error = m_task.error();
         if (m_task.result())
         {
-            auto previousMesh = std::move(m_result.mesh);
             m_result = *m_task.result();
-            if (m_result.appendMesh && previousMesh.vertices.size() + m_result.mesh.vertices.size() <= 12000000)
+            if (m_result.surfaceReady)
             {
-                m_result.mesh.vertices.insert(m_result.mesh.vertices.end(),previousMesh.vertices.begin(),previousMesh.vertices.end());
-                m_result.mesh.colors.insert(m_result.mesh.colors.end(),previousMesh.colors.begin(),previousMesh.colors.end());
+                if (!m_result.appendMesh) m_surface = {};
+                if (m_surface.vertices.size() + m_result.mesh.vertices.size() <= 12000000)
+                {
+                    m_surface.vertices.insert(m_surface.vertices.end(),m_result.mesh.vertices.begin(),m_result.mesh.vertices.end());
+                    m_surface.colors.insert(m_surface.colors.end(),m_result.mesh.colors.begin(),m_result.mesh.colors.end());
+                    m_viewport.setMesh(m_surface);
+                    m_autoLow = m_result.appendMesh ? std::min(m_autoLow,static_cast<float>(m_result.colorLow)) : static_cast<float>(m_result.colorLow);
+                    m_autoHigh = m_result.appendMesh ? std::max(m_autoHigh,static_cast<float>(m_result.colorHigh)) : static_cast<float>(m_result.colorHigh);
+                    m_colorUnit = m_result.colorUnit;
+                    if (m_autoRange) { m_colorLow=m_autoLow; m_colorHigh=m_autoHigh; }
+                }
+                else m_error = "Combined surfaces exceed the mesh limit; clear or replace the surface.";
+                m_result.mesh = {};
             }
             if (m_result.referenceLoaded) { m_referenceVolume = m_result.volume; m_reference = 0; }
-            else if (m_result.loaded) { m_volume = m_result.volume; m_selected = m_reference = 0; }
+            else if (m_result.loaded)
+            {
+                m_volume = m_result.volume; m_selected = m_reference = 0;
+                m_loadedPath=m_result.sourcePath; m_sliceField=-1;
+                m_surface = {}; m_viewport.setMesh(m_surface); resetCamera();
+            }
             else if (!m_result.volume.fields.empty())
             {
                 m_selected = static_cast<int>(m_volume.fields.size());
@@ -52,30 +63,37 @@ void ElectronicPostProcessingDialog::drawDialog()
         m_task.clearResult();
     }
     if (!m_open) return;
-    ImGui::SetNextWindowSize(ImVec2(850,760),ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Electronic Post-processing",&m_open)) { ImGui::End(); return; }
-    ImGui::TextWrapped("VASP charge / potential / ELF, Gaussian Cube and XSF scalar grids. Coordinates: Angstrom. Imported and derived fields are kept separately from the structure editor.");
+    ImGui::SetNextWindowSize(ImVec2(1080,700),ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(780,480),ImVec2(FLT_MAX,FLT_MAX));
+    if (!ImGui::Begin("Electronic Post-processing",&m_open,ImGuiWindowFlags_NoScrollbar)) { ImGui::End(); return; }
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(6,3));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,ImVec2(6,5));
+    const float sidebar = std::clamp(ImGui::GetContentRegionAvail().x * .32f,290.0f,360.0f);
+    ImGui::BeginChild("Electronic controls",ImVec2(sidebar,0),true);
+    ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * .60f);
     ImGui::BeginDisabled(m_task.running());
-    ImGui::InputText("Input file",m_input,sizeof(m_input));
-    ImGui::Combo("Quantity",&m_quantity,"Auto (Cube/XSF: raw)\0Electron density\0Potential\0ELF / dimensionless\0Raw scalar\0");
-    ImGui::Combo("Cube coordinates",&m_cubeUnits,"Bohr\0Angstrom (nonstandard files)\0");
-    if (ImGui::Button("Load volume"))
-    {
-        const std::string path(m_input), q = std::array<const char*,5>{"auto","density","potential","elf","raw"}[m_quantity];
-        const std::string units = m_cubeUnits ? "angstrom" : "bohr";
-        m_error.clear();
-        m_task.start([path,q,units] { Output out; out.volume = loadVolume(path,q,units); out.loaded = true; return out; });
-    }
+    if (ImGui::Button("Open...")) { m_pickerAction=0; m_picker.open("Open electronic volume",false,m_input); }
     ImGui::SameLine();
-    if (ImGui::Button("Load as reference"))
-    {
-        const std::string path(m_input), q = std::array<const char*,5>{"auto","density","potential","elf","raw"}[m_quantity];
-        const std::string units = m_cubeUnits ? "angstrom" : "bohr";
-        m_error.clear();
-        m_task.start([path,q,units] { Output out; out.volume = loadVolume(path,q,units); out.referenceLoaded = true; return out; });
-    }
+    if (ImGui::Button("Reference...")) { m_pickerAction=1; m_picker.open("Open reference volume",false,m_input); }
     ImGui::SameLine();
-    if (ImGui::Button("Clear fields")) { m_volume = {}; m_referenceVolume = {}; m_result = {}; m_selected = m_reference = 0; }
+    if (ImGui::Button("Clear"))
+    {
+        m_volume={}; m_referenceVolume={}; m_result={}; m_surface={};
+        m_viewport.setMesh(m_surface); m_selected=m_reference=0; m_sliceField=-1; m_loadedPath.clear(); resetCamera();
+    }
+    if (!m_loadedPath.empty())
+    {
+        ImGui::TextDisabled("%s",std::filesystem::u8path(m_loadedPath).filename().u8string().c_str());
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s",m_loadedPath.c_str());
+    }
+    if (ImGui::CollapsingHeader("Import options"))
+    {
+        ImGui::Combo("Quantity",&m_quantity,"Auto (Cube/XSF: raw)\0Density\0Potential\0ELF\0Raw\0");
+        ImGui::Combo("Cube units",&m_cubeUnits,"Bohr\0Angstrom\0");
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputText("##input",m_input,sizeof(m_input));
+        if (ImGui::Button("Reload")) load(false);
+    }
     if (!m_volume.fields.empty())
     {
         auto selectField = [&](const char* label, int& selected, const Volume& volume)
@@ -96,18 +114,18 @@ void ElectronicPostProcessingDialog::drawDialog()
         const auto& referenceVolume = m_referenceVolume.fields.empty() ? m_volume : m_referenceVolume;
         m_reference = std::clamp(m_reference,0,static_cast<int>(referenceVolume.fields.size())-1);
         const Grid& g = m_volume.fields[m_selected];
-        ImGui::Text("%d x %d x %d | %s | %s | %zu atoms",g.shape[0],g.shape[1],g.shape[2],g.unit.c_str(),g.periodic ? "periodic" : "finite, endpoints included",m_volume.sites.size());
+        ImGui::TextDisabled("%d x %d x %d | %s",g.shape[0],g.shape[1],g.shape[2],g.unit.c_str());
         ImGui::Combo("Tool",&m_operation,
             "Total integral\0Add reference\0Subtract reference (difference density)\0Multiply reference\0Divide by reference\0Scale\0Gaussian smoothing\0Cartesian gradient\0Laplacian\0Energy-density conversion\0Line profile\0Planar average\0Macroscopic average\0Plane section\0Contour segments (z=0)\0Peak search\0Voronoi site integration\0Sphere integration\0Structure factors\0Fourier synthesis\0Patterson density\0Ewald site potentials\0Isosurface\0Resample onto reference\0Verify periodic endpoint planes\0");
-        if ((m_operation >= 1 && m_operation <= 4) || m_operation == 23 || m_operation == 22) selectField("Reference field",m_reference,referenceVolume);
+        if ((m_operation >= 1 && m_operation <= 4) || m_operation == 23 || m_operation == 22) selectField("Reference",m_reference,referenceVolume);
         if (m_operation == 5) ImGui::InputFloat("Scale factor",&m_scalar);
-        if (m_operation == 6) { ImGui::InputFloat("Gaussian sigma (A)",&m_sigma); ImGui::InputInt("Kernel radius (grid steps)",&m_radius); }
+        if (m_operation == 6) { ImGui::InputFloat("Sigma (A)",&m_sigma); ImGui::InputInt("Radius (steps)",&m_radius); }
         if (m_operation == 9) ImGui::TextWrapped("Gradient-expansion kinetic and local-virial energy densities (eV/A^3). Requires nonnegative e/A^3. Samples <= 1e-12 e/A^3 are masked to zero.");
-        if (m_operation == 10 || m_operation == 13 || m_operation == 17) ImGui::InputFloat3("Start / origin / center (A)",m_start);
+        if (m_operation == 10 || m_operation == 13 || m_operation == 17) ImGui::InputFloat3("Origin (A)",m_start);
         if (m_operation == 10) ImGui::InputFloat3("End (A)",m_end);
         if (m_operation == 10 || m_operation == 13) ImGui::InputInt("Sample count",&m_count);
-        if (m_operation == 11 || m_operation == 12) ImGui::Combo("Normal to lattice plane",&m_axis,"a*\0b*\0c*\0");
-        if (m_operation == 12) ImGui::InputInt("Odd averaging window",&m_window);
+        if (m_operation == 11 || m_operation == 12) ImGui::Combo("Plane normal",&m_axis,"a*\0b*\0c*\0");
+        if (m_operation == 12) ImGui::InputInt("Window (odd)",&m_window);
         if (m_operation == 13) { ImGui::InputFloat3("Plane span u (A)",m_u); ImGui::InputFloat3("Plane span v (A)",m_v); }
         if (m_operation == 14 || m_operation == 22) ImGui::InputFloat("Isovalue",&m_scalar);
         if (m_operation == 17) ImGui::InputFloat("Sphere radius (A)",&m_scalar);
@@ -128,8 +146,8 @@ void ElectronicPostProcessingDialog::drawDialog()
         }
         if (m_operation == 22)
         {
-            ImGui::Checkbox("Color surface using reference",&m_colorSurface);
-            ImGui::Checkbox("Append to previous surface (multiple levels)",&m_appendSurface);
+            ImGui::Checkbox("Color from reference",&m_colorSurface);
+            ImGui::Checkbox("Append surface level",&m_appendSurface);
         }
         if (m_operation == 24) ImGui::TextWrapped("For Cube/XSF covering a complete periodic cell: checks all opposite endpoint values, then removes duplicate planes. Matching values alone do not establish physical periodicity.");
         if (ImGui::Button("Calculate"))
@@ -142,6 +160,8 @@ void ElectronicPostProcessingDialog::drawDialog()
             const std::string reflectionText(m_reflections), chargeText(m_charges);
             const bool colored = m_colorSurface;
             const bool appendSurface = m_appendSurface;
+            const bool existingSurface = !m_surface.vertices.empty();
+            const std::string existingColorUnit = m_colorUnit;
             m_error.clear();
             m_task.start([=]
             {
@@ -216,7 +236,16 @@ void ElectronicPostProcessingDialog::drawDialog()
                     out.columns = 1; out.heading = "cell_energy_eV_then_site_potentials_V"; out.table = {e.energy};
                     out.table.insert(out.table.end(),e.potentials.begin(),e.potentials.end());
                 }
-                else if (op == 22) { out.mesh = isosurface(source,scalar,colored ? &reference : nullptr); out.appendMesh = appendSurface; }
+                else if (op == 22)
+                {
+                    const auto& colorGrid = colored ? reference : source;
+                    if (appendSurface && existingSurface && existingColorUnit!=colorGrid.unit)
+                        throw std::invalid_argument("Appended surfaces must use the same coloring units.");
+                    out.mesh = isosurface(source,scalar,colored ? &reference : nullptr);
+                    out.appendMesh = appendSurface; out.surfaceReady = true;
+                    const auto range = std::minmax_element(colorGrid.values.begin(),colorGrid.values.end());
+                    out.colorLow=*range.first; out.colorHigh=*range.second; out.colorUnit=colorGrid.unit;
+                }
                 else if (op == 23) add(resample(source,reference));
                 else if (op == 24)
                 {
@@ -225,33 +254,38 @@ void ElectronicPostProcessingDialog::drawDialog()
                 return out;
             });
         }
-        ImGui::Separator();
-        ImGui::InputText("Output file",m_output,sizeof(m_output));
-        ImGui::Combo("Export",&m_exportFormat,"Selected field: XSF\0Selected field: Cube\0Selected field: VASP\0Last table: CSV\0Last surface: OBJ / PLY\0");
-        if (ImGui::Button("Save result"))
+        if (ImGui::CollapsingHeader("Export"))
         {
-            try
-            {
-                if (m_exportFormat < 3) saveVolume({m_volume.sites,{g}},m_output,std::array<const char*,3>{"xsf","cube","vasp"}[m_exportFormat]);
-                else if (m_exportFormat == 4) saveMesh(m_result.mesh,m_output);
-                else
-                {
-                    if (!m_result.columns) throw std::invalid_argument("No table to export");
-                    std::ofstream stream{std::filesystem::u8path(m_output)};
-                    if (!stream) throw std::runtime_error("Cannot open CSV output");
-                    stream << "# " << m_result.heading << '\n' << std::setprecision(17);
-                    for (std::size_t i = 0; i < m_result.table.size(); ++i) stream << m_result.table[i] << ((i+1)%m_result.columns ? ',' : '\n');
-                    if (!stream) throw std::runtime_error("Failed writing CSV");
-                }
-                m_error = "Saved " + std::string(m_output);
-            }
-            catch (const std::exception& e) { m_error = e.what(); }
+            if (ImGui::Combo("Format",&m_exportFormat,"Grid: XSF\0Grid: Cube\0Grid: VASP\0Table: CSV\0Surface: OBJ\0Surface: PLY\0"))
+                std::snprintf(m_output,sizeof(m_output),"electronic-result%s",std::array<const char*,6>{".xsf",".cube",".vasp",".csv",".obj",".ply"}[m_exportFormat]);
+            if (ImGui::Button("Save as...")) { m_pickerAction=2; m_picker.open("Save electronic result",true,m_output); }
         }
     }
     ImGui::EndDisabled();
     if (m_task.running()) ImGui::TextUnformatted("Calculating...");
     if (!m_error.empty()) ImGui::TextWrapped("%s",m_error.c_str());
-    if (!m_result.table.empty())
+    if (ImGui::CollapsingHeader("Appearance",ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Combo("Colors",&m_palette,"Spectrum\0Blue-white-red\0Sequential blue\0");
+        if (ImGui::Checkbox("Automatic range",&m_autoRange) && m_autoRange) { m_colorLow=m_autoLow; m_colorHigh=m_autoHigh; }
+        if (!m_autoRange)
+        {
+            ImGui::InputFloat("Minimum",&m_colorLow,0,0,"%.5g");
+            ImGui::InputFloat("Maximum",&m_colorHigh,0,0,"%.5g");
+        }
+        ImGui::SliderFloat("Opacity",&m_opacity,.05f,1,"%.2f");
+        if (ImGui::TreeNode("Lighting"))
+        {
+            ImGui::SliderFloat("Specular",&m_specular,0,1,"%.2f");
+            ImGui::SliderFloat("Shininess",&m_shininess,4,128,"%.0f");
+            ImGui::TreePop();
+        }
+    }
+    ImGui::PopItemWidth();
+    ImGui::EndChild();
+    ImGui::SameLine();
+    ImGui::BeginChild("Electronic results",ImVec2(0,0),false,ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoScrollbar);
+    if (!m_result.table.empty() && ImGui::CollapsingHeader("Results table",ImGuiTreeNodeFlags_DefaultOpen))
     {
         ImGui::TextWrapped("%s",m_result.heading.c_str());
         if (m_result.heading == "distance_A,value")
@@ -271,63 +305,131 @@ void ElectronicPostProcessingDialog::drawDialog()
         ImGui::EndChild();
     }
     drawPreview();
+    ImGui::EndChild();
+    ImGui::PopStyleVar(2);
+    if (auto path=m_picker.draw())
+    {
+        if (m_pickerAction==2) save(*path);
+        else { std::snprintf(m_input,sizeof(m_input),"%s",path->c_str()); load(m_pickerAction==1); }
+    }
     ImGui::End();
+}
+
+void ElectronicPostProcessingDialog::load(bool reference)
+{
+    const std::string path(m_input), q=std::array<const char*,5>{"auto","density","potential","elf","raw"}[m_quantity];
+    const std::string units=m_cubeUnits ? "angstrom" : "bohr";
+    m_error.clear();
+    if (!m_task.start([path,q,units,reference]
+    {
+        Output out; out.volume=loadVolume(path,q,units);
+        out.loaded=!reference; out.referenceLoaded=reference; out.sourcePath=path; return out;
+    })) m_error=m_task.error();
+}
+
+void ElectronicPostProcessingDialog::save(const std::string& path)
+{
+    try
+    {
+        if (m_volume.fields.empty()) throw std::invalid_argument("Load a volume first.");
+        if (m_exportFormat<3) saveVolume({m_volume.sites,{m_volume.fields.at(m_selected)}},path,std::array<const char*,3>{"xsf","cube","vasp"}[m_exportFormat]);
+        else if (m_exportFormat>=4)
+        {
+            if (m_surface.vertices.empty()) throw std::invalid_argument("Calculate an isosurface first.");
+            saveMesh(m_surface,path);
+        }
+        else
+        {
+            if (!m_result.columns) throw std::invalid_argument("No table to export");
+            std::ofstream stream{std::filesystem::u8path(path)};
+            if (!stream) throw std::runtime_error("Cannot open CSV output");
+            stream << "# " << m_result.heading << '\n' << std::setprecision(17);
+            for (std::size_t i=0;i<m_result.table.size();++i) stream << m_result.table[i] << ((i+1)%m_result.columns ? ',' : '\n');
+            if (!stream) throw std::runtime_error("Failed writing CSV");
+        }
+        std::snprintf(m_output,sizeof(m_output),"%s",path.c_str());
+        m_error="Saved "+std::filesystem::u8path(path).filename().u8string();
+    }
+    catch (const std::exception& e) { m_error=e.what(); }
+}
+
+void ElectronicPostProcessingDialog::resetCamera()
+{
+    m_yaw=.6f; m_pitch=.4f; m_zoom=1; m_pan=glm::vec2(0);
 }
 
 void ElectronicPostProcessingDialog::drawPreview()
 {
-    if (!m_result.mesh.vertices.empty())
+    if (ImGui::Button("Fit view")) resetCamera();
+    ImGui::SameLine();
+    ImGui::TextDisabled("Drag: orbit | Right drag: pan | Wheel: zoom");
+    const auto pos=ImGui::GetCursorScreenPos();
+    const ImVec2 size(std::max(100.0f,ImGui::GetContentRegionAvail().x),std::max(150.0f,ImGui::GetContentRegionAvail().y-52));
+    ImGui::InvisibleButton("Electronic viewport",size,ImGuiButtonFlags_MouseButtonLeft|ImGuiButtonFlags_MouseButtonRight);
+    if (ImGui::IsItemHovered())
     {
-        ImGui::Text("%zu triangles (preview displays up to 20000)",m_result.mesh.vertices.size()/3);
-        ImGui::SliderFloat("Rotation",&m_yaw,-3.14f,3.14f);
-        ImGui::SliderFloat("Tilt",&m_pitch,-1.57f,1.57f);
-        ImGui::SliderFloat("Opacity",&m_opacity,0.05f,1);
-        const auto pos = ImGui::GetCursorScreenPos();
-        const ImVec2 size(std::max(100.0f,ImGui::GetContentRegionAvail().x),300);
-        ImGui::InvisibleButton("Surface preview",size);
-        auto* draw = ImGui::GetWindowDrawList();
-        draw->AddRectFilled(pos,ImVec2(pos.x+size.x,pos.y+size.y),IM_COL32(25,28,35,255));
-        const auto& vertices = m_result.mesh.vertices;
-        glm::dvec3 low = vertices[0], high = low;
-        for (auto p : vertices) { low = glm::min(low,p); high = glm::max(high,p); }
-        const auto center = (low+high)*0.5;
-        const double zoom = 0.8 * std::min(size.x,size.y) / std::max(1e-8,glm::length(high-low));
-        auto rotate = [&](glm::dvec3 p)
+        m_zoom=std::clamp(m_zoom*std::exp(ImGui::GetIO().MouseWheel*.12f),.15f,15.0f);
+        if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) resetCamera();
+    }
+    if (ImGui::IsItemActive())
+    {
+        const auto delta=ImGui::GetIO().MouseDelta;
+        if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
         {
-            p -= center;
-            glm::dvec3 q(std::cos(m_yaw)*p.x+std::sin(m_yaw)*p.z,p.y,-std::sin(m_yaw)*p.x+std::cos(m_yaw)*p.z);
-            return glm::dvec3(q.x,std::cos(m_pitch)*q.y-std::sin(m_pitch)*q.z,std::sin(m_pitch)*q.y+std::cos(m_pitch)*q.z);
-        };
-        struct Triangle { std::size_t index; double depth; };
-        std::vector<Triangle> order;
-        const std::size_t stride = std::max<std::size_t>(1,(vertices.size()/3+19999)/20000);
-        for (std::size_t i = 0; i+2 < vertices.size(); i += 3*stride) order.push_back({i,rotate((vertices[i]+vertices[i+1]+vertices[i+2])/3.0).z});
-        std::sort(order.begin(),order.end(),[](const Triangle& a,const Triangle& b) { return a.depth < b.depth; });
-        const auto range = std::minmax_element(m_result.mesh.colors.begin(),m_result.mesh.colors.end());
-        for (const auto& triangle : order)
-        {
-            ImVec2 points[3];
-            for (int j = 0; j < 3; ++j) { const auto p = rotate(vertices[triangle.index+j]); points[j] = ImVec2(pos.x+size.x*0.5f+static_cast<float>(p.x*zoom),pos.y+size.y*0.5f-static_cast<float>(p.y*zoom)); }
-            const auto a = rotate(vertices[triangle.index]), b = rotate(vertices[triangle.index+1]), c = rotate(vertices[triangle.index+2]);
-            const auto normal = glm::normalize(glm::cross(b-a,c-a));
-            const float light = static_cast<float>(0.35 + 0.65 * std::abs(glm::dot(normal,glm::normalize(glm::dvec3(0.3,0.5,1)))));
-            auto color = ImGui::ColorConvertU32ToFloat4(scalarColor(m_result.mesh.colors[triangle.index],*range.first,*range.second,m_opacity));
-            color.x *= light; color.y *= light; color.z *= light;
-            draw->AddTriangleFilled(points[0],points[1],points[2],ImGui::ColorConvertFloat4ToU32(color));
+            m_yaw=std::remainder(m_yaw+delta.x*.008f,6.2831853f);
+            m_pitch=std::clamp(m_pitch+delta.y*.008f,-1.55f,1.55f);
         }
+        if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) m_pan+=glm::vec2(delta.x,-delta.y)*(2.5f/(size.y*m_zoom));
     }
-    else if (!m_volume.fields.empty() && m_volume.fields[m_selected].name == "section")
+    auto* draw=ImGui::GetWindowDrawList();
+    draw->PushClipRect(pos,ImVec2(pos.x+size.x,pos.y+size.y),true);
+    draw->AddRectFilled(pos,ImVec2(pos.x+size.x,pos.y+size.y),IM_COL32(245,247,251,255));
+    if (!m_surface.vertices.empty())
     {
-        const auto& g = m_volume.fields[m_selected];
-        const auto range = std::minmax_element(g.values.begin(),g.values.end());
-        ImGui::Text("Section range: %.6g to %.6g %s",*range.first,*range.second,g.unit.c_str());
-        const auto pos = ImGui::GetCursorScreenPos();
-        const ImVec2 size(std::max(100.0f,ImGui::GetContentRegionAvail().x),250);
-        ImGui::InvisibleButton("Section preview",size);
-        auto* draw = ImGui::GetWindowDrawList();
-        const int stride = std::max(1,std::max(g.shape[0],g.shape[1])/200);
-        for (int y = 0; y < g.shape[1]; y += stride)
-            for (int x = 0; x < g.shape[0]; x += stride)
-                draw->AddRectFilled(ImVec2(pos.x+size.x*x/g.shape[0],pos.y+size.y*y/g.shape[1]),ImVec2(pos.x+size.x*std::min(x+stride,g.shape[0])/g.shape[0],pos.y+size.y*std::min(y+stride,g.shape[1])/g.shape[1]),scalarColor(g.values[g.index(x,y,0)],*range.first,*range.second));
+        try
+        {
+            if (!std::isfinite(m_colorLow) || !std::isfinite(m_colorHigh) || m_colorHigh<m_colorLow)
+                throw std::invalid_argument("Color range must be finite with maximum >= minimum.");
+            const auto scale=ImGui::GetIO().DisplayFramebufferScale;
+            const auto texture=m_viewport.render(static_cast<int>(size.x*scale.x),static_cast<int>(size.y*scale.y),m_yaw,m_pitch,m_zoom,m_pan,m_opacity,m_colorLow,m_colorHigh,m_palette,m_specular,m_shininess);
+            draw->AddImage((ImTextureID)(intptr_t)texture,pos,ImVec2(pos.x+size.x,pos.y+size.y),ImVec2(0,1),ImVec2(1,0));
+            const std::string caption=std::to_string(m_surface.vertices.size()/3)+" triangles";
+            draw->AddText(ImVec2(pos.x+12,pos.y+12),IM_COL32(70,80,95,255),caption.c_str());
+        }
+        catch (const std::exception& e) { m_error=e.what(); }
     }
+    else if (!m_volume.fields.empty())
+    {
+        const auto& g=m_volume.fields[m_selected];
+        if (m_sliceField!=m_selected)
+        {
+            const auto range=std::minmax_element(g.values.begin(),g.values.end());
+            m_sliceLow=static_cast<float>(*range.first); m_sliceHigh=static_cast<float>(*range.second); m_sliceField=m_selected;
+        }
+        m_autoLow=m_sliceLow; m_autoHigh=m_sliceHigh; m_colorUnit=g.unit;
+        if(m_autoRange) { m_colorLow=m_autoLow; m_colorHigh=m_autoHigh; }
+        const int z=g.name=="section" ? 0 : g.shape[2]/2;
+        const int stride=std::max(1,(std::max(g.shape[0],g.shape[1])+255)/256);
+        for(int y=0;y<g.shape[1];y+=stride) for(int x=0;x<g.shape[0];x+=stride)
+        {
+            const float t=m_colorHigh>m_colorLow ? static_cast<float>((g.values[g.index(x,y,z)]-m_colorLow)/(m_colorHigh-m_colorLow)) : .5f;
+            const auto color=ElectronicViewport::color(t,m_palette);
+            draw->AddRectFilled(ImVec2(pos.x+size.x*x/g.shape[0],pos.y+size.y*(1.0f-static_cast<float>(std::min(y+stride,g.shape[1]))/g.shape[1])),
+                ImVec2(pos.x+size.x*std::min(x+stride,g.shape[0])/g.shape[0],pos.y+size.y*(1.0f-static_cast<float>(y)/g.shape[1])),
+                ImGui::ColorConvertFloat4ToU32(ImVec4(color.x,color.y,color.z,1)));
+        }
+        draw->AddText(ImVec2(pos.x+12,pos.y+12),IM_COL32(30,40,55,255),"2D grid slice - Calculate an isosurface to orbit in 3D");
+    }
+    else draw->AddText(ImVec2(pos.x+20,pos.y+25),IM_COL32(90,100,115,255),"Open a charge-density, potential, Cube or XSF file.");
+    draw->PopClipRect();
+    const auto bar=ImGui::GetCursorScreenPos();
+    const float width=std::max(100.0f,size.x-4);
+    for(int i=0;i<128;++i)
+    {
+        const auto c=ElectronicViewport::color(static_cast<float>(i)/127,m_palette);
+        draw->AddRectFilled(ImVec2(bar.x+width*i/128,bar.y),ImVec2(bar.x+width*(i+1)/128,bar.y+10),ImGui::ColorConvertFloat4ToU32(ImVec4(c.x,c.y,c.z,1)));
+    }
+    ImGui::Dummy(ImVec2(width,12));
+    ImGui::Text("%.5g",m_colorLow); ImGui::SameLine(width*.4f); ImGui::TextUnformatted(m_colorUnit.c_str());
+    ImGui::SameLine(std::max(width-85.0f,150.0f)); ImGui::Text("%.5g",m_colorHigh);
 }

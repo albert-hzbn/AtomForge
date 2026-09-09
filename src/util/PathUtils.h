@@ -14,6 +14,7 @@ std::string joinPath(const std::string& base, const std::string& name);
 std::string parentPath(const std::string& path);
 bool isDriveRootPath(const std::string& path);
 std::string detectHomePath();
+std::vector<std::string> getDriveRoots();
 void appendUniquePath(std::vector<std::string>& paths, const std::string& value);
 
 bool hasExtension(const std::string& name, const std::string& extension);

@@ -147,13 +147,34 @@ atomic units; XSF export retains internal scalar units.
 - Contours use a fixed triangulation to resolve saddle ambiguity. Isosurfaces
   use six tetrahedra per voxel and return unwelded triangle vertices. PLY stores
   the scalar as a vertex property; OBJ stores it as comments. The desktop uses
-  a depth-sorted shaded preview, subsampled above 20,000 triangles, with a
-  separate rotation and opacity control. It is not the main atom renderer or
-  a publication-quality transparency solver. Full meshes are exported.
+  the full mesh in an OpenGL viewport with a light background, smooth normals,
+  diffuse/specular lighting and depth testing. Transparent triangles are sorted
+  back to front; intersecting transparent surfaces can still have sorting artifacts.
+  Full meshes are exported.
 - Sections return a two-layer grid with identical values; the first layer is
   the actual 2D section. Use `section_values` and `contours`, not the artificial
   slab's volume integral. Peak search operates on samples with a deterministic
   adjacent tie break; it does not refine critical points or identify Bader basins.
+
+## Desktop controls
+
+The electronic workspace places compact controls beside the viewport. **Open**,
+**Reference** and **Save as** reuse the application's directory navigation and
+file list, including drive shortcuts, editable paths and overwrite confirmation.
+Import options, export settings and lighting controls expand when needed.
+
+Drag in the viewport to orbit, right-drag to pan, and use the wheel to zoom.
+**Fit view** or a double-click resets the camera. The viewport keeps the computed
+surface visible while other analyses run. Before a surface is calculated, it
+shows a density slice.
+
+The **Spectrum** palette maps low values through blue, cyan, green and yellow to
+red. Diverging blue-white-red and sequential blue palettes are also available.
+The legend shows the scalar range and units; disable **Automatic range** to set
+consistent bounds across calculations. A single isosurface has a constant density
+and therefore one scalar color. Append multiple levels or enable **Color from
+reference** to compare levels or map another field, such as electrostatic potential,
+onto the surface. Opacity, specular strength and shininess are adjustable.
 
 ## Build and Python setup
 
@@ -232,10 +253,12 @@ NaCl Madelung energy and cutoff convergence; error recovery and CLI behavior.
 CI runs the suites on Linux and Windows. Platform CI results are separate from
 local Windows validation.
 
-Local validation for this change: all 8 desktop and 7 headless CTest suites
-passed on Windows/MinGW, including 15 Python electronic test cases. The native
-library was also loaded successfully from a built/installed wheel using CPython
-3.12 and the installed portable runtime. The desktop was exercised for VASP
-loading, integration and isosurface preview. The final shaded/append preview
-controls were compiled; exhaustive interactive testing and Linux execution
-remain for platform CI and subsequent validation.
+Local Windows/MinGW validation includes all 9 desktop CTest suites, including
+15 Python electronic test cases and an actual OpenGL rendering test covering
+background, lighting, density colors, orbit and graphics-state restoration.
+The renderer test skips explicitly when no graphics context is available.
+The earlier toolkit also passed all 7 headless suites and loaded its native
+library from a built/installed wheel using CPython 3.12 and the portable runtime.
+Desktop checks cover loading and saving through the shared browser, the lit
+isosurface and wheel zoom. Reloading the exported XSF preserves its density integral.
+Linux execution remains for platform CI.

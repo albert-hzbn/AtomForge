@@ -14,6 +14,17 @@ add_executable(atomforge_electronic_tests ${PROJECT_SOURCE_DIR}/tests/electronic
 target_link_libraries(atomforge_electronic_tests PRIVATE AtomForge::Core)
 add_test(NAME electronic_regressions COMMAND atomforge_electronic_tests)
 
+if(TARGET AtomForge)
+    find_package(OpenGL REQUIRED)
+    add_executable(atomforge_viewport_tests
+        ${PROJECT_SOURCE_DIR}/tests/electronic_viewport.cpp
+        ${PROJECT_SOURCE_DIR}/src/graphics/ElectronicViewport.cpp
+        ${PROJECT_SOURCE_DIR}/src/graphics/Shader.cpp)
+    target_link_libraries(atomforge_viewport_tests PRIVATE AtomForge::Core PkgConfig::GLFW3 PkgConfig::GLEW OpenGL::GL)
+    add_test(NAME electronic_viewport COMMAND atomforge_viewport_tests)
+    set_tests_properties(electronic_viewport PROPERTIES SKIP_RETURN_CODE 77)
+endif()
+
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
     add_test(NAME python_electronic
