@@ -503,13 +503,14 @@ void ElectronicPostProcessingDialog::drawPreview()
         ImGui::SetNextItemWidth(-1);
         float transparency=1-m_opacity;
         if (ImGui::SliderFloat("##transparency",&transparency,0,1,"%.2f")) m_opacity=1-transparency;
+        ImGui::Checkbox("Show slice plane",&m_showSlicePlane);
         draw3DPreview();
         ImGui::EndChild();
     }
     if (m_viewLayout==0) ImGui::SameLine();
     if (m_viewLayout!=1)
     {
-        ImGui::BeginChild("2D view",ImVec2(viewWidth,0),true,flags);
+        ImGui::BeginChild("2D view",ImVec2(viewWidth,0),true,ImGuiWindowFlags_NoScrollWithMouse);
         try
         {
             // The section's density scale remains independent of a potential
@@ -562,6 +563,35 @@ void ElectronicPostProcessingDialog::draw3DPreview()
             }
             else texture=m_viewport.render(static_cast<int>(size.x*scale.x),static_cast<int>(size.y*scale.y),m_yaw,m_pitch,m_zoom,m_pan,m_opacity,m_colorLow,m_colorHigh,m_palette,m_specular,m_shininess);
             draw->AddImage((ImTextureID)(intptr_t)texture,pos,ImVec2(pos.x+size.x,pos.y+size.y),ImVec2(0,1),ImVec2(1,0));
+            if (m_showSlicePlane)
+            {
+                // A translucent overlay keeps the entire guide readable through
+                // dense volumes and surfaces. Its geometry follows the 3D camera.
+                try
+                {
+                    const auto plane=m_sliceViewport.plane(m_volume.fields[m_selected]);
+                    std::vector<ImVec2> points;
+                    for (auto p : plane.boundary)
+                    {
+                        const auto q=m_viewport.project(p,m_renderMode==0,size.x/size.y,m_yaw,m_pitch,m_zoom,m_pan);
+                        points.emplace_back(pos.x+(q.x+1)*size.x*.5f,pos.y+(1-q.y)*size.y*.5f);
+                    }
+                    if (points.size()>=3)
+                    {
+                        // ImGui convex fills require clockwise screen winding.
+                        float area=0;
+                        for (std::size_t i=0;i<points.size();++i)
+                        {
+                            const auto a=points[i], b=points[(i+1)%points.size()];
+                            area+=a.x*b.y-b.x*a.y;
+                        }
+                        if (area<0) std::reverse(points.begin(),points.end());
+                        draw->AddConvexPolyFilled(points.data(),static_cast<int>(points.size()),IM_COL32(65,135,200,48));
+                        draw->AddPolyline(points.data(),static_cast<int>(points.size()),IM_COL32(35,95,155,220),ImDrawFlags_Closed,1.5f);
+                    }
+                }
+                catch (const std::invalid_argument&) { /* Invalid plane inputs are reported in the 2D controls. */ }
+            }
             const std::string caption=m_renderMode==0 ? "Volume density" : std::to_string(m_surface.vertices.size()/3)+" triangles";
             draw->AddText(ImVec2(pos.x+12,pos.y+12),IM_COL32(70,80,95,255),caption.c_str());
         }

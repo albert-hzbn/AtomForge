@@ -8,30 +8,66 @@
 
 using namespace atomforge::electronic;
 
+SlicePlane ElectronicSliceViewport::plane(const Grid& grid) const
+{
+    if (m_axis==3) return slicePlane(grid,{m_point[0],m_point[1],m_point[2]},{m_normal[0],m_normal[1],m_normal[2]});
+    const int a=m_axis==0 ? 1 : 0, b=m_axis==2 ? 1 : 2;
+    const auto origin=grid.origin+grid.cell[m_axis]*static_cast<double>(m_position);
+    return {origin,grid.cell[a],grid.cell[b],{origin,origin+grid.cell[a],origin+grid.cell[a]+grid.cell[b],origin+grid.cell[b]}};
+}
+
 void ElectronicSliceViewport::draw(const Grid& grid, float low, float high, int palette)
 {
     ImGui::TextUnformatted("2D section");
     ImGui::SetNextItemWidth(-1);
-    m_dirty |= ImGui::Combo("##plane",&m_axis,"bc plane (normal a*)\0ac plane (normal b*)\0ab plane (normal c*)\0");
-    ImGui::TextUnformatted("Slice position (fraction of cell)");
-    ImGui::SetNextItemWidth(-1);
-    m_dirty |= ImGui::SliderFloat("##position",&m_position,0,1,"%.3f");
+    m_dirty |= ImGui::Combo("##plane",&m_axis,"bc plane (normal a*)\0ac plane (normal b*)\0ab plane (normal c*)\0Arbitrary plane\0");
+    if (m_axis==3)
+    {
+        ImGui::TextUnformatted("Point (fractional a, b, c)");
+        ImGui::SetNextItemWidth(-1);
+        m_dirty |= ImGui::InputFloat3("##plane point",m_point,"%.4g");
+        ImGui::TextUnformatted("Normal (Cartesian x, y, z)");
+        ImGui::SetNextItemWidth(-1);
+        m_dirty |= ImGui::InputFloat3("##plane normal",m_normal,"%.4g");
+    }
+    else
+    {
+        ImGui::TextUnformatted("Slice position (fraction of cell)");
+        ImGui::SetNextItemWidth(-1);
+        m_dirty |= ImGui::SliderFloat("##position",&m_position,0,1,"%.3f");
+    }
+    const auto geometry=plane(grid);
+    if (geometry.boundary.size()<3)
+    {
+        ImGui::TextWrapped("Warning: this plane does not intersect the cell. Change the point or normal.");
+        return;
+    }
     if (m_dirty)
     {
-        const int a=m_axis==0 ? 1 : 0, b=m_axis==2 ? 1 : 2;
         // Preview sampling is bounded; the native section/contour tools retain
         // their full user-selected resolution for numerical work and export.
-        const int nu=std::clamp(grid.shape[a]+(grid.periodic ? 1 : 0),2,129);
-        const int nv=std::clamp(grid.shape[b]+(grid.periodic ? 1 : 0),2,129);
-        m_slice=section(grid,grid.origin+grid.cell[m_axis]*static_cast<double>(m_position),grid.cell[a],grid.cell[b],nu,nv);
+        const int a=m_axis==0 ? 1 : 0, b=m_axis==2 ? 1 : 2;
+        const int nu=m_axis==3 ? 129 : std::clamp(grid.shape[a]+(grid.periodic ? 1 : 0),2,129);
+        const int nv=m_axis==3 ? 129 : std::clamp(grid.shape[b]+(grid.periodic ? 1 : 0),2,129);
+        m_slice=sampleSlicePlane(grid,geometry,nu,nv);
+        m_visibleValues.clear();
+        const auto inverse=glm::inverse(grid.cell);
+        for (int y=0;y<nv;++y) for (int x=0;x<nu;++x)
+        {
+            const auto f=inverse*(m_slice.position(x,y,0)-grid.origin);
+            if (m_axis!=3 || (glm::all(glm::greaterThanEqual(f,glm::dvec3(-1e-9))) && glm::all(glm::lessThanEqual(f,glm::dvec3(1+1e-9)))))
+                m_visibleValues.push_back(m_slice.values[m_slice.index(x,y,0)]);
+        }
+        // Include the intersection vertices even for a very small section.
+        for (auto p : geometry.boundary) m_visibleValues.push_back(grid.sample(p));
     }
-    if (m_estimateLevel) { m_level=static_cast<float>(displayRange(m_slice.values).suggested); m_estimateLevel=false; }
+    if (m_estimateLevel) { m_level=static_cast<float>(displayRange(m_visibleValues).suggested); m_estimateLevel=false; }
     ImGui::TextUnformatted("2D isovalue (contour)");
     ImGui::SetNextItemWidth(-1);
     bool levelChanged = ImGui::InputFloat("##level",&m_level,0,0,"%.5g");
     if (ImGui::Button("Estimate 2D level"))
     {
-        m_level=static_cast<float>(displayRange(m_slice.values.empty() ? grid.values : m_slice.values).suggested);
+        m_level=static_cast<float>(displayRange(m_visibleValues).suggested);
         levelChanged=true;
     }
     if (ImGui::Button("Reset 2D")) reset();
@@ -47,7 +83,7 @@ void ElectronicSliceViewport::draw(const Grid& grid, float low, float high, int 
     }
     if (m_dirty || levelChanged) m_contours=contours(m_slice,m_level);
     m_dirty=false;
-    const auto bounds=std::minmax_element(m_slice.values.begin(),m_slice.values.end());
+    const auto bounds=std::minmax_element(m_visibleValues.begin(),m_visibleValues.end());
     if (m_level<*bounds.first || m_level>*bounds.second)
     {
         ImGui::PushStyleColor(ImGuiCol_Text,ImVec4(.85f,.32f,.08f,1));
@@ -97,14 +133,18 @@ void ElectronicSliceViewport::draw(const Grid& grid, float low, float high, int 
             +m_slice.values[m_slice.index(x,y+1,0)]+m_slice.values[m_slice.index(x+1,y+1,0)])*.25;
         const float t=high>low ? static_cast<float>((value-low)/(high-low)) : .5f;
         const auto c=ElectronicViewport::color(t,palette);
-        draw->AddQuadFilled(screen(m_slice.position(x,y,0)),screen(m_slice.position(x,y+1,0)),
-            screen(m_slice.position(x+1,y+1,0)),screen(m_slice.position(x+1,y,0)),
-            ImGui::ColorConvertFloat4ToU32(ImVec4(c.x,c.y,c.z,1)));
+        auto polygon=std::vector<glm::dvec3>{m_slice.position(x,y,0),m_slice.position(x,y+1,0),m_slice.position(x+1,y+1,0),m_slice.position(x+1,y,0)};
+        if (m_axis==3) polygon=clipToCell(grid,std::move(polygon));
+        std::vector<ImVec2> points;
+        for (auto p : polygon) points.push_back(screen(p));
+        if (points.size()>=3) draw->AddConvexPolyFilled(points.data(),static_cast<int>(points.size()),ImGui::ColorConvertFloat4ToU32(ImVec4(c.x,c.y,c.z,1)));
     }
     draw->Flags=flags;
     for (std::size_t i=0;i+1<m_contours.size();i+=2)
     {
-        const auto a=screen(m_contours[i]), b=screen(m_contours[i+1]);
+        auto start=m_contours[i], end=m_contours[i+1];
+        if (m_axis==3 && !clipSegmentToCell(grid,start,end)) continue;
+        const auto a=screen(start), b=screen(end);
         draw->AddLine(a,b,IM_COL32(255,255,255,255),3);
         draw->AddLine(a,b,IM_COL32(30,40,55,255),1);
     }

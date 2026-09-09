@@ -61,6 +61,12 @@ int main()
             volume.values[volume.index(x,y,z)]=std::exp(-24*glm::dot(p,p));
         }
         viewport.setVolume(volume);
+        const auto guideCenter=viewport.project({.5,.5,.5},true,2,.7f,.3f,2,{.2f,-.1f});
+        if (glm::length(guideCenter-glm::vec2(.16f,-.16f))>1e-6f)
+            throw std::runtime_error("Slice guide does not follow volume camera pan and zoom");
+        const auto guideRight=viewport.project({1,.5,.5},true,1,0,0,1,{0,0});
+        if (guideRight.x<=0 || std::abs(guideRight.y)>1e-6f)
+            throw std::runtime_error("Slice guide projection has incorrect orientation");
         const auto clear=pixels(viewport.renderVolume(128,128,0,0,1,{0,0},0,.05f,0,1,0));
         const auto filled=pixels(viewport.renderVolume(128,128,0,0,1,{0,0},.5f,.05f,0,1,0));
         if(clear[center]<240 || clear==filled) throw std::runtime_error("Volume transparency did not reveal interior density");

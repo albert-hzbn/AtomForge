@@ -1,5 +1,6 @@
 #include "electronic/Volume.h"
 #include "electronic/DisplayRange.h"
+#include "electronic/SlicePlane.h"
 
 #include <cmath>
 #include <iostream>
@@ -35,6 +36,32 @@ int main()
 {
     try
     {
+        Grid cube;
+        cube.values.assign(8,1);
+        const auto diagonal=slicePlane(cube,{.5,.5,.5},{1,1,1});
+        if (diagonal.boundary.size()!=6) throw std::runtime_error("Diagonal cube intersection must be a hexagon");
+        for (auto p : diagonal.boundary) close(p.x+p.y+p.z,1.5);
+        if (!slicePlane(cube,{2,2,2},{1,1,1}).boundary.empty()) throw std::runtime_error("Outside plane intersects cell");
+        if (!slicePlane(cube,{0,0,0},{1,1,1}).boundary.empty()) throw std::runtime_error("Point contact is not a section");
+        if (slicePlane(cube,{0,0,0},{0,0,1}).boundary.size()!=4) throw std::runtime_error("Cell face intersection was lost");
+        rejects([&] { slicePlane(cube,{.5,.5,.5},{0,0,0}); });
+        auto skew=constant(false); skew.origin={3,-2,7};
+        const glm::dvec3 normal(2,-1,3), center=skew.origin+skew.cell*glm::dvec3(.5);
+        const auto oblique=slicePlane(skew,{.5,.5,.5},normal);
+        const auto preview=sampleSlicePlane(skew,oblique,33,33);
+        for (double value : preview.values) close(value,2);
+        if (oblique.boundary.size()<3) throw std::runtime_error("Skewed cell intersection is empty");
+        for (auto p : oblique.boundary)
+        {
+            close(glm::dot(p-center,normal),0);
+            const auto f=glm::inverse(skew.cell)*(p-skew.origin);
+            for (int axis=0;axis<3;++axis) if (f[axis]<-1e-9 || f[axis]>1+1e-9) throw std::runtime_error("Section extends outside skewed cell");
+        }
+        glm::dvec3 start(-1,.5,.5), end(2,.5,.5);
+        if (!clipSegmentToCell(cube,start,end)) throw std::runtime_error("Crossing contour was discarded");
+        close(start.x,0); close(end.x,1);
+        start={-1,2,.5}; end={2,2,.5};
+        if (clipSegmentToCell(cube,start,end)) throw std::runtime_error("Outside contour was retained");
         const auto signedRange=displayRange({-3,-1,1,4});
         close(signedRange.suggested,0);
         if (signedRange.contains(-4) || signedRange.contains(5) || !signedRange.contains(-3) || !signedRange.contains(4))

@@ -61,6 +61,7 @@ private:
     bool m_generateSurface = false;
     int m_viewLayout = 0;
     ElectronicSliceViewport m_sliceViewport;
+    bool m_showSlicePlane = true;
     float m_sigma = 0.5f;
     float m_start[3]{};
     float m_end[3] = {1, 0, 0};

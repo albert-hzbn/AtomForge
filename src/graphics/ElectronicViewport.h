@@ -21,6 +21,10 @@ public:
                   glm::vec2 pan, float opacity, float low, float high, int palette,
                   float specular, float shininess);
     static glm::vec3 color(float t, int palette);
+    // Normalized screen coordinates for world-space guides, using the same
+    // framing and camera as the selected renderer. Y increases upwards.
+    glm::vec2 project(glm::dvec3 point, bool volume, float aspect, float yaw,
+                      float pitch, float zoom, glm::vec2 pan) const;
 
 private:
     struct Vertex { glm::vec3 position; glm::vec3 normal; float scalar; };
@@ -34,4 +38,6 @@ private:
     GLuint m_volumeTexture=0, m_volumeProgram=0;
     glm::mat3 m_inverseCell{1};
     glm::ivec3 m_volumeShape{0};
+    glm::dvec3 m_meshCenter{0}, m_volumeCenter{0};
+    double m_meshRadius=1, m_volumeRadius=1;
 };

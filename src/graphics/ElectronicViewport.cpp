@@ -128,6 +128,7 @@ void ElectronicViewport::setMesh(const atomforge::electronic::Mesh& mesh)
     for(auto p:mesh.vertices) { low=glm::min(low,p); high=glm::max(high,p); }
     const auto center=(low+high)*0.5;
     const double radius=std::max(1e-12,glm::length(high-low)*0.5);
+    m_meshCenter=center; m_meshRadius=radius;
     using Key=std::array<long long,3>;
     auto key=[](glm::vec3 p) { return Key{std::llround(p.x*1e6),std::llround(p.y*1e6),std::llround(p.z*1e6)}; };
     std::map<Key,glm::vec3> normals;
@@ -232,6 +233,7 @@ void ElectronicViewport::setVolume(const atomforge::electronic::Grid& grid)
     for(int z : {-1,1}) for(int y : {-1,1}) for(int x : {-1,1})
         radius=std::max(radius,glm::length(grid.cell*glm::dvec3(x,y,z)*.5));
     m_inverseCell=glm::mat3(glm::inverse(grid.cell/radius));
+    m_volumeCenter=grid.origin+grid.cell*glm::dvec3(.5); m_volumeRadius=radius;
     if(!m_volumeTexture) glGenTextures(1,&m_volumeTexture);
     glBindTexture(GL_TEXTURE_3D,m_volumeTexture);
     glTexImage3D(GL_TEXTURE_3D,0,GL_R32F,m_volumeShape.x,m_volumeShape.y,m_volumeShape.z,0,GL_RED,GL_FLOAT,values.data());
@@ -322,4 +324,14 @@ void main() {
     glUniform1i(glGetUniformLocation(m_volumeProgram,"palette"),palette);
     glDrawArrays(GL_TRIANGLES,0,3);
     return m_texture;
+}
+
+glm::vec2 ElectronicViewport::project(glm::dvec3 point,bool volume,float aspect,float yaw,
+    float pitch,float zoom,glm::vec2 pan) const
+{
+    const auto position=glm::vec3((point-(volume ? m_volumeCenter : m_meshCenter))/(volume ? m_volumeRadius : m_meshRadius));
+    const auto rotation=glm::rotate(glm::rotate(glm::mat4(1),pitch,glm::vec3(1,0,0)),yaw,glm::vec3(0,1,0));
+    const auto eye=rotation*glm::vec4(position,1);
+    const float extent=1.25f/std::max(.1f,zoom);
+    return {(eye.x+pan.x)/(extent*aspect),(eye.y+pan.y)/extent};
 }
