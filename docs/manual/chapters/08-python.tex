@@ -1,0 +1,182 @@
+\chapter{Python and command-line integration}\label{ch:python}
+\section{Install the Python package}
+From the repository root, install the local package into the Python environment you intend to use:
+\begin{lstlisting}
+python -m pip install ./python
+\end{lstlisting}
+The structure API uses Python implementations of its supported file formats. Electronic operations additionally require the compiled native electronic library. Set \code{ATOMFORGE_PATH} to the viewer executable when it is not discoverable. If necessary, set \code{ATOMFORGE_ELECTRONIC_LIBRARY} to the absolute native library path before importing/using electronic operations. Keep required runtime DLLs beside the Windows library/executable or in the appropriate loader search path.
+
+\begin{lstlisting}[language=Python]
+import os
+os.environ["ATOMFORGE_PATH"] = r"C:\path\to\AtomForge.exe"
+# Only needed when automatic native-library discovery is insufficient:
+# os.environ["ATOMFORGE_ELECTRONIC_LIBRARY"] = r"C:\path\to\atomforge_electronic.dll"
+import atomforge as af
+\end{lstlisting}
+Inspect the actual library filename produced by your platform/build instead of assuming every platform uses the Windows prefix and suffix. A Python package installation alone does not compile or bundle every native dependency.
+
+\section{Structure objects and file I/O}
+\code{af.load(path)} returns a Structure. \code{structure.atoms} contains Atom objects with element symbols and Cartesian coordinates. \code{structure.cell} contains the three lattice vectors when available. \code{len(structure)} returns the atom count. Save with \code{structure.save(path)} or the package-level save function.
+
+\begin{lstlisting}[language=Python]
+from pathlib import Path
+import atomforge as af
+
+examples = Path("docs/manual/examples")  # run from repository root
+cu = af.load(str(examples / "cu_fcc.cif"))
+assert len(cu) == 4
+host = cu.repeat(5, 5, 5)
+assert len(host) == 500
+host.save("cu_host.cif")
+
+edited = host.copy()
+edited.translate(0.1, 0.0, 0.0)  # in place; cell is unchanged
+edited.scale(1.01)             # in place; atoms and cell scale
+edited.save("cu_shifted_scaled.cif")
+\end{lstlisting}
+\code{repeat(nx,ny,nz)} returns a new structure and requires positive integers and a cell. \code{copy()} makes a separate structure. \code{filter_species("Cu", "Ni")} returns a filtered copy. \code{add_atom(symbol,x,y,z)} appends a Cartesian site; \code{remove_atom(index)} removes one by index. \code{set_cell(a,b,c,alpha,beta,gamma)} defines a lattice from lengths and angles. Check indexing after removals because later indices shift.
+
+\begin{lstlisting}[language=Python]
+s = af.Structure()
+s.set_cell(8.0, 8.0, 8.0, 90.0, 90.0, 90.0)
+s.add_atom("Fe", 2.0, 4.0, 4.0)
+s.add_atom("C", 3.8, 4.0, 4.0)
+s.save("illustrative_pair.xyz")
+# This is an illustrative geometry, not a relaxed Fe-C molecule.
+\end{lstlisting}
+
+The Python structure codecs cover XYZ and extended XYZ, VASP files, PDB, CIF with explicit P1 sites, and LAMMPS data. This is not identical to the desktop's Open Babel coverage. The Python CIF path does not replace the bulk builder's space-group expansion: use already expanded sites when importing a symmetry-rich CIF through this API. LAMMPS restricted-triclinic conversion can rotate geometry and shift origins; verify the resulting cell in the consuming simulator.
+
+\section{Desktop and notebook viewing}
+\code{structure.view()} opens the structure in AtomForge without blocking the Python workflow. \code{af.view(structure)} provides the package-level viewer. \code{structure.view_notebook(width=620,height=460)} requests an inline notebook view; if IPython support is absent it falls back to the desktop viewer. The notebook representation is a visual aid and does not run an electronic calculation.
+
+\begin{lstlisting}[language=Python]
+host.view()
+# In a Jupyter notebook:
+host.view_notebook(width=800, height=600)
+\end{lstlisting}
+
+\section{Loading electronic volumes}
+\begin{lstlisting}[language=Python]
+from atomforge.electronic import load_volume
+
+volume = load_volume("CHGCAR")
+rho = volume.fields[0]
+print(rho.shape, rho.cell, rho.origin, rho.periodic, rho.unit)
+print(len(rho.sites), rho.integrate())
+
+# Cube coordinates and scalar quantity are separate choices:
+cube = load_volume("density.cube", quantity="density",
+                   cube_coordinates="bohr").fields[0]
+xsf = load_volume("density.xsf", quantity="density").fields[0]
+\end{lstlisting}
+\code{Volume.fields} is a collection of scalar channels. \code{Grid.values} is a flat sequence with x varying fastest, then y, then z: index $x+N_x(y+N_yz)$. If using NumPy, reshape to \code{(nz, ny, nx)} for conventional z/y/x array indexing. \code{Grid.sites} contains rows of atomic number and Cartesian $x,y,z$. Derived grids generally return new objects; preserve names in your script so that the intended intermediate is explicit.
+
+\section{A complete scripted charge workflow}
+The following recipe requires three independently calculated, aligned density files. It is not executed using fabricated fragment densities in this manual.
+\begin{lstlisting}[language=Python]
+import csv
+from atomforge.electronic import load_volume
+
+total = load_volume("CHGCAR-AB").fields[0]
+a = load_volume("CHGCAR-A").fields[0]
+b = load_volume("CHGCAR-B").fields[0]
+delta = total.density_difference(a, b, weights=[1.0, 1.0])
+delta.save("AB_minus_A_minus_B.xsf")
+
+summary = delta.charge_summary()
+print(summary["accumulation"], summary["depletion"], summary["net"])
+accumulation, depletion = delta.split_density()
+accumulation.save("accumulation.xsf")
+depletion.save("depletion_magnitude.xsf")
+
+mask_a = a.threshold_mask(0.01, max(a.values))
+mask_b = b.threshold_mask(0.01, max(b.values))
+overlap = mask_a.boolean(mask_b, "intersection")
+regional = delta.apply_mask(overlap)
+print("Overlap redistribution, electrons:", regional.integrate())
+
+with open("cumulative.csv", "w", newline="") as stream:
+    writer = csv.writer(stream)
+    writer.writerow(["distance_A", "cumulative_e"])
+    writer.writerows(delta.cumulative_charge(axis=2))
+\end{lstlisting}
+Use \code{boolean(...,"union")}, \code{"difference"}, or \code{"xor"} for the other mask combinations. \code{invert_mask()} complements a binary mask. \code{density_difference} accepts multiple references and one optional weight per reference. Array operators support aligned arithmetic; scalar multiplication/division support explicit scaling. Check units and division denominators.
+
+\section{Profiles, sections, derivatives, and integration}
+\begin{lstlisting}[language=Python]
+gx, gy, gz = rho.gradient()
+lap = rho.laplacian()
+smoothed = rho.smooth(sigma=0.2, radius=2)
+kinetic, potential, total_energy = rho.energy_density()
+
+profile = rho.line_profile((0, 0, 0), (1, 1, 1), count=100)
+planar = rho.planar_average(axis=2)
+macro = rho.macroscopic_average(axis=2, window=5)
+q_sphere = rho.integrate_sphere(center=(1, 1, 1), radius=0.5)
+site_rows = rho.voronoi_integrate()  # imported sites, file order
+peaks = rho.peaks(limit=10)
+
+origin = tuple(rho.origin[i] + 0.5*rho.cell[2][i] for i in range(3))
+section = rho.section(origin, rho.cell[0], rho.cell[1], (100, 100))
+values_2d = section.section_values
+segments = section.contours(level=1.0)
+\end{lstlisting}
+Coordinate examples above assume those locations lie in the input domain. The returned section is a two-layer container; use \code{section_values} for 2D data. Returned profile and integration tables are Python row sequences suitable for CSV or plotting. Choose a contour level inside the section range rather than blindly reusing 1.0 for every file.
+
+\code{miller_section(grid,hkl,offset,width,height,shape)} constructs an orthonormal section with a reciprocal-space normal. Offset defines the fractional equation $hf_a+kf_b+lf_c=\mathrm{offset}$; width and height are in \angstrom. The in-plane orientation is selected deterministically. For finite data the entire requested rectangular section must lie inside the supported field.
+
+\section{Fourier and scattering models}
+\code{structure_factors(indices)} returns reflection rows. \code{fourier_synthesis(reflections)} creates a field from explicit complex reflection rows. Both require periodic endpoint-excluded geometry, unique sampled Miller indices, and consistent phase conventions. \code{patterson()} returns the periodic autocorrelation field.
+
+\begin{lstlisting}[language=Python]
+reflections = rho.structure_factors([(0, 0, 0), (1, 0, 0), (-1, 0, 0)])
+low_frequency = rho.fourier_synthesis(reflections)
+low_frequency.save("three_reflections.xsf")
+\end{lstlisting}
+This deliberately incomplete synthesis retains only three Fourier terms and is not a reconstruction of the full original field. The zero reflection should equal the integral. Include conjugate pairs explicitly; invalid duplicates, out-of-range reflections, and a complex-valued result are rejected.
+
+For atom-based scattering calculations, \code{atomic_structure_factors} accepts an explicit complex scattering value for every reflection/site, plus optional occupancies and isotropic B factors in \angstrom$^2$. Occupancies are 0--1 and B factors nonnegative. No oxidation states or element coefficient tables are inferred.
+
+\code{scattering_factor(s,a,b,c)} evaluates $\sum_i a_i\exp(-b_is^2)+c$, with $s=\sin\theta/\lambda$. Supply a valid coefficient source and respect its applicable range. \code{model_density} requires exactly one mapping keyed by atomic number: X-ray coefficient tuples or neutron scattering lengths. It constructs a finite Fourier model on periodic geometry. Even-grid Nyquist planes are omitted to retain a real conjugate-symmetric expansion. These free-atom/scattering models are not self-consistent DFT charge densities and should not be substituted silently for fragment reference calculations.
+
+\section{Point charges, surfaces, and explicit geometry}
+\code{rho.ewald(charges,alpha,real_cutoff,reciprocal_cutoff)} returns a dictionary with \code{energy} in eV and \code{potentials} in volts. Charges must match the imported sites and sum to a neutral cell. Verify convergence using both cutoffs.
+
+\code{rho.isosurface(level,color=other_grid)} returns a Surface. Its \code{vertices} property provides triangle/vertex data; \code{save("surface.obj")} or \code{save("surface.ply")} writes mesh output. Reference colouring requires compatible geometry and meaningful units. A scalar property in an exported mesh may require colour-map configuration in the next application.
+
+\begin{lstlisting}[language=Python]
+from atomforge.electronic import Grid
+geometry = Grid((8, 8, 8), ((4, 0, 0), (0, 4, 0), (0, 0, 4)),
+                [0.0] * (8*8*8), periodic=True, unit="e/A^3")
+# Attach atomic-number / Cartesian-coordinate sites explicitly:
+geometry = geometry.with_sites([(1, 0, 0, 0), (1, 2, 2, 2)])
+result = geometry.ewald([1.0, -1.0], alpha=0.8,
+                        real_cutoff=12.0, reciprocal_cutoff=8.0)
+print(result)
+\end{lstlisting}
+This is an illustrative neutral point-charge model. The two H labels supply site metadata; the explicitly supplied $+1,-1$ charges define the electrostatic model. It is not a prediction for a real hydrogen compound.
+
+\section{Electronic CLI}
+The Python module offers conversion and selected numerical operations without opening the GUI:
+\begin{lstlisting}
+python -m atomforge.electronic CHGCAR --operation info
+python -m atomforge.electronic CHGCAR --operation integrate
+python -m atomforge.electronic CHGCAR --operation planar --axis 2 --output planar.csv
+python -m atomforge.electronic CHGCAR --operation isosurface --level 1.8 --output density.ply
+python -m atomforge.electronic density.cube --quantity density --operation convert --format xsf --output density.xsf
+\end{lstlisting}
+Choose channels with \code{--channel} (zero-based). Use \code{--quantity auto|raw|density|potential|elf} and \code{--cube-coordinates bohr|angstrom}. \code{--periodic} verifies and removes duplicate endpoints; it is not a generic instruction to make arbitrary data periodic. Operations other than info/integrate require an output. Additional choices include laplacian, patterson, kinetic, potential-energy, total-energy, and peaks. Charge-mask combinations are available through Python scripts and the GUI, not every one as a dedicated CLI choice.
+
+\section{Native builder CLI}
+\code{AtomForge --build MODE --help} prints the mode's accepted options. Available documented modes are bulk, sss, gb, nano, poly, amorphous, and custom. Each returns an output structure without requiring a GUI interaction. Use a subprocess argument list from Python to preserve spaces and avoid shell quoting problems:
+\begin{lstlisting}[language=Python]
+import os
+import subprocess
+subprocess.run([
+    os.environ.get("ATOMFORGE_PATH", "AtomForge"), "--build", "bulk",
+    "--system", "cubic", "--spacegroup", "225", "--a", "3.61",
+    "--atom", "Cu 0 0 0", "--output", "cu_fcc.cif"
+], check=True)
+\end{lstlisting}
+Check the return code and read error output on failure. Keep the exact input arguments and seed with generated files. The manual's example generator uses this pattern and verifies every produced structure can be loaded with a nonzero atom count.

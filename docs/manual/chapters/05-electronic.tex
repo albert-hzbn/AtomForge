@@ -1,0 +1,111 @@
+\chapter{Electronic files and interactive views}\label{ch:electronic}
+\section{Open a scalar field}
+Choose \ui{Analysis > Electronic Post-processing}. The left column contains tool selection, input files, field/operand selection, calculation parameters, export, and appearance. The right side contains the 3D and 2D views. On a smaller window, scroll the left column to reach \ui{Calculate} and \ui{Export}; the tool buttons remain near the top.
+
+\begin{enumerate}
+\item Expand \ui{Import options} if you need to specify the physical quantity or Cube coordinate convention. Do this before loading, or use \ui{Reload volume} after changing an import setting.
+\item Click \ui{Open volume...}. Navigate with the location shortcuts, directory list, or folder bar. Select the file and click Open, or double-click the file.
+\item Check the filename, selected \ui{Field}, dimensions, units, and displayed value range. Multi-channel files supply multiple selectable fields.
+\item Choose \ui{Charge transfer} for the eight direct charge-operation buttons or \ui{General analysis} for the other operations.
+\item Select a field and parameters, click \ui{Calculate}, and wait for completion. Grid-producing operations append derived fields; select the intended field before the next calculation or export.
+\end{enumerate}
+\ui{Clear} clears the electronic session state; save useful results first. \ui{Reload volume} rereads the source. The initial appearance estimates are based on values in the selected data, so two different files need not start with the same threshold.
+
+\uishot{electronic-volume.png}{45bp 67bp 360bp 63bp}{Actual AtomForge window with the supplied CHGCAR loaded. Charge-transfer tools are at the upper left. The 3D density threshold, transparency, 2D slice, and optional contour have independent controls. Transparency was reduced to approximately 0.24 for visibility in this screenshot.}
+
+\section{VASP, Cube, and XSF conventions}
+\begin{longtable}{p{.20\linewidth}p{.71\linewidth}}
+\toprule Input & Interpretation and checks \\ \midrule\endhead
+VASP CHGCAR/CHG & Charge-density values are normalised by the cell volume to \densityunit. The grid is periodic without duplicate endpoint planes. Check the integrated electron count against the originating calculation. \\
+VASP LOCPOT & A potential field in eV. Its integral is not an electron count. Potential references and zero offsets matter when comparing calculations. \\
+VASP ELFCAR & Dimensionless ELF. Choose an ELF-appropriate range; charge-only operations are not applicable. \\
+Gaussian Cube & Explicit coordinate convention: Bohr by default, or Angstrom. Quantity \ui{Auto} leaves scalar values raw. Explicit density assumes atomic-unit density; explicit potential assumes Hartree and converts to eV. Coordinate and scalar-unit choices are distinct. \\
+XSF datagrid & Reads the cell/grid geometry and scalar values. Auto is conservative about scalar meaning. Specify density/potential/ELF only when the values have that meaning and the expected units. Treat finite endpoint geometry deliberately. \\
+\bottomrule
+\end{longtable}
+VASP auto-detection uses conventional filenames such as CHGCAR, LOCPOT, and ELFCAR. A renamed generic file may need an explicit quantity. For Cube, negative dimension conventions vary among writers; use the explicit coordinate option rather than assuming the sign alone establishes units. Assigning a physical label to arbitrary numbers does not make them that physical quantity.
+
+\section{Units, sampling, and periodic endpoints}
+AtomForge's electronic geometry uses Cartesian \angstrom. A periodic grid with $N_i$ samples along cell vector $\mathbf a_i$ has step $\mathbf a_i/N_i$ and excludes the duplicate final plane. A finite endpoint grid uses $\mathbf a_i/(N_i-1)$. Its quadrature uses endpoint weights. These conventions affect coordinates and integration even when two files display similar shapes.
+
+For a periodic density grid with $N=N_aN_bN_c$ and cell volume $V$,
+\[
+Q=\int_V\rho(\mathbf r)\,dV\simeq\frac{V}{N}\sum_j\rho_j.
+\]
+The output is an electron count when $\rho$ is in \densityunit. A finite grid uses trapezoidal boundary weights. Do not sum raw values without the geometry-dependent weights.
+
+Cube/XSF covering a complete periodic cell may include duplicate endpoint planes. \ui{Verify periodic endpoint planes} checks opposite values and removes those duplicates when compatible. Matching endpoint values is a numerical prerequisite, not proof that the physical system is periodic. A finite molecular box with nearly zero density at its faces should not automatically be declared a periodic material.
+
+\section{What does Reference mean?}
+\textbf{Reference is the second input to the selected operation.} It is not a literature citation, a standard electron density supplied by AtomForge, or an automatically calculated neutral-atom density.
+
+For subtraction, the selected \ui{Field} is $A$ and the reference/operand is $B$, giving $A-B$. For weighted density difference the result is $A-wB$. For resampling, the reference supplies the target grid geometry. For coloured isosurfaces, the reference supplies the colour values on the surface generated from $A$. For Boolean operations, the operand is the second binary mask.
+
+Click \ui{Reference...} to load another file. Then select its intended channel in the \ui{Reference} or \ui{Operand} selector. If no external reference is loaded, the selector can refer to a field already in the main volume. When an external reference exists, \ui{Use loaded/result field as reference} switches the operand source back to the main loaded/derived field list. Always verify the operand after loading a new file or changing tools.
+
+\begin{guidance}{Avoid accidental self-subtraction}
+Immediately after loading a single-channel density, both Field and Operand can display the same field. Calculating density difference then gives zero. Load the intended independent reference, or deliberately choose another derived field, before interpreting a result as charge transfer. Self-subtraction is useful as a software sanity check only.
+\end{guidance}
+
+\section{3D volume and isosurface views}
+Choose the layout \ui{3D and 2D}, \ui{Only 3D}, or \ui{Only 2D} at the top. In the 3D panel, \ui{Volume (interior density)} ray-integrates the sampled field above the density threshold. Lowering the threshold admits more of the field; raising it emphasises high-valued regions. This is a visual selection, not an atom/fragment partition.
+
+\ui{Isosurface (boundary)} extracts a surface at the chosen scalar value. After entering the level, use \ui{Update surface}. An isosurface is a boundary of constant value; it cannot by itself show the interior as a filled volume. Choose Volume when the interior density is the intended visualisation.
+
+\ui{Transparency} ranges from 0 (fully opaque contributing volume/surface) to 1 (fully transparent). Even at zero transparency, regions excluded by the threshold remain empty, and a separately enabled slice guide has its own translucent appearance. Opaque does not mean that the whole cell becomes a solid cuboid.
+
+\textbf{Camera.} Left-drag inside the 3D canvas to orbit, right-drag to pan, and use the wheel to zoom. \ui{Fit view} or a double-click resets framing. Camera actions do not rotate the numerical grid, change its cell, or alter an exported charge integral.
+
+\textbf{Colour and lighting.} Expand \ui{Appearance} to choose Spectrum, Blue-white-red, or Sequential blue. Automatic range uses the data range; manual minimum/maximum supports consistent comparison. Lighting controls change shading and specular response. Colour is mapped from values, while lighting modifies their rendered appearance; use the colour scale for numerical interpretation. For signed differences, use a diverging palette with symmetric limits $[-m,m]$ when comparing positive and negative regions.
+
+\section{Choosing an initial level and understanding warnings}
+The initial level is a display heuristic estimated from the file distribution: approximately the 90th percentile for a nonnegative field, zero for a signed field, with a low-range fallback for sparse fields and special handling for constant data. \ui{Estimate level} restores the suggested 3D value. It is not an automatically determined bonding threshold or Bader dividing surface.
+
+A 3D level outside the selected field's minimum--maximum range produces a warning and cannot generate a meaningful boundary. A 2D level is checked against the \emph{current slice}, which can have a narrower range. A valid level in the full volume may therefore be out of range on one plane. Constant fields also cannot produce an ordinary internal contour. Enter finite numbers and check the displayed units.
+
+Volume preview sampling is bounded at up to 96 points per axis and 256 ray steps. The interactive 2D preview uses up to 129 samples per direction. These limits keep navigation responsive; the calculation and export grids retain their own data. Use numerical sections and exported meshes/tables for analysis, and test resolution when interpreting very thin features.
+
+\section{2D lattice-plane sections}
+Select \ui{bc plane (normal a*)}, \ui{ac plane (normal b*)}, or \ui{ab plane (normal c*)}. The \ui{Slice position} is a fraction of the corresponding cell vector. In a skew cell these normals are reciprocal directions, not necessarily Cartesian X, Y, and Z.
+
+The filled colour map shows the sampled values. \ui{Show contour line} is off by default; enable it to display the line at \ui{2D isovalue (contour)}. \ui{Estimate 2D level} chooses a suggestion from that section. Changing this contour value does not change the 3D threshold or discard the rest of the 2D colour map.
+
+Left-drag rotates the plane's image within its own plane, right-drag pans, and the wheel zooms. The angle slider gives an explicit in-plane rotation. \ui{Reset 2D} or a double-click resets the 2D camera. These operations leave the physical intersection plane unchanged; moving the slice position changes which data are sampled.
+
+\section{Arbitrary planes and the 3D guide}
+Choose \ui{Arbitrary plane}. Enter a point as fractional $(f_a,f_b,f_c)$ and a normal as Cartesian $(n_x,n_y,n_z)$. The point's Cartesian location is
+\[
+\mathbf p=\mathbf o+f_a\mathbf a+f_b\mathbf b+f_c\mathbf c,
+\qquad \mathbf n\cdot(\mathbf r-\mathbf p)=0.
+\]
+The normal must be finite and nonzero; its length does not set a thickness. For a central oblique section, use point $(0.5,0.5,0.5)$ and normal $(1,1,1)$. The intersection is clipped to the actual cell. A plane that misses the cell produces a warning instead of a valid section.
+
+Enable \ui{Show slice plane} in the 3D controls to show the same intersection as a translucent guide. Disable it for an unobstructed density view. Rotating the 3D camera helps verify the plane orientation; rotating the 2D image only changes its presentation. To specify a Miller-index plane in scripts, use \code{miller_section}, which converts the reciprocal normal explicitly.
+
+\uishot{electronic-arbitrary.png}{45bp 67bp 360bp 63bp}{An arbitrary section of the supplied CHGCAR with a fractional point and a Cartesian normal. The translucent guide locates the section in the 3D volume.}
+
+\section{Worked CHGCAR walkthrough}
+The documented file was supplied as \code{C:/Users/a.linda/Downloads/CHGCAR}. It is not copied into this repository. The first field has $80^3=512{,}000$ samples, 16 imported sites, periodic geometry, and unit \densityunit. Its cell vectors in \angstrom\ are
+\[
+\begin{pmatrix}
+5.943480&-0.002166&-0.002166\\
+-0.002166&5.943480&-0.002166\\
+-0.002166&-0.002166&5.943480
+\end{pmatrix}.
+\]
+\begin{enumerate}
+\item Open this file with Auto quantity and select the first field, \ui{total}. Check the dimensions and unit.
+\item In General analysis, calculate the total integral. Expect approximately $183.99999985$ electrons for this file.
+\item Inspect the ab section at position 0.5. The full field range is approximately 0.151228--19.347671 \densityunit; the section can contain a different subset of that range.
+\item Calculate a planar average along $c^*$ and export CSV. Then choose Charge transfer, Cumulative profile, normal $c^*$, Calculate, and export that table separately.
+\item Check the last cumulative value against the full integral. Both use the same grid quadrature; the generated example verifies their agreement.
+\item Try an arbitrary central plane, then return to the lattice plane. Save images with their thresholds and colour ranges recorded.
+\end{enumerate}
+The approximately 184-electron total is a numerical property of the supplied first field. Without the original calculation settings and valence definitions it should not be used to infer oxidation states. The input hash and precise values are recorded in \code{examples/chgcar-summary.json}.
+
+\shot{chgcar-analysis.png}{1}{Numerical section, planar average, and cumulative integral generated through AtomForge's Python electronic API from the supplied CHGCAR. The left panel uses fractional in-plane coordinates; the profiles use distance along the cell-face normal.}
+
+\section{Exporting the right result}
+Expand \ui{Export}, choose Grid: XSF/Cube/VASP, Table: CSV, or Surface: OBJ/PLY, then click \ui{Save as...}. Browse to a directory and choose the output filename. Grid export uses the selected field; table export uses the calculated table; surface export requires a generated surface. Selecting a density field does not turn an older table into a table of that field: calculate the desired table again before exporting it.
+
+When reopening exported grids, supply the correct quantity and endpoint convention. Generic filenames and interchange formats may not preserve enough metadata to infer physical units automatically. Cube export uses atomic-unit density/potential values; read it with the corresponding explicit quantity. Keep a record of whether duplicate periodic endpoints were written and verify round-trip geometry/integrals before combining exported data with the originals.

@@ -12,12 +12,14 @@
 
 AtomForge is an interactive atomic structure builder for metallurgical simulation and atomistic modeling. It is designed to help researchers and engineers create, edit, inspect, and export structures used in molecular dynamics (MD) and first-principles workflows.
 
+Read the [detailed user manual (PDF)](docs/manual/AtomForge-manual.pdf) for feature-by-feature instructions, screenshots, charge-density workflows, Python/CLI recipes, and worked examples. The [LaTeX sources and reproducible examples](docs/manual/README.md) are maintained in `docs/manual/`.
+
 ## Features
 
-- Build structures with bulk crystal, substitutional solid solution, CSL grain boundary, nanocrystal, custom mesh-fill, interface, polycrystal, amorphous, and stacking-fault workflows.
+- Build structures with bulk crystal, substitutional solid solution, CSL grain boundary, nanocrystal, custom mesh-fill, polycrystal, and amorphous workflows. Stacking Faults is optional (`ATOMFORGE_ENABLE_SFE_BUILDER=ON`); the interface builder is not exposed in the current desktop menus.
 - Create Wulff-style and shape-based nanocrystals, including non-cubic periodic references.
 - Merge multiple loaded structures in an interactive 3D workflow with per-structure transforms.
-- Analyze structures with CNA, RDF, angular distribution, short-range order, and interstitial/void analysis tools.
+- Analyze structures with RDF, short-range order, and interstitial/void tools. CNA and angular-distribution menu entries are currently disabled.
 - Post-process VASP, Gaussian Cube and XSF scalar grids with electronic analysis, isosurfaces and Python APIs.
   With Electronic Post-processing open, drop files onto the app to load them. Enable **Drop files as reference** to load a reference volume instead; files dropped during a calculation are queued.
   Separate **3D and 2D** viewports have independent cameras and isovalues. Update the 3D surface at its chosen level; the 2D view optionally displays a contour at its own level (enable **Show contour line**; off by default) on a selectable lattice-plane slice or an **Arbitrary plane**, defined by a fractional point and a Cartesian normal. The intersection is clipped to the cell and shown as a translucent 3D guide; **Show slice plane** toggles its visibility. Drag to orbit in 3D or rotate within the 2D plane, right-drag to pan, and scroll to zoom. Each view has its own reset control. The 2D preview samples up to 129 points per direction; use the numerical section tools for full-resolution analysis.

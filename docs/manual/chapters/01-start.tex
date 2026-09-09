@@ -1,0 +1,57 @@
+\chapter{Getting started}\label{ch:start}
+\section{What AtomForge does}
+AtomForge is a desktop structure builder and viewer with a native electronic post-processing engine. It constructs atomistic starting configurations, edits positions and cells, renders structures, measures geometric quantities, and processes scalar fields from electronic-structure calculations. It does not run a self-consistent electronic calculation, relax a structure, or predict a formation energy merely by building a model.
+
+The main structure workspace and the electronic dialog maintain different data. Opening a CIF in the main workspace supplies atom positions and a cell. Opening CHGCAR in \ui{Analysis > Electronic Post-processing} supplies a sampled scalar field and imported sites. A structure alone does not contain a charge density; a rendered mesh alone does not contain an electronic wavefunction.
+
+\section{First structure: a copper crystal}
+\begin{enumerate}
+\item Start the executable. Choose \ui{Build > Bulk Crystal}. Select the cubic crystal system and space group 225.
+\item Enter $a=3.61$ \angstrom. Use a Cu site at fractional coordinates $(0,0,0)$ in the asymmetric-unit list. Remove unrelated default sites if present; do not add the three symmetry-equivalent FCC positions yourself.
+\item Build the crystal. Inspect the generated structure and its cell. The supplied example \code{examples/cu_fcc.cif} has four Cu atoms in the conventional cubic cell.
+\item Close the builder when finished. Use \ui{View > Structure Info} to inspect counts and lattice information.
+\item Choose \ui{File > Save As}, browse to your work folder, enter a new filename such as \code{cu_first.cif}, select CIF, and save. Reopen the saved file to check that the cell and species are retained.
+\end{enumerate}
+If symmetry support is unavailable in a custom build, install/build with spglib or open the supplied expanded CIF instead. The lattice parameter is an example input; select a parameter appropriate to your intended temperature, composition, and calculation method.
+
+\section{Opening, saving, and browsing}
+\ui{File > Open} reads a structure into the workspace; \ui{Open Recent} returns to previously used paths. The browser supports directory navigation and file selection. Double-click a directory to enter it, select a file, then use the dialog's opening action. The location field is useful for jumping to a directory; it is not necessary to type the entire file path.
+
+\ui{Save} writes the active structure to its current destination. Use \ui{Save As} to preserve the original and choose a new filename/format. A structure save records supported structural data, not every display setting or electronic intermediate. Save derived electronic grids separately from the electronic dialog. \ui{Close} closes the current structure; \ui{Quit} exits the program. Save valuable edits before closing.
+
+\begin{longtable}{p{.23\linewidth}p{.68\linewidth}}
+\toprule Task & Control or shortcut \\ \midrule\endhead
+Open a structure & \ui{File > Open}, Ctrl+O. \\
+Save active structure & \ui{File > Save}, Ctrl+S. \\
+Save a new copy & \ui{File > Save As}, Ctrl+Shift+S. \\
+Export rendered image & \ui{File > Export Image}, Ctrl+Alt+S. \\
+Close active structure & \ui{File > Close}, Ctrl+W. \\
+Undo / redo & \ui{Edit > Undo} and \ui{Edit > Redo}; availability follows the edit history. \\
+Electronic analysis & \ui{Analysis > Electronic Post-processing}; available without a structure in the main scene. \\
+Appearance controls & \ui{Settings > Atomic Sizes}, \ui{Display Settings}, \ui{Polyhedral Settings}. \\
+\bottomrule
+\end{longtable}
+
+\section{File types and what survives export}
+The desktop uses Open Babel for structure I/O. Its advertised structure extensions include XYZ, CIF, PDB, SDF, MOL, VASP, MOL2, PWI, and GJF. Actual conversion depends on the installed Open Babel plugins. Select a format for the information you need: CIF or VASP for periodic cells, XYZ for simple coordinate interchange, and a molecular format for molecular connectivity where supported.
+
+Plain XYZ does not reliably communicate a periodic lattice to every downstream reader. PDB has format-specific field limits. Format conversions may not preserve custom atom colours, grain identifiers, overlays, or all calculation metadata. Check the exported file in the program that will consume it, especially after transforming a non-orthogonal cell.
+
+Electronic inputs are a separate family: VASP charge/potential/ELF grids, Gaussian Cube, and XSF datagrids. Electronic outputs include XSF, Cube, and VASP grids; CSV tables; and OBJ/PLY isosurface meshes. A CSV profile is a numerical table, while an OBJ surface is geometry. Neither is a replacement for saving the full scalar grid.
+
+\section{Drag and drop}
+With the electronic dialog open, drop a supported volumetric file onto the application to load it there. Enable \ui{Drop files as reference} before dropping an operand density. Files arriving during a calculation are queued; wait for the active calculation to finish before interpreting the new field selection. A reference-file drop supplies the second input; it does not subtract anything until you choose and calculate an operation.
+
+Several structure builders accept dropped structures or meshes in their own preview/source regions. Use the visible drop guidance in the active dialog. For an unambiguous workflow, open only the builder you intend to supply and verify the displayed source filename and atom count immediately afterwards.
+
+\section{Orienting and inspecting the main view}
+Use the top toolbar's X, Y, Z buttons for Cartesian-axis views and a, b, c for lattice-direction views when a cell is available. The rotation step field and adjacent axis buttons apply a repeatable view rotation. \ui{View > Reset Default View} restores framing; it does not undo atom edits. \ui{Isometric View} and \ui{Orthographic View} change the viewing mode. Use orthographic views when comparing projected distances or alignments.
+
+\ui{Show Atoms} and \ui{Show Bounding Box} control geometry visibility. \ui{Show Element} toggles element labels. \ui{View Structure By} switches available colouring between elements, crystal orientation, and grain-boundary information. Orientation/boundary colouring requires corresponding structure metadata; a plain XYZ file may not contain it.
+
+\ui{View Atoms By} offers balls, ball-and-stick, space-filling, and polyhedral representations when supported by the current state. Bond-like lines and coordination polyhedra are visual/geometric constructs based on neighbourhood criteria; do not infer a quantum-mechanical bond order from their appearance.
+
+\section{A productive project layout}
+Create separate folders for input calculations, generated structures, derived fields, tables, and figures. Keep original electronic outputs unchanged. Name derived fields by operation, for example \code{AB_minus_A_minus_B.xsf}, and record the reference weights, grid geometry, selected channel, and units beside numerical results. For publication, retain the actual density difference and quantitative tables as well as the screenshot.
+
+The folder containing this manual follows that pattern on a smaller scale: \code{chapters/} holds editable LaTeX, \code{figures/} holds published illustrations, \code{examples/} holds reusable structures and tables, \code{scripts/} holds regeneration tools, and \code{build/} holds disposable LaTeX/render intermediates.

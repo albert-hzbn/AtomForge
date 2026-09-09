@@ -1,0 +1,79 @@
+\chapter{Installation, builds, and troubleshooting}\label{ch:install}
+\section{Running a packaged desktop build}
+Extract a complete package into a writable folder and run the executable. Keep the bundled runtime libraries and Open Babel plugins in their supplied locations. Copying only \code{AtomForge.exe} to another machine can leave required DLLs or format plugins behind. To open a structure at launch, pass its path as the executable's argument.
+
+The desktop requires a working OpenGL environment. If the window fails to render, check the graphics driver and whether a remote/virtual session supplies the needed OpenGL support. A successful compiler run and a working graphics runtime are separate checks.
+
+\section{Build requirements}
+The source uses C++17 and CMake 3.16 or newer. Desktop dependencies include GLFW, GLEW, GLM, Open Babel 3, and an OpenGL implementation. spglib enables symmetry-related capabilities. Use a consistent compiler/runtime family for all linked libraries. See the repository's \code{INSTALL.md} and actual CMake configuration for platform-specific dependency discovery.
+
+\begin{longtable}{p{.49\linewidth}p{.42\linewidth}}
+\toprule CMake setting & Purpose \\ \midrule\endhead
+\code{CMAKE_BUILD_TYPE=Release} & Optimised application/library build. \\
+\code{ATOMFORGE_BUILD_APP=OFF} & Build core/library functionality without the desktop app. \\
+\code{BUILD_TESTING=ON} & Configure available automated tests. \\
+\code{ATOMFORGE_ENABLE_SSS_BUILDER=ON} & Enable the substitutional-alloy desktop builder (default on). \\
+\code{ATOMFORGE_ENABLE_SFE_BUILDER=ON} & Enable the optional stacking-fault desktop builder (default off). \\
+\code{BUILD_PORTABLE=ON} & Enable runtime packaging support. \\
+\code{Python3_EXECUTABLE} & Select the Python interpreter used by configured tests. \\
+\bottomrule
+\end{longtable}
+
+\section{Linux build}
+Install a C++ toolchain, CMake, pkg-config, and development packages for GLFW, GLEW, GLM, Open Babel, and optionally spglib using your distribution's package manager. Configure a fresh build directory:
+\begin{lstlisting}
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+./build/AtomForge
+\end{lstlisting}
+Run from a graphics-capable session for desktop use. For a headless server, use the native builder CLI or electronic library/API instead. A core-only build does not create a desktop executable.
+
+\section{Windows build with MSYS2 UCRT64}
+Use the MSYS2 UCRT64 toolchain and its matching dependency packages. Typical packages include the UCRT64 toolchain, CMake, GLFW, GLEW, GLM, Open Babel, pkgconf, spglib, and Python when running the Python tests. Avoid mixing MINGW64, UCRT64, and unrelated compiler libraries in one build directory.
+
+\begin{lstlisting}
+cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DPython3_EXECUTABLE=C:/msys64/ucrt64/bin/python.exe
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+\end{lstlisting}
+These commands assume the compiler and matching libraries are discoverable, normally from the UCRT64 shell. If using PowerShell, supply the correct toolchain paths and runtime DLLs. Select a Python interpreter compatible with the native library's runtime requirements for tests; discovering an unrelated system Python can make a correct library build appear to fail during loading.
+
+Use a new build folder when changing generators or compiler families. Close a running AtomForge instance before replacing its executable, because Windows may lock the file. After rebuilding, launch the executable from the expected folder and check that the interface matches the new version; an older shortcut can launch a stale copy.
+
+\section{Portable packaging and CI}
+Configure with \code{BUILD_PORTABLE=ON}, build, then use CPack with that build directory's \code{CPackConfig.cmake}. Validate the extracted package in a clean runtime environment and test an actual structure import, not only process startup. Open Babel plugins are needed for format support.
+
+When a GitHub compilation job fails, inspect the first failing step and its log: configure/dependency discovery, compilation, linking, tests, or packaging. The last generic failure line is usually less useful than the original diagnostic. Record the commit and platform. Documentation changes do not resolve an unrelated toolchain problem, and a locally successful Windows run does not alone prove every CI platform passes.
+
+\begin{samepage}
+\section{Reporting a reproducible problem}
+Record the application commit, operating system, build options, input/import settings, selected fields, exact steps, and error text. Supply a small reproducer with expected and observed behaviour. For numerical issues include geometry, units, and integrals; for visual issues capture the entire dialog.
+\end{samepage}
+
+\section{Troubleshooting by symptom}
+\begingroup\small
+\begin{longtable}{p{.30\linewidth}p{.61\linewidth}}
+\toprule Symptom & Checks and recovery \\ \midrule\endhead
+Charge tools not visible & Open Electronic Post-processing and select Charge transfer. The eight tool buttons should appear before loading a file. Check that the expected rebuilt executable is running. \\
+Calculate/Export not visible & Scroll the left control pane; long parameter sets extend below the initial view. Resize the dialog if needed. \\
+Reference gives zero difference & Field and Operand may be the same channel. Verify the external reference file and the local-reference checkbox. \\
+Grid alignment error & Compare shape, cell, origin, units, and periodicity. Resample explicitly only if scientifically justified. \\
+Charge operation rejects input & Inspect units. Cube/XSF Auto is raw; choose the correct quantity and reload. A potential/ELF/mask is not electron density. \\
+Wrong integral after conversion & Check scalar-unit conversion, volume normalisation, coordinate units, duplicate endpoints, and selected channel. \\
+3D looks empty & Check threshold/range, transparency, selected field, render mode, and Fit view. For a signed field, select depletion magnitude to display negative changes with a positive threshold. \\
+Opaque slider still shows empty regions & Threshold-excluded space remains empty. Hide the separately translucent slice plane if it obscures interpretation. \\
+Unexpected circle/line in 2D & Check Show contour line. It is optional and off by default. It does not control the filled colour map. \\
+2D out-of-range warning & Compare the level with the current slice's range; Estimate 2D level or move the plane. \\
+Arbitrary section absent & Use a finite nonzero normal and a point that defines a plane intersecting the cell. \\
+Fourier operation rejected & Use periodic endpoint-excluded geometry, unique indices within the sampled Nyquist range, and conjugate pairs for real synthesis. \\
+Fourier workload too large & The implementation bounds work. Consider an explicitly resampled power-of-two grid and quantify the interpolation effect before continuing. \\
+Ewald rejected or unstable & Check neutrality, site/charge count and order, periodicity, positive parameters, and convergence of both cutoffs. \\
+Python native DLL not found & Set the native-library path and make its dependent runtime DLLs available. Confirm process/library architecture compatibility. \\
+Builder menu disabled & Load a suitable source with a cell; inspect compile-time options and symmetry support. \\
+Mesh fill missing atoms & Check closed geometry, units/scale, replication coverage, and feature thickness relative to the lattice. \\
+Amorphous placement fails & Density, pair cutoffs, and counts may be incompatible. Test a looser geometry and inspect diagnostics. \\
+Saved structure loses cell/metadata & Choose a format supporting the needed fields and verify the reopened result. Python and desktop format coverage differ. \\
+\bottomrule
+\end{longtable}
+\endgroup

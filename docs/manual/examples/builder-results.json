@@ -1,0 +1,130 @@
+[
+  {
+    "file": "cu_fcc.cif",
+    "atoms": 4,
+    "options": [
+      "bulk",
+      "--system",
+      "cubic",
+      "--spacegroup",
+      "225",
+      "--a",
+      "3.61",
+      "--atom",
+      "Cu 0 0 0"
+    ]
+  },
+  {
+    "file": "fe_bcc.cif",
+    "atoms": 2,
+    "options": [
+      "bulk",
+      "--system",
+      "cubic",
+      "--spacegroup",
+      "229",
+      "--a",
+      "2.87",
+      "--atom",
+      "Fe 0 0 0"
+    ]
+  },
+  {
+    "file": "cu_ni_alloy.cif",
+    "atoms": 500,
+    "options": [
+      "sss",
+      "--input",
+      "examples\\cu_host.cif",
+      "--frac",
+      "Cu=0.7,Ni=0.3",
+      "--seed",
+      "42"
+    ]
+  },
+  {
+    "file": "cu_sphere.xyz",
+    "atoms": 336,
+    "options": [
+      "nano",
+      "--input",
+      "examples\\cu_fcc.cif",
+      "--shape",
+      "sphere",
+      "--radius",
+      "10",
+      "--vacuum",
+      "5"
+    ]
+  },
+  {
+    "file": "cu_sigma5.cif",
+    "atoms": 60,
+    "options": [
+      "gb",
+      "--input",
+      "examples\\cu_fcc.cif",
+      "--axis",
+      "0 0 1",
+      "--sigma",
+      "5",
+      "--plane",
+      "0",
+      "--uca",
+      "3",
+      "--ucb",
+      "3",
+      "--overlap",
+      "1.5"
+    ]
+  },
+  {
+    "file": "cu_polycrystal.cif",
+    "atoms": 1329,
+    "options": [
+      "poly",
+      "--input",
+      "examples\\cu_fcc.cif",
+      "--sizex",
+      "25",
+      "--sizey",
+      "25",
+      "--sizez",
+      "25",
+      "--grains",
+      "4",
+      "--seed",
+      "7"
+    ]
+  },
+  {
+    "file": "sio2_pack.xyz",
+    "atoms": 120,
+    "options": [
+      "amorphous",
+      "--element",
+      "Si 40",
+      "--element",
+      "O 80",
+      "--density",
+      "1.5",
+      "--seed",
+      "7"
+    ]
+  },
+  {
+    "file": "cu_mesh.xyz",
+    "atoms": 224,
+    "options": [
+      "custom",
+      "--input",
+      "examples\\cu_fcc.cif",
+      "--mesh",
+      "examples\\octahedron.obj",
+      "--scale",
+      "12",
+      "--vacuum",
+      "5"
+    ]
+  }
+]

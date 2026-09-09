@@ -1,0 +1,82 @@
+\chapter{Editing, assembly, and defects}\label{ch:editing}
+\section{Selection and edit history}
+Click an atom in the main scene to inspect/select it. Left-drag orbits the camera; right-drag normally pans. When \ui{Edit > Box Select} is active, right-drag draws a selection rectangle instead. \ui{Lasso Select} uses a right-drag path for a more irregular projected region. Selection is based on the current projection, so inspect the result from another direction before acting on a dense or overlapping set of atoms.
+
+Open \ui{Edit > Edit Structure} to work with the atom table. Use \ui{Undo} and \ui{Redo} where enabled, but retain saved checkpoints before substantial assembly or defect-generation operations. A camera reset changes only the view and does not restore a previous structure.
+
+Ctrl+left-click adds/removes an atom from the selection. Ctrl+A selects all; Ctrl+D or Escape clears selection. Delete removes selected atoms, and right-click opens the selection context menu. Ctrl+Z undoes; Ctrl+Y or Ctrl+Shift+Z redoes. Use these shortcuts in the main workspace with no text-entry field focused.
+
+\section{Edit Structure: atoms and cell}
+The editor exposes cell vectors when a cell is present and an atom table with element and coordinate editing. \ui{Position Mode} switches between \ui{Cartesian} and \ui{Direct}. Cartesian coordinates are in \angstrom; direct coordinates are fractional lattice coefficients. Direct editing is disabled without a unit cell.
+
+\begin{enumerate}
+\item Open the source structure and save a working copy.
+\item Choose \ui{Edit > Edit Structure}. Confirm the coordinate mode before typing a position.
+\item Select a row to edit the desired atom. Use the element selection and \ui{Apply Element} controls for species changes.
+\item Use \ui{Add Atom} to create a new row, then immediately set its element and position. The initial atom is H at the origin; leaving it there may create an overlap.
+\item Inspect changed positions and atom counts in the viewport and information dialog. Save the revised structure under a descriptive name.
+\end{enumerate}
+Cell-vector edits define the simulation cell. Do not assume that typing a new box automatically performs the same operation as a homogeneous strain or a supercell construction. Check the resulting atom coordinates and boundary relationships. Use the integer transformation tool for deliberate periodic supercells.
+
+\section{Transform Structure}
+\ui{Edit > Transform Structure} accepts three rows of integer coefficients. It is available for a structure with a unit cell. Begin with a diagonal transformation to establish the convention: $(2,0,0)$, $(0,2,0)$, $(0,0,2)$ creates a $2\times2\times2$ periodic enlargement. For conventional FCC Cu this should contain 32 atoms when the reference contains four.
+
+Enter the matrix, choose \ui{Apply}, and inspect the resulting lattice vectors, volume, and atom count. \ui{Cancel} discards the pending matrix. Non-diagonal matrices define combinations of lattice directions and are useful for rotated supercells. The matrix must be nonsingular; a zero determinant cannot define a three-dimensional cell. For valid integer supercells, the determinant magnitude gives the ideal volume/atom-count multiplier before additional cuts or deduplication. Verify this count rather than assuming any arbitrary matrix represents the intended orientation.
+
+\section{Merge Structures}
+\textbf{Purpose.} Assemble several structures in an interactive preview. Open \ui{Edit > Merge Structures}, load/drop the components, and select one component at a time. Its transform and gizmo controls translate or rotate that component; camera movement changes the view of the entire assembly.
+
+\begin{enumerate}
+\item Prepare and save each input independently with consistent length units.
+\item Add the inputs to the merge dialog. Check each component's identity before moving it.
+\item Select a component and use the visible gizmo handles to position/orient it. Inspect from at least two directions; two objects that appear separated in one projection can intersect in three dimensions.
+\item Toggle \ui{Show Bounding Box} to inspect the enclosure. Use \ui{Delete Selected} to remove an unwanted component from the assembly, or \ui{Clear All} to start the assembly again.
+\item Choose \ui{Merge Structures}, inspect the resulting scene, and save a new structure.
+\end{enumerate}
+Merging is geometric assembly. It does not find a low-strain epitaxial match, remove all close contacts, or determine a chemically correct interface termination. Inspect separations, stoichiometry, cell conventions, and periodic contacts before using the merged structure in a simulation.
+
+\section{Cell Sculptor: supercells and cutting slabs}
+\ui{Edit > Cell Sculptor} combines a periodic source, supercell repetitions, and cutting planes/slabs. Use \ui{Use Scene} to obtain the current structure or supply a source through the dialog's load/drop workflow. The source and result previews help distinguish the uncut periodic model from the generated product.
+
+\textbf{Procedure.} Set the supercell repetitions first. Add a cutting slab, enter nonzero Miller indices, choose periodic or distance-based limits, and inspect the plane preview. Add further slabs when the desired region needs multiple constraints. Set the outside-atom opacity to make excluded atoms less prominent, then choose \ui{Generate}. Save the resulting atomic structure only after checking which side of each boundary was retained.
+
+In periodic slab mode, \ui{Start} identifies the starting plane and \ui{N} controls the number of structural repeats/layers along the slab normal. The displayed spacing derives from the lattice. A crystallographic repeat interval can include several chemically distinct atomic layers; do not equate \ui{N} blindly with the number of visible atomic sheets. Distance-based limits use \angstrom\ and are useful for a finite cut without an integer repeat interpretation.
+
+For a lattice with reciprocal vectors defined without $2\pi$,
+\[
+\mathbf a^*\cdot\mathbf a=1,\quad
+\mathbf a^*\cdot\mathbf b=\mathbf a^*\cdot\mathbf c=0,
+\qquad d_{hkl}=\frac{1}{|h\mathbf a^*+k\mathbf b^*+l\mathbf c^*|}.
+\]
+The normal to a plane is a reciprocal-space combination. For a skew cell it is generally not the same Cartesian direction as $h\mathbf a+k\mathbf b+l\mathbf c$. Use the preview to confirm the orientation before generating a slab. Geometric cutting can create polar surfaces or nonstoichiometric terminations; choose terminations according to the intended study.
+
+\section{Insert Dislocation}
+\textbf{Purpose.} Apply a continuum-style displacement construction to a structure. Open \ui{Edit > Insert Dislocation}, use the current scene or load a reference, and use \ui{Detect Lattice} to inspect the lattice classification before choosing directions.
+
+\textbf{Character and region.} Choose Edge, Screw, or Mixed character. Available region shapes are Half-plane, Cylinder, Sphere, Ellipsoid, and Freeform 2D. These control the construction region. They do not by themselves certify a particular relaxed dislocation-core structure or a stable physical loop.
+
+\begin{enumerate}
+\item Choose a sufficiently large reference and a fixed cell geometry.
+\item Enable \ui{Auto lattice vectors} for inferred directions, or enter the slip-plane indices, Burgers direction, and line direction manually. Use crystallographically compatible, nonzero directions.
+\item Locate the line using a fractional point when convenient, or the Cartesian position/offset controls. Confirm its position in the preview.
+\item Set Burgers-vector scale, Poisson ratio, core radius, cutoff, and line extent. For Mixed character, set the mixed angle. Supply the selected shape's dimensions or the Freeform 2D points.
+\item Choose \ui{Generate Dislocation}. Inspect RMS and maximum displacement and the displaced structure.
+\item Use \ui{Replace Main Scene} to adopt the generated result, then save a new file.
+\end{enumerate}
+The core radius regularises the near-core field; it is a modelling parameter, not an experimentally measured core width inferred by AtomForge. The continuum approximation is least reliable near the core. Periodic boundary conditions can require compatible dislocation arrangements; an isolated displacement construction in a periodic box may create artificial long-range strain. Relax and validate with an appropriate external model.
+
+\section{Add Interstitial Atoms and detect voids}
+\textbf{Purpose.} Find geometric void candidates and place chosen atoms in selected subsets. Open \ui{Edit > Add Interstitial Atoms}, select \ui{Use Current Scene} or provide a host, and run \ui{Detect Voids}.
+
+\textbf{Detection controls.} \ui{Grid} controls the search resolution (8--30 in the current UI); \ui{Max Voids} limits candidates. Higher resolution can find different candidates at higher cost. Use the void-type filters to include the desired coordination geometries. \ui{Select All Types} and \ui{Clear All Types} manage those filters. \ui{Show Void Polyhedra in Scene} helps relate candidate centres to their coordinating atoms.
+
+\textbf{Placement modes.}
+\begin{description}
+\item[Random distribution] Choose a percentage or atom count and a seed. The percentage refers to eligible candidate sites, not automatically to the final atomic composition.
+\item[Inside OBJ/STL mesh region] Load a mesh region and transform it with Translate (T), Rotate (R), and Scale (S). Inspect the mesh relative to the host; \ui{Reset Transform} restores its transform. Choose a target percentage/count among eligible sites in that region.
+\item[Manual (selected voids only)] Select candidate centres in the preview and check the displayed selected-centre count. The selected subset determines placement.
+\end{description}
+Use \ui{Select Element} to choose the inserted species, then \ui{Apply Interstitials}. Inspect the atom-count change and nearest-neighbour separations before saving. A void is a geometric candidate, not a calculated formation-energy minimum. Site preference, charge state, local relaxation, and solubility require separate physical calculations.
+
+\section{Checking an edited model}
+Before exporting a simulation input, check species counts, cell vectors, boundary contacts, minimum interatomic distances, and the intended periodicity. For nanoparticles and slabs, check vacuum in every relevant direction. For substitutions and defects, compare composition before and after the edit. Save both the starting model and the exact edited model used for later calculations.

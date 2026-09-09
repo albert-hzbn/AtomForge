@@ -1,0 +1,63 @@
+\chapter{Structural analysis and presentation}\label{ch:analysis}
+\section{Structure Info and Atom Info}
+\ui{View > Structure Info} provides a compact check of the active structure's composition and lattice information. Use it after import, supercell construction, cutting, or merging. A disabled cell-dependent command usually means the current structure does not carry a usable cell, even when the coordinates visually resemble a crystal.
+
+\ui{View > Atom Info} enables atom inspection. Select the desired atom in the viewport and verify its identity and position. Displayed atom ordering follows the current structure; rebuilding or exporting can change order. Record stable identifiers in your own workflow if you need to track particular atoms across multiple files.
+
+\section{Distance and angle measurements}
+Use \ui{View > Measure Distance} or the toolbar's \ui{Distance} button, then select two atoms. For an angle, choose \ui{Measure Angle} or \ui{Angle}, then select three atoms in the intended order, with the middle atom as the vertex. Read the overlay and inspect the selected atoms rather than assuming the nearest projected point was selected.
+
+Measurements are geometric. Distinguish a displayed Cartesian separation from a periodic minimum-image separation in your analysis; inspect the cell and selected image when atoms straddle a periodic boundary. For dense structures, hide unrelated species or change the camera before selection. Clear/leave the measurement mode when finished so subsequent clicks have the intended selection behaviour.
+
+\section{Radial Distribution Function}
+\textbf{Purpose.} Measure neighbour distributions as a function of distance. Open \ui{Analysis > Radial Distribution Function} with a structure loaded. Select reference and target species; using different species gives a partial pair distribution. Set the distance range, bin count, and periodic-boundary option, then choose \ui{Run RDF}.
+
+\textbf{Controls.} \ui{Use PBC when unit cell is available} includes periodic geometry. \ui{Normalize to g(r)} changes from counts to the program's density-normalised distribution. \ui{Bins} controls resolution; the current slider spans 32--2,000. \ui{Smoothing passes} (0--8) changes the plotted/profile smoothing. \ui{Overlay raw counts} helps distinguish sparse sampling from a smooth-looking curve. \ui{Overlay cumulative coordination} shows the integrated neighbour count trend.
+
+For a homogeneous isotropic system, the usual interpretation of a normalised pair distribution is
+\[
+dN(r)\simeq 4\pi r^2 n_{\mathrm{target}} g(r)\,dr.
+\]
+Finite boxes, partial species, surfaces, and chosen normalisation affect that interpretation. A nanoparticle surrounded by vacuum does not have the same homogeneous reference density as a bulk periodic crystal. Report the species pair, bin width, cutoff, PBC choice, and smoothing when comparing curves.
+
+\textbf{Worked check.} Open \code{examples/cu_host.cif}, select Cu as both species, enable PBC, and start with no smoothing. The nearest-neighbour distance of the unstrained FCC example is $a/\sqrt{2}\approx2.553$ \angstrom. Check that the first peak is near that distance. This is a geometric checkpoint, not a fitted thermal distribution. A very small cell or an excessive distance range can make periodic-shell interpretation misleading.
+
+\textbf{Distortion analysis.} Enable \ui{Enable distortion analysis} to analyse a shell window. \ui{Auto shell window from first-shell minima} estimates its limits; otherwise specify the visible manual bounds. Inspect the chosen window against the RDF. Overlapping shells, disorder, or low counts can make automatic minima unreliable. A broad peak can reflect multiple chemical distances, strain, temperature, or finite sampling; the plot alone does not separate those mechanisms.
+
+\section{Short-Range Order (SRO)}
+\textbf{Purpose.} Characterise chemical neighbourhood preferences in a multi-species structure. Open \ui{Analysis > Short-Range Order (SRO)}, choose the number of neighbour shells and the shell-distance tolerance, and run the calculation. Inspect the species-resolved shell table.
+
+The Warren--Cowley interpretation is
+\[
+\alpha_{ij}^{(n)}=1-\frac{P(j\mid i,n)}{c_j},
+\]
+where $P(j\mid i,n)$ is the probability of a species-$j$ neighbour in shell $n$ around species $i$, and $c_j$ is the bulk fraction of $j$. Negative values indicate an excess of that neighbour relative to the reference composition; positive values indicate a deficit. Zero is the ideal random reference, subject to finite-size and composition constraints.
+
+Use \code{examples/cu_ni_alloy.cif} as a starting example. The random assignment need not give exactly zero SRO in every shell. Compare several seeds or larger cells to assess sampling fluctuations. Shell tolerance groups nearby distances; too small a tolerance splits one distorted shell, while too large a tolerance merges different shells. The current shell-count control supports 1--8 shells. SRO analysis measures the existing configuration; it does not optimise an alloy toward a requested SRO value.
+
+\section{Lattice planes and Miller directions}
+For a periodic structure, choose \ui{View > Lattice Planes} to configure crystallographic plane overlays, and toggle \ui{Show Lattice Planes} for visibility. Enter the desired nonzero Miller indices and adjust the visible plane settings. Planes are guides for orientation and geometry; displaying one does not cut the structure. Use Cell Sculptor to create an actual atomic cut.
+
+Choose \ui{View > Miller Directions} to configure direction overlays and \ui{Show Miller Directions} to toggle them. A direct-lattice direction $[uvw]$ is parallel to $u\mathbf a+v\mathbf b+w\mathbf c$. A plane $(hkl)$ is normal to $h\mathbf a^*+k\mathbf b^*+l\mathbf c^*$. In cubic cells the same integer triplet can appear parallel in both roles; this shortcut fails for a general lattice.
+
+\section{Voronoi and coordination polyhedra}
+\ui{View > Show Voronoi Volume} displays a geometric nearest-site partition. Use it to inspect local space filling and site environments. It is separate from electronic Voronoi integration, which assigns scalar-grid quadrature contributions to imported sites. Neither operation is a Bader partition of electron density.
+
+\ui{View > Polyhedral Viewer} and the polyhedral atom representation show coordination geometry. Use \ui{Settings > Polyhedral Settings} to configure the visible coordination construction. Check neighbour/element choices and distance criteria against known bonds in a simple reference first. A change in cutoffs can change a displayed polyhedron without any change in the underlying atoms.
+
+\ui{Show Dislocation Lines} controls line overlays where corresponding line information exists. An arbitrary imported XYZ file does not acquire a validated dislocation network merely by enabling the display checkbox.
+
+\section{Atomic sizes, colours, and lighting}
+\ui{Settings > Atomic Sizes} lets you change display radii and restore literature defaults. Use the selected-element radius controls for a particular species or reset defaults for a consistent baseline. Display radii do not displace atom centres and should not be confused with a measured bond length.
+
+\ui{Settings > Display Settings} exposes lighting, material, and element-colour controls. Lighting controls change illumination; material controls change shading response. Use \ui{Reset Lighting Defaults}, \ui{Reset Material Defaults}, and colour reset actions to recover from an overly dark or saturated view. Avoid using visual brightness as a numerical observable.
+
+\ui{View > Select Theme > Light/Dark} changes the desktop theme. Electronic scalar colours and transparency are configured separately in the electronic dialog's \ui{Appearance} and 3D controls. Use a consistent palette and numerical range when comparing several electronic fields.
+
+\section{Exporting images}
+Choose \ui{File > Export Image}, select PNG, JPEG, or SVG, configure the available export settings, browse to a destination, and export. Inspect the output file at its intended presentation size. PNG is appropriate for lossless raster figures; JPEG can introduce compression artefacts around small labels; SVG is useful when a downstream tool supports the exported representation.
+
+An image records a view, not a reproducible calculation. Accompany it with the saved structure or density, camera orientation, visible species, radii, scalar palette/range, and isovalue where relevant. For quantitative electronic profiles, export CSV and generate a plot with explicit axes and units. For the electronic dialog itself, an operating-system screenshot records both the controls and current views, as illustrated in this manual.
+
+\section{Features that are not current analysis-menu commands}
+Common-neighbour analysis (CNA) and angular-distribution analysis have source implementations but their menu entries are disabled in the documented baseline. They cannot be reached as ordinary Analysis commands in this executable. Their presence in source or earlier broad feature lists should not be interpreted as a tested desktop workflow. Use RDF, SRO, measurements, and the electronic tools described here for the exposed analysis features.

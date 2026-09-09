@@ -1,0 +1,116 @@
+\chapter{Electronic operation reference}\label{ch:reference}
+\section{How to run an operation}
+Load a volume, select \ui{General analysis}, choose an operation, set the visible parameters, and Calculate. The selected Field is always the primary input. Operations producing a grid append one or more fields; operations producing a table replace the current table output. Export after verifying the selected field or table heading. The eight charge-transfer operations are detailed in Chapter~\ref{ch:charge}; this chapter covers the remaining 25 operation choices.
+
+\section{Total integral}
+\textbf{Input:} any scalar grid. \textbf{Output:} one number, with units of field unit times \angstrom$^3$. For density this is electrons; for a mask it is selected volume; for potential it is an integrated potential, not charge. Select the field, Calculate, and export CSV if needed. Use the integral to check imports and arithmetic. The full-cell result depends on periodic/finite endpoint conventions and the determinant of the cell, not just the raw sample sum.
+
+\section{Add and subtract reference}
+Select A as Field and B as Reference; calculate $A+B$ or $A-B$. Grid alignment and compatible units are required for meaningful addition/subtraction. These are general scalar operations. For charge studies, the dedicated weighted density-difference tool also enforces density-specific intent. Check operand order and the derived-field selection before repeating an operation.
+
+\section{Multiply and divide reference}
+These operations combine aligned values pointwise, $A_jB_j$ or $A_j/B_j$. They are not convolution or matrix operations. Division is unsuitable where the denominator is zero or numerically close to zero; inspect the field range and error output. Dimensional meaning follows the operands, so a multiplied density does not retain the interpretation of a density integral. For region selection, use a binary mask and Apply mask, which explicitly preserves the original field unit.
+
+\section{Scale}
+Enter a finite \ui{Scale factor} and Calculate. Every value is multiplied by that number. A factor of $-1$ reverses signs; a factor of zero creates a zero field. Scaling is useful for explicitly defined linear combinations, but it does not infer the unit conversion needed by an arbitrary producer. Record any conversion factor and the original unit metadata.
+
+\section{Gaussian smoothing}
+Set \ui{Sigma (A)} and \ui{Radius (steps)}. Sigma describes the physical Gaussian width, while radius bounds the neighbourhood in grid steps. Both matter: an extremely small radius can truncate a broad Gaussian severely. The operation smooths sampled data and creates a new field; it does not increase the original physical resolution.
+
+Start with a small kernel, inspect peaks and the integral before and after smoothing, and compare against the unsmoothed field. Finite boundaries and discrete normalisation can affect behaviour. Do not use smoothing to remove a physically meaningful oscillation without documenting it. Derivatives of a noisy field are often sensitive to smoothing and grid spacing, so report both settings.
+
+\section{Cartesian gradient}
+Calculate to obtain three component fields representing $\partial f/\partial x$, $\partial f/\partial y$, and $\partial f/\partial z$. The derivatives account for the actual cell geometry; they are Cartesian components even when the sampling lattice is skew. Their units are field units per \angstrom.
+
+Select each output independently and inspect signs/ranges. A potential gradient can be related to a field only after applying the appropriate physical sign/convention. Differentiation amplifies high-frequency noise; compare resolutions and boundary behaviour. A colour map of one component does not represent the vector magnitude unless you explicitly construct that magnitude.
+
+\section{Laplacian}
+The Laplacian is $\nabla^2f$, with units of field units per \angstrom$^2$. Select the field and Calculate to create a derivative grid. Positive and negative regions measure local curvature in the scalar field under the numerical discretisation.
+
+Check a simple smooth input before interpreting fine structure. Grid resolution, smoothing, and finite boundaries can change extrema. Applying the operation to electron density does not by itself perform a full topological bonding analysis; applying it to potential does not automatically establish a charge density without the physical constants and electrostatic convention.
+
+\section{Energy-density conversion}
+This operation produces approximate kinetic, potential-energy, and total-energy density fields through the implemented gradient-expansion kinetic and local-virial expressions. The required input is a nonnegative electron density in \densityunit; outputs are in eV/\angstrom$^3$. Samples at or below $10^{-12}$ \densityunit\ are masked to zero to avoid singular low-density expressions.
+
+Select an actual density, Calculate, and inspect the three appended fields. A signed difference density is not an acceptable substitute for the required nonnegative density. The output is an approximation derived from the available scalar density. It is not the exact kinetic energy from occupied orbitals or the complete DFT energy decomposition of the originating code. Check resolution and the effect of low-density masking before integrating or comparing these quantities.
+
+\section{Line profile}
+Enter \ui{Origin (A)}, \ui{End (A)}, and \ui{Sample count}. The coordinates are Cartesian. Calculate to sample along the segment and obtain distance/value rows. Export CSV and plot value against distance with the selected field's units.
+
+For a bond-axis example, obtain two atom positions and use them as endpoints, or extend slightly beyond them to inspect both sides. Finite-grid endpoints must lie within the supported domain; periodic sampling follows the periodic convention. Increasing sample count interpolates the existing grid and does not create information finer than the original calculation. Check the actual geometric length against the final profile coordinate.
+
+\section{Planar average}
+Choose the plane normal $a^*$, $b^*$, or $c^*$. The operation averages over planes parallel to the other two cell vectors and returns normal distance and mean scalar value. A density average remains in \densityunit; it is not a plane-integrated electron count.
+
+For the $c^*$ direction, let $A=|\mathbf a\times\mathbf b|$ and $L=V/A$. Then the relationship is $Q=A\int_0^L\bar\rho(s)\,ds$ with the corresponding numerical quadrature. This relationship is useful for interpreting the cumulative profile. In a skew cell, $L$ is the cell height normal to the face, not necessarily $|\mathbf c|$.
+
+\section{Macroscopic average}
+Choose a plane normal and an odd \ui{Window}. The operation averages the planar profile over a moving window of samples to suppress short-range oscillations. A window of one leaves the planar profile unchanged; a larger odd window spans more planes.
+
+Relate the sample count to a physical width using the normal grid spacing. When comparing calculations with different grid sizes, the same integer window does not necessarily mean the same physical smoothing length. Inspect the unsmoothed planar average alongside the macroscopic average; broad smoothing can erase interface or surface features.
+
+\section{Numerical plane section}
+Enter a Cartesian origin and two non-collinear span vectors \ui{Plane span u (A)} and \ui{Plane span v (A)}. The sampled rectangle/parallelogram is $\mathbf r(s,t)=\mathbf o+s\mathbf u+t\mathbf v$, with $s,t$ spanning the section. The GUI's sample count applies to both directions; Python accepts an explicit pair.
+
+This is a numerical operation that creates a section field, distinct from merely changing the interactive 2D preview plane. The internal result uses two identical layers so it can be represented by the grid container. Use its section values or contours for two-dimensional analysis; integrating its artificial three-dimensional volume has no physical section-charge meaning. Finite inputs must cover the requested section, while periodic data can wrap.
+
+\section{Contour segments}
+Enter an isovalue and Calculate. The output is a table of Cartesian endpoints, with successive pairs defining contour segments on the source grid's first section layer. Generate/select a numerical section first when you need a particular plane. Applying contours directly to a full volume does not extract a 3D isosurface.
+
+Choose a level within the section's range. Export CSV and connect rows in pairs rather than connecting every row as one continuous polyline. Equal-valued cells, grid resolution, and interpolation can influence topology. The interactive \ui{Show contour line} checkbox is a display convenience; the numerical contour tool supplies coordinates for downstream work.
+
+\section{Peak search}
+Calculate local maxima using a 26-neighbour grid comparison. The output rows are $x,y,z,\mathrm{value}$. Adjacent equal values use a deterministic tie break, so a plateau does not yield every sample as an independent peak. Python's optional limit can restrict the number returned.
+
+Peak coordinates are based on the sampled grid; they are not sub-grid fitted critical points. Refine the grid to check location stability. Density maxima often occur near nuclei, but assigning a peak to an atom or a bond requires additional geometric and physical interpretation.
+
+\section{Voronoi integration}
+The GUI uses imported atomic sites and assigns sample weights to the nearest-site Voronoi regions. The result contains integral and region volume for each site in imported atom order. Python can accept explicit Cartesian partition sites. Boundary samples share weight where appropriate, and periodic geometry uses the periodic distance convention.
+
+Check that imported sites are present and correspond to the intended structure. Compare the sum of region integrals with the full integral. The partition is geometric and sensitive to site positions. These are not zero-flux Bader basins and must not be labelled Bader charges. A region electron count also needs an explicit reference valence/nuclear convention before being converted into a net ionic charge.
+
+\section{Sphere integration}
+Enter a Cartesian centre in \ui{Origin (A)} and a positive \ui{Sphere radius (A)}. Calculate the integral over the selected spherical region according to the grid sampling and boundary convention. The radius is in \angstrom, not fractional coordinates.
+
+Compare several nearby radii and grid resolutions. A sphere cutting through a rapidly varying density can produce a strongly radius-dependent electron count. Check whether the sphere crosses a cell boundary and whether the finite/periodic convention matches your intended region. This tool defines a spherical partition; it does not locate an atom's natural electronic boundary.
+
+\section{Structure factors from a grid}
+Enter one integer \code{h k l} row per requested reflection. The output gives $h,k,l,\Re F,\Im F$. The implemented forward phase convention is positive:
+\[
+F(\mathbf h)=\int_V f(\mathbf r)\exp(+2\pi i\,\mathbf h\cdot\mathbf f)\,dV,
+\]
+where $\mathbf f$ denotes the fractional coordinate of the Cartesian position relative to the global zero, including the grid-origin phase. Use $F(0,0,0)$ as an integral/normalisation check. Nonzero reflections depend on origin and phase convention. Do not compare complex values from another program until those conventions agree. These Fourier tools require periodic endpoint-excluded grids and reject indices outside the unique sampled Nyquist range.
+
+These are Fourier coefficients of the supplied field. They are not a full experimental diffraction intensity prediction including instrument response, occupancies, thermal motion, anomalous scattering, and other corrections unless those effects have been supplied by an appropriate model.
+
+\section{Fourier synthesis}
+Enter rows \code{h k l real imag}. Include conjugate pairs for a real field, $F(-\mathbf h)=F(\mathbf h)^*$. Calculate to synthesise a field on the selected grid geometry. The inverse uses the matching phase convention and cell normalisation.
+
+An incomplete reflection set produces a band-limited approximation and can generate termination ripples or negative values. Include the zero reflection when the mean value matters. The real-space grid must be fine enough for the highest frequencies; adding large Miller indices beyond a grid's sampling capacity does not produce a trustworthy high-resolution field.
+
+\section{Patterson map}
+Calculate the Patterson/autocorrelation field of a periodic input. It describes displacement-vector correlations and discards the phase information needed to uniquely recover the original field. A strong origin peak is expected for an autocorrelation and should not be mistaken for an extra atom.
+
+Use a modest grid first and inspect runtime; reciprocal/direct transforms can be expensive. Interpret maxima as correlations of separations, not ordinary density maxima at original atom positions. Finite, incomplete, or differently normalised inputs change the meaning of the result. Preserve the original field and its units/normalisation with any exported Patterson map.
+
+\section{Ewald point-charge electrostatics}
+This tool requires periodic geometry, imported sites, and an explicit charge for each site in file order. Supply charges in electron-charge units. The cell must be neutral; the implementation uses a conducting boundary convention. Do not enter atomic numbers unless bare nuclear point charges are truly the intended model, and do not infer charges automatically from element names.
+
+Set \ui{Ewald alpha (1/A)}, \ui{Real cutoff (A)}, and \ui{Reciprocal cutoff (1/A, includes 2*pi)}. Calculate. The table contains the cell energy in eV followed by the site potentials in volts. Alpha partitions the calculation between real and reciprocal space; an adequately converged result should be insensitive to reasonable alpha changes when both cutoffs are converged.
+
+Increase both cutoffs and compare the energy and potentials before accepting a result. Ewald point-charge energy is not a self-consistent electronic total energy and does not include every energy term of a force field or DFT calculation. Record the charge model, boundary convention, cell, alpha, and cutoffs.
+
+\section{Isosurface extraction and reference colouring}
+Set the 3D level and choose the Isosurface operation or \ui{Update surface} in boundary mode. \ui{Color from reference} samples an aligned reference field on the extracted surface. For example, a density can determine geometry while a compatible potential determines colour. Confirm both the geometric field and colour-field units.
+
+\ui{Append surface level} retains an existing surface and adds another level; appended surfaces must use compatible colouring units. This supports multiple boundaries but can visually obscure one another. Set transparency deliberately and export the mesh when required. OBJ stores scalar comments and PLY stores a scalar vertex property; downstream tools may need an explicit colour mapping and may not automatically reproduce AtomForge's palette. Surface vertices are emitted as triangles without welding.
+
+\section{Resample to reference grid}
+Select the source as Field and the desired target geometry as Reference. Calculate an interpolated source field sampled on that reference geometry. The reference's scalar values are not subtracted or blended by this operation. Check that the target points lie in the valid source domain for a finite source.
+
+Compare output shape, cell, origin, and periodicity with the target, and compare integrals and extrema with the source. This is interpolation, not a conservative charge-remapping guarantee. Resampling is useful for explicit alignment of compatible grids but cannot repair inconsistent physical calculations.
+
+\section{Verify periodic endpoint planes}
+Use this only for finite Cube/XSF-style grids that span a full periodic cell with duplicated endpoints. The operation checks opposite planes and removes the duplicates, giving periodic sampling. A mismatch is a reason to inspect the input rather than force conversion. Python exposes the tolerance, default $10^{-8}$.
+
+After conversion, check the shape (one fewer sample along each duplicated direction), cell, periodic flag, and integral. Re-exported periodic data can again acquire explicit endpoint planes in a finite-grid format. Record the convention at every conversion step to avoid an extra plane being counted as independent data.

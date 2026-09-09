@@ -1,0 +1,87 @@
+\chapter{Charge redistribution and Boolean masks}\label{ch:charge}
+\section{Define the study before subtracting}
+A common redistribution field for a combined system AB is
+\[
+\Delta\rho(\mathbf r)=\rho_{AB}(\mathbf r)-\rho_A(\mathbf r)-\rho_B(\mathbf r).
+\]
+Positive values mean electron accumulation relative to the chosen references; negative values mean depletion. This is an electron-density convention. The corresponding signed electric charge has the opposite sign after multiplying by the elementary charge.
+
+References must answer the intended scientific question. For an interaction-induced difference, fragment calculations usually use positions consistent with the combined geometry, the same cell, and compatible electronic settings. Subtracting independently relaxed fragments mixes interaction and deformation effects. AtomForge does not generate fragment calculations or infer which reference is physically appropriate.
+
+\section{Grid compatibility}
+Before subtraction or masks, compare cell vectors, origin, dimensions, periodic/finite convention, and units. Matching atom counts or filenames is insufficient. Arithmetic requires aligned samples. A translated density with the same cell can produce a misleading difference if it is not registered consistently.
+
+Use \ui{Resample to reference grid} only as an explicit interpolation step when geometries are suitable. Resampling does not fix a physically inconsistent reference, and interpolation need not preserve the integral exactly. Compare integrals before and after and refine the grid when needed. Do not resample merely to silence an error without understanding what differs.
+
+\section{Weighted density difference: complete GUI recipe}
+\begin{enumerate}
+\item Open \code{CHGCAR-AB} as the main volume. Select its total density field.
+\item Choose \ui{Charge transfer > Density difference}. Click \ui{Reference...} and load \code{CHGCAR-A}.
+\item Check the \ui{Operand} channel and set \ui{Reference weight} to 1. Click \ui{Calculate}. The appended field represents $\rho_{AB}-\rho_A$.
+\item Select this derived field. Load \code{CHGCAR-B} through Reference, verify that the external reference is being used, and calculate again with weight 1.
+\item Select the new result $\Delta\rho$. Export it as a grid and use a diverging palette with an explicit symmetric colour range.
+\item Calculate \ui{Charge summary} and \ui{Cumulative profile} from this difference field, not from the original positive density.
+\end{enumerate}
+For more fragments, repeat the subtraction using the latest result. A weight multiplies the reference pointwise; it is useful for explicit linear combinations and must be recorded. A fractional weight does not automatically represent a physically meaningful fractional occupation calculation.
+
+The supplied single CHGCAR cannot demonstrate a physical AB--A--B charge transfer by itself. The executable example instead checks that subtracting the file from itself produces exactly zero. Real transfer studies require the independently calculated, compatible reference densities.
+
+\section{Accumulation and depletion fields}
+\ui{Accumulation / depletion} splits a density-like field into
+\[
+\rho_+(\mathbf r)=\max(\Delta\rho,0),\qquad
+\rho_-(\mathbf r)=\max(-\Delta\rho,0).
+\]
+Both outputs are nonnegative. Depletion is stored as a positive magnitude, not as the original negative part. Select each result separately for display/export. Their difference recovers $\Delta\rho$; their sum is its absolute magnitude.
+
+A 3D positive threshold on a signed difference highlights accumulation. To see depletion with the same positive threshold, select the depletion-magnitude field. Alternatively, generate a negative isosurface on the signed difference. Record the sign, level, and colour meaning in every figure caption.
+
+\section{Charge summary}
+\ui{Charge summary} reports accumulation, depletion, and net electrons:
+\[
+Q_+=\int\rho_+\,dV,\qquad Q_-=\int\rho_-\,dV,\qquad Q_{\rm net}=Q_+-Q_-.
+\]
+For references with matching total electron counts, a small net value is a useful check. A zero net value does not imply no redistribution: positive and negative regions can be substantial and cancel. Conversely, a nonzero net value can reflect electron-number choices, inconsistent normalisation, incomplete regions, or interpolation error.
+
+These totals describe redistribution. They are not automatically the number of electrons transferred from atom A to atom B. To assign a transfer to a fragment or region, define a partition and integrate over it. Report the partition and its sensitivity alongside the result.
+
+\section{Threshold mask}
+\ui{Threshold mask} creates a dimensionless binary field,
+\[
+M(\mathbf r)=\begin{cases}1,&L\le f(\mathbf r)\le U,\\0,&\text{otherwise}.\end{cases}
+\]
+Bounds are inclusive, finite, and ordered. Select the source field, enter Lower bound and Upper bound in its units, and Calculate. The result has mask units and values 0 or 1. A threshold-selected region is a definition you choose, not a unique chemical boundary.
+
+Example: a density threshold $0.01\le\rho\le\rho_{\max}$ can identify a density-supported region in a fragment field. If the lower bound lies below the entire field's range, the mask may fill the complete cell. Inspect it and its volume before interpreting a regional integral. On the supplied CHGCAR, 0.01 \densityunit\ is below the minimum and would select the whole grid with an adequate upper bound.
+
+\section{Boolean masks and inversion}
+Choose two aligned binary masks as Field and Operand, select \ui{Boolean masks}, then choose an operation:
+\begin{longtable}{p{.22\linewidth}p{.69\linewidth}}
+\toprule Operation & Retained samples \\ \midrule\endhead
+Union & In A or B, including their overlap. \\
+Intersection & In both A and B. \\
+Difference & In A and not in B. Order matters. \\
+XOR & In exactly one mask; excludes overlap. \\
+Invert mask & In the current grid domain and not in A; a single-input operation. \\
+\bottomrule
+\end{longtable}
+To combine intermediate masks, enable \ui{Use loaded/result field as reference} if an external reference is loaded, then select the desired derived mask as Operand. A raw density is not a binary mask and should be thresholded first. Inversion is limited to the grid domain; it does not construct the infinite space outside a molecule.
+
+\section{Apply mask and quantify a region}
+Select the density or difference as Field and a binary mask as Operand. Choose \ui{Apply mask} and Calculate. Values inside the mask are retained; values outside become zero. The output retains the field's units. Select this output and calculate the total integral under General analysis to obtain the regional value.
+
+\textbf{Example sequence.} Create fragment masks $M_A$ and $M_B$, intersect them to form an overlap region, and apply this to $\Delta\rho$. Its integral describes net redistribution inside that particular threshold-defined overlap. Repeat with several sensible bounds to estimate partition sensitivity. The result should not be labelled a Bader charge or a unique atomic charge.
+
+Integrating a binary mask itself gives a selected geometric volume in \angstrom$^3$ under the grid quadrature. This is useful for checking whether a mask selects everything, nothing, or an unexpectedly tiny region before applying it to density.
+
+\section{Cumulative charge profile}
+Choose \ui{Cumulative profile} and a plane normal $a^*$, $b^*$, or $c^*$. The profile accumulates charge from the lower face of the cell to a position $s$ along that normal:
+\[
+Q(s)=\int_{0}^{s}\!\int_{\text{face}}\Delta\rho\,dA\,ds'.
+\]
+The last row includes the entire cell and agrees with the total integral under the same quadrature. Periodic profiles include a final full-cell endpoint; finite grids use endpoint-aware integration. A cumulative electron profile is distinct from a planar-average density, whose units remain \densityunit.
+
+For a slab/interface, select the actual interface normal. The location of the lower face, and therefore the cumulative curve, depends on the chosen cell origin. Moving a periodic cell boundary changes where accumulation begins. Use the same origin across comparisons and identify the interface/partition position used to quote a transfer value. A plateau can be informative, but its physical interpretation still depends on the reference and partition.
+
+\section{Recommended record for a charge study}
+Retain input filenames and checksums, selected channels, cell vectors/origin/grid shape, units and conversion options, all reference weights, any interpolation, and output integrals. Record mask definitions or partition geometry, profile direction and origin, 3D/2D levels, and colour scale. Verify that the integrated difference equals the corresponding weighted difference of input integrals to numerical accuracy. This check catches many bookkeeping errors before a visually convincing plot is interpreted.

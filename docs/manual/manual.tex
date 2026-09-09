@@ -1,0 +1,79 @@
+\documentclass[11pt,a4paper,oneside]{report}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern,microtype}
+\usepackage[margin=23mm,headheight=15pt]{geometry}
+\usepackage{graphicx,xcolor,booktabs,longtable,tabularx,array}
+\usepackage{amsmath,amssymb,enumitem,listings,fancyhdr}
+\usepackage[most]{tcolorbox}
+\usepackage{hyperref,xurl}
+\definecolor{accent}{HTML}{176D83}
+\definecolor{ink}{HTML}{223544}
+\definecolor{paperblue}{HTML}{EFF5F7}
+\hypersetup{colorlinks=true,linkcolor=accent,urlcolor=accent,pdftitle={AtomForge: Detailed User and Reference Manual},pdfauthor={AtomForge project}}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4.5pt plus 1pt}
+\setcounter{tocdepth}{1}
+\setcounter{secnumdepth}{2}
+\renewcommand{\topfraction}{0.85}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.75}
+\setlist{itemsep=3pt,topsep=4pt,leftmargin=*}
+\setlist[description]{leftmargin=0pt,labelindent=0pt,labelwidth=0pt,itemsep=2pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{accent}{AtomForge | User manual}}
+\fancyhead[R]{}
+\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\chaptermark}[1]{\markboth{\thechapter. #1}{}}
+\lstset{basicstyle=\ttfamily\small,breaklines=true,columns=fullflexible,keepspaces=true,showstringspaces=false,backgroundcolor=\color{paperblue},frame=single,rulecolor=\color{accent!20},xleftmargin=4pt,xrightmargin=4pt,aboveskip=9pt,belowskip=9pt}
+\newcommand{\ui}[1]{\textbf{#1}}
+\newcommand{\code}[1]{\nolinkurl{#1}}
+\newcommand{\angstrom}{\ensuremath{\text{\AA}}}
+\newcommand{\densityunit}{\ensuremath{e/\text{\AA}^{3}}}
+\newtcolorbox{guidance}[1]{breakable,colback=paperblue,colframe=accent!50,title=#1,fonttitle=\bfseries,boxrule=.5pt,arc=2pt}
+\newcommand{\shot}[3]{\begin{figure}[htbp]\centering\includegraphics[width=#2\linewidth]{figures/#1}\caption{#3}\end{figure}}
+\newcommand{\uishot}[3]{\begin{figure}[htbp]\centering\includegraphics[width=\linewidth,trim=#2,clip]{figures/#1}\caption{#3}\end{figure}}
+\begin{document}
+\hypersetup{pageanchor=false}
+\begin{titlepage}
+\vspace*{15mm}
+{\Huge\bfseries\textcolor{accent}{AtomForge}\par}
+\vspace{8mm}
+{\LARGE Detailed user and reference manual\par}
+\vspace{5mm}
+{\large Building structures, exploring atomic geometry, and analysing electronic fields\par}
+\vspace{14mm}
+\includegraphics[width=\linewidth]{figures/builder-gallery.png}
+\vfill
+{\large Documentation edition: 9 September 2026\par}
+Application source baseline: \code{0df0af2}.\par
+Includes reproducible examples, a CHGCAR walkthrough, desktop controls, command-line recipes, and Python integration.
+\end{titlepage}
+\pagenumbering{roman}
+\hypersetup{pageanchor=true}
+\chapter*{How to use this manual}
+\addcontentsline{toc}{chapter}{How to use this manual}
+Start with Chapter~\ref{ch:start} to open a file, construct a crystal, and save a result. Chapters~\ref{ch:builders}--\ref{ch:analysis} explain the structural workflows. Chapters~\ref{ch:electronic}--\ref{ch:reference} cover electronic loading, visualisation, charge redistribution, and the complete electronic operation catalogue. Chapter~\ref{ch:python} provides scripting recipes; the appendices cover installation, reproducibility, and troubleshooting.
+
+Menu names and controls describe the source baseline above and the Windows executable used to prepare the figures. Features controlled by build options are marked explicitly. A source file does not by itself mean a feature is accessible in the desktop menu. Common-neighbour analysis, angular-distribution analysis, and the interface builder are not exposed in the baseline menus; this manual does not present them as usable menu commands.
+
+GUI screenshots are captured from AtomForge. The builder gallery and CHGCAR plots are separately rendered scientific figures calculated from real AtomForge outputs; they are not interface mockups. Example structures are starting configurations, not validated equilibrium structures. The supplied CHGCAR is used to demonstrate the software; its physical system and calculation settings were not independently established.
+
+All paths beginning with \code{examples/} are relative to this manual's folder. Commands use \code{AtomForge} for readability; on Windows substitute the path to \code{AtomForge.exe}. Long command listings may wrap visually; each displayed command is entered as one shell command. Python examples assume the package and native electronic library are available as described in Chapter~\ref{ch:python}.
+
+\tableofcontents
+\clearpage\pagenumbering{arabic}
+\input{chapters/01-start}
+\input{chapters/02-builders}
+\input{chapters/03-editing}
+\input{chapters/04-analysis}
+\input{chapters/05-electronic}
+\input{chapters/06-charge}
+\input{chapters/07-reference}
+\input{chapters/08-python}
+\appendix
+\input{chapters/09-installation}
+\input{chapters/10-reproducibility}
+\end{document}

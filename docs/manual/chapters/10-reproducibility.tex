@@ -1,0 +1,81 @@
+\chapter{Examples, validation, and maintaining this manual}
+\section{Included example inventory}
+The following structures were generated through AtomForge's actual builder CLI, with the larger Cu host produced through the Python repetition API. They are reusable inputs for the walkthroughs.
+\begin{longtable}{p{.34\linewidth}r p{.47\linewidth}}
+\toprule File & Atoms & Construction \\ \midrule\endhead
+\code{cu_fcc.cif} & 4 & Cubic 225, Cu at the origin, $a=3.61$ \angstrom. \\
+\code{fe_bcc.cif} & 2 & Cubic 229, Fe at the origin, $a=2.87$ \angstrom. \\
+\code{cu_host.cif} & 500 & $5\times5\times5$ repetition of the Cu conventional cell. \\
+\code{cu_ni_alloy.cif} & 500 & Cu 0.7 / Ni 0.3, seed 42. \\
+\code{cu_sphere.xyz} & 336 & Sphere radius 10 \angstrom, vacuum 5 \angstrom. \\
+\code{cu_sigma5.cif} & 60 & Axis [001], $\Sigma5$, candidate 0, repetitions 3/3, overlap 1.5 \angstrom. \\
+\code{cu_polycrystal.cif} & 1,329 & $25^3$ \angstrom$^3$, four grains, seed 7. \\
+\code{sio2_pack.xyz} & 120 & Si 40 / O 80, density 1.5 $\mathrm{g\,cm^{-3}}$, seed 7. \\
+\code{cu_mesh.xyz} & 224 & Unit octahedron OBJ at scale 12 \angstrom/model unit. \\
+\bottomrule
+\end{longtable}
+\code{octahedron.obj} is an original procedural mesh included with the examples. The builder gallery plots actual output coordinates with Matplotlib. No external 3D model or Blender-generated asset is needed to reproduce these examples.
+
+\section{CHGCAR provenance}
+The original file remains at the user-supplied location and is not redistributed. \code{chgcar-summary.json} records its SHA-256 hash, dimensions, cell vectors, sites, units, range, integral, and periodicity. The manual includes derived \code{chgcar-planar.csv} and \code{chgcar-cumulative.csv} plus figures. A different CHGCAR will generally produce different numbers and images; the filename alone is not a unique identifier.
+
+The example generation verifies that self-subtraction is exactly zero and that the final cumulative integral agrees with the full integral. These are numerical consistency checks, not independent validation of the originating electronic-structure calculation or a physical charge-transfer study.
+
+Run \code{python docs/manual/scripts/check_examples.py} to verify the published structure counts and executable Python recipes. It uses an analytic periodic field to check charge conservation under complementary masks, Fourier reconstruction, derivative outputs, integration, neutral point-charge calls, and Cube/XSF round trips. This synthetic fixture is explicitly a software check and is separate from the supplied CHGCAR walkthrough.
+
+\section{Regenerate examples and figures}
+Build AtomForge and install the local Python package/native library first. The plotting script additionally needs NumPy and Matplotlib. Run from the repository root:
+\begin{lstlisting}
+python -m pip install numpy matplotlib
+python docs/manual/scripts/generate_examples.py --chgcar "C:/path/to/CHGCAR"
+\end{lstlisting}
+Omit \code{--chgcar} to regenerate only structure examples and the builder gallery. Set \code{ATOMFORGE_PATH} if the executable is outside the normal build folder. The optional \code{MANUAL_PYTHON_DEPS} variable can point to a separate plotting-package directory when using an isolated embedded Python runtime.
+
+The script overwrites the generated examples and scientific figures in this manual folder. Review new counts and the provenance JSON after changing software versions. It does not automate GUI screenshots: recapture those from the actual application when controls change. Keep scientific plots and interface captures labelled distinctly.
+
+\section{Compile the LaTeX manual}
+Install a LaTeX distribution providing pdfLaTeX and the packages used by \code{manual.tex}: Latin Modern, microtype, geometry, graphicx, xcolor, booktabs, longtable, tabularx, amsmath, enumitem, listings, fancyhdr, tcolorbox, and hyperref. Then run:
+\begin{lstlisting}
+python docs/manual/scripts/build_manual.py
+\end{lstlisting}
+The script compiles three passes for contents, page references, and PDF bookmarks. It places intermediates in \code{docs/manual/build/} and the distributable PDF at \code{docs/manual/AtomForge-manual.pdf}. The \code{build/} folder is ignored by Git. No raw CHGCAR is required to compile the checked-in manual because its published figures are included.
+
+After editing, inspect the compiler log for overfull boxes, missing references, and missing characters. Render the PDF to page images and inspect figures, captions, tables, code wrapping, and page breaks. A successful LaTeX exit code alone does not establish a readable document. Keep screenshots at sufficient resolution for labels to remain legible at the chosen page width.
+
+\section{Documentation coverage and limitations}
+The manual covers the exposed File/Edit/Build/View/Analysis/Settings workflows, all 33 electronic operation choices, Python structure and electronic APIs, and CLI entry points. Optional stacking-fault controls are identified separately; unavailable interface/CNA/ADF menus are explicitly distinguished from exposed features. Screenshots cover representative builder and electronic workflows rather than every possible parameter combination.
+
+The examples test executable generation and numerical consistency. They do not constitute convergence studies for every builder, material, or physical model. In particular, the single supplied CHGCAR does not establish a fragment-transfer reference set; random structures are not relaxed glasses; and model scattering densities are not self-consistent electronic densities.
+
+\section{Source map for maintainers}
+\begin{longtable}{p{.43\linewidth}p{.48\linewidth}}
+\toprule Source area & Documentation to review when it changes \\ \midrule\endhead
+\code{src/ui/FileBrowser.cpp} & Menu availability, file workflows, shortcuts, help and settings placement. \\
+\code{src/ui/*BuilderDialog.cpp} & Builder controls, defaults, validation, preview/commit steps. \\
+\code{src/algorithms/} & Builder geometry and structural-analysis assumptions. \\
+\code{src/ui/ElectronicPostProcessing.cpp} & Tool labels, operand routing, imports/exports, calculation parameters. \\
+\code{src/ui/ElectronicSliceViewport.cpp} & 2D controls, arbitrary-plane behaviour, preview limits. \\
+\code{src/electronic/} & Units, endpoint conventions, numerical operations, Fourier and electrostatics. \\
+\code{src/graphics/ElectronicViewport*} & Rendering, opacity, lighting, volume preview behaviour. \\
+\code{python/atomforge/} & Python signatures, supported formats, library discovery, CLI choices. \\
+\code{CMakeLists.txt}, CI workflows & Feature flags, dependencies, tests, packaging and interpreter selection. \\
+\bottomrule
+\end{longtable}
+Update the source baseline on the title page when revising the manual. Re-run examples after algorithm or format changes, compare the generated metadata, and recapture affected UI figures. Avoid describing a feature as available solely because a corresponding source file exists.
+
+\section{Glossary}
+\begin{description}
+\item[Asymmetric unit] Independent crystallographic sites expanded by space-group operations.
+\item[Cell / origin] Lattice vectors and starting Cartesian position defining the grid or structure domain.
+\item[Direct coordinates] Dimensionless coefficients of the direct lattice vectors.
+\item[Field / channel] One scalar quantity sampled on a grid, such as total density or a derived difference.
+\item[Reference / operand] The explicitly selected second input to an operation.
+\item[Isosurface] A three-dimensional boundary at a constant scalar value.
+\item[Contour] A constant-value line on a two-dimensional section.
+\item[Volume rendering] Accumulation of contributions along viewing rays through a scalar field.
+\item[Mask] Binary field defining a region within a grid domain.
+\item[Reciprocal normal] A normal constructed from reciprocal lattice vectors; distinct from a direct-lattice direction in a general cell.
+\item[Periodic endpoints] Repeated boundary samples that must be distinguished from unique periodic samples.
+\item[Charge redistribution] Density change relative to specified references; not automatically a unique atom-assigned transfer.
+\item[Voronoi partition] Geometric nearest-site regions, distinct from density-gradient basins.
+\end{description}
