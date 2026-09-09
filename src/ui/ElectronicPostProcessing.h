@@ -47,6 +47,7 @@ private:
     int m_cubeUnits = 0;
     int m_selected = 0;
     int m_reference = 0;
+    bool m_localReference = false;
     int m_operation = 22;
     int m_axis = 2;
     int m_count = 100;
@@ -54,6 +55,9 @@ private:
     int m_radius = 2;
     int m_exportFormat = 0;
     float m_scalar = 0.1f;
+    float m_maskLow = 0, m_maskHigh = 1;
+    float m_referenceWeight = 1;
+    int m_booleanOperation = 0;
     float m_surfaceLevel = .1f;
     float m_suggestedLevel = .1f;
     int m_renderMode = 0;

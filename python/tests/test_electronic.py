@@ -27,6 +27,32 @@ class ElectronicTests(unittest.TestCase):
         path.write_text(text, encoding="utf-8")
         return path
 
+    def test_charge_transfer_and_boolean_masks(self):
+        total, fragment = self.grid(value=3), self.grid(value=1)
+        difference = total.density_difference(fragment, fragment, weights=[1, 2])
+        self.assertEqual(difference.charge_summary(), {"accumulation": 0, "depletion": 0, "net": 0})
+        signed = Grid((2, 2, 2), ((1, 0, 0), (0, 1, 0), (0, 0, 1)),
+                      [-2, 2] * 4, unit="e/A^3")
+        positive, negative = signed.threshold_mask(0, 2), signed.threshold_mask(-2, 0)
+        self.assertEqual(positive.invert_mask().values, negative.values)
+        self.assertEqual(positive.boolean(negative, "union").values, [1] * 8)
+        self.assertEqual(positive.boolean(negative, "intersection").values, [0] * 8)
+        self.assertEqual(positive.boolean(negative, "xor").values, [1] * 8)
+        self.assertAlmostEqual(signed.apply_mask(positive).integrate(), 1)
+        accumulation, depletion = signed.split_density()
+        self.assertEqual((accumulation - depletion).values, signed.values)
+        self.assertEqual(signed.charge_summary(), {"accumulation": 1, "depletion": 1, "net": 0})
+        self.assertAlmostEqual(signed.cumulative_charge(0)[-1][1], signed.integrate())
+        self.assertAlmostEqual(total.cumulative_charge(2)[-1][1], total.integrate())
+        with self.assertRaises(ValueError):
+            signed.apply_mask(total)
+        with self.assertRaises(ValueError):
+            signed.boolean(negative)
+        with self.assertRaises(ValueError):
+            total.density_difference(fragment, weights=[])
+        with self.assertRaises(ValueError):
+            total.threshold_mask(2, 1)
+
     def test_vasp_normalization_order_spin_augmentation(self):
         text = "test\n-8\n1 0 0\n0 1 0\n0 0 1\nH\n1\nSelective dynamics\nDirect\n.5 .25 0 T T T\n\n2 2 2\n8 16 24 32 40 48 56 64\naugmentation occupancies 1 3\n1 2 3\n\n2 2 2\n0 8 0 8 0 8 0 8\n"
         fields = load_volume(self.write("CHGCAR", text)).fields

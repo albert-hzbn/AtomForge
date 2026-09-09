@@ -1,4 +1,5 @@
 #include "electronic/Volume.h"
+#include "electronic/ChargeAnalysis.h"
 
 #include <algorithm>
 #include <limits>
@@ -183,6 +184,13 @@ AF_EXPORT void* af_electronic_calculate(void* h, void* other, const char* operat
         { out->columns = 2; for (auto row : rows) { out->table.push_back(row.x); out->table.push_back(row.y); } };
         if (op == "add" || op == "subtract" || op == "multiply" || op == "divide") { need(0); field(arithmetic(g,grid(other),op)); }
         else if (op == "scale") { need(1); field(scale(g,p(0))); }
+        else if (op == "density_difference") { need(1); field(densityDifference(g,grid(other),p(0))); }
+        else if (op == "threshold_mask") { need(2); field(thresholdMask(g,p(0),p(1))); }
+        else if (op == "union" || op == "intersection" || op == "difference" || op == "xor") { need(0); field(booleanMask(g,grid(other),op)); }
+        else if (op == "apply_mask") { need(0); field(applyMask(g,grid(other))); }
+        else if (op == "split_density") { need(0); for (auto& f : splitDensity(g)) field(std::move(f)); }
+        else if (op == "charge_summary") { need(0); out->columns=3; const auto q=chargeSummary(g); out->table.assign(q.begin(),q.end()); }
+        else if (op == "cumulative_charge") { need(1); profile(cumulativeCharge(g,exactInt(p(0)))); }
         else if (op == "resample") { need(0); field(resample(g,grid(other))); }
         else if (op == "periodic") { need(1); field(periodicEndpoints(g,p(0))); }
         else if (op == "smooth") { need(2); field(smooth(g,p(0),exactInt(p(1)))); }

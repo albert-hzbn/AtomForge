@@ -41,6 +41,27 @@ Rendered image export: `.png`, `.jpg`, `.svg`
 
 Electronic grids (Analysis → Electronic Post-processing): VASP charge/potential/ELF, `.cube`, `.cub`, `.xsf`. Analysis tables export to CSV and surfaces to OBJ/PLY.
 
+Electronic charge analysis includes **Weighted density difference**, **Threshold mask**, **Boolean masks** (union, intersection, difference and XOR), **Invert mask**, **Apply mask**, **Split accumulation / depletion**, **Charge redistribution summary**, and **Cumulative charge profile**. Threshold bounds are inclusive. Masks are binary, dimensionless fields; applying them preserves the density units. Select **Use loaded/result field as reference** to combine intermediate results. Each calculated field is retained for further operations and export.
+
+For fragment studies, subtract each reference from the combined density in turn. Inputs must have matching cells, origins, sampling and boundary conventions; resampling is explicit. Use physically comparable calculations with the fragment geometries held consistently. Accumulation and depletion totals describe redistribution, while atom or fragment transfer requires a defined spatial partition. Charge tools require `e/A^3`; cumulative profiles start at the lower cell face and end at the full-cell integral.
+
+```python
+from atomforge.electronic import load_volume
+
+total = load_volume("CHGCAR-AB").fields[0]
+a = load_volume("CHGCAR-A").fields[0]
+b = load_volume("CHGCAR-B").fields[0]
+delta = total.density_difference(a, b)  # total - a - b
+accumulation, depletion = delta.split_density()
+print(delta.charge_summary())
+profile = delta.cumulative_charge(axis=2)  # distance_A, cumulative_e
+region_a = a.threshold_mask(0.01, max(a.values))
+region_b = b.threshold_mask(0.01, max(b.values))
+overlap = region_a.boolean(region_b, "intersection")
+print(delta.apply_mask(overlap).integrate())
+delta.save("difference.xsf")
+```
+
 You can also open a structure at launch by passing a file path, for example:
 
 ```bash

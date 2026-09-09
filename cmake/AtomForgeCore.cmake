@@ -25,6 +25,7 @@ add_library(atomforge_core STATIC
     ${PROJECT_SOURCE_DIR}/src/electronic/Volume.cpp
     ${PROJECT_SOURCE_DIR}/src/electronic/VolumeIO.cpp
     ${PROJECT_SOURCE_DIR}/src/electronic/FieldAnalysis.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/ChargeAnalysis.cpp
     ${PROJECT_SOURCE_DIR}/src/electronic/DensityIntegration.cpp
     ${PROJECT_SOURCE_DIR}/src/electronic/FourierAnalysis.cpp
     ${PROJECT_SOURCE_DIR}/src/electronic/Electrostatics.cpp

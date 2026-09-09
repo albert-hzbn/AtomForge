@@ -125,6 +125,61 @@ class Grid:
     def resample(self, target):
         return self._field("resample", other=target)
 
+    def density_difference(self, *references, weights=None):
+        """Return self - sum(weight * reference), in e/A^3.
+
+        Use fragment densities calculated in the same cell and geometry.
+        Alignment is required; resample explicitly when appropriate.
+        """
+        if not references:
+            raise ValueError("Provide at least one reference density")
+        weights = [1] * len(references) if weights is None else list(weights)
+        if len(weights) != len(references):
+            raise ValueError("Provide one weight per reference")
+        result = self
+        for reference, weight in zip(references, weights):
+            result = result._field("density_difference", [weight], reference)
+        return result
+
+    def threshold_mask(self, low, high):
+        """Binary mask for the inclusive interval [low, high]."""
+        return self._field("threshold_mask", [low, high])
+
+    def boolean(self, other, operation="intersection"):
+        """Combine binary masks: union, intersection, difference (self-other), xor."""
+        if operation not in ("union", "intersection", "difference", "xor"):
+            raise ValueError("Unknown Boolean mask operation")
+        return self._field(operation, other=other)
+
+    def invert_mask(self):
+        """Complement a binary mask within its cell."""
+        return self.threshold_mask(0, 1).boolean(self, "difference")
+
+    def apply_mask(self, mask):
+        """Keep density inside a binary mask, preserving the density unit."""
+        return self._field("apply_mask", other=mask)
+
+    def split_density(self):
+        """Return accumulation and positive depletion-magnitude fields."""
+        return self._fields("split_density")
+
+    def charge_summary(self):
+        """Electron accumulation, depletion magnitude and net change.
+
+        Apply to a difference density. These integrals describe redistribution;
+        they do not assign charge transfer to individual atoms or fragments.
+        """
+        values = self._calculate("charge_summary").rows()[0]
+        return dict(zip(("accumulation", "depletion", "net"), values))
+
+    def cumulative_charge(self, axis=2):
+        """(Normal distance in A, cumulative electrons) from the lower cell face.
+
+        The final row includes the full cell. Periodic profiles depend on the
+        chosen cell origin; finite grids use trapezoidal quadrature.
+        """
+        return self._calculate("cumulative_charge", [axis]).rows()
+
     def as_periodic(self, tolerance=1e-8):
         """Drop matching endpoint planes after checking all three boundaries.
 

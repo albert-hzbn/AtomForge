@@ -1,5 +1,6 @@
 #include "ui/ElectronicPostProcessing.h"
 #include "electronic/DisplayRange.h"
+#include "electronic/ChargeAnalysis.h"
 #include "imgui.h"
 
 #include <algorithm>
@@ -181,12 +182,13 @@ void ElectronicPostProcessingDialog::drawDialog()
             });
         };
         selectField("Field",m_selected,m_volume);
-        const auto& referenceVolume = m_referenceVolume.fields.empty() ? m_volume : m_referenceVolume;
+        if (!m_referenceVolume.fields.empty()) ImGui::Checkbox("Use loaded/result field as reference",&m_localReference);
+        const auto& referenceVolume = m_referenceVolume.fields.empty() || m_localReference ? m_volume : m_referenceVolume;
         m_reference = std::clamp(m_reference,0,static_cast<int>(referenceVolume.fields.size())-1);
         const Grid& g = m_volume.fields[m_selected];
         ImGui::TextDisabled("%d x %d x %d | %s",g.shape[0],g.shape[1],g.shape[2],g.unit.c_str());
         combo("Tool",&m_operation,
-            "Total integral\0Add reference\0Subtract reference (difference density)\0Multiply reference\0Divide by reference\0Scale\0Gaussian smoothing\0Cartesian gradient\0Laplacian\0Energy-density conversion\0Line profile\0Planar average\0Macroscopic average\0Plane section\0Contour segments (z=0)\0Peak search\0Voronoi site integration\0Sphere integration\0Structure factors\0Fourier synthesis\0Patterson density\0Ewald site potentials\0Isosurface\0Resample onto reference\0Verify periodic endpoint planes\0");
+            "Total integral\0Add reference\0Subtract reference (difference density)\0Multiply reference\0Divide by reference\0Scale\0Gaussian smoothing\0Cartesian gradient\0Laplacian\0Energy-density conversion\0Line profile\0Planar average\0Macroscopic average\0Plane section\0Contour segments (z=0)\0Peak search\0Voronoi site integration\0Sphere integration\0Structure factors\0Fourier synthesis\0Patterson density\0Ewald site potentials\0Isosurface\0Resample onto reference\0Verify periodic endpoint planes\0Weighted density difference\0Threshold mask\0Boolean masks\0Apply mask\0Split accumulation / depletion\0Charge redistribution summary\0Cumulative charge profile\0Invert mask\0");
         if ((m_operation >= 1 && m_operation <= 4) || m_operation == 23 || m_operation == 22) selectField("Reference",m_reference,referenceVolume);
         if (m_operation == 5) inputFloat("Scale factor",&m_scalar);
         if (m_operation == 6) { inputFloat("Sigma (A)",&m_sigma); inputInt("Radius (steps)",&m_radius); }
@@ -221,6 +223,25 @@ void ElectronicPostProcessingDialog::drawDialog()
             ImGui::Checkbox("Append surface level",&m_appendSurface);
         }
         if (m_operation == 24) ImGui::TextWrapped("For Cube/XSF covering a complete periodic cell: checks all opposite endpoint values, then removes duplicate planes. Matching values alone do not establish physical periodicity.");
+        if (m_operation==25 || m_operation==27 || m_operation==28) selectField("Operand",m_reference,referenceVolume);
+        if (m_operation==25)
+        {
+            inputFloat("Reference weight",&m_referenceWeight);
+            ImGui::TextWrapped("Result = field - weight * reference. Use aligned fragment densities from the same cell and geometry. Select the result and repeat for additional fragments.");
+        }
+        if (m_operation==26)
+        {
+            inputFloat("Lower bound",&m_maskLow,0,0,"%.6g"); inputFloat("Upper bound",&m_maskHigh,0,0,"%.6g");
+            ImGui::TextWrapped("Creates a binary mask for the inclusive value range.");
+        }
+        if (m_operation==27) combo("Boolean operation",&m_booleanOperation,"Union\0Intersection\0Difference (field minus operand)\0XOR\0");
+        if (m_operation==28) ImGui::TextWrapped("The operand must be a binary mask. Keeps field values inside the mask; integrate the result to measure regional charge.");
+        if (m_operation==29 || m_operation==30) ImGui::TextWrapped("Apply to a difference density in e/A^3. Accumulation and depletion are positive electron counts, not atom-assigned transfer charges.");
+        if (m_operation==31)
+        {
+            combo("Plane normal",&m_axis,"a*\0b*\0c*\0");
+            ImGui::TextWrapped("Cumulative electrons from the lower cell face. The final row includes the whole cell; periodic profiles depend on the cell origin.");
+        }
         ImGui::Spacing();
         if (ImGui::Button("Calculate",ImVec2(-FLT_MIN,0)) || (m_generateSurface && !m_task.running()))
         {
@@ -229,6 +250,8 @@ void ElectronicPostProcessingDialog::drawDialog()
             const int op = m_generateSurface ? 22 : m_operation;
             m_generateSurface = false;
             const int count = m_count, axis = m_axis, window = m_window, radius = m_radius;
+            const double maskLow=m_maskLow, maskHigh=m_maskHigh, referenceWeight=m_referenceWeight;
+            const int booleanOperation=m_booleanOperation;
             const double scalar = op == 22 ? m_surfaceLevel : m_scalar, sigma = m_sigma, alpha = m_alpha, realCutoff = m_realCutoff, reciprocalCutoff = m_reciprocalCutoff;
             const auto start = vector(m_start), end = vector(m_end), u = vector(m_u), v = vector(m_v);
             const std::string reflectionText(m_reflections), chargeText(m_charges);
@@ -249,6 +272,18 @@ void ElectronicPostProcessingDialog::drawDialog()
                 if (op == 0) { out.columns = 1; out.heading = "integral (field unit * A^3)"; out.table = {integrate(source)}; }
                 else if (op >= 1 && op <= 4) add(arithmetic(source,reference,std::array<const char*,4>{"add","subtract","multiply","divide"}[op-1]));
                 else if (op == 5) add(scale(source,scalar));
+                else if (op == 25) add(densityDifference(source,reference,referenceWeight));
+                else if (op == 26) add(thresholdMask(source,maskLow,maskHigh));
+                else if (op == 27) add(booleanMask(source,reference,std::array<const char*,4>{"union","intersection","difference","xor"}[booleanOperation]));
+                else if (op == 28) add(applyMask(source,reference));
+                else if (op == 29) for (auto& f : splitDensity(source)) add(std::move(f));
+                else if (op == 30)
+                {
+                    out.columns=3; out.heading="accumulation_e,depletion_e,net_e";
+                    const auto q=chargeSummary(source); out.table.assign(q.begin(),q.end());
+                }
+                else if (op == 31) { profile(cumulativeCharge(source,axis)); out.heading="distance_A,cumulative_e"; }
+                else if (op == 32) add(booleanMask(thresholdMask(source,0,1),source,"difference"));
                 else if (op == 6) add(smooth(source,sigma,radius));
                 else if (op == 7) for (auto& f : gradient(source)) add(std::move(f));
                 else if (op == 8) add(laplacian(source));

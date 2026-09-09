@@ -1,6 +1,7 @@
 #include "electronic/Volume.h"
 #include "electronic/DisplayRange.h"
 #include "electronic/SlicePlane.h"
+#include "electronic/ChargeAnalysis.h"
 
 #include <cmath>
 #include <iostream>
@@ -37,6 +38,35 @@ int main()
     try
     {
         Grid cube;
+        for (bool periodic : {false,true})
+        {
+            auto density=constant(periodic);
+            for (int z=0;z<8;++z) for (int y=0;y<8;++y) for (int x=0;x<8;++x)
+                density.values[density.index(x,y,z)]=x<4 ? -2 : 2;
+            const auto positive=thresholdMask(density,0,2), negative=thresholdMask(density,-2,0);
+            const auto both=booleanMask(positive,negative,"union");
+            close(integrate(both),24);
+            close(integrate(booleanMask(positive,negative,"intersection")),0);
+            close(integrate(booleanMask(positive,negative,"xor")),24);
+            close(integrate(booleanMask(both,positive,"difference")),12);
+            close(integrate(applyMask(density,positive)),24);
+            const auto summary=chargeSummary(density);
+            close(summary[0],24); close(summary[1],24); close(summary[2],0);
+            close(integrate(densityDifference(constant(periodic),constant(periodic),.5)),24);
+            for (int axis=0;axis<3;++axis)
+            {
+                const auto profile=cumulativeCharge(density,axis);
+                close(profile.front().y,0); close(profile.back().y,integrate(density));
+                close(cumulativeCharge(constant(periodic),axis).back().y,48);
+            }
+            rejects([&] { booleanMask(density,positive,"union"); });
+            rejects([&] { thresholdMask(density,2,-2); });
+            rejects([&] { cumulativeCharge(density,3); });
+            auto shifted=positive; shifted.origin.x+=.1;
+            rejects([&] { applyMask(density,shifted); });
+            auto potential=density; potential.unit="eV";
+            rejects([&] { chargeSummary(potential); });
+        }
         cube.values.assign(8,1);
         const auto diagonal=slicePlane(cube,{.5,.5,.5},{1,1,1});
         if (diagonal.boundary.size()!=6) throw std::runtime_error("Diagonal cube intersection must be a hexagon");
