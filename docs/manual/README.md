@@ -22,6 +22,8 @@ python docs/manual/scripts/build_manual.py
 
 Requires pdfLaTeX with the packages listed in the manual. The checked-in figures are sufficient to compile; the original CHGCAR is not needed or included.
 
+Application installation and CPack archives include the checked-in PDF automatically. Portable archives place it at `AtomForge/AtomForge-manual.pdf`; standard installations place it at `share/doc/atomforge/AtomForge-manual.pdf`. Building or packaging the application does not require LaTeX. Rebuild and check in the PDF after editing its sources so packages contain the updated manual.
+
 To regenerate builder examples and scientific plots, build AtomForge, install its local Python package plus NumPy and Matplotlib, then run:
 
 ```sh

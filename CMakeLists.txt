@@ -286,6 +286,7 @@ if(BUILD_PORTABLE)
     install(DIRECTORY python/atomforge DESTINATION "${ATOMFORGE_PORTABLE_ROOT}/python"
         PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
     install(FILES README.md DESTINATION "${ATOMFORGE_PORTABLE_ROOT}")
+    install(FILES docs/manual/AtomForge-manual.pdf DESTINATION "${ATOMFORGE_PORTABLE_ROOT}")
 
     # Bundle Open Babel plugin files (.obf), including versioned subdirectories.
     if(OPENBABEL_PLUGINDIR AND EXISTS "${OPENBABEL_PLUGINDIR}")
@@ -321,6 +322,7 @@ if(BUILD_PORTABLE)
     install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/InstallPortableDependencies.cmake")
 else()
     # Standard installation (system-wide)
+    install(FILES docs/manual/AtomForge-manual.pdf DESTINATION share/doc/atomforge)
     install(TARGETS atomforge_electronic RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
     if(WIN32)
         install(TARGETS AtomForge DESTINATION bin)
