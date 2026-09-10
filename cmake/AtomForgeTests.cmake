@@ -15,6 +15,21 @@ target_link_libraries(atomforge_electronic_tests PRIVATE AtomForge::Core)
 add_test(NAME electronic_regressions COMMAND atomforge_electronic_tests)
 
 if(TARGET AtomForge)
+    add_executable(atomforge_ui_layout_tests
+        ${PROJECT_SOURCE_DIR}/tests/ui_layout.cpp
+        ${PROJECT_SOURCE_DIR}/src/ui/ResponsiveLayout.cpp
+        ${PROJECT_SOURCE_DIR}/src/ui/ImGuiSetup.cpp
+        ${PROJECT_SOURCE_DIR}/imgui/imgui_impl_glfw.cpp
+        ${PROJECT_SOURCE_DIR}/imgui/imgui_impl_opengl3.cpp
+        ${PROJECT_SOURCE_DIR}/imgui/imgui.cpp
+        ${PROJECT_SOURCE_DIR}/imgui/imgui_draw.cpp
+        ${PROJECT_SOURCE_DIR}/imgui/imgui_tables.cpp
+        ${PROJECT_SOURCE_DIR}/imgui/imgui_widgets.cpp)
+    target_include_directories(atomforge_ui_layout_tests PRIVATE
+        ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/imgui)
+    target_link_libraries(atomforge_ui_layout_tests PRIVATE PkgConfig::GLFW3 OpenGL::GL ${CMAKE_DL_LIBS})
+    add_test(NAME ui_layout COMMAND atomforge_ui_layout_tests)
+
     find_package(OpenGL REQUIRED)
     add_executable(atomforge_viewport_tests
         ${PROJECT_SOURCE_DIR}/tests/electronic_viewport.cpp

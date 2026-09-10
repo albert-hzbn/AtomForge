@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/CustomStructureDialog.h"
 #include "io/StructureLoader.h"
 
@@ -526,9 +527,9 @@ void CustomStructureDialog::drawDialog(Structure& structure,
 
     m_isOpen = ImGui::IsPopupOpen("Custom Structure");
 
-    ImGui::SetNextWindowSize(ImVec2(1080.0f, 760.0f), ImGuiCond_FirstUseEver);
+    responsive::windowSize(ImVec2(1080.0f, 760.0f), ImGuiCond_FirstUseEver);
     bool keepOpen = true;
-    if (!ImGui::BeginPopupModal("Custom Structure", &keepOpen, 0))
+    if (!responsive::beginModal("Custom Structure", &keepOpen, 0))
     {
         m_isOpen = false;
         return;
@@ -541,12 +542,13 @@ void CustomStructureDialog::drawDialog(Structure& structure,
                        "3D model files (OBJ, STL) go to the right panel automatically.");
     ImGui::Separator();
 
-    const float panelH = 340.0f;
-    const float panelW = (ImGui::GetContentRegionAvail().x - 10.0f) * 0.5f;
-    const float previewH = 220.0f;
+    const bool stackPanels = responsive::stacked();
+    const float panelH = responsive::panelHeight(340);
+    const float panelW = stackPanels ? ImGui::GetContentRegionAvail().x : (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * .5f;
+    const float previewH = std::max(responsive::dp(100), panelH - ImGui::GetFrameHeightWithSpacing() * 3);
 
     // ========== LEFT PANEL: Crystal Structure ==========
-    ImGui::BeginChild("##scf-left", ImVec2(panelW, panelH), true);
+    responsive::beginChild("##scf-left", ImVec2(panelW, panelH), true);
     {
         const bool refLoaded = !m_reference.atoms.empty();
         ImGui::TextUnformatted("Crystal Structure");
@@ -651,10 +653,10 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     }
     ImGui::EndChild();
 
-    ImGui::SameLine();
+    responsive::nextPanel(stackPanels);
 
     // ========== RIGHT PANEL: 3D Model ==========
-    ImGui::BeginChild("##scf-right", ImVec2(0.0f, panelH), true);
+    responsive::beginChild("##scf-right", ImVec2(0.0f, panelH), true);
     {
         const bool modelLoaded = !m_modelVertices.empty();
         ImGui::TextUnformatted("3D Object");
@@ -738,7 +740,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     ImGui::SeparatorText("Fill Options");
 
     // ========== Model Scale with Angstrom reference ==========
-    ImGui::SetNextItemWidth(140.0f);
+    ImGui::SetNextItemWidth(responsive::dp(140.0f));
     ImGui::InputFloat("Scale (Angstrom per model unit)", &params.modelScale, 0.1f, 1.0f, "%.3f");
     if (params.modelScale <= 1e-4f)
         params.modelScale = 1e-4f;
@@ -754,13 +756,13 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     ImGui::Checkbox("Auto-center from reference atoms", &params.autoCenterFromAtoms);
     if (!params.autoCenterFromAtoms)
     {
-        ImGui::SetNextItemWidth(110.0f);
+        ImGui::SetNextItemWidth(responsive::dp(110.0f));
         ImGui::InputFloat("Center X", &params.cx, 0.0f, 0.0f, "%.3f");
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(110.0f);
+        ImGui::SetNextItemWidth(responsive::dp(110.0f));
         ImGui::InputFloat("Center Y", &params.cy, 0.0f, 0.0f, "%.3f");
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(110.0f);
+        ImGui::SetNextItemWidth(responsive::dp(110.0f));
         ImGui::InputFloat("Center Z", &params.cz, 0.0f, 0.0f, "%.3f");
     }
 
@@ -776,25 +778,25 @@ void CustomStructureDialog::drawDialog(Structure& structure,
 
         if (orientationType == 1)
         {
-            ImGui::SetNextItemWidth(110.0f);
+            ImGui::SetNextItemWidth(responsive::dp(110.0f));
             ImGui::InputFloat("Rot X (deg)", &rotationAngles[0], 1.0f, 10.0f, "%.2f");
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(110.0f);
+            ImGui::SetNextItemWidth(responsive::dp(110.0f));
             ImGui::InputFloat("Rot Y (deg)", &rotationAngles[1], 1.0f, 10.0f, "%.2f");
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(110.0f);
+            ImGui::SetNextItemWidth(responsive::dp(110.0f));
             ImGui::InputFloat("Rot Z (deg)", &rotationAngles[2], 1.0f, 10.0f, "%.2f");
             ImGui::TextDisabled("Type 1: manual rotation about X/Y/Z axes.");
         }
         else
         {
-            ImGui::SetNextItemWidth(90.0f);
+            ImGui::SetNextItemWidth(responsive::dp(90.0f));
             ImGui::InputInt("h", &millerIndices[0]);
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(90.0f);
+            ImGui::SetNextItemWidth(responsive::dp(90.0f));
             ImGui::InputInt("k", &millerIndices[1]);
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(90.0f);
+            ImGui::SetNextItemWidth(responsive::dp(90.0f));
             ImGui::InputInt("l", &millerIndices[2]);
             ImGui::TextDisabled("Type 2: align crystal direction [h k l] with model +Z axis.");
         }
@@ -805,13 +807,13 @@ void CustomStructureDialog::drawDialog(Structure& structure,
         ImGui::Checkbox("Auto-replicate reference cell", &params.autoReplicate);
         if (!params.autoReplicate)
         {
-            ImGui::SetNextItemWidth(80.0f);
+            ImGui::SetNextItemWidth(responsive::dp(80.0f));
             ImGui::InputInt("Reps a", &params.repA);
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(80.0f);
+            ImGui::SetNextItemWidth(responsive::dp(80.0f));
             ImGui::InputInt("Reps b", &params.repB);
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(80.0f);
+            ImGui::SetNextItemWidth(responsive::dp(80.0f));
             ImGui::InputInt("Reps c", &params.repC);
             params.repA = std::max(1, params.repA);
             params.repB = std::max(1, params.repB);
@@ -823,7 +825,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     if (params.setOutputCell)
     {
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(120.0f);
+        ImGui::SetNextItemWidth(responsive::dp(120.0f));
         ImGui::InputFloat("Vacuum (A)", &params.vacuumPadding, 0.0f, 0.0f, "%.2f");
         if (params.vacuumPadding < 0.0f)
             params.vacuumPadding = 0.0f;
@@ -850,7 +852,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
             ImGui::TextColored(themeStatusWarn(),
                                "Drop a 3D model (OBJ/STL) to continue.");
     }
-    if (ImGui::Button("Build Fill", ImVec2(140.0f, 0.0f)))
+    if (responsive::button("Build Fill", responsive::size(140.0f,0.0f)))
     {
         if (params.applyCrystalOrientation)
         {
@@ -903,7 +905,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
         ImGui::EndDisabled();
 
     ImGui::SameLine();
-    if (ImGui::Button("Close", ImVec2(100.0f, 0.0f)))
+    if (responsive::button("Close", responsive::size(100.0f,0.0f)))
         ImGui::CloseCurrentPopup();
 
     if (!m_status.empty())

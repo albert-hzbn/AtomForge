@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/CommonNeighbourAnalysis.h"
 
 #include "ui/ThemeUtils.h"
@@ -124,19 +125,19 @@ void drawCnaDetails(const CnaResult& result)
 
     ImGui::Separator();
     ImGui::Text("Pair Signature Distribution (Honeycutt-Andersen form: 1-j-k-l)");
-    ImGui::BeginChild("##cna-sig-child", ImVec2(0.0f, 180.0f), true);
+    responsive::beginChild("##cna-sig-child", responsive::size(0.0f,180.0f), true);
     drawSignatureTable(result);
     ImGui::EndChild();
 
     ImGui::Separator();
     ImGui::Text("Per-Atom Environment Summary");
-    ImGui::BeginChild("##cna-env-child", ImVec2(0.0f, 130.0f), true);
+    responsive::beginChild("##cna-env-child", responsive::size(0.0f,130.0f), true);
     drawEnvironmentTable(result);
     ImGui::EndChild();
 
     ImGui::Separator();
     ImGui::Text("Per-Atom CNA Details");
-    ImGui::BeginChild("##cna-atom-child", ImVec2(0.0f, 240.0f), true);
+    responsive::beginChild("##cna-atom-child", responsive::size(0.0f,240.0f), true);
     drawAtomTable(result);
     ImGui::EndChild();
 }
@@ -163,9 +164,9 @@ void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
         m_openRequested = false;
     }
 
-    ImGui::SetNextWindowSize(ImVec2(1100.0f, 760.0f), ImGuiCond_FirstUseEver);
+    responsive::windowSize(ImVec2(1100.0f, 760.0f), ImGuiCond_FirstUseEver);
     bool dialogOpen = true;
-    if (ImGui::BeginPopupModal("Common Neighbour Analysis", &dialogOpen, ImGuiWindowFlags_NoResize))
+    if (responsive::beginModal("Common Neighbour Analysis", &dialogOpen, ImGuiWindowFlags_NoResize))
     {
         bool changed = false;
         changed |= ImGui::Checkbox("Use PBC when unit cell is available", &usePbc);
@@ -173,7 +174,7 @@ void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
         ImGui::SameLine();
         
         bool computeRequested = false;
-        if (ImGui::Button("Run CNA") && !m_task.running())
+        if (responsive::button("Run CNA") && !m_task.running())
             computeRequested = true;
         
         ImGui::SameLine();

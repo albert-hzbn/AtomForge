@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ShortRangeOrderDialog.h"
 #include "ThemeUtils.h"
 #include <imgui.h>
@@ -175,7 +176,7 @@ static void drawWarrenCowleyResults(const SroReport& report)
         ImGui::TableSetColumnIndex(4); ImGui::Text("%.4f", e.pij);
         ImGui::TableSetColumnIndex(5);
         ImGui::TextColored(sroAlphaColor(e.alpha), "% .4f", e.alpha);
-        ImGui::SameLine(0, 6);
+        ImGui::SameLine(responsive::dp(0), 6);
         drawAlphaBar(e.alpha, 84.0f, 8.0f);
     }
     if (tableOpen) ImGui::EndTable();
@@ -245,7 +246,7 @@ static void drawRaoCurtinResults(const SroReportRC& report)
         ImGui::TableSetColumnIndex(6); ImGui::Text("%.5f", 2.0 * e.ci * e.cj);
         ImGui::TableSetColumnIndex(7);
         ImGui::TextColored(sroAlphaColor(e.alpha), "% .4f", e.alpha);
-        ImGui::SameLine(0, 6);
+        ImGui::SameLine(responsive::dp(0), 6);
         drawAlphaBar(e.alpha, 84.0f, 8.0f);
     }
     if (tableOpen) ImGui::EndTable();
@@ -292,10 +293,10 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
         state.isOpen        = true;
     }
 
-    ImGui::SetNextWindowSizeConstraints({ 720, 460 }, { 1300, 980 });
-    ImGui::SetNextWindowSize({ 920, 680 }, ImGuiCond_FirstUseEver);
+    responsive::windowConstraints({ 720, 460 }, { 1300, 980 });
+    responsive::windowSize({ 920, 680 }, ImGuiCond_FirstUseEver);
     bool open = true;
-    if (!ImGui::BeginPopupModal(kTitle, &open)) return;
+    if (!responsive::beginModal(kTitle, &open)) return;
     if (!open)
     {
         ImGui::CloseCurrentPopup();
@@ -314,8 +315,9 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
     const ImVec4 kMuted   = ImVec4(0.52f, 0.52f, 0.52f, 1.0f);
 
     const float  footerH  = ImGui::GetFrameHeightWithSpacing() + 6.0f;
-    const float  totalH   = ImGui::GetContentRegionAvail().y - footerH;
-    const float  leftW    = 218.0f;
+    const bool stackPanels = responsive::stacked();
+    const float totalH = std::max(responsive::dp(260), ImGui::GetContentRegionAvail().y - footerH);
+    const float leftW = stackPanels ? ImGui::GetContentRegionAvail().x : responsive::dp(240);
 
     bool isComputing  = state.isComputing.load(std::memory_order_relaxed);
     bool hasStructure = !structure.atoms.empty() && structure.hasUnitCell;
@@ -323,13 +325,13 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
     // ==================================================================
     // LEFT PANEL — settings + status + composition
     // ==================================================================
-    ImGui::BeginChild("##SROLeft", { leftW, totalH }, true);
+    responsive::beginChild("##SROLeft", { leftW, totalH }, true);
 
     ImGui::TextColored(kAccent, "Settings");
     ImGui::Separator();
     ImGui::Spacing();
 
-    ImGui::PushItemWidth(-1.0f);
+    ImGui::PushItemWidth(responsive::dp(-1.0f));
 
     ImGui::TextDisabled("Neighbor shells");
     ImGui::BeginDisabled(isComputing);
@@ -361,7 +363,7 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
     ImGui::PushStyleColor(ImGuiCol_Button,        { 0.13f, 0.48f, 0.82f, 1.0f });
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 0.22f, 0.62f, 1.0f,  1.0f });
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,  { 0.08f, 0.33f, 0.62f, 1.0f });
-    if (ImGui::Button("  Run Analysis  ##SRO", { -1.0f, 32.0f }))
+    if (responsive::button("  Run Analysis  ##SRO", { -1.0f, 32.0f }))
     {
         // Join any previous (already-finished) thread
         if (state.workerThread && state.workerThread->joinable())
@@ -405,9 +407,9 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
         ImGui::TextColored(kGood, "Complete");
         ImGui::Spacing();
 
-        ImGui::TextDisabled("Atoms");    ImGui::SameLine(70.0f);
+        ImGui::TextDisabled("Atoms");    ImGui::SameLine(responsive::dp(70.0f));
         ImGui::Text("%d", state.results.warrenCowley.nAtoms);
-        ImGui::TextDisabled("Shells");   ImGui::SameLine(70.0f);
+        ImGui::TextDisabled("Shells");   ImGui::SameLine(responsive::dp(70.0f));
         ImGui::Text("%d", state.results.warrenCowley.nShells);
 
         // Per-element fraction bars
@@ -431,7 +433,7 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
             ImGui::TextUnformatted(label);
 
             // Bar on the same line, remaining width
-            ImGui::SameLine(0, 6);
+            ImGui::SameLine(responsive::dp(0), 6);
             ImVec2 bpos = ImGui::GetCursorScreenPos();
             float barH = ImGui::GetTextLineHeight() * 0.75f;
             float by   = bpos.y + (ImGui::GetTextLineHeight() - barH) * 0.5f;
@@ -453,12 +455,12 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
     }
 
     ImGui::EndChild(); // left panel
-    ImGui::SameLine();
+    responsive::nextPanel(stackPanels);
 
     // ==================================================================
     // RIGHT PANEL — results tabs
     // ==================================================================
-    ImGui::BeginChild("##SRORight", { 0.0f, totalH }, false);
+    responsive::beginChild("##SRORight", { 0.0f, totalH }, false);
 
     if (!state.hasResults && !isComputing)
     {
@@ -488,14 +490,14 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
             {
                 state.selectedMethod = 0;
                 ImGui::Spacing();
-                ImGui::BeginChild("##SROWCScroll", { 0,0 }, false,
+                responsive::beginChild("##SROWCScroll", { 0,0 }, false,
                                   ImGuiWindowFlags_HorizontalScrollbar);
                 drawWarrenCowleyResults(state.results.warrenCowley);
                 ImGui::Spacing();
                 ImGui::Separator();
                 ImGui::Spacing();
                 ImGui::TextColored(kMuted, u8"\u03b1\u1d62\u2c7c colormap:");
-                ImGui::SameLine(0, 6);
+                ImGui::SameLine(responsive::dp(0), 6);
                 drawColorLegend(260.0f);
                 ImGui::EndChild();
                 ImGui::EndTabItem();
@@ -508,14 +510,14 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
             {
                 state.selectedMethod = 1;
                 ImGui::Spacing();
-                ImGui::BeginChild("##SRORCScroll", { 0,0 }, false,
+                responsive::beginChild("##SRORCScroll", { 0,0 }, false,
                                   ImGuiWindowFlags_HorizontalScrollbar);
                 drawRaoCurtinResults(state.results.raoCurtin);
                 ImGui::Spacing();
                 ImGui::Separator();
                 ImGui::Spacing();
                 ImGui::TextColored(kMuted, u8"\u03b1\u1d62\u2c7c colormap:");
-                ImGui::SameLine(0, 6);
+                ImGui::SameLine(responsive::dp(0), 6);
                 drawColorLegend(260.0f);
                 ImGui::EndChild();
                 ImGui::EndTabItem();
@@ -593,7 +595,7 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
                         IM_COL32((int)(row.col.x*255),(int)(row.col.y*255),
                                  (int)(row.col.z*255), 220), 3.0f);
                     ImGui::Dummy({ 14, 14 });
-                    ImGui::SameLine(0, 6);
+                    ImGui::SameLine(responsive::dp(0), 6);
                     ImGui::TextColored(row.col, "%s", row.label);
                     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20.0f);
                     ImGui::TextWrapped("%s", row.desc);
@@ -643,7 +645,7 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
 
     float closeX = ImGui::GetContentRegionAvail().x - 104.0f;
     if (closeX > 0.0f) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + closeX);
-    if (ImGui::Button("Close##SROClose", { 100.0f, 0.0f }))
+    if (responsive::button("Close##SROClose", { 100.0f, 0.0f }))
     {
         ImGui::CloseCurrentPopup();
         state.isOpen = false;

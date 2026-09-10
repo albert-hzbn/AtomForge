@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "StructureInfoDialog.h"
 
 #include "ElementData.h"
@@ -380,9 +381,9 @@ void drawStructureInfoDialog(StructureInfoDialogState& state,
         state.openRequested = false;
     }
 
-    ImGui::SetNextWindowSize(ImVec2(980.0f, 700.0f), ImGuiCond_FirstUseEver);
+    responsive::windowSize(ImVec2(980.0f, 700.0f), ImGuiCond_FirstUseEver);
     bool popupOpen = true;
-    if (ImGui::BeginPopupModal("Structure Info", &popupOpen, ImGuiWindowFlags_NoResize))
+    if (responsive::beginModal("Structure Info", &popupOpen, ImGuiWindowFlags_NoResize))
     {
         ImGui::Text("Structure Summary");
         ImGui::Separator();
@@ -435,7 +436,7 @@ void drawStructureInfoDialog(StructureInfoDialogState& state,
             glm::vec3 origin(0.0f);
             bool hasValidLattice = buildLatticeMatrix(structure, lattice, origin);
 
-            ImGui::BeginChild("##positions", ImVec2(940.0f, 250.0f), true);
+            responsive::beginChild("##positions", responsive::size(940.0f,250.0f), true);
             drawAtomicPositionsTable(structure, hasValidLattice);
             ImGui::EndChild();
         }

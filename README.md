@@ -16,6 +16,7 @@ Read the [detailed user manual (PDF)](docs/manual/AtomForge-manual.pdf) for feat
 
 ## Features
 
+- Fonts, controls, and dialogs follow display scaling. **Settings > Interface size** offers Automatic, Compact (85%), Larger (125%), Large (150%), and Extra large (200%) for the current session. Large builders and analysis tools stack their panels in narrow windows; dialogs stay within the available work area and scroll when necessary.
 - Build structures with bulk crystal, substitutional solid solution, CSL grain boundary, nanocrystal, custom mesh-fill, polycrystal, and amorphous workflows. Stacking Faults is optional (`ATOMFORGE_ENABLE_SFE_BUILDER=ON`); the interface builder is not exposed in the current desktop menus.
 - Create Wulff-style and shape-based nanocrystals, including non-cubic periodic references.
 - Merge multiple loaded structures in an interactive 3D workflow with per-structure transforms.

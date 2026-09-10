@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/ElectronicPostProcessing.h"
 #include "electronic/DisplayRange.h"
 #include "electronic/ChargeAnalysis.h"
@@ -132,11 +133,12 @@ void ElectronicPostProcessingDialog::drawDialog()
         m_pendingDrops.pop_front();
         load(dropped.first,dropped.second);
     }
-    ImGui::SetNextWindowSize(ImVec2(1380,860),ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(980,680),ImVec2(FLT_MAX,FLT_MAX));
-    if (!ImGui::Begin("Electronic Post-processing",&m_open,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
-    const float sidebar = std::clamp(ImGui::GetContentRegionAvail().x * .38f,340.0f,440.0f);
-    ImGui::BeginChild("Electronic controls",ImVec2(sidebar,0),true);
+    responsive::windowSize(ImVec2(1380,860),ImGuiCond_FirstUseEver);
+    responsive::windowConstraints(ImVec2(980,680),ImVec2(FLT_MAX,FLT_MAX));
+    if (!responsive::begin("Electronic Post-processing",&m_open,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
+    const bool stackPanels = responsive::stacked(1000);
+    const float sidebar = stackPanels ? ImGui::GetContentRegionAvail().x : std::clamp(ImGui::GetContentRegionAvail().x * .38f,responsive::dp(340),responsive::dp(440));
+    responsive::beginChild("Electronic controls",ImVec2(sidebar,stackPanels ? responsive::dp(420) : 0),true);
     ImGui::BeginDisabled(m_task.running());
     dialogLayout::section("Tools");
     if (ImGui::RadioButton("Charge transfer",m_toolGroup==1)) { m_toolGroup=1; m_operation=25; }
@@ -165,12 +167,12 @@ void ElectronicPostProcessingDialog::drawDialog()
     const float buttonWidth = (ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
     if (dialogLayout::primaryButton("Open volume...",ImVec2(buttonWidth,0))) { m_pickerAction=0; m_picker.open("Open electronic volume",false,m_loadedPath); }
     ImGui::SameLine();
-    if (ImGui::Button("Reference...",ImVec2(buttonWidth,0))) { m_pickerAction=1; m_picker.open("Open reference volume",false,m_referencePath.empty() ? m_loadedPath : m_referencePath); }
+    if (responsive::button("Reference...",ImVec2(buttonWidth,0))) { m_pickerAction=1; m_picker.open("Open reference volume",false,m_referencePath.empty() ? m_loadedPath : m_referencePath); }
     ImGui::BeginDisabled(m_loadedPath.empty());
-    if (ImGui::Button("Reload volume",ImVec2(buttonWidth,0))) load(m_loadedPath,false);
+    if (responsive::button("Reload volume",ImVec2(buttonWidth,0))) load(m_loadedPath,false);
     ImGui::EndDisabled();
     ImGui::SameLine();
-    if (ImGui::Button("Clear",ImVec2(buttonWidth,0)))
+    if (responsive::button("Clear",ImVec2(buttonWidth,0)))
     {
         m_volume={}; m_referenceVolume={}; m_result={}; m_surface={}; m_pendingDrops.clear();
         m_viewport.setMesh(m_surface); m_selected=m_reference=0; m_sliceField=-1; m_loadedPath.clear(); m_referencePath.clear(); resetCamera();
@@ -398,7 +400,7 @@ void ElectronicPostProcessingDialog::drawDialog()
                 output.replace_extension(std::array<const char*,6>{".xsf",".cube",".vasp",".csv",".obj",".ply"}[m_exportFormat]);
                 std::snprintf(m_output,sizeof(m_output),"%s",output.u8string().c_str());
             }
-            if (ImGui::Button("Save as...",ImVec2(-FLT_MIN,0)))
+            if (responsive::button("Save as...",ImVec2(-FLT_MIN,0)))
             {
                 auto output = std::filesystem::u8path(m_output);
                 if (!output.has_parent_path() && !m_loadedPath.empty())
@@ -430,8 +432,8 @@ void ElectronicPostProcessingDialog::drawDialog()
         }
     }
     ImGui::EndChild();
-    ImGui::SameLine();
-    ImGui::BeginChild("Electronic results",ImVec2(0,0),false,ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoScrollbar);
+    responsive::nextPanel(stackPanels);
+    responsive::beginChild("Electronic results",responsive::size(0,stackPanels ? 620 : 0),false,ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoScrollbar);
     if (!m_result.table.empty() && ImGui::CollapsingHeader("Results table",ImGuiTreeNodeFlags_DefaultOpen))
     {
         ImGui::TextWrapped("%s",m_result.heading.c_str());
@@ -441,7 +443,7 @@ void ElectronicPostProcessingDialog::drawDialog()
             for (std::size_t i = 1; i < m_result.table.size(); i += 2) values.push_back(static_cast<float>(m_result.table[i]));
             ImGui::PlotLines("Profile",values.data(),static_cast<int>(values.size()),0,nullptr,FLT_MAX,FLT_MAX,ImVec2(-1,140));
         }
-        ImGui::BeginChild("Electronic table",ImVec2(0,100),true);
+        responsive::beginChild("Electronic table",responsive::size(0,100),true);
         for (std::size_t i = 0; i < std::min<std::size_t>(m_result.table.size(),m_result.columns * 200); i += m_result.columns)
         {
             std::ostringstream row;
@@ -506,7 +508,7 @@ void ElectronicPostProcessingDialog::resetCamera()
 
 void ElectronicPostProcessingDialog::drawPreview()
 {
-    ImGui::SetNextItemWidth(-1);
+    ImGui::SetNextItemWidth(responsive::dp(-1));
     ImGui::Combo("##view layout",&m_viewLayout,"3D and 2D\0Only 3D\0Only 2D\0");
     if (m_volume.fields.empty())
     {
@@ -533,15 +535,15 @@ void ElectronicPostProcessingDialog::drawPreview()
     const auto flags=ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse;
     if (m_viewLayout!=2)
     {
-        ImGui::BeginChild("3D view",ImVec2(viewWidth,0),true,flags);
+        responsive::beginChild("3D view",ImVec2(viewWidth,0),true,flags);
         ImGui::TextUnformatted("3D view");
-        ImGui::SetNextItemWidth(-1);
+        ImGui::SetNextItemWidth(responsive::dp(-1));
         ImGui::Combo("##render mode",&m_renderMode,"Volume (interior density)\0Isosurface (boundary)\0");
         ImGui::BeginDisabled(m_task.running());
         ImGui::TextUnformatted(m_renderMode==0 ? "Density threshold" : "3D isovalue");
-        ImGui::SetNextItemWidth(-1);
+        ImGui::SetNextItemWidth(responsive::dp(-1));
         ImGui::InputFloat("##surface level",&m_surfaceLevel,0,0,"%.5g");
-        if (ImGui::Button("Estimate level")) m_surfaceLevel=m_suggestedLevel;
+        if (responsive::button("Estimate level")) m_surfaceLevel=m_suggestedLevel;
         ImGui::TextWrapped("Field range: %.5g to %.5g %s",m_sliceLow,m_sliceHigh,grid.unit.c_str());
         const bool invalid=!std::isfinite(m_surfaceLevel) || m_surfaceLevel<m_sliceLow || m_surfaceLevel>m_sliceHigh;
         if (invalid)
@@ -554,12 +556,12 @@ void ElectronicPostProcessingDialog::drawPreview()
         if (m_renderMode==1)
         {
             ImGui::BeginDisabled(invalid || m_sliceLow==m_sliceHigh);
-            if (ImGui::Button("Update surface",ImVec2(-FLT_MIN,0))) m_generateSurface=true;
+            if (responsive::button("Update surface",ImVec2(-FLT_MIN,0))) m_generateSurface=true;
             ImGui::EndDisabled();
         }
         ImGui::EndDisabled();
         ImGui::TextUnformatted("Transparency");
-        ImGui::SetNextItemWidth(-1);
+        ImGui::SetNextItemWidth(responsive::dp(-1));
         float transparency=1-m_opacity;
         if (ImGui::SliderFloat("##transparency",&transparency,0,1,"%.2f")) m_opacity=1-transparency;
         ImGui::Checkbox("Show slice plane",&m_showSlicePlane);
@@ -569,7 +571,7 @@ void ElectronicPostProcessingDialog::drawPreview()
     if (m_viewLayout==0) ImGui::SameLine();
     if (m_viewLayout!=1)
     {
-        ImGui::BeginChild("2D view",ImVec2(viewWidth,0),true,ImGuiWindowFlags_NoScrollWithMouse);
+        responsive::beginChild("2D view",ImVec2(viewWidth,0),true,ImGuiWindowFlags_NoScrollWithMouse);
         try
         {
             // The section's density scale remains independent of a potential
@@ -583,7 +585,7 @@ void ElectronicPostProcessingDialog::drawPreview()
 
 void ElectronicPostProcessingDialog::draw3DPreview()
 {
-    if (ImGui::Button("Fit view")) resetCamera();
+    if (responsive::button("Fit view")) resetCamera();
     ImGui::TextWrapped("Drag: orbit | Right drag: pan | Wheel: zoom");
     const auto pos=ImGui::GetCursorScreenPos();
     const ImVec2 size(std::max(100.0f,ImGui::GetContentRegionAvail().x),std::max(150.0f,ImGui::GetContentRegionAvail().y-52));

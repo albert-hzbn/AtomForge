@@ -19,7 +19,7 @@ REFERENCE = MANUAL / "chapters/12-api-signatures.tex"
 WIDGET = re.compile(
     r'(?:ImGui::(?:Button|Checkbox|RadioButton|Combo|BeginCombo|MenuItem|'
     r'Input\w*|Drag\w*|Slider\w*|ColorEdit\w*|CollapsingHeader|BeginTabItem)|'
-    r'dialogLayout::primaryButton|inputFloat|inputInt|inputVector|combo|slider|'
+    r'dialogLayout::primaryButton|responsive::button|inputFloat|inputInt|inputVector|combo|slider|'
     r'lightRow|matRow|inputField)\s*\(\s*"((?:\\.|[^"\\])*)"'
 )
 HELP_NAMES = {

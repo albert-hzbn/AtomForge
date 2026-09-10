@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <cmath>
 
 namespace
 {
@@ -15,18 +16,19 @@ constexpr float kBaseFontSizePixels = 18.0f;
 
 ImGuiStyle gBaseStyle;
 float gUiScale = 1.0f;
+float gInterfaceScale = 1.0f;
 bool gBaseStyleCaptured = false;
 bool gImGuiBackendsReady = false;
 
 float clampUiScale(float scale)
 {
-    return std::max(1.0f, std::min(scale, 4.0f));
+    return std::clamp(scale, 0.85f, 4.0f);
 }
 
 float computeUiScale(GLFWwindow* window)
 {
     if (!window)
-        return 1.0f;
+        return gInterfaceScale;
 
     float contentScaleX = 1.0f;
     float contentScaleY = 1.0f;
@@ -39,6 +41,10 @@ float computeUiScale(GLFWwindow* window)
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
     glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
 
+    // A minimized window can temporarily report a zero-sized framebuffer.
+    if (windowWidth <= 0 || windowHeight <= 0 || framebufferWidth <= 0 || framebufferHeight <= 0)
+        return gUiScale;
+
     float framebufferScaleX = 1.0f;
     float framebufferScaleY = 1.0f;
     if (windowWidth > 0)
@@ -46,10 +52,11 @@ float computeUiScale(GLFWwindow* window)
     if (windowHeight > 0)
         framebufferScaleY = (float)framebufferHeight / (float)windowHeight;
 
+    // GLFW coordinates already include framebuffer scaling on Retina displays.
+    // Apply only the remaining logical content scale to avoid doubling UI sizes.
     const float scale = std::max(
-        std::max(contentScaleX, contentScaleY),
-        std::max(framebufferScaleX, framebufferScaleY));
-    return clampUiScale(scale);
+        contentScaleX / framebufferScaleX, contentScaleY / framebufferScaleY);
+    return clampUiScale(scale * gInterfaceScale);
 }
 
 void captureBaseStyle()
@@ -62,6 +69,10 @@ void applyScaledStyle()
 {
     ImGuiStyle scaled = gBaseStyle;
     scaled.ScaleAllSizes(gUiScale);
+    // ImGui 1.92 bakes glyphs on demand at the requested size. Keep a stable
+    // base size and use the style multiplier rather than recreating the atlas.
+    scaled.FontSizeBase = kBaseFontSizePixels;
+    scaled.FontScaleMain = gUiScale;
     scaled.DisplayWindowPadding = ImVec2(0.0f, 0.0f);
     scaled.DisplaySafeAreaPadding = ImVec2(0.0f, 0.0f);
     ImGui::GetStyle() = scaled;
@@ -73,7 +84,7 @@ void rebuildFonts()
     io.Fonts->Clear();
 
     ImFontConfig fontConfig;
-    fontConfig.SizePixels = kBaseFontSizePixels * gUiScale;
+    fontConfig.SizePixels = kBaseFontSizePixels;
     io.FontGlobalScale = 1.0f;
 
     // Prefer the platform UI font, with a built-in fallback on minimal systems.
@@ -93,7 +104,7 @@ void rebuildFonts()
 #endif
     ImFontConfig mergeConfig;
     mergeConfig.MergeMode   = false;
-    mergeConfig.SizePixels  = kBaseFontSizePixels * gUiScale;
+    mergeConfig.SizePixels  = kBaseFontSizePixels;
     mergeConfig.OversampleH = 2;
     mergeConfig.OversampleV = 1;
     bool loaded = false;
@@ -104,7 +115,7 @@ void rebuildFonts()
         if (!std::filesystem::is_regular_file(kSystemFontCandidates[i],error)) continue;
         if (io.Fonts->AddFontFromFileTTF(
                 kSystemFontCandidates[i],
-                kBaseFontSizePixels * gUiScale,
+                kBaseFontSizePixels,
                 &mergeConfig,
                 ranges))
         { loaded = true; break; }
@@ -152,6 +163,7 @@ void applyCommonStyle()
 void applyDarkTheme()
 {
     ImGuiStyle& style = ImGui::GetStyle();
+    style = ImGuiStyle();
     ImVec4* colors = style.Colors;
 
     ImGui::StyleColorsDark(&style);
@@ -193,6 +205,7 @@ void applyDarkTheme()
 void applyLightTheme()
 {
     ImGuiStyle& style = ImGui::GetStyle();
+    style = ImGuiStyle();
     ImVec4* colors = style.Colors;
 
     ImGui::StyleColorsLight(&style);
@@ -240,6 +253,7 @@ void initImGui(GLFWwindow* window)
 
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigWindowsMoveFromTitleBarOnly = true;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.IniFilename = nullptr;
 
     applyLightTheme();
@@ -262,12 +276,18 @@ void updateImGuiScale(GLFWwindow* window)
         return;
 
     const float newScale = computeUiScale(window);
-    if (newScale == gUiScale)
+    if (std::abs(newScale - gUiScale) < 0.01f)
         return;
 
     gUiScale = newScale;
     applyScaledStyle();
-    rebuildFonts();
+}
+
+float interfaceScale() { return gInterfaceScale; }
+
+void setInterfaceScale(float multiplier)
+{
+    if (std::isfinite(multiplier)) gInterfaceScale = std::clamp(multiplier, 0.85f, 2.0f);
 }
 
 void shutdownImGui()
@@ -275,6 +295,7 @@ void shutdownImGui()
     gImGuiBackendsReady = false;
     gBaseStyleCaptured = false;
     gUiScale = 1.0f;
+    gInterfaceScale = 1.0f;
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();

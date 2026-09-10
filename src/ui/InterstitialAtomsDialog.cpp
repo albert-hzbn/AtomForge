@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/InterstitialAtomsDialog.h"
 #include "io/StructureLoader.h"
 
@@ -1138,10 +1139,10 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
     }
 
     m_isOpen = ImGui::IsPopupOpen("Add Interstitial Atoms");
-    ImGui::SetNextWindowSize(ImVec2(1100.0f, 720.0f), ImGuiCond_FirstUseEver);
+    responsive::windowSize(ImVec2(1100.0f, 720.0f), ImGuiCond_FirstUseEver);
 
     bool keepOpen = true;
-    if (!ImGui::BeginPopupModal("Add Interstitial Atoms", &keepOpen, ImGuiWindowFlags_NoCollapse))
+    if (!responsive::beginModal("Add Interstitial Atoms", &keepOpen, ImGuiWindowFlags_NoCollapse))
     {
         m_isOpen = false;
         return;
@@ -1153,12 +1154,13 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
         rebuildPreviewBuffers(elementRadii, elementShininess);
 
     // ---- Layout: left preview panel | right controls, bottom bar ----
-    const float kPreviewW   = 560.0f;
-    const float kBottomBarH = 54.0f;
-    const float contentH    = ImGui::GetContentRegionAvail().y - kBottomBarH;
+    const bool stackPanels = responsive::stacked();
+    const float kPreviewW = responsive::previewWidth(560);
+    const float kBottomBarH = ImGui::GetFrameHeightWithSpacing() * 2;
+    const float contentH = std::max(responsive::dp(200), ImGui::GetContentRegionAvail().y - kBottomBarH);
 
     // ---- Left: GL FBO preview / drop zone ----
-    ImGui::BeginChild("##interstitial-preview-panel", ImVec2(kPreviewW, contentH), false,
+    responsive::beginChild("##interstitial-preview-panel", ImVec2(kPreviewW, contentH), false,
                       ImGuiWindowFlags_NoScrollbar);
     {
         const ImVec2 avail    = ImGui::GetContentRegionAvail();
@@ -1221,16 +1223,16 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
     }
     ImGui::EndChild();
 
-    ImGui::SameLine();
+    responsive::nextPanel(stackPanels);
 
     // ---- Right: controls ----
-    ImGui::BeginChild("##interstitial-controls", ImVec2(0.0f, contentH), false);
+    responsive::beginChild("##interstitial-controls", ImVec2(0.0f, contentH), false);
     {
         // Source
         ImGui::Text("Source");
         ImGui::Separator();
 
-        if (ImGui::Button("Use Current Scene"))
+        if (responsive::button("Use Current Scene"))
         {
             if (structure.atoms.empty())
             {
@@ -1271,20 +1273,20 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
         ImGui::Text("Void Detection");
         ImGui::Separator();
 
-        ImGui::SetNextItemWidth(180.0f);
+        ImGui::SetNextItemWidth(responsive::dp(180.0f));
         ImGui::SliderInt("Grid", &m_gridResolution, 8, 30);
-        ImGui::SetNextItemWidth(180.0f);
+        ImGui::SetNextItemWidth(responsive::dp(180.0f));
         ImGui::InputInt("Max Voids", &m_maxVoids);
         m_maxVoids = std::max(0, m_maxVoids);
         ImGui::TextDisabled("0 = detect all voids");
-        ImGui::SetNextItemWidth(180.0f);
+        ImGui::SetNextItemWidth(responsive::dp(180.0f));
         ImGui::DragFloat("Min Clearance (A)", &m_minClearance, 0.02f, 0.05f, 5.0f, "%.2f");
-        ImGui::SetNextItemWidth(180.0f);
+        ImGui::SetNextItemWidth(responsive::dp(180.0f));
         ImGui::DragFloat("Min Separation (A)", &m_minSeparation, 0.02f, 0.05f, 5.0f, "%.2f");
 
         if (!m_sourceLoaded)
             ImGui::BeginDisabled();
-        if (ImGui::Button("Detect Voids", ImVec2(140.0f, 0.0f)))
+        if (responsive::button("Detect Voids", responsive::size(140.0f,0.0f)))
         {
             if (detectVoids())
             {
@@ -1341,10 +1343,10 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
         ImGui::Text("Void Types For Distribution");
         if (!m_voidTypeOptions.empty())
         {
-            if (ImGui::Button("Select All Types"))
+            if (responsive::button("Select All Types"))
                 std::fill(m_voidTypeSelections.begin(), m_voidTypeSelections.end(), (char)1);
             ImGui::SameLine();
-            if (ImGui::Button("Clear All Types"))
+            if (responsive::button("Clear All Types"))
                 std::fill(m_voidTypeSelections.begin(), m_voidTypeSelections.end(), (char)0);
 
             ImGui::TextDisabled("Use checkboxes to choose one or multiple void types.");
@@ -1368,7 +1370,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
 
         ImGui::Checkbox("Show Void Polyhedra in Scene", &m_showVoidOverlay);
 
-        if (ImGui::Button("Select Element"))
+        if (responsive::button("Select Element"))
             openPeriodicTable();
         std::vector<ElementSelection> pick;
         if (drawPeriodicTable(pick) && !pick.empty())
@@ -1383,7 +1385,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
         };
         int placement = (m_placementMode == PlacementMode::Random) ? 0
                       : (m_placementMode == PlacementMode::MeshRegion) ? 1 : 2;
-        ImGui::SetNextItemWidth(280.0f);
+        ImGui::SetNextItemWidth(responsive::dp(280.0f));
         if (ImGui::Combo("Mode", &placement, placementItems, 3))
         {
             if (placement == 0)
@@ -1404,26 +1406,26 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
         {
             const char* targetItems[] = {"By percentage", "By atom count"};
             int target = (m_targetMode == TargetMode::Percent) ? 0 : 1;
-            ImGui::SetNextItemWidth(160.0f);
+            ImGui::SetNextItemWidth(responsive::dp(160.0f));
             if (ImGui::Combo("Target", &target, targetItems, 2))
                 m_targetMode = (target == 0) ? TargetMode::Percent : TargetMode::Count;
 
             if (m_targetMode == TargetMode::Percent)
             {
-                ImGui::SetNextItemWidth(160.0f);
+                ImGui::SetNextItemWidth(responsive::dp(160.0f));
                 ImGui::SliderFloat("Percent", &m_targetPercent, 0.0f, 100.0f, "%.1f%%");
             }
             else
             {
-                ImGui::SetNextItemWidth(160.0f);
+                ImGui::SetNextItemWidth(responsive::dp(160.0f));
                 ImGui::InputInt("Atom Count", &m_targetCount);
                 m_targetCount = std::max(0, m_targetCount);
             }
         }
 
-        ImGui::SetNextItemWidth(160.0f);
+        ImGui::SetNextItemWidth(responsive::dp(160.0f));
         ImGui::InputInt("Seed", &m_seed);
-        ImGui::SetNextItemWidth(180.0f);
+        ImGui::SetNextItemWidth(responsive::dp(180.0f));
         ImGui::DragFloat("Min Insert Distance (A)", &m_minInsertDistance, 0.02f, 0.0f, 5.0f, "%.2f");
 
         // Mesh Region
@@ -1460,12 +1462,12 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
 
             ImGui::Spacing();
             ImGui::TextDisabled("Fine-tune with numeric controls:");
-            ImGui::SetNextItemWidth(160.0f);
+            ImGui::SetNextItemWidth(responsive::dp(160.0f));
             ImGui::DragFloat("Scale", &m_meshScale, 0.01f, 1e-4f, 1000.0f, "%.3f");
             ImGui::DragFloat3("Translate", &m_meshTranslation.x, 0.05f, -10000.0f, 10000.0f, "%.2f");
             ImGui::DragFloat3("Rotate (deg)", &m_meshRotationDeg.x, 0.5f, -360.0f, 360.0f, "%.1f");
 
-            if (ImGui::Button("Reset Transform"))
+            if (responsive::button("Reset Transform"))
             {
                 m_meshTranslation = glm::vec3(0.0f);
                 m_meshRotationDeg = glm::vec3(0.0f);
@@ -1485,7 +1487,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
     if (!canApply)
         ImGui::BeginDisabled();
 
-    if (ImGui::Button("Apply Interstitials", ImVec2(180.0f, 0.0f)))
+    if (responsive::button("Apply Interstitials", responsive::size(180.0f,0.0f)))
     {
         Structure out;
         const int added = applyPlacement(out, elementColors);
@@ -1511,7 +1513,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
         ImGui::EndDisabled();
 
     ImGui::SameLine();
-    if (ImGui::Button("Close", ImVec2(120.0f, 0.0f)))
+    if (responsive::button("Close", responsive::size(120.0f,0.0f)))
     {
         ImGui::CloseCurrentPopup();
         m_isOpen = false;

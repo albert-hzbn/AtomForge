@@ -43,6 +43,6 @@ Check source drift and the generated API/CLI reference:
 python docs/manual/scripts/check_coverage.py --verify-executable build/AtomForge.exe
 ```
 
-`coverage.json` maps 106 source files to manual chapters and records 580 literal UI control declarations, including internal IDs. It is a source-drift check, not an automated proof of semantic completeness. After a code change, review the affected features and update the prose before running `check_coverage.py --refresh`. Normal PDF builds run the coverage check automatically. On other platforms, pass the corresponding executable path or omit `--verify-executable` for a source-only check.
+`coverage.json` maps 108 source files to manual chapters and records 585 literal UI control declarations, including internal IDs. It is a source-drift check, not an automated proof of semantic completeness. After a code change, review the affected features and update the prose before running `check_coverage.py --refresh`. Normal PDF builds run the coverage check automatically. On other platforms, pass the corresponding executable path or omit `--verify-executable` for a source-only check.
 
 The dislocation example is a geometric starting configuration; its generation reports a lattice-family change warning. It preserves 500 host atoms and is included to demonstrate the operation, not to claim a relaxed defect structure.

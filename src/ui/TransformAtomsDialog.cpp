@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "TransformAtomsDialog.h"
 
 #include "imgui.h"
@@ -50,7 +51,7 @@ void TransformAtomsDialog::drawDialog(const std::function<void()>& onApply)
     }
 
     bool transformAtomsOpen = true;
-    if (ImGui::BeginPopupModal(kTransformPopupTitle, &transformAtomsOpen, ImGuiWindowFlags_AlwaysAutoResize))
+    if (responsive::beginModal(kTransformPopupTitle, &transformAtomsOpen, ImGuiWindowFlags_AlwaysAutoResize))
     {
         dialogLayout::section("Transformation matrix");
         ImGui::TextUnformatted("Enter three rows of integer coefficients.");
@@ -73,7 +74,7 @@ void TransformAtomsDialog::drawDialog(const std::function<void()>& onApply)
             onApply();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Cancel",dialogLayout::actionSize())) ImGui::CloseCurrentPopup();
+        if (responsive::button("Cancel",dialogLayout::actionSize())) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
     if (!transformAtomsOpen)

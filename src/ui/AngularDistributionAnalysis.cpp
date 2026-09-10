@@ -1,4 +1,5 @@
-﻿#include "AngularDistributionAnalysis.h"
+#include "ui/ResponsiveLayout.h"
+#include "AngularDistributionAnalysis.h"
 #include "ThemeUtils.h"
 
 #include <imgui.h>
@@ -101,7 +102,7 @@ void AngularDistributionAnalysisDialog::drawPlot()
     const ImU32 refLblCol  = lt ? IM_COL32(110, 122, 145, 210) : IM_COL32(120, 138, 165, 220);
     const ImU32 crosshairC = lt ? IM_COL32( 80,  88, 108, 160) : IM_COL32(185, 195, 215, 150);
 
-    ImGui::BeginChild("##adf-plot", ImVec2(-1.0f, 270.0f), true,
+    responsive::beginChild("##adf-plot", responsive::size(-1.0f,270.0f), true,
                       ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -628,7 +629,7 @@ void AngularDistributionAnalysisDialog::drawSettings(const Structure& structure)
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
                 ImGui::SetTooltip("Zoom the plot to an angle sub-range.\nDoes not affect the computation.");
             ImGui::TableSetColumnIndex(1);
-            if (ImGui::Button("All"))
+            if (responsive::button("All"))
                 { m_xMin = 0.0f; m_xMax = 180.0f; }
             ImGui::SetItemTooltip("Reset to full 0" "\xe2\x80\x93" "180\xc2\xb0 view.");
             ImGui::EndTable();
@@ -671,10 +672,10 @@ void AngularDistributionAnalysisDialog::drawDialog(const Structure& structure)
 
     ImVec2 centre = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(centre, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(920.0f, 660.0f), ImGuiCond_Appearing);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(640.0f, 420.0f), ImVec2(FLT_MAX, FLT_MAX));
+    responsive::windowSize(ImVec2(920.0f, 660.0f), ImGuiCond_Appearing);
+    responsive::windowConstraints(ImVec2(640.0f, 420.0f), ImVec2(FLT_MAX, FLT_MAX));
 
-    if (!ImGui::BeginPopupModal("Angular Distribution Function", nullptr,
+    if (!responsive::beginModal("Angular Distribution Function", nullptr,
                                 ImGuiWindowFlags_NoScrollbar))
         return;
 
@@ -687,7 +688,7 @@ void AngularDistributionAnalysisDialog::drawDialog(const Structure& structure)
     const float leftW        = 300.0f;
     const float computeAreaH = ImGui::GetFrameHeightWithSpacing() * 2.4f;
 
-    ImGui::BeginChild("##adf-left", ImVec2(leftW, -36.0f), true);
+    responsive::beginChild("##adf-left", ImVec2(leftW, -36.0f), true);
     {
         ImGui::SeparatorText("ADF Settings");
 
@@ -697,7 +698,7 @@ void AngularDistributionAnalysisDialog::drawDialog(const Structure& structure)
                         - ImGui::GetStyle().ItemSpacing.y * 2.0f;
         if (settingsH < 60.0f) settingsH = 60.0f;
 
-        ImGui::BeginChild("##adf-scroll", ImVec2(-1.0f, settingsH), false);
+        responsive::beginChild("##adf-scroll", ImVec2(-1.0f, settingsH), false);
         {
             drawSettings(structure);
 
@@ -746,12 +747,12 @@ void AngularDistributionAnalysisDialog::drawDialog(const Structure& structure)
             char spinBtn[40];
             std::snprintf(spinBtn, sizeof(spinBtn), "Computing %c###computebtn",
                           "|/-\\"[(int)(t * 4.0f) & 3]);
-            ImGui::Button(spinBtn, ImVec2(-FLT_MIN, 0.0f));
+            responsive::button(spinBtn, ImVec2(-FLT_MIN, 0.0f));
             ImGui::EndDisabled();
         }
         else
         {
-            if (ImGui::Button("Compute ADF###computebtn", ImVec2(-FLT_MIN, 0.0f)))
+            if (responsive::button("Compute ADF###computebtn", ImVec2(-FLT_MIN, 0.0f)))
                 startCompute(structure);
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip(m_paramsDirty
@@ -790,7 +791,7 @@ void AngularDistributionAnalysisDialog::drawDialog(const Structure& structure)
     ImGui::SameLine();
 
     // ── Right panel ───────────────────────────────────────────
-    ImGui::BeginChild("##adf-right", ImVec2(-1.0f, -36.0f));
+    responsive::beginChild("##adf-right", responsive::size(-1.0f,-36.0f));
     {
         if (ImGui::BeginTabBar("##adf-tabs"))
         {
@@ -868,7 +869,7 @@ void AngularDistributionAnalysisDialog::drawDialog(const Structure& structure)
 
     // ── Footer ────────────────────────────────────────────────
     ImGui::Separator();
-    if (ImGui::Button("Close", ImVec2(110.0f, 0.0f)))
+    if (responsive::button("Close", responsive::size(110.0f,0.0f)))
         ImGui::CloseCurrentPopup();
 
     ImGui::EndPopup();

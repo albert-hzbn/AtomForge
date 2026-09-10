@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/AmorphousBuilderDialog.h"
 
 #include "algorithms/AmorphousBuilder.h"
@@ -126,14 +127,14 @@ void AmorphousBuilderDialog::drawDialog(
     // Modal layout.
     // -----------------------------------------------------------------------
     const ImGuiIO& io = ImGui::GetIO();
-    ImGui::SetNextWindowSize(ImVec2(680.0f, 0.0f), ImGuiCond_Appearing);
+    responsive::windowSize(ImVec2(680.0f, 0.0f), ImGuiCond_Appearing);
     ImGui::SetNextWindowPos(
         ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
         ImGuiCond_Appearing,
         ImVec2(0.5f, 0.5f));
 
     bool open = true;
-    if (!ImGui::BeginPopupModal("Amorphous Structure Builder", &open,
+    if (!responsive::beginModal("Amorphous Structure Builder", &open,
                                  ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize))
     {
         if (!open)
@@ -146,10 +147,10 @@ void AmorphousBuilderDialog::drawDialog(
     // =========================================================================
     ImGui::SeparatorText("Composition");
 
-    const float col0 = 100.0f;  // element button
-    const float col1 = 260.0f;  // element name
-    const float col2 = 340.0f;  // count
-    const float col3 = 500.0f;  // at%
+    const float col0 = responsive::dp(100);  // element button
+    const float col1 = responsive::dp(260);  // element name
+    const float col2 = responsive::dp(340);  // count
+    const float col3 = responsive::dp(500);  // at%
 
     ImGui::TextDisabled("Element");
     ImGui::SameLine(col1);
@@ -173,7 +174,7 @@ void AmorphousBuilderDialog::drawDialog(
         char btnLabel[16];
         std::snprintf(btnLabel, sizeof(btnLabel), "%s##btn",
                       elementSymbol(e.atomicNumber));
-        if (ImGui::Button(btnLabel, ImVec2(col0 - 8.0f, 0.0f)))
+        if (responsive::button(btnLabel, ImVec2(col0 - 8.0f, 0.0f)))
         {
             m_pickerTarget = i;
             openPicker = true;
@@ -188,7 +189,7 @@ void AmorphousBuilderDialog::drawDialog(
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered]);
         ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImGui::GetStyle().Colors[ImGuiCol_ButtonActive]);
         ImGui::PushStyleColor(ImGuiCol_Border,        ImVec4(0, 0, 0, 0));
-        if (ImGui::Button(nameLabel, ImVec2(col2 - col1 - 8.0f, 0.0f)))
+        if (responsive::button(nameLabel, ImVec2(col2 - col1 - 8.0f, 0.0f)))
         {
             m_pickerTarget = i;
             openPicker = true;
@@ -198,7 +199,7 @@ void AmorphousBuilderDialog::drawDialog(
         ImGui::PopStyleColor(4);
 
         ImGui::SameLine(col2);
-        ImGui::SetNextItemWidth(130.0f);
+        ImGui::SetNextItemWidth(responsive::dp(130.0f));
         ImGui::DragInt("##count", &e.count, 1.0f, 0, 100000, "%d atoms");
 
         ImGui::SameLine(col3);
@@ -238,7 +239,7 @@ void AmorphousBuilderDialog::drawDialog(
         }
     }
 
-    if (ImGui::Button("+ Add element"))
+    if (responsive::button("+ Add element"))
     {
         m_elements.push_back({ 14, 10 });
         rebuildPairRows(covalentRadii);
@@ -258,7 +259,7 @@ void AmorphousBuilderDialog::drawDialog(
 
     if (m_boxMode == 1) // AutoFromDensity
     {
-        ImGui::SetNextItemWidth(180.0f);
+        ImGui::SetNextItemWidth(responsive::dp(180.0f));
         ImGui::DragFloat("Target density (g/cm\xc2\xb3)", &m_targetDensity, 0.01f, 0.01f, 30.0f, "%.3f");
 
         // Show the resulting box side length as a hint.
@@ -276,18 +277,18 @@ void AmorphousBuilderDialog::drawDialog(
     }
     else // Manual
     {
-        ImGui::SetNextItemWidth(120.0f);
+        ImGui::SetNextItemWidth(responsive::dp(120.0f));
         ImGui::DragFloat("a (\xc3\x85)##boxa", &m_boxA, 0.5f, 1.0f, 5000.0f, "%.2f");
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(120.0f);
+        ImGui::SetNextItemWidth(responsive::dp(120.0f));
         ImGui::DragFloat("b (\xc3\x85)##boxb", &m_boxB, 0.5f, 1.0f, 5000.0f, "%.2f");
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(120.0f);
+        ImGui::SetNextItemWidth(responsive::dp(120.0f));
         ImGui::DragFloat("c (\xc3\x85)##boxc", &m_boxC, 0.5f, 1.0f, 5000.0f, "%.2f");
     }
 
     ImGui::Spacing();
-    ImGui::SetNextItemWidth(200.0f);
+    ImGui::SetNextItemWidth(responsive::dp(200.0f));
     ImGui::DragFloat("Cell scale factor", &m_cellScaleFactor, 0.01f, 0.5f, 3.0f, "%.3f");
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip(
@@ -305,7 +306,7 @@ void AmorphousBuilderDialog::drawDialog(
     {
         // -- Placement parameters --
         ImGui::SeparatorText("Placement");
-        ImGui::SetNextItemWidth(120.0f);
+        ImGui::SetNextItemWidth(responsive::dp(120.0f));
         ImGui::DragFloat("Covalent radius tolerance", &m_covTolerance, 0.01f, 0.3f, 2.0f, "%.2f");
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip(
@@ -313,10 +314,10 @@ void AmorphousBuilderDialog::drawDialog(
                 "0.75 prevents overlaps without enforcing full bonding.\n"
                 "Decrease for denser random packings.");
 
-        ImGui::SetNextItemWidth(120.0f);
+        ImGui::SetNextItemWidth(responsive::dp(120.0f));
         ImGui::InputInt("RNG seed (0 = time)", &m_seed);
 
-        ImGui::SetNextItemWidth(120.0f);
+        ImGui::SetNextItemWidth(responsive::dp(120.0f));
         ImGui::DragInt("Max attempts per atom", &m_maxAttempts, 10.0f, 1, 100000);
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip(
@@ -334,9 +335,9 @@ void AmorphousBuilderDialog::drawDialog(
         else
         {
             ImGui::TextDisabled("  Pair");
-            ImGui::SameLine(120.0f);
+            ImGui::SameLine(responsive::dp(120.0f));
             ImGui::TextDisabled("Default (\xc3\x85)");
-            ImGui::SameLine(240.0f);
+            ImGui::SameLine(responsive::dp(240.0f));
             ImGui::TextDisabled("Override (\xc3\x85)");
             ImGui::Separator();
 
@@ -350,12 +351,12 @@ void AmorphousBuilderDialog::drawDialog(
                 ImGui::Text("%s–%s",
                             elementSymbol(pr.z1),
                             elementSymbol(pr.z2));
-                ImGui::SameLine(120.0f);
+                ImGui::SameLine(responsive::dp(120.0f));
                 ImGui::TextDisabled("%.3f", defaultMinDist(pr.z1, pr.z2, covalentRadii));
-                ImGui::SameLine(240.0f);
+                ImGui::SameLine(responsive::dp(240.0f));
                 if (pr.enabled)
                 {
-                    ImGui::SetNextItemWidth(100.0f);
+                    ImGui::SetNextItemWidth(responsive::dp(100.0f));
                     ImGui::DragFloat("##dist", &pr.minDist, 0.01f, 0.1f, 10.0f, "%.3f \xc3\x85");
                 }
                 else
@@ -406,7 +407,7 @@ void AmorphousBuilderDialog::drawDialog(
     if (!canBuild)
         ImGui::BeginDisabled();
 
-    if (ImGui::Button("Build", ImVec2(120.0f, 0.0f)))
+    if (responsive::button("Build", responsive::size(120.0f,0.0f)))
     {
         // Assemble AmorphousParams from dialog state.
         AmorphousParams params;
@@ -457,7 +458,7 @@ void AmorphousBuilderDialog::drawDialog(
         ImGui::EndDisabled();
 
     ImGui::SameLine();
-    if (ImGui::Button("Close", ImVec2(120.0f, 0.0f)))
+    if (responsive::button("Close", responsive::size(120.0f,0.0f)))
     {
         ImGui::CloseCurrentPopup();
         m_isOpen = false;

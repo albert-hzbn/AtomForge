@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ui/ThemeUtils.h"
+#include "ui/ResponsiveLayout.h"
 
 namespace dialogLayout
 {
@@ -23,7 +24,7 @@ inline bool primaryButton(const char* label, ImVec2 size = ImVec2(0,0))
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered,ImVec4(.12f,.48f,.58f,1));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,ImVec4(.08f,.31f,.39f,1));
     ImGui::PushStyleColor(ImGuiCol_Text,ImVec4(1,1,1,1));
-    const bool pressed=ImGui::Button(label,size);
+    const bool pressed=responsive::button(label,size);
     ImGui::PopStyleColor(4);
     return pressed;
 }

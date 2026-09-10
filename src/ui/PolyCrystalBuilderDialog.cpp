@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/PolyCrystalBuilderDialog.h"
 #include "algorithms/PolyCrystalBuilder.h"
 #include "util/PathUtils.h"
@@ -276,9 +277,9 @@ void PolyCrystalBuilderDialog::drawDialog(
 
     m_isOpen = ImGui::IsPopupOpen("Build Polycrystal");
 
-    ImGui::SetNextWindowSize(ImVec2(820.0f, 700.0f), ImGuiCond_FirstUseEver);
+    responsive::windowSize(ImVec2(820.0f, 700.0f), ImGuiCond_FirstUseEver);
     bool dialogOpen = true;
-    if (!ImGui::BeginPopupModal("Build Polycrystal", &dialogOpen, 0)) {
+    if (!responsive::beginModal("Build Polycrystal", &dialogOpen, 0)) {
         m_isOpen = false;
         return;
     }
@@ -288,11 +289,12 @@ void PolyCrystalBuilderDialog::drawDialog(
     // Left panel: reference structure preview with drag-and-drop
     // =========================================================================
 
-    constexpr float kLeftW  = 340.0f;
-    constexpr float kPanelH = 560.0f;
-    constexpr float kPrevH  = 320.0f;
+    const bool stackPanels = responsive::stacked();
+    const float kLeftW = responsive::previewWidth(340);
+    const float kPanelH = responsive::panelHeight(560);
+    const float kPrevH = std::max(responsive::dp(100), kPanelH - ImGui::GetFrameHeightWithSpacing() * 6);
 
-    ImGui::BeginChild("##polyRefPanel", ImVec2(kLeftW, kPanelH), true);
+    responsive::beginChild("##polyRefPanel", ImVec2(kLeftW, kPanelH), true);
 
     ImGui::Text("Reference Single Crystal");
     ImGui::Separator();
@@ -379,24 +381,24 @@ void PolyCrystalBuilderDialog::drawDialog(
 
     ImGui::EndChild(); // ##polyRefPanel
 
-    ImGui::SameLine();
+    responsive::nextPanel(stackPanels);
 
     // =========================================================================
     // Right panel: builder options
     // =========================================================================
 
-    ImGui::BeginChild("##polyBuilderOptions", ImVec2(0, kPanelH), true);
+    responsive::beginChild("##polyBuilderOptions", ImVec2(0, kPanelH), true);
 
     ImGui::Text("Builder Options");
     ImGui::Separator();
 
     // --- Box size ---
     ImGui::Text("Simulation Box Size (Angstroms)");
-    ImGui::SetNextItemWidth(120.0f);
+    ImGui::SetNextItemWidth(responsive::dp(120.0f));
     ImGui::InputFloat("X##polySize", &params.sizeX, 0.0f, 0.0f, "%.2f");
-    ImGui::SetNextItemWidth(120.0f);
+    ImGui::SetNextItemWidth(responsive::dp(120.0f));
     ImGui::InputFloat("Y##polySize", &params.sizeY, 0.0f, 0.0f, "%.2f");
-    ImGui::SetNextItemWidth(120.0f);
+    ImGui::SetNextItemWidth(responsive::dp(120.0f));
     ImGui::InputFloat("Z##polySize", &params.sizeZ, 0.0f, 0.0f, "%.2f");
     if (params.sizeX < 1.0f) params.sizeX = 1.0f;
     if (params.sizeY < 1.0f) params.sizeY = 1.0f;
@@ -407,7 +409,7 @@ void PolyCrystalBuilderDialog::drawDialog(
 
     // --- Number of grains ---
     ImGui::Text("Number of Grains");
-    ImGui::SetNextItemWidth(120.0f);
+    ImGui::SetNextItemWidth(responsive::dp(120.0f));
     ImGui::InputInt("##polyNumGrains", &params.numGrains);
     if (params.numGrains < 1) params.numGrains = 1;
     if (params.numGrains > 500) params.numGrains = 500;
@@ -417,7 +419,7 @@ void PolyCrystalBuilderDialog::drawDialog(
 
     // --- Seed ---
     ImGui::Text("Random Seed");
-    ImGui::SetNextItemWidth(120.0f);
+    ImGui::SetNextItemWidth(responsive::dp(120.0f));
     ImGui::InputInt("##polySeed", &params.seed);
 
     ImGui::Spacing();
@@ -427,7 +429,7 @@ void PolyCrystalBuilderDialog::drawDialog(
     ImGui::Text("Grain Orientations");
     const char* modeLabels[] = { "All Random", "All Specified", "Partial (specify some, rest random)" };
     int modeInt = (int)params.orientationMode;
-    ImGui::SetNextItemWidth(-1.0f);
+    ImGui::SetNextItemWidth(responsive::dp(-1.0f));
     if (ImGui::Combo("##polyOrientMode", &modeInt, modeLabels, 3))
         params.orientationMode = (GrainOrientationMode)modeInt;
 
@@ -444,7 +446,7 @@ void PolyCrystalBuilderDialog::drawDialog(
         }
 
         ImGui::TextDisabled("Bunge Euler angles (phi1, Phi, phi2) in degrees");
-        ImGui::BeginChild("##polyOrientTable", ImVec2(-1, 180), true);
+        responsive::beginChild("##polyOrientTable", responsive::size(-1,180), true);
 
         for (int i = 0; i < params.numGrains; ++i)
         {
@@ -452,13 +454,13 @@ void PolyCrystalBuilderDialog::drawDialog(
             ImGui::PushID(i);
             ImGui::Text("Grain %d:", i + 1);
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(70.0f);
+            ImGui::SetNextItemWidth(responsive::dp(70.0f));
             ImGui::InputFloat("phi1##grain", &o.phi1, 0.0f, 0.0f, "%.1f");
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(70.0f);
+            ImGui::SetNextItemWidth(responsive::dp(70.0f));
             ImGui::InputFloat("Phi##grain", &o.Phi, 0.0f, 0.0f, "%.1f");
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(70.0f);
+            ImGui::SetNextItemWidth(responsive::dp(70.0f));
             ImGui::InputFloat("phi2##grain", &o.phi2, 0.0f, 0.0f, "%.1f");
             ImGui::PopID();
         }
@@ -472,13 +474,13 @@ void PolyCrystalBuilderDialog::drawDialog(
         ImGui::TextDisabled("Bunge Euler angles (phi1, Phi, phi2) in degrees");
 
         static int newGrainIdx = 1;
-        ImGui::SetNextItemWidth(70.0f);
+        ImGui::SetNextItemWidth(responsive::dp(70.0f));
         ImGui::InputInt("Grain #", &newGrainIdx);
         if (newGrainIdx < 1) newGrainIdx = 1;
         if (newGrainIdx > params.numGrains) newGrainIdx = params.numGrains;
 
         ImGui::SameLine();
-        if (ImGui::Button("Add Grain Orientation##poly"))
+        if (responsive::button("Add Grain Orientation##poly"))
         {
             bool found = false;
             for (const auto& o : params.specifiedOrientations) {
@@ -491,7 +493,7 @@ void PolyCrystalBuilderDialog::drawDialog(
             }
         }
 
-        ImGui::BeginChild("##polyPartialOrientTable", ImVec2(-1, 180), true);
+        responsive::beginChild("##polyPartialOrientTable", responsive::size(-1,180), true);
 
         int removeIdx = -1;
         for (int i = 0; i < (int)params.specifiedOrientations.size(); ++i)
@@ -500,16 +502,16 @@ void PolyCrystalBuilderDialog::drawDialog(
             ImGui::PushID(i);
             ImGui::Text("Grain %d:", o.grainIndex + 1);
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(70.0f);
+            ImGui::SetNextItemWidth(responsive::dp(70.0f));
             ImGui::InputFloat("phi1##pgrain", &o.phi1, 0.0f, 0.0f, "%.1f");
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(70.0f);
+            ImGui::SetNextItemWidth(responsive::dp(70.0f));
             ImGui::InputFloat("Phi##pgrain", &o.Phi, 0.0f, 0.0f, "%.1f");
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(70.0f);
+            ImGui::SetNextItemWidth(responsive::dp(70.0f));
             ImGui::InputFloat("phi2##pgrain", &o.phi2, 0.0f, 0.0f, "%.1f");
             ImGui::SameLine();
-            if (ImGui::Button("X##removePGrain"))
+            if (responsive::button("X##removePGrain"))
                 removeIdx = i;
             ImGui::PopID();
         }
@@ -550,7 +552,7 @@ void PolyCrystalBuilderDialog::drawDialog(
 
     const bool canBuild = !m_reference.atoms.empty() && m_reference.hasUnitCell;
     if (!canBuild) ImGui::BeginDisabled();
-    if (ImGui::Button("Build##poly", ImVec2(100.0f, 0.0f)))
+    if (responsive::button("Build##poly", responsive::size(100.0f,0.0f)))
     {
         lastResult = buildPolycrystal(structure, m_reference, params, elementColors);
         if (lastResult.success)
@@ -559,7 +561,7 @@ void PolyCrystalBuilderDialog::drawDialog(
     if (!canBuild) ImGui::EndDisabled();
 
     ImGui::SameLine();
-    if (ImGui::Button("Close##poly", ImVec2(80.0f, 0.0f)))
+    if (responsive::button("Close##poly", responsive::size(80.0f,0.0f)))
     {
         lastResult = {};
         m_isOpen   = false;

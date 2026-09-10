@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/ElectronicSliceViewport.h"
 #include "electronic/DisplayRange.h"
 #include "graphics/ElectronicViewport.h"
@@ -19,21 +20,21 @@ SlicePlane ElectronicSliceViewport::plane(const Grid& grid) const
 void ElectronicSliceViewport::draw(const Grid& grid, float low, float high, int palette)
 {
     ImGui::TextUnformatted("2D section");
-    ImGui::SetNextItemWidth(-1);
+    ImGui::SetNextItemWidth(responsive::dp(-1));
     m_dirty |= ImGui::Combo("##plane",&m_axis,"bc plane (normal a*)\0ac plane (normal b*)\0ab plane (normal c*)\0Arbitrary plane\0");
     if (m_axis==3)
     {
         ImGui::TextUnformatted("Point (fractional a, b, c)");
-        ImGui::SetNextItemWidth(-1);
+        ImGui::SetNextItemWidth(responsive::dp(-1));
         m_dirty |= ImGui::InputFloat3("##plane point",m_point,"%.4g");
         ImGui::TextUnformatted("Normal (Cartesian x, y, z)");
-        ImGui::SetNextItemWidth(-1);
+        ImGui::SetNextItemWidth(responsive::dp(-1));
         m_dirty |= ImGui::InputFloat3("##plane normal",m_normal,"%.4g");
     }
     else
     {
         ImGui::TextUnformatted("Slice position (fraction of cell)");
-        ImGui::SetNextItemWidth(-1);
+        ImGui::SetNextItemWidth(responsive::dp(-1));
         m_dirty |= ImGui::SliderFloat("##position",&m_position,0,1,"%.3f");
     }
     const auto geometry=plane(grid);
@@ -64,16 +65,16 @@ void ElectronicSliceViewport::draw(const Grid& grid, float low, float high, int 
     if (m_estimateLevel) { m_level=static_cast<float>(displayRange(m_visibleValues).suggested); m_estimateLevel=false; }
     ImGui::Checkbox("Show contour line",&m_showContour);
     ImGui::TextUnformatted("2D isovalue (contour)");
-    ImGui::SetNextItemWidth(-1);
+    ImGui::SetNextItemWidth(responsive::dp(-1));
     bool levelChanged = ImGui::InputFloat("##level",&m_level,0,0,"%.5g");
-    if (ImGui::Button("Estimate 2D level"))
+    if (responsive::button("Estimate 2D level"))
     {
         m_level=static_cast<float>(displayRange(m_visibleValues).suggested);
         levelChanged=true;
     }
-    if (ImGui::Button("Reset 2D")) reset();
+    if (responsive::button("Reset 2D")) reset();
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(-1);
+    ImGui::SetNextItemWidth(responsive::dp(-1));
     ImGui::SliderFloat("##angle",&m_angle,-180,180,"%.0f deg");
     ImGui::TextWrapped("Drag: rotate in plane | Right drag: pan | Wheel: zoom");
 

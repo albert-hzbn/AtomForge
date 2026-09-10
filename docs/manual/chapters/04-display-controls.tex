@@ -1,4 +1,11 @@
 \section{Workspace, display, and analysis control reference}\label{sec:display-controls}
+\subsection{Screen resolution and interface size}
+Fonts, widget dimensions, and spacing follow the display's content scale. Choose \ui{Settings > Interface size} to use Automatic (display scaling), Compact (85\%), Larger (125\%), Large (150\%), or Extra large (200\%). These percentages multiply automatic display scaling and apply to the current session. Automatic restores the display-derived size; restarting also restores Automatic. A change takes effect on the next frame without closing the current structure.
+
+Dialogs stay inside the application work area, including when its window is resized. Large builder and analysis panels stack vertically in narrow layouts. Scroll the outer dialog to reach a lower panel, and scroll inside a panel to reach its remaining controls. Wide tables and the periodic table retain horizontal scrolling so labels and cells remain readable. The view toolbar uses multiple rows when space is limited. Tab and Shift+Tab navigate supported controls; Enter or Space activates the focused control.
+
+Tutorial screenshots were captured before this responsive-layout update, at their stated source baseline. Control meanings and scientific recipes remain the same, but placement, dialog size, and panel arrangement can differ with screen size. Any dimensions mentioned elsewhere describe the original design scale; runtime dialog bounds take precedence on smaller screens.
+
 \subsection{Structure tabs and file navigation}
 When several structures are open, select the desired structure tab before saving, editing, or analysing. Tabs can be reordered, and switching restores that tab's camera. The tab's close button closes that structure; File > Close is the active-structure command. Keep a saved copy of edits before closing. Two tabs can share a display title, so confirm the file and structure information rather than relying on the title alone.
 

@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/InterfaceBuilderDialog.h"
 
 #include "algorithms/InterfaceBuilder.h"
@@ -407,7 +408,7 @@ void InterfaceBuilderDialog::drawDropZone(
 {
     (void)tex;
 
-    ImGui::BeginChild(label, ImVec2(width, height), true);
+    responsive::beginChild(label, ImVec2(width, height), true);
     ImGui::TextColored(themeAccentColor(), "%s", label);
     ImGui::Separator();
     if (!status.empty())
@@ -533,7 +534,7 @@ void InterfaceBuilderDialog::draw2DPlot(float width, float height)
         return;
     }
 
-    ImGui::BeginChild("##ifacePlot", ImVec2(width, height), true);
+    responsive::beginChild("##ifacePlot", ImVec2(width, height), true);
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
 
@@ -741,7 +742,7 @@ void InterfaceBuilderDialog::drawDialog(
     ImGui::SetNextWindowPos(ImVec2(displaySize.x * 0.025f, displaySize.y * 0.025f), ImGuiCond_Always);
 
     bool dialogOpen = true;
-    if (!ImGui::BeginPopupModal("Interface Builder", &dialogOpen,
+    if (!responsive::beginModal("Interface Builder", &dialogOpen,
                                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
     {
         if (!dialogOpen) m_isOpen = false;
@@ -769,7 +770,7 @@ void InterfaceBuilderDialog::drawDialog(
                  elementRadii, elementShininess,
                  structW, topH, 0);
 
-    ImGui::SameLine(0.0f, gap);
+    ImGui::SameLine(responsive::dp(0.0f), gap);
 
     // --- Structure B ---
     drawDropZone("Structure B", m_structureB, m_statusB,
@@ -778,10 +779,10 @@ void InterfaceBuilderDialog::drawDialog(
                  elementRadii, elementShininess,
                  structW, topH, 1);
 
-    ImGui::SameLine(0.0f, gap);
+    ImGui::SameLine(responsive::dp(0.0f), gap);
 
     // --- Orientation Relationship ---
-    ImGui::BeginChild("##orPanel", ImVec2(orW, topH), true);
+    responsive::beginChild("##orPanel", ImVec2(orW, topH), true);
     {
         ImGui::TextColored(themeAccentColor(), "Orientation Relationship");
         ImGui::Separator();
@@ -796,7 +797,7 @@ void InterfaceBuilderDialog::drawDialog(
         ImGui::Spacing();
         ImGui::AlignTextToFramePadding();
         ImGui::Text("Tolerance"); ImGui::SameLine();
-        ImGui::SetNextItemWidth(50); ImGui::InputFloat("##ortol", &m_orTolDeg, 0, 0, "%.2f");
+        ImGui::SetNextItemWidth(responsive::dp(50)); ImGui::InputFloat("##ortol", &m_orTolDeg, 0, 0, "%.2f");
         if (m_orTolDeg < 0.0f) m_orTolDeg = 0.0f;
         ImGui::SameLine(); ImGui::TextDisabled("deg");
 
@@ -804,7 +805,7 @@ void InterfaceBuilderDialog::drawDialog(
         {
             ImGui::AlignTextToFramePadding();
             ImGui::Text("Angle"); ImGui::SameLine();
-            ImGui::SetNextItemWidth(60);
+            ImGui::SetNextItemWidth(responsive::dp(60));
             ImGui::InputFloat("##orangle", &m_orAngleDeg, 0, 0, "%.2f");
             ImGui::SameLine(); ImGui::TextDisabled("deg");
         }
@@ -862,10 +863,10 @@ void InterfaceBuilderDialog::drawDialog(
     }
     ImGui::EndChild();
 
-    ImGui::SameLine(0.0f, gap);
+    ImGui::SameLine(responsive::dp(0.0f), gap);
 
     // --- Matching Parameters ---
-    ImGui::BeginChild("##paramsPanel", ImVec2(paramW, topH), true);
+    responsive::beginChild("##paramsPanel", ImVec2(paramW, topH), true);
     {
         ImGui::TextColored(themeAccentColor(), "Matching Parameters");
         ImGui::Separator();
@@ -921,10 +922,10 @@ void InterfaceBuilderDialog::drawDialog(
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Max strain");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(60.0f); ImGui::InputFloat("##maxstrain", &m_maxMeanStrain, 0, 0, "%.4f");
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(60.0f)); ImGui::InputFloat("##maxstrain", &m_maxMeanStrain, 0, 0, "%.4f");
             if (m_maxMeanStrain < 0.0001f) m_maxMeanStrain = 0.0001f;
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Max rotation");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(60.0f); ImGui::InputFloat("##maxrot", &m_maxRotationDeg, 0, 0, "%.1f");
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(60.0f)); ImGui::InputFloat("##maxrot", &m_maxRotationDeg, 0, 0, "%.1f");
             if (m_maxRotationDeg < 0.0f) m_maxRotationDeg = 0.0f;
 
             ImGui::EndTable();
@@ -941,18 +942,18 @@ void InterfaceBuilderDialog::drawDialog(
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Z gap");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(55.0f); ImGui::InputFloat("##zgap", &m_zGap, 0, 0, "%.2f");
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputFloat("##zgap", &m_zGap, 0, 0, "%.2f");
             if (m_zGap < 0.0f) m_zGap = 0.0f;
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Vacuum");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(55.0f); ImGui::InputFloat("##vacuum", &m_vacuum, 0, 0, "%.2f");
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputFloat("##vacuum", &m_vacuum, 0, 0, "%.2f");
             if (m_vacuum < 0.0f) m_vacuum = 0.0f;
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Repeat X");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(55.0f); ImGui::InputInt("##repeatX", &m_repeatX, 0, 0);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputInt("##repeatX", &m_repeatX, 0, 0);
             if (m_repeatX < 1) m_repeatX = 1;
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Repeat Y");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(55.0f); ImGui::InputInt("##repeatY", &m_repeatY, 0, 0);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputInt("##repeatY", &m_repeatY, 0, 0);
             if (m_repeatY < 1) m_repeatY = 1;
 
             ImGui::EndTable();
@@ -960,20 +961,20 @@ void InterfaceBuilderDialog::drawDialog(
     }
     ImGui::EndChild();
 
-    ImGui::SameLine(0.0f, gap);
+    ImGui::SameLine(responsive::dp(0.0f), gap);
 
     // --- Elastic Stiffness ---
-    ImGui::BeginChild("##stiffPanel", ImVec2(stiffW, topH), true);
+    responsive::beginChild("##stiffPanel", ImVec2(stiffW, topH), true);
     {
         ImGui::TextColored(themeAccentColor(), "Stiffness (GPa)");
-        ImGui::SameLine(0.0f, 10.0f);
+        ImGui::SameLine(responsive::dp(0.0f), 10.0f);
         ImGui::RadioButton("Structure A##stiff", &m_stiffnessTarget, 0);
         ImGui::SameLine();
         ImGui::RadioButton("Structure B##stiff", &m_stiffnessTarget, 1);
         ImGui::Separator();
 
         float stiffInW = std::min(50.0f, std::max(35.0f, (stiffW - 30.0f) / 6.0f - 4.0f));
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2.0f, 2.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, responsive::size(2.0f,2.0f));
         for (int i = 0; i < 6; ++i)
         {
             for (int j = 0; j < 6; ++j)
@@ -995,7 +996,7 @@ void InterfaceBuilderDialog::drawDialog(
     bool canSearch = !m_structureA.atoms.empty() && !m_structureB.atoms.empty()
                      && m_structureA.hasUnitCell && m_structureB.hasUnitCell;
     if (!canSearch) ImGui::BeginDisabled();
-    if (ImGui::Button("Find Matches##iface", ImVec2(160.0f, 28.0f)))
+    if (responsive::button("Find Matches##iface", responsive::size(160.0f,28.0f)))
         runSearch();
     if (!canSearch) ImGui::EndDisabled();
 
@@ -1015,7 +1016,7 @@ void InterfaceBuilderDialog::drawDialog(
     float previewW = totalW - plotW - gap;
 
     // --- Left: 2D scatter plot ---
-    ImGui::BeginChild("##bottomLeftPlot", ImVec2(plotW, bottomH), false);
+    responsive::beginChild("##bottomLeftPlot", ImVec2(plotW, bottomH), false);
     {
         if (m_searchDone && !m_candidates.empty())
         {
@@ -1029,10 +1030,10 @@ void InterfaceBuilderDialog::drawDialog(
     }
     ImGui::EndChild();
 
-    ImGui::SameLine(0.0f, gap);
+    ImGui::SameLine(responsive::dp(0.0f), gap);
 
     // --- Right: Interface structure 3D preview ---
-    ImGui::BeginChild("##bottomRightPreview", ImVec2(previewW, bottomH), false);
+    responsive::beginChild("##bottomRightPreview", ImVec2(previewW, bottomH), false);
     {
         if (m_selectedIdx >= 0 && m_selectedIdx < (int)m_interfaceStructures.size())
         {
@@ -1112,7 +1113,7 @@ void InterfaceBuilderDialog::drawDialog(
     bool canBuild = (m_selectedIdx >= 0 &&
                      m_selectedIdx < (int)m_interfaceStructures.size());
     if (!canBuild) ImGui::BeginDisabled();
-    if (ImGui::Button("Build##iface", ImVec2(100.0f, 0.0f)))
+    if (responsive::button("Build##iface", responsive::size(100.0f,0.0f)))
     {
         structure = m_interfaceStructures[m_selectedIdx];
         updateBuffers(structure);
@@ -1122,7 +1123,7 @@ void InterfaceBuilderDialog::drawDialog(
     if (!canBuild) ImGui::EndDisabled();
 
     ImGui::SameLine();
-    if (ImGui::Button("Close##iface", ImVec2(80.0f, 0.0f)))
+    if (responsive::button("Close##iface", responsive::size(80.0f,0.0f)))
     {
         m_isOpen = false;
         ImGui::CloseCurrentPopup();

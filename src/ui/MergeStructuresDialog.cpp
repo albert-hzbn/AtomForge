@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/MergeStructuresDialog.h"
 #include "io/StructureLoader.h"
 
@@ -608,10 +609,10 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
 
     m_isOpen = ImGui::IsPopupOpen("Merge Structures");
 
-    ImGui::SetNextWindowSize(ImVec2(1600.0f, 960.0f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(1100.0f, 680.0f), ImVec2(10000.0f, 10000.0f));
+    responsive::windowSize(ImVec2(1600.0f, 960.0f), ImGuiCond_FirstUseEver);
+    responsive::windowConstraints(ImVec2(1100.0f, 680.0f), ImVec2(10000.0f, 10000.0f));
     bool keepOpen = true;
-    if (!ImGui::BeginPopupModal("Merge Structures", &keepOpen, ImGuiWindowFlags_NoCollapse))
+    if (!responsive::beginModal("Merge Structures", &keepOpen, ImGuiWindowFlags_NoCollapse))
     {
         m_isOpen = false;
         return;
@@ -627,7 +628,7 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
 
     ImGui::Spacing();
 
-    if (ImGui::Button("Clear All"))
+    if (responsive::button("Clear All"))
     {
         m_entries.clear();
         m_selectedIndex = -1;
@@ -668,9 +669,10 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
     ImGui::Separator();
 
     // ---- Left panel: list + numeric controls ----
-    const float panelH = std::max(520.0f, ImGui::GetContentRegionAvail().y - 80.0f);
-    const float leftW = ImGui::GetContentRegionAvail().x * 0.24f;
-    ImGui::BeginChild("##merge-left", ImVec2(leftW, panelH), true);
+    const bool stackPanels = responsive::stacked();
+    const float panelH = responsive::panelHeight(800);
+    const float leftW = stackPanels ? ImGui::GetContentRegionAvail().x : std::max(responsive::dp(300), ImGui::GetContentRegionAvail().x * .28f);
+    responsive::beginChild("##merge-left", ImVec2(leftW, panelH), true);
     {
         ImGui::Text("Loaded Structures (%d)", (int)m_entries.size());
         ImGui::Separator();
@@ -732,8 +734,8 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
     ImGui::EndChild();
 
     // ---- Right panel: 3D preview + gizmo ----
-    ImGui::SameLine();
-    ImGui::BeginChild("##merge-right", ImVec2(0.0f, panelH), true);
+    responsive::nextPanel(stackPanels);
+    responsive::beginChild("##merge-right", ImVec2(0.0f, panelH), true);
     {
         const bool hasSelection = m_selectedIndex >= 0 && m_selectedIndex < (int)m_entries.size();
         if (m_previewDirty)
@@ -880,7 +882,7 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
             ImGui::Text("%s  (%d atoms)", sel.name.c_str(), (int)sel.structure.atoms.size());
             ImGui::TextDisabled("Use gizmo handles in the 3D view to move/rotate this structure.");
             ImGui::Spacing();
-            if (ImGui::Button("Delete Selected", ImVec2(150.0f, 0.0f)))
+            if (responsive::button("Delete Selected", responsive::size(150.0f,0.0f)))
             {
                 m_entries.erase(m_entries.begin() + m_selectedIndex);
                 if (m_entries.empty())
@@ -904,7 +906,7 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
     if (!canMerge)
         ImGui::BeginDisabled();
 
-    if (ImGui::Button("Merge Structures", ImVec2(170.0f, 0.0f)))
+    if (responsive::button("Merge Structures", responsive::size(170.0f,0.0f)))
     {
         Structure merged = buildCombinedPreviewStructure();
         if (merged.atoms.empty())
@@ -934,7 +936,7 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
         ImGui::EndDisabled();
 
     ImGui::SameLine();
-    if (ImGui::Button("Close", ImVec2(100.0f, 0.0f)))
+    if (responsive::button("Close", responsive::size(100.0f,0.0f)))
         ImGui::CloseCurrentPopup();
 
     if (!m_status.empty())

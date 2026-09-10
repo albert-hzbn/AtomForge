@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/CSLGrainBoundaryDialog.h"
 #include "algorithms/CSLComputation.h"
 
@@ -335,16 +336,17 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
         m_isOpen = true;
     }
 
-    ImGui::SetNextWindowSize(ImVec2(1060.0f, 460.0f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(1060.0f, 340.0f), ImVec2(FLT_MAX, FLT_MAX));
+    responsive::windowSize(ImVec2(1060.0f, 460.0f), ImGuiCond_FirstUseEver);
+    responsive::windowConstraints(ImVec2(1060.0f, 340.0f), ImVec2(FLT_MAX, FLT_MAX));
     bool dialogOpen = true;
-    if (ImGui::BeginPopupModal("CSL Grain Boundary Builder", &dialogOpen, ImGuiWindowFlags_None))
+    if (responsive::beginModal("CSL Grain Boundary Builder", &dialogOpen, ImGuiWindowFlags_None))
     {
-        constexpr float kLeftW  = 380.0f;
-        const float kContentH = ImGui::GetContentRegionAvail().y;
+        const bool stackPanels = responsive::stacked();
+        const float kLeftW = responsive::previewWidth(380);
+        const float kContentH = responsive::panelHeight(700, 0);
 
         // =============== LEFT: Structure preview ===============
-        ImGui::BeginChild("##cslLeft", ImVec2(kLeftW, kContentH), true);
+        responsive::beginChild("##cslLeft", ImVec2(kLeftW, kContentH), true);
         ImGui::Text("Input Structure");
         ImGui::Separator();
         ImGui::Text("Status: %s", statusMsg);
@@ -419,22 +421,22 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
 
         ImGui::EndChild(); // ##cslLeft
 
-        ImGui::SameLine();
+        responsive::nextPanel(stackPanels);
 
         // -- Options -----------------------------------------------
-        ImGui::BeginChild("##cslRight", ImVec2(0, kContentH), true);
+        responsive::beginChild("##cslRight", ImVec2(0, kContentH), true);
         ImGui::SeparatorText("Misorientation");
         {
-            ImGui::SetNextItemWidth(220.0f);
+            ImGui::SetNextItemWidth(responsive::dp(220.0f));
             ImGui::InputInt3("Axis [u v w]", axis);
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Crystallographic rotation axis in Miller indices.");
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(110.0f);
+            ImGui::SetNextItemWidth(responsive::dp(110.0f));
             ImGui::InputInt("Max sigma", &sigmaMax);
             if (sigmaMax < 3) sigmaMax = 3;
             ImGui::SameLine();
-            if (ImGui::Button("Find"))
+            if (responsive::button("Find"))
             {
                 sigmaCandidates = computeGBInfo(axis, sigmaMax);
                 sigmaSelection = 0;
@@ -467,7 +469,7 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
                 };
                 if (sigmaSelection >= (int)sigmaCandidates.size())
                     sigmaSelection = 0;
-                ImGui::SetNextItemWidth(-1.0f);
+                ImGui::SetNextItemWidth(responsive::dp(-1.0f));
                 ImGui::Combo("##sigma", &sigmaSelection, sigmaGetter,
                              &sigmaCandidates, (int)sigmaCandidates.size());
             }
@@ -499,7 +501,7 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
                 };
 
                 if (planeSelection >= 3) planeSelection = 0;
-                ImGui::SetNextItemWidth(260.0f);
+                ImGui::SetNextItemWidth(responsive::dp(260.0f));
                 ImGui::Combo("GB plane", &planeSelection, planeLabelGetter, planeLabels, 3);
 
                 if (ImGui::IsItemHovered())
@@ -522,11 +524,11 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
                 ImGui::TextDisabled("Select a Sigma candidate first.");
             }
 
-            ImGui::SetNextItemWidth(110.0f);
+            ImGui::SetNextItemWidth(responsive::dp(110.0f));
             ImGui::InputInt("Grain A (uc)", &ucA);
             if (ucA < 1) ucA = 1;
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(110.0f);
+            ImGui::SetNextItemWidth(responsive::dp(110.0f));
             ImGui::InputInt("Grain B (uc)", &ucB);
             if (ucB < 1) ucB = 1;
             if (ImGui::IsItemHovered())
@@ -536,17 +538,17 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
         // -- Options -----------------------------------------------
         ImGui::SeparatorText("Options");
         {
-            ImGui::SetNextItemWidth(140.0f);
+            ImGui::SetNextItemWidth(responsive::dp(140.0f));
             ImGui::DragFloat("Vacuum (A)", &vacuumPadding, 0.1f, 0.0f, 50.0f, "%.2f");
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Vacuum space at the end of the bicrystal cell.");
             ImGui::SameLine();
-            ImGui::SetNextItemWidth(140.0f);
+            ImGui::SetNextItemWidth(responsive::dp(140.0f));
             ImGui::DragFloat("Gap (A)", &gapDist, 0.05f, 0.0f, 10.0f, "%.2f");
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Extra distance between the two grains at the interface.");
 
-            ImGui::SetNextItemWidth(140.0f);
+            ImGui::SetNextItemWidth(responsive::dp(140.0f));
             ImGui::DragFloat("Overlap dist (A)", &overlapDist, 0.05f, 0.0f, 5.0f, "%.3f");
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Atoms closer than this distance will be removed (0 = off).");
@@ -561,7 +563,7 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
         const float closeW = 110.0f;
         const float buildW = 110.0f;
 
-        if (ImGui::Button("Build", ImVec2(buildW, 0.0f)))
+        if (responsive::button("Build", ImVec2(buildW, 0.0f)))
         {
             if (!inputStructure.hasUnitCell || inputStructure.atoms.empty())
             {
@@ -704,7 +706,7 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
         }
 
         ImGui::SameLine();
-        if (ImGui::Button("Close", ImVec2(closeW, 0.0f)))
+        if (responsive::button("Close", ImVec2(closeW, 0.0f)))
         {
             dialogOpen = false;
             ImGui::CloseCurrentPopup();

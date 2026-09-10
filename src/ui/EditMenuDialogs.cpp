@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "EditMenuDialogs.h"
 
 #include "ElementData.h"
@@ -61,13 +62,13 @@ void EditMenuDialogs::drawPopups(Structure& structure,
     // ------------------------------------------------------------------
 
     bool atomicSizesOpen = true;
-    if (ImGui::BeginPopupModal("Atomic Sizes##edit", &atomicSizesOpen,
+    if (responsive::beginModal("Atomic Sizes##edit", &atomicSizesOpen,
                                ImGuiWindowFlags_AlwaysAutoResize))
     {
         ImGui::Text("Select an element in the periodic table and edit its radius.");
         ImGui::Text("Defaults: Cordero et al., Dalton Trans. 2008.");
 
-        if (ImGui::Button("Reset to Literature Defaults"))
+        if (responsive::button("Reset to Literature Defaults"))
         {
             elementRadii = makeLiteratureCovalentRadii();
             updateBuffers(structure);
@@ -90,7 +91,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                 updateBuffers(structure);
             }
 
-            if (ImGui::Button("Apply Literature Radius To Selected Element"))
+            if (responsive::button("Apply Literature Radius To Selected Element"))
             {
                 const std::vector<float> defaults = makeLiteratureCovalentRadii();
                 elementRadii[m_selectedRadiusElement] =
@@ -113,7 +114,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
     // ------------------------------------------------------------------
 
     bool elementColorsOpen = true;
-    if (ImGui::BeginPopupModal("Display Settings##edit", &elementColorsOpen,
+    if (responsive::beginModal("Display Settings##edit", &elementColorsOpen,
                                ImGuiWindowFlags_AlwaysAutoResize))
     {
         constexpr float kSliderW = 340.0f;
@@ -150,7 +151,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                 ImGui::Spacing();
                 ImGui::Separator();
                 ImGui::Spacing();
-                if (ImGui::Button("Reset Lighting Defaults"))
+                if (responsive::button("Reset Lighting Defaults"))
                 {
                     lightAmbient        = 0.18f;
                     lightSaturation     = 1.55f;
@@ -189,7 +190,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                 ImGui::Spacing();
                 ImGui::Separator();
                 ImGui::Spacing();
-                if (ImGui::Button("Reset Material Defaults"))
+                if (responsive::button("Reset Material Defaults"))
                 {
                     materialSpecularIntensity = 0.65f;
                     materialShininessScale    = 1.5f;
@@ -235,7 +236,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                     }
 
                     ImGui::Spacing();
-                    if (ImGui::Button("Reset Color##sel"))
+                    if (responsive::button("Reset Color##sel"))
                     {
                         float r, g, b;
                         getDefaultElementColor(m_selectedColorElement, r, g, b);
@@ -251,7 +252,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                 ImGui::Spacing();
                 ImGui::Separator();
                 ImGui::Spacing();
-                if (ImGui::Button("Reset All Colors"))
+                if (responsive::button("Reset All Colors"))
                 {
                     elementColors = makeDefaultElementColors();
                     updateBuffers(structure);
@@ -272,9 +273,9 @@ void EditMenuDialogs::drawPopups(Structure& structure,
     // Edit Structure modal
     // ------------------------------------------------------------------
 
-    ImGui::SetNextWindowSize(ImVec2(980.0f, 640.0f), ImGuiCond_FirstUseEver);
+    responsive::windowSize(ImVec2(980.0f, 640.0f), ImGuiCond_FirstUseEver);
     bool editStructureOpen = true;
-    if (ImGui::BeginPopupModal("Edit Structure##edit", &editStructureOpen,
+    if (responsive::beginModal("Edit Structure##edit", &editStructureOpen,
                                ImGuiWindowFlags_NoResize))
     {
         ImGui::Text("Modify lattice vectors and atom list (add/edit/delete).\n"
@@ -337,7 +338,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
         if (!structure.hasUnitCell)
             m_useDirectCoords = false;
 
-        if (ImGui::Button("Add Atom"))
+        if (responsive::button("Add Atom"))
         {
             AtomSite newAtom;
             newAtom.atomicNumber = 1;
@@ -380,7 +381,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
             int pendingDelete = -1;
             bool anyPositionChanged = false;
 
-            if (ImGui::BeginChild("##atom-edit-rows", ImVec2(930.0f, 260.0f), true))
+            if (responsive::beginChild("##atom-edit-rows", responsive::size(930.0f,260.0f), true))
             {
                 for (int i = 0; i < (int)structure.atoms.size(); ++i)
                 {
@@ -409,7 +410,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                         }
                     }
 
-                    ImGui::PushItemWidth(420.0f);
+                    ImGui::PushItemWidth(responsive::dp(420.0f));
                     bool rowPosChanged = ImGui::DragFloat3(m_useDirectCoords ? "##DirectPos" : "##CartesianPos",
                                                            editPos, 0.005f, -1000.0f, 1000.0f, "%.6f");
                     ImGui::PopItemWidth();
@@ -490,7 +491,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
         m_showEditStructureElementPicker = false;
     }
 
-    ImGui::SetNextWindowSize(ImVec2(940.0f, 560.0f), ImGuiCond_Appearing);
+    responsive::windowSize(ImVec2(940.0f, 560.0f), ImGuiCond_Appearing);
     bool editAtomElementOpen = true;
     auto clearEditStructureElementPicker = [&]() {
         m_editStructureElementTargetAtom = -1;
@@ -499,7 +500,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
         m_restoreEditStructureAfterElementPicker = false;
     };
 
-    if (ImGui::BeginPopupModal("Edit Atom Element##edit-structure", &editAtomElementOpen,
+    if (responsive::beginModal("Edit Atom Element##edit-structure", &editAtomElementOpen,
                                ImGuiWindowFlags_NoResize))
     {
         ImGui::Text("Select replacement element from the periodic table.");
@@ -508,7 +509,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
         drawPeriodicTableInlineSelector(m_selectedEditElement);
 
         ImGui::Separator();
-        if (ImGui::Button("Apply Element##edit-structure-window"))
+        if (responsive::button("Apply Element##edit-structure-window"))
         {
             if (m_editStructureElementTargetAtom >= 0 &&
                 m_editStructureElementTargetAtom < (int)structure.atoms.size())

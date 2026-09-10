@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/NanoCrystalBuilderDialog.h"
 #include "algorithms/NanoCrystalBuilder.h"
 #include "util/PathUtils.h"
@@ -260,7 +261,7 @@ static const char* kWulffPlaneFS = R"(
 
 void drawWulffParameters(NanoParams& params, std::vector<glm::vec3>& familyColors, bool& wulffPreviewDirty)
 {
-    ImGui::SetNextItemWidth(180.0f);
+    ImGui::SetNextItemWidth(responsive::dp(180.0f));
     ImGui::DragFloat("Max radius (A)##wulffRadius", &params.wulffMaxRadius, 0.25f, 0.1f, 1000.0f, "%.2f");
     if (params.wulffMaxRadius < 0.1f)
         params.wulffMaxRadius = 0.1f;
@@ -305,23 +306,23 @@ void drawWulffParameters(NanoParams& params, std::vector<glm::vec3>& familyColor
             break;
         }
 
-        ImGui::SetNextItemWidth(70.0f);
+        ImGui::SetNextItemWidth(responsive::dp(70.0f));
         ImGui::DragInt("h", &plane.h, 0.2f, -12, 12);
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(70.0f);
+        ImGui::SetNextItemWidth(responsive::dp(70.0f));
         ImGui::DragInt("k", &plane.k, 0.2f, -12, 12);
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(70.0f);
+        ImGui::SetNextItemWidth(responsive::dp(70.0f));
         ImGui::DragInt("l", &plane.l, 0.2f, -12, 12);
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(120.0f);
+        ImGui::SetNextItemWidth(responsive::dp(120.0f));
         ImGui::DragFloat("Energy", &plane.surfaceEnergy, 0.01f, 0.001f, 1000.0f, "%.4f");
         if (plane.surfaceEnergy < 0.001f)
             plane.surfaceEnergy = 0.001f;
         ImGui::PopID();
     }
 
-    if (ImGui::Button("Add Facet Family##wulffAdd", ImVec2(150.0f, 0.0f)))
+    if (responsive::button("Add Facet Family##wulffAdd", responsive::size(150.0f,0.0f)))
     {
         params.wulffPlanes.push_back(WulffPlaneInput{});
         familyColors.push_back(wulffFamilyColor((int)familyColors.size()));
@@ -334,18 +335,18 @@ void drawShapeParameters(NanoParams& params)
 {
     switch (params.shape) {
         case NanoShape::Sphere:
-            ImGui::SetNextItemWidth(180.0f);
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::DragFloat("Radius (A)##sph", &params.sphereRadius, 0.5f, 0.1f, 500.0f, "%.2f");
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Drag to adjust, Ctrl+click to type");
             if (params.sphereRadius < 0.1f) params.sphereRadius = 0.1f;
             break;
 
         case NanoShape::Ellipsoid:
-            ImGui::SetNextItemWidth(180.0f);
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::DragFloat("Semi-axis a (A)##ell", &params.ellipRx, 0.5f, 0.1f, 500.0f, "%.2f");
-            ImGui::SetNextItemWidth(180.0f);
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::DragFloat("Semi-axis b (A)##ell", &params.ellipRy, 0.5f, 0.1f, 500.0f, "%.2f");
-            ImGui::SetNextItemWidth(180.0f);
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::DragFloat("Semi-axis c (A)##ell", &params.ellipRz, 0.5f, 0.1f, 500.0f, "%.2f");
             if (params.ellipRx < 0.1f) params.ellipRx = 0.1f;
             if (params.ellipRy < 0.1f) params.ellipRy = 0.1f;
@@ -353,11 +354,11 @@ void drawShapeParameters(NanoParams& params)
             break;
 
         case NanoShape::Box:
-            ImGui::SetNextItemWidth(180.0f);
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::DragFloat("Half-size X (A)##box", &params.boxHx, 0.5f, 0.1f, 500.0f, "%.2f");
-            ImGui::SetNextItemWidth(180.0f);
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::DragFloat("Half-size Y (A)##box", &params.boxHy, 0.5f, 0.1f, 500.0f, "%.2f");
-            ImGui::SetNextItemWidth(180.0f);
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::DragFloat("Half-size Z (A)##box", &params.boxHz, 0.5f, 0.1f, 500.0f, "%.2f");
             ImGui::TextDisabled("Full box: %.2f x %.2f x %.2f A",
                                 2.f*params.boxHx, 2.f*params.boxHy, 2.f*params.boxHz);
@@ -368,11 +369,11 @@ void drawShapeParameters(NanoParams& params)
 
         case NanoShape::Cylinder: {
             const char* axisNames[] = {"X", "Y", "Z"};
-            ImGui::SetNextItemWidth(180.0f);
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::DragFloat("Radius (A)##cyl", &params.cylRadius, 0.5f, 0.1f, 500.0f, "%.2f");
-            ImGui::SetNextItemWidth(180.0f);
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::DragFloat("Height (A)##cyl", &params.cylHeight, 0.5f, 0.1f, 1000.0f, "%.2f");
-            ImGui::SetNextItemWidth(120.0f);
+            ImGui::SetNextItemWidth(responsive::dp(120.0f));
             ImGui::Combo("Axis##cyl", &params.cylAxis, axisNames, 3);
             if (params.cylRadius < 0.1f) params.cylRadius = 0.1f;
             if (params.cylHeight < 0.1f) params.cylHeight = 0.1f;
@@ -380,16 +381,16 @@ void drawShapeParameters(NanoParams& params)
         }
 
         case NanoShape::Octahedron:
-            ImGui::SetNextItemWidth(180.0f);
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::DragFloat("Radius (A)##oct", &params.octRadius, 0.5f, 0.1f, 500.0f, "%.2f");
             ImGui::TextDisabled("Condition: |x|+|y|+|z| <= R");
             if (params.octRadius < 0.1f) params.octRadius = 0.1f;
             break;
 
         case NanoShape::TruncatedOctahedron:
-            ImGui::SetNextItemWidth(180.0f);
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::DragFloat("Octahedron R (A)##trunc", &params.truncOctRadius, 0.5f, 0.1f, 500.0f, "%.2f");
-            ImGui::SetNextItemWidth(180.0f);
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::DragFloat("Truncation R (A)##trunc", &params.truncOctTrunc,  0.5f, 0.1f, 500.0f, "%.2f");
             ImGui::TextDisabled("Cond: |x|+|y|+|z|<=R_oct  AND  max(|x|,|y|,|z|)<=R_trunc");
             if (params.truncOctRadius < 0.1f) params.truncOctRadius = 0.1f;
@@ -397,7 +398,7 @@ void drawShapeParameters(NanoParams& params)
             break;
 
         case NanoShape::Cuboctahedron:
-            ImGui::SetNextItemWidth(180.0f);
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::DragFloat("Radius (A)##cubo", &params.cuboRadius, 0.5f, 0.1f, 500.0f, "%.2f");
             ImGui::TextDisabled("Cond: |x|+|y|, |y|+|z|, |x|+|z| <= R");
             if (params.cuboRadius < 0.1f) params.cuboRadius = 0.1f;
@@ -990,9 +991,9 @@ void NanoCrystalBuilderDialog::drawDialog(
 
     m_isOpen = ImGui::IsPopupOpen("Build Nanocrystal");
 
-    ImGui::SetNextWindowSize(ImVec2(1160.0f, 900.0f), ImGuiCond_FirstUseEver);
+    responsive::windowSize(ImVec2(1160.0f, 900.0f), ImGuiCond_FirstUseEver);
     bool dialogOpen = true;
-    if (!ImGui::BeginPopupModal("Build Nanocrystal", &dialogOpen, 0)) {
+    if (!responsive::beginModal("Build Nanocrystal", &dialogOpen, 0)) {
         m_isOpen = false;
         return;
     }
@@ -1006,17 +1007,18 @@ void NanoCrystalBuilderDialog::drawDialog(
     //         Right = Builder options
     // =========================================================================
 
-    constexpr float kLeftW          = 460.0f;
-    constexpr float kColumnH        = 700.0f;
-    constexpr float kTopPanelH      = 360.0f;
+    const bool stackPanels = responsive::stacked();
+    const float kLeftW = responsive::previewWidth(460);
+    const float kColumnH = responsive::panelHeight(700);
+    const float kTopPanelH = kColumnH * .52f;
     const float     kBottomPanelH   = kColumnH - kTopPanelH - ImGui::GetStyle().ItemSpacing.y;
-    constexpr float kStructureViewH = 284.0f;
-    constexpr float kWulffViewH     = 250.0f;
+    const float kStructureViewH = std::max(responsive::dp(100), kTopPanelH - ImGui::GetFrameHeightWithSpacing() * 2);
+    const float kWulffViewH = std::max(responsive::dp(80), kBottomPanelH - ImGui::GetFrameHeightWithSpacing() * 2);
 
     ImGui::BeginGroup();
 
     // ---- TOP-LEFT: Structure view with drag-and-drop ----
-    ImGui::BeginChild("##nanoStructureView", ImVec2(kLeftW, kTopPanelH), true);
+    responsive::beginChild("##nanoStructureView", ImVec2(kLeftW, kTopPanelH), true);
 
     ImGui::Text("Reference Structure");
     ImGui::Separator();
@@ -1031,7 +1033,7 @@ void NanoCrystalBuilderDialog::drawDialog(
             ImGui::TextWrapped("%s", m_browsStatusMsg);
 
         ImGui::SameLine();
-        if (ImGui::Button("Clear##nanoClearRef", ImVec2(70.0f, 0.0f))) {
+        if (responsive::button("Clear##nanoClearRef", responsive::size(70.0f,0.0f))) {
             m_reference       = {};
             m_previewBufDirty = true;
             m_wulffPreviewDirty = true;
@@ -1143,7 +1145,7 @@ void NanoCrystalBuilderDialog::drawDialog(
     ImGui::EndChild(); // ##nanoStructureView
 
     // ---- BOTTOM-LEFT: Wulff plane preview ----
-    ImGui::BeginChild("##nanoWulffPreview", ImVec2(kLeftW, kBottomPanelH), true);
+    responsive::beginChild("##nanoWulffPreview", ImVec2(kLeftW, kBottomPanelH), true);
 
     ImGui::Text("Wulff Plane View");
     ImGui::Separator();
@@ -1207,17 +1209,17 @@ void NanoCrystalBuilderDialog::drawDialog(
 
     ImGui::EndGroup();
 
-    ImGui::SameLine();
+    responsive::nextPanel(stackPanels);
 
     // ---- RIGHT: Builder options ----
-    ImGui::BeginChild("##nanoBuilderOptions", ImVec2(0.0f, kColumnH), true);
+    responsive::beginChild("##nanoBuilderOptions", ImVec2(0.0f, kColumnH), true);
 
     ImGui::Text("Builder Options");
     ImGui::Separator();
 
     int generationMode = (int)params.generationMode;
     const char* generationLabels[] = {"Shape Cut", "Wulff Construction"};
-    ImGui::SetNextItemWidth(-1.0f);
+    ImGui::SetNextItemWidth(responsive::dp(-1.0f));
     if (ImGui::Combo("##nanoGenMode", &generationMode, generationLabels, 2))
     {
         params.generationMode = (NanoGenerationMode)generationMode;
@@ -1240,7 +1242,7 @@ void NanoCrystalBuilderDialog::drawDialog(
         constexpr int kNumShapeOptions = 7;
         int shapeInt = (int)params.shape;
         if (shapeInt >= kNumShapeOptions) { shapeInt = 0; params.shape = NanoShape::Sphere; }
-        ImGui::SetNextItemWidth(-1.0f);
+        ImGui::SetNextItemWidth(responsive::dp(-1.0f));
         if (ImGui::Combo("##nanoShapeCombo", &shapeInt, kShapeLabels, kNumShapeOptions))
             params.shape = (NanoShape)shapeInt;
 
@@ -1249,7 +1251,7 @@ void NanoCrystalBuilderDialog::drawDialog(
     }
 
     // Scrollable parameters area
-    ImGui::BeginChild("##nanoParamsScroll", ImVec2(-1, -50), true);
+    responsive::beginChild("##nanoParamsScroll", responsive::size(-1,-50), true);
 
     if (params.generationMode == NanoGenerationMode::Shape)
         drawShapeParameters(params);
@@ -1261,11 +1263,11 @@ void NanoCrystalBuilderDialog::drawDialog(
     ImGui::Text("Carving center");
     ImGui::Checkbox("Auto-center from atoms##nano", &params.autoCenterFromAtoms);
     if (!params.autoCenterFromAtoms) {
-        ImGui::SetNextItemWidth(130.0f);
+        ImGui::SetNextItemWidth(responsive::dp(130.0f));
         ImGui::DragFloat("X (A)##cnano", &params.cx, 0.1f, -1000.f, 1000.f, "%.3f");
-        ImGui::SetNextItemWidth(130.0f);
+        ImGui::SetNextItemWidth(responsive::dp(130.0f));
         ImGui::DragFloat("Y (A)##cnano", &params.cy, 0.1f, -1000.f, 1000.f, "%.3f");
-        ImGui::SetNextItemWidth(130.0f);
+        ImGui::SetNextItemWidth(responsive::dp(130.0f));
         ImGui::DragFloat("Z (A)##cnano", &params.cz, 0.1f, -1000.f, 1000.f, "%.3f");
     }
 
@@ -1277,11 +1279,11 @@ void NanoCrystalBuilderDialog::drawDialog(
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Automatically tile the unit cell to fully cover the generated shape");
         if (!params.autoReplicate) {
-            ImGui::SetNextItemWidth(80.0f);
+            ImGui::SetNextItemWidth(responsive::dp(80.0f));
             ImGui::DragInt("Along a##nano", &params.repA, 0.2f, 1, 40);
-            ImGui::SetNextItemWidth(80.0f);
+            ImGui::SetNextItemWidth(responsive::dp(80.0f));
             ImGui::DragInt("Along b##nano", &params.repB, 0.2f, 1, 40);
-            ImGui::SetNextItemWidth(80.0f);
+            ImGui::SetNextItemWidth(responsive::dp(80.0f));
             ImGui::DragInt("Along c##nano", &params.repC, 0.2f, 1, 40);
             if (params.repA < 1) params.repA = 1;
             if (params.repB < 1) params.repB = 1;
@@ -1295,7 +1297,7 @@ void NanoCrystalBuilderDialog::drawDialog(
     ImGui::Text("Output cell");
     ImGui::Checkbox("Rectangular cell##nano", &params.setOutputCell);
     if (params.setOutputCell) {
-        ImGui::SetNextItemWidth(100.0f);
+        ImGui::SetNextItemWidth(responsive::dp(100.0f));
         ImGui::InputFloat("Vacuum (A)##nano",
                           &params.vacuumPadding, 0.f, 0.f, "%.2f");
         if (params.vacuumPadding < 0.f) params.vacuumPadding = 0.f;
@@ -1343,7 +1345,7 @@ void NanoCrystalBuilderDialog::drawDialog(
                        && (params.generationMode != NanoGenerationMode::WulffConstruction
                            || m_wulffPreviewData.success);
     if (!canBuild) ImGui::BeginDisabled();
-    if (ImGui::Button("Build Nanocrystal##nano", ImVec2(160.0f, 0.0f))) {
+    if (responsive::button("Build Nanocrystal##nano", responsive::size(160.0f,0.0f))) {
         static const std::vector<glm::vec3>       kNoVerts;
         static const std::vector<unsigned int>    kNoIdx;
         lastResult = buildNanocrystal(structure,
@@ -1357,8 +1359,8 @@ void NanoCrystalBuilderDialog::drawDialog(
     }
     if (!canBuild) ImGui::EndDisabled();
 
-    ImGui::SameLine(0.0f, 8.0f);
-    if (ImGui::Button("Close##nano", ImVec2(80.0f, 0.0f))) {
+    ImGui::SameLine(responsive::dp(0.0f), 8.0f);
+    if (responsive::button("Close##nano", responsive::size(80.0f,0.0f))) {
         lastResult  = {};
         m_isOpen    = false;
         ImGui::CloseCurrentPopup();

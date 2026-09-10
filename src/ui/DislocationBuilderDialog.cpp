@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/DislocationBuilderDialog.h"
 
 #include "app/SceneView.h"
@@ -477,11 +478,11 @@ void DislocationBuilderDialog::drawDialog(
 
     m_isOpen = ImGui::IsPopupOpen("Insert Dislocation");
 
-    ImGui::SetNextWindowSize(ImVec2(1240.0f, 780.0f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(960.0f, 600.0f), ImVec2(3200.0f, 3200.0f));
+    responsive::windowSize(ImVec2(1240.0f, 780.0f), ImGuiCond_FirstUseEver);
+    responsive::windowConstraints(ImVec2(960.0f, 600.0f), ImVec2(3200.0f, 3200.0f));
 
     bool keepOpen = true;
-    if (!ImGui::BeginPopupModal("Insert Dislocation", &keepOpen, ImGuiWindowFlags_NoCollapse))
+    if (!responsive::beginModal("Insert Dislocation", &keepOpen, ImGuiWindowFlags_NoCollapse))
     {
         m_isOpen = false;
         return;
@@ -499,21 +500,22 @@ void DislocationBuilderDialog::drawDialog(
     if (m_sourceLoaded)
         activeSource = m_useCurrentSceneSource ? &structure : &m_source;
 
-    const float contentHeight = ImGui::GetContentRegionAvail().y - 58.0f;
-    const float previewPanelWidth = ImGui::GetContentRegionAvail().x * 0.62f;
+    const bool stackPanels = responsive::stacked();
+    const float contentHeight = responsive::panelHeight(780);
+    const float previewPanelWidth = responsive::previewWidth(680, 440);
 
-    ImGui::BeginChild("##disloc_previews", ImVec2(previewPanelWidth, contentHeight), false);
+    responsive::beginChild("##disloc_previews", ImVec2(previewPanelWidth, contentHeight), false);
     {
         const float splitGap = ImGui::GetStyle().ItemSpacing.y;
         const float upperHeight = (ImGui::GetContentRegionAvail().y - splitGap) * 0.5f;
         const float lowerHeight = ImGui::GetContentRegionAvail().y - upperHeight - splitGap;
 
-        ImGui::BeginChild("##disloc_source", ImVec2(0.0f, upperHeight), false);
+        responsive::beginChild("##disloc_source", ImVec2(0.0f, upperHeight), false);
         {
             ImGui::Text("Input Preview");
             ImGui::SameLine();
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f, 6.0f));
-            if (ImGui::Button("Use Current Scene"))
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, responsive::size(10.0f,6.0f));
+            if (responsive::button("Use Current Scene"))
             {
                 loadFromScene(structure, elementRadii, elementShininess);
                 activeSource = &structure;
@@ -580,7 +582,7 @@ void DislocationBuilderDialog::drawDialog(
         }
         ImGui::EndChild();
 
-        ImGui::BeginChild("##disloc_output", ImVec2(0.0f, lowerHeight), false);
+        responsive::beginChild("##disloc_output", ImVec2(0.0f, lowerHeight), false);
         {
             ImGui::Text("Output Preview");
             if (m_result.success)
@@ -649,9 +651,9 @@ void DislocationBuilderDialog::drawDialog(
     }
     ImGui::EndChild();
 
-    ImGui::SameLine();
+    responsive::nextPanel(stackPanels);
 
-    ImGui::BeginChild("##disloc_controls", ImVec2(0, contentHeight), false);
+    responsive::beginChild("##disloc_controls", ImVec2(0, contentHeight), false);
     {
         ImGui::Text("Dislocation Options");
         ImGui::Separator();
@@ -660,7 +662,7 @@ void DislocationBuilderDialog::drawDialog(
         if (m_generationRunning)
             ImGui::TextDisabled("Generation running in background...");
 
-        if (ImGui::Button("Detect Lattice", ImVec2(-1.0f, 0.0f)))
+        if (responsive::button("Detect Lattice", responsive::size(-1.0f,0.0f)))
         {
             if (!m_sourceLoaded)
             {
@@ -764,7 +766,7 @@ void DislocationBuilderDialog::drawDialog(
         else if (m_params.shape == DislocationShape::Freeform2D)
         {
             ImGui::TextDisabled("Freeform polygon in local (x, y) around the dislocation line.");
-            if (ImGui::Button("Add Point"))
+            if (responsive::button("Add Point"))
             {
                 if (m_params.freeformPoints.empty())
                     m_params.freeformPoints.push_back(glm::vec2(0.0f, 0.0f));
@@ -772,16 +774,16 @@ void DislocationBuilderDialog::drawDialog(
                     m_params.freeformPoints.push_back(m_params.freeformPoints.back() + glm::vec2(1.0f, 0.0f));
             }
             ImGui::SameLine();
-            if (ImGui::Button("Remove Last") && !m_params.freeformPoints.empty())
+            if (responsive::button("Remove Last") && !m_params.freeformPoints.empty())
                 m_params.freeformPoints.pop_back();
 
             const float pointsHeight = 112.0f;
-            if (ImGui::BeginChild("##freeform_points", ImVec2(0.0f, pointsHeight), true))
+            if (responsive::beginChild("##freeform_points", ImVec2(0.0f, pointsHeight), true))
             {
                 for (int i = 0; i < (int)m_params.freeformPoints.size(); ++i)
                 {
                     ImGui::PushID(i + 24000);
-                    ImGui::SetNextItemWidth(-1.0f);
+                    ImGui::SetNextItemWidth(responsive::dp(-1.0f));
                     ImGui::DragFloat2("##pt", &m_params.freeformPoints[i].x, 0.05f, -500.0f, 500.0f, "%.2f");
                     ImGui::PopID();
                 }
@@ -792,7 +794,7 @@ void DislocationBuilderDialog::drawDialog(
         ImGui::Spacing();
         if (!canGenerate)
             ImGui::BeginDisabled();
-        if (ImGui::Button("Generate Dislocation", ImVec2(-1.0f, 0.0f)))
+        if (responsive::button("Generate Dislocation", responsive::size(-1.0f,0.0f)))
             generateDislocation(*activeSource);
         if (!canGenerate)
             ImGui::EndDisabled();
@@ -810,7 +812,7 @@ void DislocationBuilderDialog::drawDialog(
                                 dislocationLatticeFamilyName(m_result.validation.familyBefore),
                                 dislocationLatticeFamilyName(m_result.validation.familyAfter));
 
-            if (ImGui::Button("Replace Main Scene", ImVec2(-1.0f, 0.0f)))
+            if (responsive::button("Replace Main Scene", responsive::size(-1.0f,0.0f)))
             {
                 structure = m_result.output;
                 structure.dislocationLoopPoints = m_result.loopPoints;
@@ -834,7 +836,7 @@ void DislocationBuilderDialog::drawDialog(
 
     const float buttonWidth = 100.0f;
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonWidth);
-    if (ImGui::Button("Close", ImVec2(buttonWidth, 0.0f)))
+    if (responsive::button("Close", ImVec2(buttonWidth, 0.0f)))
         ImGui::CloseCurrentPopup();
 
     ImGui::EndPopup();

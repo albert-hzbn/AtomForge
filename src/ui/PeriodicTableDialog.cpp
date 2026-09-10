@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "PeriodicTableDialog.h"
 
 #include "imgui.h"
@@ -216,7 +217,7 @@ bool drawPeriodicTable(std::vector<ElementSelection>& outSelections)
     ImGui::SetNextWindowSize(ImVec2(neededW, neededH), ImGuiCond_Always);
 
     bool open = true;
-    if (!ImGui::BeginPopupModal("Periodic Table##picker", &open,
+    if (!responsive::beginModal("Periodic Table##picker", &open,
                                 ImGuiWindowFlags_NoResize |
                                 ImGuiWindowFlags_NoScrollbar))
     {
@@ -373,7 +374,7 @@ bool drawPeriodicTable(std::vector<ElementSelection>& outSelections)
     float btnY = btnAreaY + 25.0f;
     ImGui::SetCursorPos(ImVec2(padX, btnY));
     
-    if (ImGui::Button("Apply", ImVec2(80, 0)) && selectedAtomicNumber >= 0)
+    if (responsive::button("Apply", responsive::size(80,0)) && selectedAtomicNumber >= 0)
     {
         // Populate outSelections with the single selection
         outSelections.clear();
@@ -391,7 +392,7 @@ bool drawPeriodicTable(std::vector<ElementSelection>& outSelections)
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Cancel", ImVec2(80, 0)))
+    if (responsive::button("Cancel", responsive::size(80,0)))
     {
         selectedAtomicNumber = -1;
         ImGui::CloseCurrentPopup();
@@ -420,7 +421,7 @@ bool drawPeriodicTableInlineSelector(int& selectedAtomicNumber)
 
     const float neededW = padX * 2.0f + 18.0f * cellW + ImGui::GetStyle().WindowPadding.x * 2.0f;
     const float neededH = padY + 7.0f * cellH + fGap + 2.0f * cellH + 10.0f + ImGui::GetStyle().WindowPadding.y * 2.0f;
-    ImGui::BeginChild("PeriodicTableInline##selector", ImVec2(neededW, neededH), true);
+    responsive::beginChild("PeriodicTableInline##selector", ImVec2(neededW, neededH), true);
     ImDrawList* dl = ImGui::GetWindowDrawList();
 
     for (int i = 0; i < kElemCount; ++i)

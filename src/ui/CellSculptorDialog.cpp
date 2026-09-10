@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/CellSculptorDialog.h"
 #include "algorithms/CellSculptorAlgo.h"
 #include "app/SceneView.h"
@@ -745,9 +746,9 @@ void CellSculptorDialog::drawDialog(
 
     m_isOpen = ImGui::IsPopupOpen("Cell Sculptor");
 
-    ImGui::SetNextWindowSize(ImVec2(1200.0f, 840.0f), ImGuiCond_FirstUseEver);
+    responsive::windowSize(ImVec2(1200.0f, 840.0f), ImGuiCond_FirstUseEver);
     bool dialogOpen = true;
-    if (!ImGui::BeginPopupModal("Cell Sculptor", &dialogOpen, 0))
+    if (!responsive::beginModal("Cell Sculptor", &dialogOpen, 0))
     {
         m_isOpen = false;
         return;
@@ -767,9 +768,10 @@ void CellSculptorDialog::drawDialog(
     // ------------------------------------------------------------------
     // Layout: Left = two stacked previews, Right = scrollable controls
     // ------------------------------------------------------------------
-    constexpr float kLeftW       = 580.0f;
-    constexpr float kColumnH     = 760.0f;
-    constexpr float kTopPanelH   = 400.0f;
+    const bool stackPanels = responsive::stacked();
+    const float kLeftW = responsive::previewWidth(580);
+    const float kColumnH = responsive::panelHeight(760);
+    const float kTopPanelH = kColumnH * .52f;
     const float     kBotPanelH   = kColumnH - kTopPanelH - ImGui::GetStyle().ItemSpacing.y;
     constexpr float kViewPad     = 5.0f;
 
@@ -779,10 +781,10 @@ void CellSculptorDialog::drawDialog(
     ImGui::BeginGroup();
 
     // -- TOP: Supercell + planes --
-    ImGui::BeginChild("##scSrcPanel", ImVec2(kLeftW, kTopPanelH), true);
+    responsive::beginChild("##scSrcPanel", ImVec2(kLeftW, kTopPanelH), true);
     ImGui::TextUnformatted("Supercell + Cutting Planes");
     ImGui::SameLine();
-    if (ImGui::Button("Use Scene##scuse"))
+    if (responsive::button("Use Scene##scuse"))
     {
         loadSourceFromScene(structure, "scene");
         rebuildSourceBuffers(); rebuildFaces(); rebuildResult();
@@ -790,7 +792,7 @@ void CellSculptorDialog::drawDialog(
     if (m_hasSource)
     {
         ImGui::SameLine();
-        if (ImGui::Button("Clear##scclear"))
+        if (responsive::button("Clear##scclear"))
         {
             m_source = {}; m_hasSource = false;
             m_sourceBufDirty = true; m_facesDirty = true;
@@ -843,7 +845,7 @@ void CellSculptorDialog::drawDialog(
     ImGui::EndChild();
 
     // -- BOTTOM: Cut result --
-    ImGui::BeginChild("##scResPanel", ImVec2(kLeftW, kBotPanelH), true);
+    responsive::beginChild("##scResPanel", ImVec2(kLeftW, kBotPanelH), true);
     ImGui::TextUnformatted("Cut Result");
     if (!m_previewResult.atoms.empty())
     {
@@ -896,13 +898,13 @@ void CellSculptorDialog::drawDialog(
     // ===================================================================
     // RIGHT: Controls
     // ===================================================================
-    ImGui::SameLine();
-    ImGui::BeginChild("##scCtrlOuter", ImVec2(0.0f, kColumnH), true);
+    responsive::nextPanel(stackPanels);
+    responsive::beginChild("##scCtrlOuter", ImVec2(0.0f, kColumnH), true);
     ImGui::TextUnformatted("Cell Sculptor — Controls");
     ImGui::Separator();
 
     // Inner scrollable region, leaving room for Generate/Close buttons
-    ImGui::BeginChild("##scCtrlScroll", ImVec2(-1.0f, -46.0f), false);
+    responsive::beginChild("##scCtrlScroll", responsive::size(-1.0f,-46.0f), false);
 
     if (!m_status.empty()) ImGui::TextWrapped("%s", m_status.c_str());
 
@@ -920,7 +922,7 @@ void CellSculptorDialog::drawDialog(
                               + scFHS                                  // table header labels
                               + scFH;                                  // table drag-int row
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
-    ImGui::BeginChild("##scSupercellPanel", ImVec2(-1.0f, supercellBoxH), true,
+    responsive::beginChild("##scSupercellPanel", ImVec2(-1.0f, supercellBoxH), true,
                       ImGuiWindowFlags_NoScrollbar);
     ImGui::TextUnformatted("Supercell");
     ImGui::SameLine(); ImGui::TextDisabled("(tiles +/- around origin)");
@@ -937,9 +939,9 @@ void CellSculptorDialog::drawDialog(
             ImGui::TableNextColumn(); ImGui::TextDisabled("y");
             ImGui::TableNextColumn(); ImGui::TextDisabled("z");
             ImGui::TableNextRow();
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(-1); sc |= ImGui::DragInt("##scx", &m_nx, 0.1f, 1, 30);
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(-1); sc |= ImGui::DragInt("##scy", &m_ny, 0.1f, 1, 30);
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(-1); sc |= ImGui::DragInt("##scz", &m_nz, 0.1f, 1, 30);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(-1)); sc |= ImGui::DragInt("##scx", &m_nx, 0.1f, 1, 30);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(-1)); sc |= ImGui::DragInt("##scy", &m_ny, 0.1f, 1, 30);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(-1)); sc |= ImGui::DragInt("##scz", &m_nz, 0.1f, 1, 30);
             ImGui::EndTable();
         }
         m_nx = std::max(1, m_nx); m_ny = std::max(1, m_ny); m_nz = std::max(1, m_nz);
@@ -951,7 +953,7 @@ void CellSculptorDialog::drawDialog(
     // ---- Cutting Slabs ----
     ImGui::Spacing();
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
-    ImGui::BeginChild("##scSlabsPanel", ImVec2(-1.0f, 0.0f), true,
+    responsive::beginChild("##scSlabsPanel", responsive::size(-1.0f,0.0f), true,
                       ImGuiWindowFlags_NoScrollbar);
     ImGui::TextUnformatted("Cutting Slabs");
     ImGui::SameLine(); ImGui::TextDisabled("(atoms kept within [d1,d2] along hkl)");
@@ -984,7 +986,7 @@ void CellSculptorDialog::drawDialog(
                 ImGui::SetCursorPosX(ImGui::GetCursorPosX()
                     + ImGui::GetContentRegionAvail().x - removeW);
             }
-            if (ImGui::Button("Remove##sr"))
+            if (responsive::button("Remove##sr"))
             {
                 m_slabs.erase(m_slabs.begin() + (int)si);
                 m_facesDirty = true; m_resultDirty = true;
@@ -1002,9 +1004,9 @@ void CellSculptorDialog::drawDialog(
                 ImGui::TableNextColumn(); ImGui::TextDisabled("k");
                 ImGui::TableNextColumn(); ImGui::TextDisabled("l");
                 ImGui::TableNextRow();
-                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(-1); changed |= ImGui::DragInt("##h", &slab.h, 0.15f, -12, 12);
-                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(-1); changed |= ImGui::DragInt("##k", &slab.k, 0.15f, -12, 12);
-                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(-1); changed |= ImGui::DragInt("##l", &slab.l, 0.15f, -12, 12);
+                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(-1)); changed |= ImGui::DragInt("##h", &slab.h, 0.15f, -12, 12);
+                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(-1)); changed |= ImGui::DragInt("##k", &slab.k, 0.15f, -12, 12);
+                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(-1)); changed |= ImGui::DragInt("##l", &slab.l, 0.15f, -12, 12);
                 ImGui::EndTable();
             }
 
@@ -1032,11 +1034,11 @@ void CellSculptorDialog::drawDialog(
                     ImGui::TextDisabled("d=%g A (layer %g A)", d_rep, d_atom);
                 else
                     ImGui::TextDisabled("d=%g A", d_rep);
-                ImGui::SetNextItemWidth(65.0f);
+                ImGui::SetNextItemWidth(responsive::dp(65.0f));
                 if (ImGui::DragInt("Start##scsp", &slab.startPlane, 0.1f, -200, 200))
                     changed = true;
                 ImGui::SameLine();
-                ImGui::SetNextItemWidth(50.0f);
+                ImGui::SetNextItemWidth(responsive::dp(50.0f));
                 if (ImGui::DragInt("N##scnp", &slab.nPeriods, 0.1f, 1, 200))
                 { slab.nPeriods = std::max(1, slab.nPeriods); changed = true; }
                 const float eff1 = cscD1(slab, m_source), eff2 = cscD2(slab, m_source);
@@ -1044,10 +1046,10 @@ void CellSculptorDialog::drawDialog(
             }
             else
             {
-                ImGui::SetNextItemWidth(70.0f);
+                ImGui::SetNextItemWidth(responsive::dp(70.0f));
                 changed |= ImGui::DragFloat("d1##sc", &slab.d1, 0.05f, -500.f, 500.f, "%.2f");
                 ImGui::SameLine();
-                ImGui::SetNextItemWidth(70.0f);
+                ImGui::SetNextItemWidth(responsive::dp(70.0f));
                 changed |= ImGui::DragFloat("d2##sc", &slab.d2, 0.05f, -500.f, 500.f, "%.2f");
             }
 
@@ -1072,17 +1074,17 @@ void CellSculptorDialog::drawDialog(
             ImGui::TableNextColumn(); ImGui::TextDisabled("k");
             ImGui::TableNextColumn(); ImGui::TextDisabled("l");
             ImGui::TableNextRow();
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(-1); ImGui::DragInt("##nh", &m_newH, 0.15f, -12, 12);
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(-1); ImGui::DragInt("##nk", &m_newK, 0.15f, -12, 12);
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(-1); ImGui::DragInt("##nl", &m_newL, 0.15f, -12, 12);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::DragInt("##nh", &m_newH, 0.15f, -12, 12);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::DragInt("##nk", &m_newK, 0.15f, -12, 12);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::DragInt("##nl", &m_newL, 0.15f, -12, 12);
             ImGui::EndTable();
         }
-        ImGui::SetNextItemWidth(70.0f);
+        ImGui::SetNextItemWidth(responsive::dp(70.0f));
         ImGui::DragFloat("d1##nnd1", &m_newD1, 0.1f, -500.f, 500.f, "%.1f");
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(70.0f);
+        ImGui::SetNextItemWidth(responsive::dp(70.0f));
         ImGui::DragFloat("d2##nnd2", &m_newD2, 0.1f, -500.f, 500.f, "%.1f");
-        if (ImGui::Button("+ Add Slab##nnadd", ImVec2(-1.0f, 0.0f)))
+        if (responsive::button("+ Add Slab##nnadd", responsive::size(-1.0f,0.0f)))
         {
             if (m_newD2 < m_newD1 + 0.05f) m_newD2 = m_newD1 + 0.05f;
             CellSlabPlane slab;
@@ -1102,7 +1104,7 @@ void CellSculptorDialog::drawDialog(
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::TextUnformatted("Outside atom opacity");
-    ImGui::SetNextItemWidth(-1.0f);
+    ImGui::SetNextItemWidth(responsive::dp(-1.0f));
     ImGui::SliderFloat("##scghostalpha", &m_ghostAlpha, 0.0f, 1.0f, "%.2f");
 
     // ---- Status ----
@@ -1125,7 +1127,7 @@ void CellSculptorDialog::drawDialog(
     // Fixed bottom buttons
     ImGui::Separator();
     if (!bounded) ImGui::BeginDisabled();
-    const bool doGenerate = ImGui::Button("Generate##scgen", ImVec2(100.0f, 0.0f));
+    const bool doGenerate = responsive::button("Generate##scgen", responsive::size(100.0f,0.0f));
     if (!bounded)
     {
         ImGui::EndDisabled();
@@ -1133,7 +1135,7 @@ void CellSculptorDialog::drawDialog(
             ImGui::SetTooltip("Close the region first.");
     }
     ImGui::SameLine();
-    if (ImGui::Button("Close##scclose", ImVec2(80.0f, 0.0f)))
+    if (responsive::button("Close##scclose", responsive::size(80.0f,0.0f)))
         ImGui::CloseCurrentPopup();
 
     ImGui::EndChild(); // ##scCtrlOuter

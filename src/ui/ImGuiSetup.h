@@ -11,6 +11,11 @@ void initImGui(GLFWwindow* window);
 // up when the window moves between monitors.
 void updateImGuiScale(GLFWwindow* window);
 
+// User multiplier relative to automatic monitor scaling. Applied next frame,
+// together with widget spacing and on-demand font scaling.
+float interfaceScale();
+void setInterfaceScale(float multiplier);
+
 // Detach backends and destroy the ImGui context.
 void shutdownImGui();
 

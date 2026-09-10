@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/SubstitutionalSolidSolutionDialog.h"
 #include "algorithms/SubstitutionalSolidSolutionBuilder.h"
 #include "camera/Camera.h"
@@ -559,12 +560,12 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
 
     m_isOpen = ImGui::IsPopupOpen("Substitutional Solid Solution");
 
-    ImGui::SetNextWindowSize(ImVec2(1000.0f, 660.0f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(720.0f, 480.0f),
+    responsive::windowSize(ImVec2(1000.0f, 660.0f), ImGuiCond_FirstUseEver);
+    responsive::windowConstraints(ImVec2(720.0f, 480.0f),
                                         ImVec2(3000.0f, 3000.0f));
 
     bool keepOpen = true;
-    if (!ImGui::BeginPopupModal("Substitutional Solid Solution",
+    if (!responsive::beginModal("Substitutional Solid Solution",
                                  &keepOpen,
                                  ImGuiWindowFlags_NoCollapse))
     {
@@ -583,13 +584,14 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
     ImGui::Separator();
     ImGui::Spacing();
 
-    const float contentH = ImGui::GetContentRegionAvail().y - 50.0f; // reserve bottom bar
-    const float leftW    = ImGui::GetContentRegionAvail().x * 0.60f;
+    const bool stackPanels = responsive::stacked();
+    const float contentH = responsive::panelHeight(660); // reserve bottom bar
+    const float leftW = responsive::previewWidth(600);
 
     // =======================================================================
     // LEFT PANEL – host structure loader + 3-D preview
     // =======================================================================
-    ImGui::BeginChild("##sss_left", ImVec2(leftW, contentH), false);
+    responsive::beginChild("##sss_left", ImVec2(leftW, contentH), false);
     {
         // Compact header row: label + button on the same line.
         ImGui::Text("Host Structure");
@@ -696,12 +698,12 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
     }
     ImGui::EndChild(); // ##sss_left
 
-    ImGui::SameLine();
+    responsive::nextPanel(stackPanels);
 
     // =======================================================================
     // RIGHT PANEL – composition + options (only shown when source is loaded)
     // =======================================================================
-    ImGui::BeginChild("##sss_right", ImVec2(0, contentH), false);
+    responsive::beginChild("##sss_right", ImVec2(0, contentH), false);
     {
         if (!m_sourceLoaded)
         {
@@ -729,9 +731,9 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
             // Header row.
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetColorU32(ImGuiCol_TextDisabled));
             ImGui::Text("El.");
-            ImGui::SameLine(0.0f, kSymW - ImGui::CalcTextSize("El.").x + 8.0f);
+            ImGui::SameLine(responsive::dp(0.0f), kSymW - ImGui::CalcTextSize("El.").x + 8.0f);
             ImGui::Text("at%%");
-            ImGui::SameLine(0.0f, kPctW - ImGui::CalcTextSize("at%").x + 8.0f);
+            ImGui::SameLine(responsive::dp(0.0f), kPctW - ImGui::CalcTextSize("at%").x + 8.0f);
             ImGui::Text("atoms");
             ImGui::PopStyleColor();
             ImGui::Separator();
@@ -750,14 +752,14 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
                 const int z = entry.atomicNumber;
                 char symBtn[16];
                 std::snprintf(symBtn, sizeof(symBtn), "%s##sym", elementSymbol(z));
-                if (ImGui::Button(symBtn, ImVec2(kSymW, 0.0f)))
+                if (responsive::button(symBtn, ImVec2(kSymW, 0.0f)))
                 {
                     m_pickerTarget = i;
                     openPicker = true;
                 }
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("%s", elementName(z));
-                ImGui::SameLine(0.0f, 8.0f);
+                ImGui::SameLine(responsive::dp(0.0f), 8.0f);
 
                 // -- at% drag-and-edit field --
                 // The last entry is read-only: it auto-adjusts to keep the
@@ -781,11 +783,11 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
                         ImGui::SetTooltip("Drag or Ctrl+click to edit.\nThe last element adjusts automatically.");
                 }
 
-                ImGui::SameLine(0.0f, 8.0f);
+                ImGui::SameLine(responsive::dp(0.0f), 8.0f);
 
                 // -- Derived atom count (read-only) --
                 ImGui::Text("%d atoms", entry.count);
-                ImGui::SameLine(0.0f, 8.0f);
+                ImGui::SameLine(responsive::dp(0.0f), 8.0f);
 
                 // -- Remove button --
                 if ((int)m_entries.size() > 1)
@@ -804,7 +806,7 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
 
             if ((int)m_entries.size() < 118)
             {
-                if (ImGui::Button("+ Add Element"))
+                if (responsive::button("+ Add Element"))
                     addEntry();
             }
 
@@ -836,7 +838,7 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
             // ------------------------------------------------------------------
             ImGui::Text("Options");
             ImGui::Spacing();
-            ImGui::SetNextItemWidth(160.0f);
+            ImGui::SetNextItemWidth(responsive::dp(160.0f));
             ImGui::InputInt("RNG Seed", &m_seed);
             if (m_seed < 0) m_seed = 0;
             ImGui::SameLine();
@@ -849,7 +851,7 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
             // ------------------------------------------------------------------
             // Build button
             // ------------------------------------------------------------------
-            if (ImGui::Button("Build Solid Solution", ImVec2(-1.0f, 0.0f)))
+            if (responsive::button("Build Solid Solution", responsive::size(-1.0f,0.0f)))
             {
                 SSSParams params;
                 params.seed = (unsigned int)m_seed;
@@ -903,7 +905,7 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
     const float btnW = 100.0f;
     ImGui::SetCursorPosX(ImGui::GetCursorPosX()
                          + ImGui::GetContentRegionAvail().x - btnW);
-    if (ImGui::Button("Close", ImVec2(btnW, 0.0f)))
+    if (responsive::button("Close", ImVec2(btnW, 0.0f)))
         ImGui::CloseCurrentPopup();
 
     ImGui::EndPopup();

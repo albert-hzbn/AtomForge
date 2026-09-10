@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/MeasurementOverlay.h"
 
 #include "ElementData.h"
@@ -534,9 +535,9 @@ void drawMeasurementPopups(MeasurementOverlayState& state)
         state.showAnglePopup = false;
     }
 
-    ImGui::SetNextWindowSize(ImVec2(540.0f, 0.0f), ImGuiCond_Appearing);
+    responsive::windowSize(ImVec2(540.0f, 0.0f), ImGuiCond_Appearing);
     bool measureAngleOpen = true;
-    if (ImGui::BeginPopupModal("Measure Angle", &measureAngleOpen))
+    if (responsive::beginModal("Measure Angle", &measureAngleOpen))
     {
         ImGui::TextWrapped("%s", state.angleMessage);
         ImGui::EndPopup();
@@ -553,9 +554,9 @@ void drawMeasurementPopups(MeasurementOverlayState& state)
         state.showDistancePopup = false;
     }
 
-    ImGui::SetNextWindowSize(ImVec2(540.0f, 0.0f), ImGuiCond_Appearing);
+    responsive::windowSize(ImVec2(540.0f, 0.0f), ImGuiCond_Appearing);
     bool measureDistanceOpen = true;
-    if (ImGui::BeginPopupModal("Measure Distance", &measureDistanceOpen))
+    if (responsive::beginModal("Measure Distance", &measureDistanceOpen))
     {
         ImGui::TextWrapped("%s", state.distanceMessage);
         ImGui::EndPopup();
@@ -572,9 +573,9 @@ void drawMeasurementPopups(MeasurementOverlayState& state)
         state.showAtomInfoPopup = false;
     }
 
-    ImGui::SetNextWindowSize(ImVec2(480.0f, 0.0f), ImGuiCond_Appearing);
+    responsive::windowSize(ImVec2(480.0f, 0.0f), ImGuiCond_Appearing);
     bool atomInfoOpen = true;
-    if (ImGui::BeginPopupModal("Atom Info", &atomInfoOpen))
+    if (responsive::beginModal("Atom Info", &atomInfoOpen))
     {
         ImGui::TextWrapped("%s", state.atomInfoMessage);
         ImGui::EndPopup();

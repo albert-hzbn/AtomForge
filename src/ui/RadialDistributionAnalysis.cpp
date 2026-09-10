@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/RadialDistributionAnalysis.h"
 
 #include "ElementData.h"
@@ -21,7 +22,7 @@ void drawPlot(const RdfResult& result,
               bool showCumulative)
 {
     const ImVec2 canvasSize(-1.0f, 260.0f);
-    ImGui::BeginChild("##rdf-plot-child", canvasSize, true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    responsive::beginChild("##rdf-plot-child", canvasSize, true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
     ImVec2 origin = ImGui::GetCursorScreenPos();
@@ -255,19 +256,20 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
     std::vector<std::pair<int, std::string>> speciesOptions = buildSpeciesOptions(structure);
     clampSpeciesSelectionIndices(refSpeciesIndex, targetSpeciesIndex, (int)speciesOptions.size());
 
-    ImGui::SetNextWindowSize(ImVec2(1180.0f, 820.0f), ImGuiCond_FirstUseEver);
+    responsive::windowSize(ImVec2(1180.0f, 820.0f), ImGuiCond_FirstUseEver);
     bool dialogOpen = true;
-    if (ImGui::BeginPopupModal("Radial Distribution Function", &dialogOpen, ImGuiWindowFlags_None))
+    if (responsive::beginModal("Radial Distribution Function", &dialogOpen, ImGuiWindowFlags_None))
     {
         bool changed = false;
-        if (ImGui::BeginTable("##rdf-layout", 2, ImGuiTableFlags_SizingStretchProp))
+        const bool stackPanels = responsive::stacked(1050);
+        if (ImGui::BeginTable("##rdf-layout", stackPanels ? 1 : 2, ImGuiTableFlags_SizingStretchProp))
         {
             ImGui::TableSetupColumn("##rdf-controls", ImGuiTableColumnFlags_WidthStretch, 0.43f);
-            ImGui::TableSetupColumn("##rdf-results", ImGuiTableColumnFlags_WidthStretch, 0.57f);
+            if (!stackPanels) ImGui::TableSetupColumn("##rdf-results", ImGuiTableColumnFlags_WidthStretch, 0.57f);
             ImGui::TableNextRow();
 
             ImGui::TableSetColumnIndex(0);
-            ImGui::BeginChild("##rdf-controls-child", ImVec2(0.0f, 0.0f), true);
+            responsive::beginChild("##rdf-controls-child", responsive::size(0.0f,stackPanels ? 520.0f : 0.0f), true);
             ImGui::SeparatorText("Scope and Pair Selection");
             changed |= ImGui::Combo("Reference species", &refSpeciesIndex, speciesLabelGetter, &speciesOptions, (int)speciesOptions.size());
             changed |= ImGui::Combo("Target species", &targetSpeciesIndex, speciesLabelGetter, &speciesOptions, (int)speciesOptions.size());
@@ -294,10 +296,10 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
             }
 
             bool computeRequested = false;
-            if (ImGui::Button("Run RDF", ImVec2(140.0f, 0.0f)) && !m_task.running())
+            if (responsive::button("Run RDF", responsive::size(140.0f,0.0f)) && !m_task.running())
                 computeRequested = true;
             ImGui::SameLine();
-            if (ImGui::Button("Close", ImVec2(120.0f, 0.0f)))
+            if (responsive::button("Close", responsive::size(120.0f,0.0f)))
                 dialogOpen = false;
             ImGui::SameLine();
             if (m_task.running())
@@ -324,8 +326,9 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
                 });
             }
 
-            ImGui::TableSetColumnIndex(1);
-            ImGui::BeginChild("##rdf-results-child", ImVec2(0.0f, 0.0f), true);
+            if (stackPanels) { ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); }
+            else ImGui::TableSetColumnIndex(1);
+            responsive::beginChild("##rdf-results-child", responsive::size(0.0f,stackPanels ? 520.0f : 0.0f), true);
             
             // Display results if available
             if (m_task.result())
@@ -341,9 +344,7 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
             ImGui::EndTable();
         }
 
+        if (!dialogOpen) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
-
-    if (!dialogOpen)
-        ImGui::CloseCurrentPopup();
 }

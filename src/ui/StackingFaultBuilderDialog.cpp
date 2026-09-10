@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/StackingFaultBuilderDialog.h"
 
 #include "app/SceneView.h"
@@ -498,11 +499,11 @@ void StackingFaultBuilderDialog::drawDialog(
 
     m_isOpen = ImGui::IsPopupOpen("Stacking Faults");
 
-    ImGui::SetNextWindowSize(ImVec2(1220.0f, 760.0f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(900.0f, 560.0f), ImVec2(3000.0f, 3000.0f));
+    responsive::windowSize(ImVec2(1220.0f, 760.0f), ImGuiCond_FirstUseEver);
+    responsive::windowConstraints(ImVec2(900.0f, 560.0f), ImVec2(3000.0f, 3000.0f));
 
     bool keepOpen = true;
-    if (!ImGui::BeginPopupModal("Stacking Faults", &keepOpen, ImGuiWindowFlags_NoCollapse))
+    if (!responsive::beginModal("Stacking Faults", &keepOpen, ImGuiWindowFlags_NoCollapse))
     {
         m_isOpen = false;
         return;
@@ -518,7 +519,7 @@ void StackingFaultBuilderDialog::drawDialog(
     const float leftWidth = ImGui::GetContentRegionAvail().x * 0.34f;
     const float centerWidth = ImGui::GetContentRegionAvail().x * 0.31f;
 
-    ImGui::BeginChild("##sf_source", ImVec2(leftWidth, contentHeight), false);
+    responsive::beginChild("##sf_source", ImVec2(leftWidth, contentHeight), false);
     {
         ImGui::Text("Input Structure");
         ImGui::SameLine();
@@ -587,7 +588,7 @@ void StackingFaultBuilderDialog::drawDialog(
 
     ImGui::SameLine();
 
-    ImGui::BeginChild("##sf_controls", ImVec2(centerWidth, contentHeight), false);
+    responsive::beginChild("##sf_controls", ImVec2(centerWidth, contentHeight), false);
     {
         ImGui::Text("Builder");
         ImGui::Separator();
@@ -601,7 +602,7 @@ void StackingFaultBuilderDialog::drawDialog(
             ImGui::TextDisabled("Detected phase: not identified yet");
         }
 
-        if (ImGui::Button("Detect Structure", ImVec2(-1.0f, 0.0f)))
+        if (responsive::button("Detect Structure", responsive::size(-1.0f,0.0f)))
         {
             if (!m_sourceLoaded)
             {
@@ -659,7 +660,7 @@ void StackingFaultBuilderDialog::drawDialog(
         ImGui::DragFloat("Max Displacement", &m_params.maxDisplacementFactor, 0.05f, 0.10f, 4.0f, "%.2f");
 
         ImGui::Spacing();
-        if (ImGui::Button("Generate Sequence", ImVec2(-1.0f, 0.0f)))
+        if (responsive::button("Generate Sequence", responsive::size(-1.0f,0.0f)))
             regenerateSequence(elementRadii, elementShininess);
 
         if (m_result.success && !m_result.sequence.empty())
@@ -679,7 +680,7 @@ void StackingFaultBuilderDialog::drawDialog(
             ImGui::TextDisabled("Partial displacement: %.4f A", m_result.partialDisplacement);
             ImGui::TextDisabled("Shifted atoms: %d", m_result.shiftedAtomCount);
 
-            if (ImGui::Button("Use Selected Structure", ImVec2(-1.0f, 0.0f)))
+            if (responsive::button("Use Selected Structure", responsive::size(-1.0f,0.0f)))
             {
                 structure = m_result.sequence[m_selectedStructureIndex].structure;
                 updateBuffers(structure);
@@ -713,7 +714,7 @@ void StackingFaultBuilderDialog::drawDialog(
                 ImGui::EndCombo();
             }
 
-            if (ImGui::Button("Export All Structures", ImVec2(-1.0f, 0.0f)))
+            if (responsive::button("Export All Structures", responsive::size(-1.0f,0.0f)))
                 exportSequence();
         }
     }
@@ -721,7 +722,7 @@ void StackingFaultBuilderDialog::drawDialog(
 
     ImGui::SameLine();
 
-    ImGui::BeginChild("##sf_output", ImVec2(0, contentHeight), false);
+    responsive::beginChild("##sf_output", ImVec2(0, contentHeight), false);
     {
         ImGui::Text("Generated Structures");
         if (m_result.success && !m_result.sequence.empty())
@@ -795,7 +796,7 @@ void StackingFaultBuilderDialog::drawDialog(
     }
     const float buttonWidth = 100.0f;
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonWidth);
-    if (ImGui::Button("Close", ImVec2(buttonWidth, 0.0f)))
+    if (responsive::button("Close", ImVec2(buttonWidth, 0.0f)))
         ImGui::CloseCurrentPopup();
 
     ImGui::EndPopup();

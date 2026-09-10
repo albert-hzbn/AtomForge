@@ -1,3 +1,4 @@
+#include "ui/ResponsiveLayout.h"
 #include "ui/PathPicker.h"
 #include "util/PathUtils.h"
 #include "imgui.h"
@@ -45,12 +46,12 @@ std::optional<std::string> PathPicker::draw()
     std::optional<std::string> chosen;
     const std::string title = m_title + "###ElectronicPathPicker";
     if (m_requested) { ImGui::OpenPopup(title.c_str()); m_requested = false; }
-    ImGui::SetNextWindowSize(ImVec2(800,560),ImGuiCond_Appearing);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(640,480),ImVec2(FLT_MAX,FLT_MAX));
+    responsive::windowSize(ImVec2(800,560),ImGuiCond_Appearing);
+    responsive::windowConstraints(ImVec2(640,480),ImVec2(FLT_MAX,FLT_MAX));
     bool open = true;
-    if (ImGui::BeginPopupModal(title.c_str(),&open,ImGuiWindowFlags_NoCollapse))
+    if (responsive::beginModal(title.c_str(),&open,ImGuiWindowFlags_NoCollapse))
     {
-        if (ImGui::Button("<") && m_historyIndex > 0)
+        if (responsive::button("<") && m_historyIndex > 0)
         {
             m_directory = m_history[--m_historyIndex];
             std::snprintf(m_path,sizeof(m_path),"%s",m_directory.c_str());
@@ -59,7 +60,7 @@ std::optional<std::string> PathPicker::draw()
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Back");
         ImGui::SameLine();
-        if (ImGui::Button(">") && m_historyIndex+1 < static_cast<int>(m_history.size()))
+        if (responsive::button(">") && m_historyIndex+1 < static_cast<int>(m_history.size()))
         {
             m_directory = m_history[++m_historyIndex];
             std::snprintf(m_path,sizeof(m_path),"%s",m_directory.c_str());
@@ -68,13 +69,13 @@ std::optional<std::string> PathPicker::draw()
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Forward");
         ImGui::SameLine();
-        if (ImGui::Button("Up")) navigate(parentPath(m_directory));
+        if (responsive::button("Up")) navigate(parentPath(m_directory));
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(-1);
+        ImGui::SetNextItemWidth(responsive::dp(-1));
         if (ImGui::InputText("##folder",m_path,sizeof(m_path),ImGuiInputTextFlags_EnterReturnsTrue)) navigate(m_path);
         ImGui::Separator();
         const float height = std::max(100.0f,ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeightWithSpacing()*3 - ImGui::GetTextLineHeightWithSpacing()*2);
-        ImGui::BeginChild("Locations",ImVec2(150,height),true);
+        responsive::beginChild("Locations",ImVec2(responsive::dp(150),height),true);
         ImGui::TextDisabled("Locations");
         if (ImGui::Selectable("Home")) navigate(detectHomePath());
         for (const char* name : {"Desktop","Documents","Downloads"})
@@ -93,7 +94,7 @@ std::optional<std::string> PathPicker::draw()
         for (const auto& root : getDriveRoots()) if (ImGui::Selectable(root.c_str())) navigate(root);
         ImGui::EndChild();
         ImGui::SameLine();
-        ImGui::BeginChild("Files",ImVec2(0,height),true);
+        responsive::beginChild("Files",ImVec2(0,height),true);
         std::vector<DirectoryEntry> entries;
         bool accepted = false;
         // Include extensionless VASP outputs and arbitrarily named calculations.
@@ -104,7 +105,7 @@ std::optional<std::string> PathPicker::draw()
         ImGui::Spacing();
         ImGui::TextWrapped("%s",m_save ? "Choose a folder and filename." : "Select a file, then Open. Double-click a file to open it directly.");
         ImGui::Separator();
-        ImGui::SetNextItemWidth(-85);
+        ImGui::SetNextItemWidth(responsive::dp(-85));
         if (m_save)
         {
             if (ImGui::InputText("Filename",m_filename,sizeof(m_filename),ImGuiInputTextFlags_EnterReturnsTrue)) accepted = true;
@@ -115,7 +116,7 @@ std::optional<std::string> PathPicker::draw()
         ImGui::SetCursorPosX(std::max(ImGui::GetStyle().WindowPadding.x,ImGui::GetWindowWidth()-ImGui::GetStyle().WindowPadding.x-200-ImGui::GetStyle().ItemSpacing.x));
         if (dialogLayout::primaryButton(m_save ? "Save" : "Open",ImVec2(100,0))) accepted = true;
         ImGui::SameLine();
-        if (ImGui::Button("Cancel",ImVec2(100,0))) ImGui::CloseCurrentPopup();
+        if (responsive::button("Cancel",responsive::size(100,0))) ImGui::CloseCurrentPopup();
         if (accepted)
         {
             auto path = std::filesystem::u8path(m_directory) / std::filesystem::u8path(m_filename);
@@ -129,12 +130,12 @@ std::optional<std::string> PathPicker::draw()
             { m_overwrite = path.u8string(); ImGui::OpenPopup("Replace existing file?"); }
             else { chosen = path.u8string(); ImGui::CloseCurrentPopup(); }
         }
-        if (ImGui::BeginPopupModal("Replace existing file?",nullptr,ImGuiWindowFlags_AlwaysAutoResize))
+        if (responsive::beginModal("Replace existing file?",nullptr,ImGuiWindowFlags_AlwaysAutoResize))
         {
             ImGui::TextWrapped("Replace %s?",m_overwrite.c_str());
-            if (ImGui::Button("Replace")) { chosen = m_overwrite; ImGui::CloseCurrentPopup(); }
+            if (responsive::button("Replace")) { chosen = m_overwrite; ImGui::CloseCurrentPopup(); }
             ImGui::SameLine();
-            if (ImGui::Button("Cancel##replace")) ImGui::CloseCurrentPopup();
+            if (responsive::button("Cancel##replace")) ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
             if (chosen) ImGui::CloseCurrentPopup();
         }
