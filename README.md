@@ -1,268 +1,116 @@
 <p align="center">
-	<img src="assets/icon/atomforge-icon.svg" alt="AtomForge icon" width="80" />
+  <img src="assets/icon/atomforge-icon.svg" alt="AtomForge logo" width="80" />
 </p>
 
 <h1 align="center">AtomForge</h1>
 
+<p align="center">Build atomic structures. Explore materials. Analyse electronic fields.</p>
+
 <p align="center">
-	<a href="https://doi.org/10.5281/zenodo.20054535">
-		<img src="https://zenodo.org/badge/DOI/10.5281/zenodo.20054535.svg" alt="DOI" />
-	</a>
+  <a href="https://github.com/albert-hzbn/AtomForge/releases/latest">Download AtomForge</a> ·
+  <a href="docs/manual/AtomForge-manual.pdf">User manual</a> ·
+  <a href="https://github.com/albert-hzbn/AtomForge/releases/tag/v0.3.0">What's new</a> ·
+  <a href="https://pypi.org/project/atomforge-py/">Python package</a>
 </p>
 
-AtomForge is an interactive atomic structure builder for metallurgical simulation and atomistic modeling. It is designed to help researchers and engineers create, edit, inspect, and export structures used in molecular dynamics (MD) and first-principles workflows.
+AtomForge is a desktop application for creating, editing and exploring atomic structures for materials research. It brings structure building, interactive 3D inspection and electronic post-processing into one workspace, helping researchers prepare inputs and examine results for molecular dynamics and first-principles studies.
 
-Read the [detailed user manual (PDF)](docs/manual/AtomForge-manual.pdf) for feature-by-feature instructions, 60 illustrated quick tutorials covering Build, Edit, View, Settings, and analysis, charge-density workflows, and Python/CLI recipes. The [LaTeX sources and reproducible examples](docs/manual/README.md) are maintained in `docs/manual/`.
+## Get started
 
-## Features
+Download the package for your platform from the [releases page](https://github.com/albert-hzbn/AtomForge/releases/latest), extract the entire archive, and open the application. Keep the extracted folders and libraries together.
 
-- Fonts, controls, and dialogs follow display scaling. **Settings > Interface size** offers Automatic, Compact (85%), Larger (125%), Large (150%), and Extra large (200%) for the current session. Large builders and analysis tools stack their panels in narrow windows; dialogs stay within the available work area and scroll when necessary.
-- Build structures with bulk crystal, substitutional solid solution, CSL grain boundary, nanocrystal, custom mesh-fill, polycrystal, and amorphous workflows. Stacking Faults is optional (`ATOMFORGE_ENABLE_SFE_BUILDER=ON`); the interface builder is not exposed in the current desktop menus.
-- Create Wulff-style and shape-based nanocrystals, including non-cubic periodic references.
-- Merge multiple loaded structures in an interactive 3D workflow with per-structure transforms.
-- Analyze structures with RDF, short-range order, and interstitial/void tools. CNA and angular-distribution menu entries are currently disabled.
-- Post-process VASP, Gaussian Cube and XSF scalar grids with electronic analysis, isosurfaces and Python APIs.
-  With Electronic Post-processing open, drop files onto the app to load them. Enable **Drop files as reference** to load a reference volume instead; files dropped during a calculation are queued.
-  Separate **3D and 2D** viewports have independent cameras and isovalues. Update the 3D surface at its chosen level; the 2D view optionally displays a contour at its own level (enable **Show contour line**; off by default) on a selectable lattice-plane slice or an **Arbitrary plane**, defined by a fractional point and a Cartesian normal. The intersection is clipped to the cell and shown as a translucent 3D guide; **Show slice plane** toggles its visibility. Drag to orbit in 3D or rotate within the 2D plane, right-drag to pan, and scroll to zoom. Each view has its own reset control. The 2D preview samples up to 129 points per direction; use the numerical section tools for full-resolution analysis.
-  The default **Volume** mode shows interior density using ray integration with adjustable transparency; **Isosurface** retains the boundary view. Volume previews use up to 96 samples per axis and 256 ray steps, without changing the calculation or export data. Initial levels are estimated from the file's value distribution (90th percentile, zero for signed fields, and a low-range fallback for sparse fields); they are display defaults, not physical charge-partition thresholds. **Estimate level** restores the suggestion. Both views warn about out-of-range levels, with the 2D check using the current slice's range.
-- Inspect and edit structures interactively with atom selection, box select, measurement overlays, and structure editing dialogs.
-- Export simulation structures and publication-ready rendered images (PNG, JPEG, SVG).
-- Use dark/light themes with HiDPI-aware UI scaling.
-
-## Platform support
-
-- Linux
-- Windows (MSYS2 UCRT64 / MinGW-w64)
-
-For dependency lists, build commands, portable packaging, and troubleshooting see [INSTALL.md](INSTALL.md).
-
-## Supported formats
-
-Structure files (open/save): `.xyz`, `.cif`, `.pdb`, `.sdf`, `.mol`, `.vasp`, `.mol2`, `.pwi`, `.gjf`
-
-Rendered image export: `.png`, `.jpg`, `.svg`
-
-Electronic grids (Analysis → Electronic Post-processing): VASP charge/potential/ELF, `.cube`, `.cub`, `.xsf`. Analysis tables export to CSV and surfaces to OBJ/PLY.
-
-The **Charge transfer** tools are visible directly at the top of Electronic Post-processing, even before a file is loaded. Select an operation, then load the input density. Electronic charge analysis includes **Weighted density difference**, **Threshold mask**, **Boolean masks** (union, intersection, difference and XOR), **Invert mask**, **Apply mask**, **Split accumulation / depletion**, **Charge redistribution summary**, and **Cumulative charge profile**. Threshold bounds are inclusive. Masks are binary, dimensionless fields; applying them preserves the density units. Select **Use loaded/result field as reference** to combine intermediate results. Each calculated field is retained for further operations and export.
-
-For fragment studies, subtract each reference from the combined density in turn. Inputs must have matching cells, origins, sampling and boundary conventions; resampling is explicit. Use physically comparable calculations with the fragment geometries held consistently. Accumulation and depletion totals describe redistribution, while atom or fragment transfer requires a defined spatial partition. Charge tools require `e/A^3`; cumulative profiles start at the lower cell face and end at the full-cell integral.
-
-```python
-from atomforge.electronic import load_volume
-
-total = load_volume("CHGCAR-AB").fields[0]
-a = load_volume("CHGCAR-A").fields[0]
-b = load_volume("CHGCAR-B").fields[0]
-delta = total.density_difference(a, b)  # total - a - b
-accumulation, depletion = delta.split_density()
-print(delta.charge_summary())
-profile = delta.cumulative_charge(axis=2)  # distance_A, cumulative_e
-region_a = a.threshold_mask(0.01, max(a.values))
-region_b = b.threshold_mask(0.01, max(b.values))
-overlap = region_a.boolean(region_b, "intersection")
-print(delta.apply_mask(overlap).integrate())
-delta.save("difference.xsf")
-```
-
-You can also open a structure at launch by passing a file path, for example:
-
-```bash
-AtomForge structure.cif
-```
-
-## Command-line interface (CLI)
-
-AtomForge also supports headless structure generation through `--build` modes.
-
-```bash
-AtomForge --build <mode> [options] --output <file>
-```
-
-Available modes:
-
-- `bulk`: build a bulk crystal from lattice + space-group input
-- `gb`: build a CSL grain-boundary bicrystal from an input structure
-- `poly`: generate a Voronoi polycrystal from an input structure
-- `nano`: carve a nanocrystal from an input structure
-- `amorphous`: pack an amorphous structure by random sequential addition
-- `sss`: generate a substitutional solid solution from a host structure
-- `custom`: fill an OBJ/STL mesh volume with atoms from a reference crystal
-
-Examples:
-
-```bash
-AtomForge --build gb --input cu.cif --axis "0 0 1" --sigma 5 --plane 0 --uca 3 --ucb 3 --vacuum 5.0 --output cu_sigma5_gb.cif
-AtomForge --build custom --input cu.cif --mesh bunny.obj --scale 20 --vacuum 5 --output cu_bunny.xyz
-```
-
-For per-mode help:
-
-```bash
-AtomForge --help bulk
-AtomForge --help gb
-AtomForge --help poly
-AtomForge --help nano
-AtomForge --help amorphous
-AtomForge --help sss
-AtomForge --help custom
-```
-
-## Python API
-
-AtomForge structures can be loaded, edited, and visualised directly from Python via the [`atomforge-py`](https://pypi.org/project/atomforge-py/) package.
-
-```bash
-pip install atomforge-py
-```
-
-```python
-import atomforge as af
-
-# Load any supported format
-s = af.load("crystal.cif")
-
-# Build from scratch
-s = af.Structure()
-s.set_cell(2.87, 2.87, 2.87)        # BCC iron unit cell (Å)
-s.add_atom("Fe", 0.0,   0.0,   0.0)
-s.add_atom("Fe", 1.435, 1.435, 1.435)
-
-# Supercell, filter, translate
-sup = s.repeat(4, 4, 4)
-fe  = sup.filter_species("Fe")
-fe.translate(1, 0, 0)
-
-# Open in the AtomForge GUI (non-blocking)
-sup.view()
-
-# Save to file
-sup.save("bcc_4x4x4.xyz")
-```
-
-Set `ATOMFORGE_PATH` to the full path of the AtomForge executable if it is not on your system PATH.
-
-The Python package reads and writes XYZ/extXYZ, VASP POSCAR/CONTCAR, PDB,
-CIF (P1/pre-expanded), and LAMMPS data without external dependencies.
-LAMMPS export preserves triclinic geometry by rotating cells and coordinates
-into the restricted triclinic basis. Loading LAMMPS data shifts coordinates
-by the box origin because Python structures store a cell with origin zero.
-
-## Tests
-
-See [Architecture and extension guide](ARCHITECTURE.md) for module boundaries,
-adding analyses/codecs, and building the reusable core without GUI dependencies.
-
-Configure and build with CMake, then run `ctest --test-dir build --output-on-failure`.
-The C++ regression tests run without a graphics context. When a Python interpreter
-is available at configure time, CTest also runs the Python suites and headless CLI
-integration tests. Set `-DBUILD_TESTING=OFF` to omit test targets.
-
-## Core controls
-
-### Scene navigation
-
-| Action | Input |
+| Platform | What you need |
 | --- | --- |
-| Rotate scene | Left drag |
-| Zoom | Scroll wheel |
-| Reset fitted default view | `R` or View -> Reset Default View |
+| **Windows x64** | Open AtomForge.exe in the extracted AtomForge folder. Runtime libraries are included; no compiler or MSYS2 installation is needed. |
+| **Linux x86_64** | Open AtomForge in the extracted AtomForge/bin folder. The current build targets Ubuntu 24.04 or compatible systems with glibc 2.39 or later, X11/XWayland and working OpenGL drivers. |
 
-### Selection
+Each package includes the illustrated manual. Open it through **Help > Manual** or **Help > About > Manual**, using your default PDF viewer. You can also [read it here](docs/manual/AtomForge-manual.pdf).
 
-| Action | Input |
+For a first session, open an existing structure through **File > Open**, or choose a builder from **Build**. Rotate and zoom the view to inspect the result, then save your structure or export an image. The manual includes 62 short tutorials with examples to try.
+
+## Build the structure you need
+
+| Tool | What you can create |
 | --- | --- |
-| Select one atom | Left click |
-| Add/remove from selection | Ctrl + left click |
-| Select all | Ctrl + A |
-| Clear selection | Ctrl + D or Escape |
-| Delete selection | Delete |
+| **Bulk crystals** | Periodic crystals from crystal systems, space groups, lattice parameters and atomic sites. |
+| **Solid solutions** | Substitutional alloys with a chosen composition on an existing host lattice. |
+| **Grain boundaries** | Coincidence-site lattice (CSL) bicrystals with controls for orientation, replication, translation and overlap removal. |
+| **Nanocrystals** | Particles cut from geometric shapes, or Wulff constructions based on crystal facets and relative surface energies. |
+| **Custom shapes** | Atomic structures filling an imported OBJ or STL mesh. |
+| **Polycrystals** | Multiple grains arranged through Voronoi-based construction. |
+| **Amorphous structures** | Random atomic packings with specified composition, density and box dimensions. |
 
-Box selection is available from Edit -> Box Select Mode. When enabled, right-drag draws a selection rectangle. Hold Ctrl to add to current selection.
+Dislocation and interstitial tools support defect studies. Interactive merging lets you arrange and combine structures, while **Cell Sculptor** removes atoms within a chosen region to shape an existing model.
 
-### File shortcuts
+## Edit and inspect interactively
 
-| Action | Shortcut |
+- Select individual atoms or use box and free-form lasso selection.
+- Add, remove or substitute atoms, edit coordinates and lattice vectors, and transform periodic structures.
+- Position and rotate structures in a 3D preview before merging them.
+- Measure distances and angles directly in the scene.
+- Inspect composition, unit-cell information, atomic positions and bonding information.
+- Undo and redo edits as you refine a model.
+
+## Understand structure and local environments
+
+Explore radial distribution functions, short-range chemical order, interstitial sites and voids. Display bonds, element labels, periodic boundaries and crystal-orientation colouring to help interpret the structure.
+
+Voronoi and coordination-polyhedron overlays reveal local environments. Lattice planes, Miller directions and dislocation outlines provide additional geometric context. Export the view as an image for reports, presentations or further editing.
+
+## Explore electronic calculations
+
+The **Electronic Post-processing** workspace loads charge densities and other scalar fields from VASP, Gaussian Cube and XSF files. File browsers and drag-and-drop loading make it easy to bring in primary and reference data.
+
+**See the field from different perspectives**
+
+- Independent 3D and 2D views with orbit, pan, zoom and reset controls.
+- Density-volume and isosurface displays, adjustable transparency and density-based colours.
+- Axis-aligned or arbitrary plane sections, with an optional translucent plane guide in 3D.
+- Separate display levels, initial estimates from the file and warnings for out-of-range values.
+
+**Analyse and compare fields**
+
+- Field arithmetic, scaling, smoothing, gradients and Laplacians.
+- Line profiles, planar and macroscopic averages, contours and peak searches.
+- Whole-field, spherical-region and Voronoi-region integration.
+- Grid structure factors, Fourier synthesis, Patterson maps and point-charge electrostatics.
+- Explicit resampling, reusable result fields and exports for further analysis.
+
+## Study charge redistribution
+
+Compare a combined system with reference densities using weighted density differences. Separate accumulation and depletion, inspect charge summaries, and follow cumulative charge along a cell direction.
+
+Threshold masks and Boolean operations let you define regions, combine or subtract them, apply them to densities and integrate the selected values. These tools support charge-transfer and fragment-comparison studies when the inputs use consistent geometry and grid conventions. Geometric region integrals are not Bader charges; the manual explains how to interpret the results.
+
+## Work comfortably and share results
+
+Light and dark themes, adjustable interface size and responsive dialogs support different screen resolutions. Atom sizes, colours and display settings can be tailored to the task.
+
+| Data | Supported formats |
 | --- | --- |
-| Open structure | Ctrl + O |
-| Save structure | Ctrl + S |
-| Save structure as | Ctrl + Shift + S |
-| Export rendered image | Ctrl + Alt + S |
-| Undo | Ctrl + Z |
-| Redo | Ctrl + Y or Ctrl + Shift + Z |
+| **Desktop structures** | XYZ, CIF, PDB, SDF, MOL, VASP, MOL2, Quantum ESPRESSO PWI and Gaussian GJF |
+| **Custom meshes** | OBJ and STL |
+| **Electronic input grids** | VASP charge, potential and ELF files; Gaussian Cube; XSF |
+| **Rendered images** | PNG, JPEG and SVG |
+| **Analysis results** | Volumetric files, CSV tables and OBJ/PLY surfaces, depending on the operation |
 
-## Main workflows
+## Python and repeatable workflows
 
-### Open and inspect
+The [atomforge-py package](https://pypi.org/project/atomforge-py/) brings structure loading, editing and notebook viewing to Python. It also connects to AtomForge's native builders and electronic calculation library for repeatable workflows. The desktop application supports automated structure generation for batch work.
 
-1. Use File -> Open.
-2. Navigate with rotate/zoom controls.
-3. Toggle View -> Show Bonds and View -> Show Element as needed.
-4. Open View -> Structure Info for composition, lattice, positions, and symmetry.
+The current Python release is **0.2.0**. Basic structure operations do not require third-party Python dependencies; native builders and electronic calculations need the corresponding AtomForge executable or library. Setup and worked examples are available in the [Python guide](python/README.md) and [user manual](docs/manual/AtomForge-manual.pdf).
 
-### Edit structure data
+## Help, availability and contributing
 
-- Right-click a selection to substitute atoms, insert midpoint atoms, measure, or delete.
-- Use Edit -> Edit Structure to modify lattice vectors and atom positions.
-- Use Edit -> Atomic Sizes and Edit -> Element Colors to adjust visual properties.
-- Use Edit -> Transform Structure to apply a 3x3 matrix to periodic structures.
-- Use Edit -> Merge Structures to load, arrange, and merge multiple structures in an interactive 3D preview.
+- **Learn a tool:** the [user manual](docs/manual/AtomForge-manual.pdf) explains controls, examples, interpretation and troubleshooting.
+- **See release changes:** the [release notes](https://github.com/albert-hzbn/AtomForge/releases) describe new features, fixes and platform requirements.
+- **Report a problem or suggest a feature:** use [GitHub Issues](https://github.com/albert-hzbn/AtomForge/issues). Include the application version, operating system and steps to reproduce the issue; attach a shareable example when possible.
+- **Build or extend AtomForge:** see the [installation guide](INSTALL.md) and [architecture guide](ARCHITECTURE.md).
 
-### Build structures
+The standard desktop release does not expose common-neighbour analysis, angular-distribution analysis or the interface builder. The stacking-fault builder is optional and disabled in the distributed builds. These availability limits are documented in the manual.
 
-- **Bulk Crystal**: Create periodic cells from crystal system, space group, lattice parameters, and asymmetric-unit atoms.
-- **Substitutional Solid Solution**: Randomly substitute elements on host lattice sites to match a target composition.
-- **CSL Grain Boundary**: Build cubic bicrystals with Sigma, plane, replication, translation, and overlap controls.
-- **Nanocrystal**: Carve finite particles using geometric shapes or Wulff-style facet energies.
-- **Custom Structure**: Fill imported mesh volumes (OBJ/STL) with atoms from a reference crystal.
-- **Polycrystal**: Generate Voronoi-based polycrystalline structures from a reference crystal.
-- **Interface Builder**: Match in-plane supercells and build heterogeneous interfaces.
-- **Amorphous / Stacking Fault**: Generate amorphous packs and stacking-fault structures.
+## Citation and licence
 
-### Merge structures
+If AtomForge contributes to your research, cite the software and record the version you used. The [Zenodo record for v0.2.0](https://doi.org/10.5281/zenodo.20054535) provides citation details and downloadable citation formats.
 
-- Open **Edit -> Merge Structures** to combine multiple structures into one.
-- Drag-and-drop supported structure files while the dialog is open.
-- Select individual structures in the list or preview, then use the 3D gizmo for translate/rotate.
-- Orbit and zoom the preview, optionally show/hide the merged bounding box, then apply **Merge Structures**.
-
-## Analysis and coloring
-
-### Crystal orientation coloring
-
-- View -> View Structure By -> Crystal Orientation switches from element colors to cubic IPF-Z colors.
-- Displays an IPF triangle legend in the main view when active.
-- Saves companion `basename.atomforge-ipf` metadata when IPF data is available.
-- Restores from sidecar metadata on load when present, with geometry-based fallback otherwise.
-
-### Analysis tools
-
-- Common Neighbour Analysis (CNA)
-- Radial Distribution Function (RDF)
-- Angular Distribution Function (ADF)
-- Short Range Order (SRO)
-- Interstitial and void analysis
-- Coordination and bonding statistics
-
-## Display and measurement
-
-- Bonds are inferred from covalent radii and rendered as split-color cylinders.
-- Periodic image atoms are shown at cell boundaries for periodic context.
-- Distance and angle tools draw overlays directly in the scene.
-- Atom Info reports element, Cartesian/direct coordinates, and bond statistics.
-- View -> Select Theme supports dark and light themes with matching overlay colors.
-- UI scales automatically for high-resolution and HiDPI displays.
-
-## Citation
-
-```bibtex
-@software{Linda_albert-hzbn_AtomForge_v0_2_0_2026,
-author = {Linda, Albert},
-doi = {10.5281/zenodo.20054535},
-month = may,
-title = {{albert-hzbn/AtomForge: v0.2.0}},
-url = {https://doi.org/10.5281/zenodo.20054535},
-version = {v0.2.0},
-year = {2026}
-}
-```
+See [LICENSE.txt](LICENSE.txt) for the software licence.
