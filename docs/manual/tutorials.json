@@ -1,7 +1,7 @@
 {
   "capture_date": "2026-09-09",
   "application_source_baseline": "e43038c",
-  "notes": "Windows captures from September 9 and 11, 2026, plus scientific native-output plots. Captions distinguish input previews, controls, and generated results.",
+  "notes": "Real AtomForge screenshots and native shape examples. Captions distinguish input previews and completed results; paired scientific 3D/projection plots have been removed.",
   "required_tutorials": [
     "build-menu",
     "bulk",
@@ -116,14 +116,7 @@
             "Choose \\ui{Build}. Inspect the new structure, then save as \\code{cu_fcc_tutorial.cif}."
           ],
           "check": "Four Cu atoms should be present in the conventional cell. The supplied \\code{examples/cu_fcc.cif} is a reference result.",
-          "options": "Use \\ui{+ Add} for additional independent sites, \\ui{Delete} for one row, or \\ui{Clear} to start the site list again. Try BCC Fe: Cubic, group 229, $a=2.87$ \\angstrom, Fe at the origin; expect two atoms.",
-          "result_images": [
-            {
-              "file": "tutorials/bulk-output.png",
-              "caption": "Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots."
-            }
-          ],
-          "result_note": "Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. Four Cu atoms should be present in the conventional cell. The supplied \\code{examples/cu_fcc.cif} is a reference result."
+          "options": "Use \\ui{+ Add} for additional independent sites, \\ui{Delete} for one row, or \\ui{Clear} to start the site list again. Try BCC Fe: Cubic, group 229, $a=2.87$ \\angstrom, Fe at the origin; expect two atoms."
         },
         {
           "id": "crystal-systems",
@@ -195,14 +188,7 @@
             "Choose \\ui{Build Solid Solution}, inspect the new tab, and save."
           ],
           "check": "Expect 350 Cu and 150 Ni atoms, matching \\code{examples/cu_ni_alloy.cif}. Coordinates remain on host sites.",
-          "options": "\\ui{+ Add Element} creates another species row; remove a row with its X. For a ternary 50:30:20, enter 50 and 30 in the first two rows. Keep seed and input ordering fixed to reproduce site assignment; seed zero requests a random assignment.",
-          "result_images": [
-            {
-              "file": "tutorials/alloy-output.png",
-              "caption": "Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots."
-            }
-          ],
-          "result_note": "Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. Expect 350 Cu and 150 Ni atoms, matching \\code{examples/cu_ni_alloy.cif}. Coordinates remain on host sites."
+          "options": "\\ui{+ Add Element} creates another species row; remove a row with its X. For a ternary 50:30:20, enter 50 and 30 in the first two rows. Keep seed and input ordering fixed to reproduce site assignment; seed zero requests a random assignment."
         },
         {
           "id": "csl",
@@ -226,14 +212,7 @@
             "Scroll down to Build, generate, and inspect the interface and outer periodic contacts."
           ],
           "check": "The supplied \\code{examples/cu_sigma5.cif} has 60 atoms. The candidate angle shown here is approximately $53.13^\\circ$.",
-          "options": "Find must be repeated after changing the axis. The plane selector chooses a candidate, not an arbitrary Miller triplet. Increase grain thickness for a larger sample; an overlap cutoff can change atom count and stoichiometry.",
-          "result_images": [
-            {
-              "file": "tutorials/csl-output.png",
-              "caption": "Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots."
-            }
-          ],
-          "result_note": "Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied \\code{examples/cu_sigma5.cif} has 60 atoms. The candidate angle shown here is approximately $53.13^\\circ$."
+          "options": "Find must be repeated after changing the axis. The plane selector chooses a candidate, not an arbitrary Miller triplet. Increase grain thickness for a larger sample; an overlap cutoff can change atom count and stoichiometry."
         },
         {
           "id": "csl-options",
@@ -464,10 +443,10 @@
               "file": "tutorials/wulff-result.jpg",
               "caption": "The generated equal-energy Wulff particle in the actual AtomForge viewport. Orbit the main view to inspect its facets.",
               "bounds": [
-                450,
-                115,
-                1470,
-                970
+                540,
+                150,
+                1380,
+                990
               ]
             }
           ]
@@ -505,13 +484,8 @@
                 1360,
                 940
               ]
-            },
-            {
-              "file": "tutorials/custom-output.png",
-              "caption": "Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots."
             }
-          ],
-          "result_note": "Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied native example \\code{examples/cu_mesh.xyz} contains 224 Cu atoms. The OBJ has six unit-axis vertices and eight triangular faces."
+          ]
         },
         {
           "id": "custom-euler",
@@ -623,13 +597,8 @@
                 1370,
                 893
               ]
-            },
-            {
-              "file": "tutorials/polycrystal-output.png",
-              "caption": "Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots."
             }
-          ],
-          "result_note": "Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied \\code{examples/cu_polycrystal.cif} has 1,329 atoms. Orientation colouring needs corresponding metadata."
+          ]
         },
         {
           "id": "poly-orientations",
@@ -677,14 +646,7 @@
             "Open Advanced Settings, set seed 7, Build, and inspect the placement status."
           ],
           "check": "Expect 120 atoms, with Si:O = 1:2. \\code{examples/sio2_pack.xyz} is the supplied packing example.",
-          "options": "Counts determine composition; at% is derived. Remove a species with its row X. Cell scale multiplies all lengths, so density is divided by its cube. This is random packing, not an equilibrated glass.",
-          "result_images": [
-            {
-              "file": "tutorials/amorphous-output.png",
-              "caption": "Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots."
-            }
-          ],
-          "result_note": "Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. Expect 120 atoms, with Si:O = 1:2. \\code{examples/sio2_pack.xyz} is the supplied packing example."
+          "options": "Counts determine composition; at% is derived. Remove a species with its row X. Cell scale multiplies all lengths, so density is divided by its cube. This is random packing, not an equilibrated glass."
         },
         {
           "id": "amorphous-advanced",

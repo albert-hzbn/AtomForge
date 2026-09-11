@@ -61,18 +61,6 @@ def main():
                     "v 1 0 0\nv -1 0 0\nv 0 1 0\nv 0 -1 0\nv 0 0 1\nv 0 0 -1\n"
                     "f 1 3 5\nf 3 2 5\nf 2 4 5\nf 4 1 5\nf 3 1 6\nf 2 3 6\nf 4 2 6\nf 1 4 6\n", encoding="ascii")
     custom = build("cu_mesh.xyz", "custom", "--input", str(examples / "cu_fcc.cif"), "--mesh", str(mesh), "--scale", "12", "--vacuum", "5")
-    palette = {"Cu": "#b36b3f", "Ni": "#47768a", "Fe": "#8c91a1", "Si": "#748caa", "O": "#ce5b55"}
-    fig = plt.figure(figsize=(10, 7), facecolor="white")
-    for index, (title, structure) in enumerate((("Cu-Ni substitutional alloy", alloy), ("Cu nanosphere", nano), ("Cu Sigma-5 boundary", gb), ("Cu Voronoi polycrystal", poly), ("Si-O random packing", glass), ("Cu mesh fill", custom))):
-        ax = fig.add_subplot(2, 3, index+1, projection="3d")
-        xyz = np.array([(a.x, a.y, a.z) for a in structure.atoms])
-        ax.scatter(*xyz.T, s=7, c=[palette.get(a.symbol, "#487b86") for a in structure.atoms], alpha=.85, linewidths=0)
-        ax.set_box_aspect(np.maximum(np.ptp(xyz, axis=0), 1))
-        ax.set_axis_off()
-        ax.set_title(f"{title}\n{len(structure):,} atoms", fontsize=11)
-    fig.tight_layout()
-    fig.savefig(figures / "builder-gallery.png", dpi=190, bbox_inches="tight")
-    plt.close(fig)
     # Keep paths portable in the published provenance file.
     for row in records:
         row["options"] = [str(v).replace(str(examples), "examples") for v in row["options"]]

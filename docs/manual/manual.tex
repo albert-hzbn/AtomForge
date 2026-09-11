@@ -45,7 +45,7 @@
 \vspace{5mm}
 {\large Building structures, exploring atomic geometry, and analysing electronic fields\par}
 \vspace{14mm}
-\includegraphics[width=\linewidth]{figures/builder-gallery.png}
+\input{chapters/00-cover-gallery}
 \vfill
 {\large Version 0.3.0\par}
 {\large Documentation edition: 11 September 2026\par}
@@ -58,7 +58,7 @@ Start with Chapter~\ref{ch:start} to open a file, construct a crystal, and save 
 
 Menu names and controls describe the documented application features and the Windows executable used to prepare the figures. Features controlled by build options are marked explicitly. A source file does not by itself mean a feature is accessible in the desktop menu. Common-neighbour analysis, angular-distribution analysis, and the interface builder are not exposed in the desktop menus; their source interfaces are documented separately. The detailed builder, edit, and display control references supplement the worked examples. Appendix~\ref{ch:coverage} maps the feature families back to source and explains the documentation coverage check.
 
-GUI screenshots are captured from AtomForge. The builder gallery and CHGCAR plots are separately rendered scientific figures calculated from real AtomForge outputs; they are not interface mockups. Example structures are starting configurations, not validated equilibrium structures. The supplied CHGCAR is used to demonstrate the software; its physical system and calculation settings were not independently established.
+GUI screenshots, including all six cover views, are captured from AtomForge. The cover keeps the application's default atomic radii; camera framing varies between examples. The CHGCAR plots and shape-cut diagrams are separately rendered scientific figures calculated from real AtomForge outputs. Example structures are starting configurations, not validated equilibrium structures. The supplied CHGCAR is used to demonstrate the software; its physical system and calculation settings were not independently established.
 
 All paths beginning with \code{examples/} are relative to this manual's folder. Commands use \code{AtomForge} for readability; on Windows substitute the path to \code{AtomForge.exe}. Long command listings may wrap visually; each displayed command is entered as one shell command. Python examples assume the package and native electronic library are available as described in Chapter~\ref{ch:python}.
 

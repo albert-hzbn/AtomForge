@@ -1,0 +1,15 @@
+% Raw 1920 x 1032 AtomForge screenshots, cropped to the main viewport.
+\newcommand{\coverview}[2]{%
+  \begin{minipage}[t]{.315\linewidth}\centering
+  \includegraphics[width=\linewidth,trim=405bp 31.5bp 405bp 112.5bp,clip]{figures/cover/#1.jpg}\par
+  \vspace{2mm}{\small\bfseries\textcolor{ink}{#2}}\par
+  \end{minipage}}
+\coverview{bulk}{Bulk crystal}\hfill
+\coverview{grain-boundary}{Grain boundary}\hfill
+\coverview{amorphous}{Amorphous packing}\par
+\vspace{6mm}
+\coverview{wulff}{Wulff particle}\hfill
+\coverview{voronoi}{Voronoi cells}\hfill
+\coverview{polyhedral}{Coordination polyhedron}\par
+\vspace{5mm}
+{\small\textcolor{accent}{Rendered in AtomForge with default atomic radii.}\par}

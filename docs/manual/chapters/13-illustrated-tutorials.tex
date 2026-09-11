@@ -66,20 +66,6 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \clearpage
 
-\subsection*{Build FCC copper: preview and result}
-
-\begin{center}
-
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=0bp 0bp 0bp 0bp,clip]{figures/tutorials/bulk-output.png}
-
-\par\small\textit{Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots.}
-
-\end{center}
-
-\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. Four Cu atoms should be present in the conventional cell. The supplied \code{examples/cu_fcc.cif} is a reference result.
-
-\clearpage
-
 \subsection{Change crystal system and lattice constraints}\label{tutorial:crystal-systems}
 
 \textbf{Start here.} Open \ui{Bulk Crystal}; work in a fresh builder rather than changing a saved reference.
@@ -164,20 +150,6 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \clearpage
 
-\subsection*{Create a reproducible Cu--Ni alloy: preview and result}
-
-\begin{center}
-
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=0bp 0bp 0bp 0bp,clip]{figures/tutorials/alloy-output.png}
-
-\par\small\textit{Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots.}
-
-\end{center}
-
-\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. Expect 350 Cu and 150 Ni atoms, matching \code{examples/cu_ni_alloy.cif}. Coordinates remain on host sites.
-
-\clearpage
-
 \subsection{Find and build a Sigma-5 boundary}\label{tutorial:csl}
 
 \textbf{Start here.} Choose \ui{Build > CSL Grain Boundary}; drop \code{examples/cu_fcc.cif} into its reference preview. Use \ui{Load reference} to select the source with the shared file browser.
@@ -203,20 +175,6 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 \textbf{Check the result.} The supplied \code{examples/cu_sigma5.cif} has 60 atoms. The candidate angle shown here is approximately $53.13^\circ$.
 
 \textbf{Try the options.} Find must be repeated after changing the axis. The plane selector chooses a candidate, not an arbitrary Miller triplet. Increase grain thickness for a larger sample; an overlap cutoff can change atom count and stoichiometry.
-
-\clearpage
-
-\subsection*{Find and build a Sigma-5 boundary: preview and result}
-
-\begin{center}
-
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=0bp 0bp 0bp 0bp,clip]{figures/tutorials/csl-output.png}
-
-\par\small\textit{Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots.}
-
-\end{center}
-
-\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied \code{examples/cu_sigma5.cif} has 60 atoms. The candidate angle shown here is approximately $53.13^\circ$.
 
 \clearpage
 
@@ -534,7 +492,7 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \begin{center}
 
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=337.5bp 46.5bp 337.5bp 86.25bp,clip]{figures/tutorials/wulff-result.jpg}
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=405bp 31.5bp 405bp 112.5bp,clip]{figures/tutorials/wulff-result.jpg}
 
 \par\small\textit{The generated equal-energy Wulff particle in the actual AtomForge viewport. Orbit the main view to inspect its facets.}
 
@@ -582,21 +540,7 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \end{center}
 
-\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied native example \code{examples/cu_mesh.xyz} contains 224 Cu atoms. The OBJ has six unit-axis vertices and eight triangular faces.
-
-\clearpage
-
-\subsection*{Fill an OBJ mesh with copper sites: preview and result}
-
-\begin{center}
-
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=0bp 0bp 0bp 0bp,clip]{figures/tutorials/custom-output.png}
-
-\par\small\textit{Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots.}
-
-\end{center}
-
-\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied native example \code{examples/cu_mesh.xyz} contains 224 Cu atoms. The OBJ has six unit-axis vertices and eight triangular faces.
+\textbf{Interpretation.} The supplied native example \code{examples/cu_mesh.xyz} contains 224 Cu atoms. The OBJ has six unit-axis vertices and eight triangular faces.
 
 \clearpage
 
@@ -724,21 +668,7 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \end{center}
 
-\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied \code{examples/cu_polycrystal.cif} has 1,329 atoms. Orientation colouring needs corresponding metadata.
-
-\clearpage
-
-\subsection*{Build a four-grain copper sample: preview and result}
-
-\begin{center}
-
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=0bp 0bp 0bp 0bp,clip]{figures/tutorials/polycrystal-output.png}
-
-\par\small\textit{Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots.}
-
-\end{center}
-
-\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied \code{examples/cu_polycrystal.cif} has 1,329 atoms. Orientation colouring needs corresponding metadata.
+\textbf{Interpretation.} The supplied \code{examples/cu_polycrystal.cif} has 1,329 atoms. Orientation colouring needs corresponding metadata.
 
 \clearpage
 
@@ -795,20 +725,6 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 \textbf{Check the result.} Expect 120 atoms, with Si:O = 1:2. \code{examples/sio2_pack.xyz} is the supplied packing example.
 
 \textbf{Try the options.} Counts determine composition; at% is derived. Remove a species with its row X. Cell scale multiplies all lengths, so density is divided by its cube. This is random packing, not an equilibrated glass.
-
-\clearpage
-
-\subsection*{Pack a Si--O starting configuration: preview and result}
-
-\begin{center}
-
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=0bp 0bp 0bp 0bp,clip]{figures/tutorials/amorphous-output.png}
-
-\par\small\textit{Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots.}
-
-\end{center}
-
-\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. Expect 120 atoms, with Si:O = 1:2. \code{examples/sio2_pack.xyz} is the supplied packing example.
 
 \clearpage
 

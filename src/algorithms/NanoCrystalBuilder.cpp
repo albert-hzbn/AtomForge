@@ -1063,6 +1063,8 @@ NanoBuildResult buildNanocrystal(Structure& structure,
         structure.grainRegionIds.clear();
         structure.pbcBoundaryTol = 0.0f;
         structure.ipfLoadStatus.clear();
+        structure.dislocationLoopPoints.clear();
+        structure.dislocationDetectionDone = false;
 
         if (params.setOutputCell)
         {
@@ -1333,6 +1335,8 @@ NanoBuildResult buildNanocrystal(Structure& structure,
     structure.grainRegionIds.clear();
     structure.pbcBoundaryTol = 0.0f;
     structure.ipfLoadStatus.clear();
+    structure.dislocationLoopPoints.clear();
+    structure.dislocationDetectionDone = false;
 
     if (params.setOutputCell) {
         const HalfExtents he = computeShapeHalfExtents(params);

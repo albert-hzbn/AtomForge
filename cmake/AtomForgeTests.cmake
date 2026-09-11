@@ -15,6 +15,18 @@ target_link_libraries(atomforge_electronic_tests PRIVATE AtomForge::Core)
 add_test(NAME electronic_regressions COMMAND atomforge_electronic_tests)
 
 if(TARGET AtomForge)
+    add_executable(atomforge_nanocrystal_metadata_tests
+        ${PROJECT_SOURCE_DIR}/tests/nanocrystal_metadata.cpp
+        ${PROJECT_SOURCE_DIR}/src/algorithms/NanoCrystalBuilder.cpp)
+    target_include_directories(atomforge_nanocrystal_metadata_tests PRIVATE
+        ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/src/util)
+    target_link_libraries(atomforge_nanocrystal_metadata_tests PRIVATE AtomForge::Core)
+    if(TARGET PkgConfig::SPGLIB)
+        target_compile_definitions(atomforge_nanocrystal_metadata_tests PRIVATE ATOMS_ENABLE_SPGLIB)
+        target_link_libraries(atomforge_nanocrystal_metadata_tests PRIVATE PkgConfig::SPGLIB)
+    endif()
+    add_test(NAME nanocrystal_metadata COMMAND atomforge_nanocrystal_metadata_tests)
+
     add_executable(atomforge_application_paths_tests
         ${PROJECT_SOURCE_DIR}/tests/application_paths.cpp
         ${PROJECT_SOURCE_DIR}/src/util/ApplicationPaths.cpp)

@@ -370,7 +370,7 @@
     },
     {
       "source": "src/app/EditorOps.cpp",
-      "sha256": "08aa816b9f14a44ef7129d3cd842db58d4531aaba7ad550a95be13a7cd27d2d5",
+      "sha256": "44d4dcbaaddd10098ca32356425bcf3383b34b5c4d7eec28e7c439fdc7b19658",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
