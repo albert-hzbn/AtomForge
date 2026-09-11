@@ -276,6 +276,11 @@ endif()
 # ============================================================================
 # Installation Rules
 # ============================================================================
+set(ATOMFORGE_MANUAL_PDF "${PROJECT_SOURCE_DIR}/docs/manual/AtomForge-manual.pdf")
+if(NOT EXISTS "${ATOMFORGE_MANUAL_PDF}")
+    message(FATAL_ERROR "The published AtomForge manual PDF is missing: ${ATOMFORGE_MANUAL_PDF}")
+endif()
+target_compile_definitions(AtomForge PRIVATE ATOMFORGE_SOURCE_MANUAL="${ATOMFORGE_MANUAL_PDF}")
 if(BUILD_PORTABLE)
     install(TARGETS AtomForge DESTINATION "${ATOMFORGE_PORTABLE_BIN_DIR}")
     install(TARGETS atomforge_electronic
@@ -287,7 +292,7 @@ if(BUILD_PORTABLE)
     install(DIRECTORY python/atomforge DESTINATION "${ATOMFORGE_PORTABLE_ROOT}/python"
         PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
     install(FILES README.md DESTINATION "${ATOMFORGE_PORTABLE_ROOT}")
-    install(FILES docs/manual/AtomForge-manual.pdf DESTINATION "${ATOMFORGE_PORTABLE_ROOT}")
+    install(FILES "${ATOMFORGE_MANUAL_PDF}" DESTINATION "${ATOMFORGE_PORTABLE_ROOT}")
 
     # Bundle Open Babel plugin files (.obf), including versioned subdirectories.
     if(OPENBABEL_PLUGINDIR AND EXISTS "${OPENBABEL_PLUGINDIR}")
@@ -323,7 +328,7 @@ if(BUILD_PORTABLE)
     install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/InstallPortableDependencies.cmake")
 else()
     # Standard installation (system-wide)
-    install(FILES docs/manual/AtomForge-manual.pdf DESTINATION share/doc/atomforge)
+    install(FILES "${ATOMFORGE_MANUAL_PDF}" DESTINATION share/doc/atomforge)
     install(TARGETS atomforge_electronic RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
     if(WIN32)
         install(TARGETS AtomForge DESTINATION bin)

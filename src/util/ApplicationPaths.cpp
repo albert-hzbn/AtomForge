@@ -47,5 +47,15 @@ std::filesystem::path findManualPdf(const std::filesystem::path& directory)
         std::error_code error;
         if (std::filesystem::is_regular_file(candidate, error)) return candidate;
     }
+#ifdef ATOMFORGE_SOURCE_MANUAL
+    // Out-of-source development builds still use the one published source PDF.
+    // Packaged locations above take precedence and remain relocatable.
+    if (directory == applicationDirectory())
+    {
+        const auto sourceManual = std::filesystem::path(ATOMFORGE_SOURCE_MANUAL);
+        std::error_code error;
+        if (std::filesystem::is_regular_file(sourceManual, error)) return sourceManual;
+    }
+#endif
     return {};
 }

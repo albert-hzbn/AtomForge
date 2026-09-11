@@ -31,6 +31,8 @@ if(TARGET AtomForge)
         ${PROJECT_SOURCE_DIR}/tests/application_paths.cpp
         ${PROJECT_SOURCE_DIR}/src/util/ApplicationPaths.cpp)
     target_include_directories(atomforge_application_paths_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    target_compile_definitions(atomforge_application_paths_tests PRIVATE
+        ATOMFORGE_SOURCE_MANUAL="${ATOMFORGE_MANUAL_PDF}")
     add_test(NAME application_paths COMMAND atomforge_application_paths_tests)
 
     add_executable(atomforge_ui_layout_tests
