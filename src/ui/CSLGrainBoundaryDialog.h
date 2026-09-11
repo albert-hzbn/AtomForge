@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ui/PathPicker.h"
+
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
 #include "model/Structure.h"
@@ -33,6 +35,7 @@ struct CSLGrainBoundaryDialog
     void feedDroppedFile(const std::string& path);
 
 private:
+    PathPicker m_sourcePicker;
     bool m_openRequested = false;
     bool m_isOpen        = false;
     std::string m_pendingDropPath;

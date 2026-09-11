@@ -537,6 +537,12 @@ void CustomStructureDialog::drawDialog(Structure& structure,
 
     m_isOpen = true;
 
+    if (responsive::button("Load structure or model##sourcePicker"))
+        m_sourcePicker.open("Load structure or model", false, "");
+    if (const auto path = m_sourcePicker.draw())
+        feedDroppedFile(*path);
+    ImGui::Spacing();
+
     ImGui::TextWrapped("Drag-and-drop files from your file manager onto this window. "
                        "Crystal structure files (CIF, XYZ, VASP, PDB, ...) go to the left panel. "
                        "3D model files (OBJ, STL) go to the right panel automatically.");
@@ -778,25 +784,25 @@ void CustomStructureDialog::drawDialog(Structure& structure,
 
         if (orientationType == 1)
         {
-            ImGui::SetNextItemWidth(responsive::dp(110.0f));
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::InputFloat("Rot X (deg)", &rotationAngles[0], 1.0f, 10.0f, "%.2f");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(responsive::dp(110.0f));
+            if (!responsive::stacked(900.0f)) ImGui::SameLine();
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::InputFloat("Rot Y (deg)", &rotationAngles[1], 1.0f, 10.0f, "%.2f");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(responsive::dp(110.0f));
+            if (!responsive::stacked(900.0f)) ImGui::SameLine();
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::InputFloat("Rot Z (deg)", &rotationAngles[2], 1.0f, 10.0f, "%.2f");
             ImGui::TextDisabled("Type 1: manual rotation about X/Y/Z axes.");
         }
         else
         {
-            ImGui::SetNextItemWidth(responsive::dp(90.0f));
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::InputInt("h", &millerIndices[0]);
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(responsive::dp(90.0f));
+            if (!responsive::stacked(900.0f)) ImGui::SameLine();
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::InputInt("k", &millerIndices[1]);
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(responsive::dp(90.0f));
+            if (!responsive::stacked(900.0f)) ImGui::SameLine();
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::InputInt("l", &millerIndices[2]);
             ImGui::TextDisabled("Type 2: align crystal direction [h k l] with model +Z axis.");
         }
@@ -807,13 +813,13 @@ void CustomStructureDialog::drawDialog(Structure& structure,
         ImGui::Checkbox("Auto-replicate reference cell", &params.autoReplicate);
         if (!params.autoReplicate)
         {
-            ImGui::SetNextItemWidth(responsive::dp(80.0f));
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::InputInt("Reps a", &params.repA);
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(responsive::dp(80.0f));
+            if (!responsive::stacked(900.0f)) ImGui::SameLine();
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::InputInt("Reps b", &params.repB);
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(responsive::dp(80.0f));
+            if (!responsive::stacked(900.0f)) ImGui::SameLine();
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
             ImGui::InputInt("Reps c", &params.repC);
             params.repA = std::max(1, params.repA);
             params.repB = std::max(1, params.repB);

@@ -341,6 +341,12 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
     bool dialogOpen = true;
     if (responsive::beginModal("CSL Grain Boundary Builder", &dialogOpen, ImGuiWindowFlags_None))
     {
+        if (responsive::button("Load reference##sourcePicker"))
+            m_sourcePicker.open("Load reference", false, "");
+        if (const auto path = m_sourcePicker.draw())
+            feedDroppedFile(*path);
+        ImGui::Spacing();
+
         const bool stackPanels = responsive::stacked();
         const float kLeftW = responsive::previewWidth(380);
         const float kContentH = responsive::panelHeight(700, 0);

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ui/PathPicker.h"
+
 #include "app/SceneView.h"
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
@@ -33,6 +35,7 @@ struct MergeStructuresDialog
     void feedDroppedFile(const std::string& path);
 
 private:
+    PathPicker m_sourcePicker;
     // ------------------------------------------------------------------
     // Per-entry data
     // ------------------------------------------------------------------

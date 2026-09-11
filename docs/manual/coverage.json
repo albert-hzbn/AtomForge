@@ -920,7 +920,7 @@
     },
     {
       "source": "src/ui/CSLGrainBoundaryDialog.cpp",
-      "sha256": "94a1277bb35c000edc48ffae4b30de6ebc3054d66b71a01ff61154bf5ad1d448",
+      "sha256": "030f65829a141d55195d7b7077beef67c8be6a360ffe6c604f25a44a1b7d8e92",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -931,62 +931,66 @@
           "declaration_label": "CSL Grain Boundary"
         },
         {
-          "line": 431,
+          "line": 344,
+          "declaration_label": "Load reference##sourcePicker"
+        },
+        {
+          "line": 437,
           "declaration_label": "Axis [u v w]"
         },
         {
-          "line": 436,
+          "line": 442,
           "declaration_label": "Max sigma"
         },
         {
-          "line": 439,
+          "line": 445,
           "declaration_label": "Find"
         },
         {
-          "line": 473,
+          "line": 479,
           "declaration_label": "##sigma"
         },
         {
-          "line": 505,
+          "line": 511,
           "declaration_label": "GB plane"
         },
         {
-          "line": 528,
+          "line": 534,
           "declaration_label": "Grain A (uc)"
         },
         {
-          "line": 532,
+          "line": 538,
           "declaration_label": "Grain B (uc)"
         },
         {
-          "line": 542,
+          "line": 548,
           "declaration_label": "Vacuum (A)"
         },
         {
-          "line": 547,
+          "line": 553,
           "declaration_label": "Gap (A)"
         },
         {
-          "line": 552,
+          "line": 558,
           "declaration_label": "Overlap dist (A)"
         },
         {
-          "line": 556,
+          "line": 562,
           "declaration_label": "Conventional cell"
         },
         {
-          "line": 566,
+          "line": 572,
           "declaration_label": "Build"
         },
         {
-          "line": 709,
+          "line": 715,
           "declaration_label": "Close"
         }
       ]
     },
     {
       "source": "src/ui/CSLGrainBoundaryDialog.h",
-      "sha256": "0062f5183b8c6ddc0371031301d36a4a01967fff47c9c48c475cb904e6b72a74",
+      "sha256": "e3af9ce54f5d34e137c966eaf021571eac935a349f4860f9cd8e05c4d0e6a9f7",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -995,7 +999,7 @@
     },
     {
       "source": "src/ui/CustomStructureDialog.cpp",
-      "sha256": "1ccd1ec234f022a46393f5eb6092496796a71d81c316fa420c66cea086dbe3cc",
+      "sha256": "664b8794a0e20080d26afb528faaddc8300e57458400e28ad166452e6fba2494",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -1006,98 +1010,102 @@
           "declaration_label": "Custom Structure"
         },
         {
-          "line": 744,
+          "line": 540,
+          "declaration_label": "Load structure or model##sourcePicker"
+        },
+        {
+          "line": 750,
           "declaration_label": "Scale (Angstrom per model unit)"
         },
         {
-          "line": 756,
+          "line": 762,
           "declaration_label": "Auto-center from reference atoms"
         },
         {
-          "line": 760,
+          "line": 766,
           "declaration_label": "Center X"
         },
         {
-          "line": 763,
+          "line": 769,
           "declaration_label": "Center Y"
         },
         {
-          "line": 766,
+          "line": 772,
           "declaration_label": "Center Z"
         },
         {
-          "line": 770,
+          "line": 776,
           "declaration_label": "Apply crystal orientation"
         },
         {
-          "line": 775,
+          "line": 781,
           "declaration_label": "1"
         },
         {
-          "line": 777,
+          "line": 783,
           "declaration_label": "2"
         },
         {
-          "line": 782,
+          "line": 788,
           "declaration_label": "Rot X (deg)"
         },
         {
-          "line": 785,
+          "line": 791,
           "declaration_label": "Rot Y (deg)"
         },
         {
-          "line": 788,
+          "line": 794,
           "declaration_label": "Rot Z (deg)"
         },
         {
-          "line": 794,
+          "line": 800,
           "declaration_label": "h"
         },
         {
-          "line": 797,
+          "line": 803,
           "declaration_label": "k"
         },
         {
-          "line": 800,
+          "line": 806,
           "declaration_label": "l"
         },
         {
-          "line": 807,
+          "line": 813,
           "declaration_label": "Auto-replicate reference cell"
         },
         {
-          "line": 811,
+          "line": 817,
           "declaration_label": "Reps a"
         },
         {
-          "line": 814,
+          "line": 820,
           "declaration_label": "Reps b"
         },
         {
-          "line": 817,
+          "line": 823,
           "declaration_label": "Reps c"
         },
         {
-          "line": 824,
+          "line": 830,
           "declaration_label": "Set rectangular output cell"
         },
         {
-          "line": 829,
+          "line": 835,
           "declaration_label": "Vacuum (A)"
         },
         {
-          "line": 855,
+          "line": 861,
           "declaration_label": "Build Fill"
         },
         {
-          "line": 908,
+          "line": 914,
           "declaration_label": "Close"
         }
       ]
     },
     {
       "source": "src/ui/CustomStructureDialog.h",
-      "sha256": "51d586bba2eb57b88016276b535337e64942e10ed636e51a06b12245a90352dc",
+      "sha256": "ae6acda5b5e3186e6e6dabd9489e7ff34187095a162856c248c41a9b09e6d599",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -2620,7 +2628,7 @@
     },
     {
       "source": "src/ui/MergeStructuresDialog.cpp",
-      "sha256": "d34cf408e8baea61b6b703e36f189caff4f753e34fd12ab7c124c1ad3f1dc9c0",
+      "sha256": "dd4ae29017f5eb92554e2e987f4fafcbd8c25f36f9bde560e5ca4b074ec03dc7",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -2632,38 +2640,42 @@
           "declaration_label": "Merge Structures"
         },
         {
-          "line": 631,
+          "line": 623,
+          "declaration_label": "Add structure##sourcePicker"
+        },
+        {
+          "line": 637,
           "declaration_label": "Clear All"
         },
         {
-          "line": 642,
+          "line": 648,
           "declaration_label": "Show Bounding Box"
         },
         {
-          "line": 694,
+          "line": 700,
           "declaration_label": "Pos (A)"
         },
         {
-          "line": 696,
+          "line": 702,
           "declaration_label": "Rot (deg)"
         },
         {
-          "line": 885,
+          "line": 891,
           "declaration_label": "Delete Selected"
         },
         {
-          "line": 909,
+          "line": 915,
           "declaration_label": "Merge Structures"
         },
         {
-          "line": 939,
+          "line": 945,
           "declaration_label": "Close"
         }
       ]
     },
     {
       "source": "src/ui/MergeStructuresDialog.h",
-      "sha256": "5e32503f113eed6922ccdb4ad6e07dd863f5a1d7dbdf1e59a9fa0c7f45f455c3",
+      "sha256": "8f9cc999ee1d39f086f5e8a4c3862ed023c7708a41696b01f78daeda725849f5",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -2695,7 +2707,7 @@
     },
     {
       "source": "src/ui/NanoCrystalBuilderDialog.cpp",
-      "sha256": "53bf6c541e00914e8fbd198c2495e2f2aa226af4fb59fb6045ac26e1b0977437",
+      "sha256": "36b78b8cde422aa8cf1ce358fe3c416ea919fb26e7fe55ecebf805edd92f7d0e",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -2790,70 +2802,74 @@
           "declaration_label": "Nanocrystal"
         },
         {
-          "line": 1036,
+          "line": 1002,
+          "declaration_label": "Load reference##sourcePicker"
+        },
+        {
+          "line": 1042,
           "declaration_label": "Clear##nanoClearRef"
         },
         {
-          "line": 1223,
+          "line": 1229,
           "declaration_label": "##nanoGenMode"
         },
         {
-          "line": 1246,
+          "line": 1252,
           "declaration_label": "##nanoShapeCombo"
         },
         {
-          "line": 1264,
+          "line": 1270,
           "declaration_label": "Auto-center from atoms##nano"
         },
         {
-          "line": 1267,
+          "line": 1273,
           "declaration_label": "X (A)##cnano"
         },
         {
-          "line": 1269,
+          "line": 1275,
           "declaration_label": "Y (A)##cnano"
         },
         {
-          "line": 1271,
+          "line": 1277,
           "declaration_label": "Z (A)##cnano"
         },
         {
-          "line": 1278,
+          "line": 1284,
           "declaration_label": "Auto-replicate##nano"
         },
         {
-          "line": 1283,
+          "line": 1289,
           "declaration_label": "Along a##nano"
         },
         {
-          "line": 1285,
+          "line": 1291,
           "declaration_label": "Along b##nano"
         },
         {
-          "line": 1287,
+          "line": 1293,
           "declaration_label": "Along c##nano"
         },
         {
-          "line": 1298,
+          "line": 1304,
           "declaration_label": "Rectangular cell##nano"
         },
         {
-          "line": 1301,
+          "line": 1307,
           "declaration_label": "Vacuum (A)##nano"
         },
         {
-          "line": 1348,
+          "line": 1354,
           "declaration_label": "Build Nanocrystal##nano"
         },
         {
-          "line": 1363,
+          "line": 1369,
           "declaration_label": "Close##nano"
         }
       ]
     },
     {
       "source": "src/ui/NanoCrystalBuilderDialog.h",
-      "sha256": "b87b2d8aae15d5b0d54bdd552de7257a1af1b900bc03961e7f38023db204a1a7",
+      "sha256": "b60c49174cc4af0d3b2f2956acdb2705137faa3c8c4c9f31dbe843a8f4476170",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -2948,7 +2964,7 @@
     },
     {
       "source": "src/ui/PolyCrystalBuilderDialog.cpp",
-      "sha256": "eb7f115c5f0f6ddb8f755bf3417701460cc6ee3d689396ec94b2f1f281bfa883",
+      "sha256": "c4079784fe54613325e0b813c5ca5106c40392d7df70d09e68f770153f830a9a",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -2959,78 +2975,82 @@
           "declaration_label": "Polycrystal"
         },
         {
-          "line": 398,
+          "line": 288,
+          "declaration_label": "Load reference##sourcePicker"
+        },
+        {
+          "line": 404,
           "declaration_label": "X##polySize"
         },
         {
-          "line": 400,
+          "line": 406,
           "declaration_label": "Y##polySize"
         },
         {
-          "line": 402,
+          "line": 408,
           "declaration_label": "Z##polySize"
         },
         {
-          "line": 413,
+          "line": 419,
           "declaration_label": "##polyNumGrains"
         },
         {
-          "line": 423,
+          "line": 429,
           "declaration_label": "##polySeed"
         },
         {
-          "line": 433,
+          "line": 439,
           "declaration_label": "##polyOrientMode"
         },
         {
-          "line": 458,
+          "line": 464,
           "declaration_label": "phi1##grain"
         },
         {
-          "line": 461,
+          "line": 467,
           "declaration_label": "Phi##grain"
         },
         {
-          "line": 464,
+          "line": 470,
           "declaration_label": "phi2##grain"
         },
         {
-          "line": 478,
+          "line": 484,
           "declaration_label": "Grain #"
         },
         {
-          "line": 483,
+          "line": 489,
           "declaration_label": "Add Grain Orientation##poly"
         },
         {
-          "line": 506,
+          "line": 512,
           "declaration_label": "phi1##pgrain"
         },
         {
-          "line": 509,
+          "line": 515,
           "declaration_label": "Phi##pgrain"
         },
         {
-          "line": 512,
+          "line": 518,
           "declaration_label": "phi2##pgrain"
         },
         {
-          "line": 514,
+          "line": 520,
           "declaration_label": "X##removePGrain"
         },
         {
-          "line": 555,
+          "line": 561,
           "declaration_label": "Build##poly"
         },
         {
-          "line": 564,
+          "line": 570,
           "declaration_label": "Close##poly"
         }
       ]
     },
     {
       "source": "src/ui/PolyCrystalBuilderDialog.h",
-      "sha256": "1c2b84c6dfd1034cb9b8e316de02629b67c4e425503419aabef57769a097147b",
+      "sha256": "4fc203f648377cec4699d9f842a30bdb7ba44210c378501b51b170adabc68332",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ui/PathPicker.h"
+
 #include "algorithms/NanoCrystalBuilder.h"
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
@@ -52,6 +54,7 @@ struct NanoCrystalBuilderDialog
     void feedDroppedFile(const std::string& path);
 
 private:
+    PathPicker m_sourcePicker;
     bool m_openRequested = false;
     bool m_isOpen        = false;
 

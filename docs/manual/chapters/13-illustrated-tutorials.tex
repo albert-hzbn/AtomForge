@@ -4,7 +4,7 @@
 
 Each exercise starts from a named example or an explicit input. Use a working copy for edits. The numbered steps describe the target exercise; a screenshot may show the initial controls instead of the completed settings. Captions identify the captured state. Full parameter definitions remain in the builder, edit, and display control references.
 
-Screenshots are real Windows application captures. Cropping in LaTeX only isolates the relevant dialog or controls; it does not change their contents. Some dialogs need scrolling to reach lower controls. Scientific shape images are separately plotted from native builder output, as labelled.
+Screenshots are real Windows application captures. Cropping in LaTeX only isolates the relevant dialog or controls; it does not change their contents. Some dialogs need scrolling to reach lower controls. Scientific output images are separately plotted from native builder output, as labelled.
 
 \clearpage
 
@@ -63,6 +63,20 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 \textbf{Check the result.} Four Cu atoms should be present in the conventional cell. The supplied \code{examples/cu_fcc.cif} is a reference result.
 
 \textbf{Try the options.} Use \ui{+ Add} for additional independent sites, \ui{Delete} for one row, or \ui{Clear} to start the site list again. Try BCC Fe: Cubic, group 229, $a=2.87$ \angstrom, Fe at the origin; expect two atoms.
+
+\clearpage
+
+\subsection*{Build FCC copper: preview and result}
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=0bp 0bp 0bp 0bp,clip]{figures/tutorials/bulk-output.png}
+
+\par\small\textit{Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots.}
+
+\end{center}
+
+\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. Four Cu atoms should be present in the conventional cell. The supplied \code{examples/cu_fcc.cif} is a reference result.
 
 \clearpage
 
@@ -150,15 +164,29 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \clearpage
 
-\subsection{Find and build a Sigma-5 boundary}\label{tutorial:csl}
-
-\textbf{Start here.} Choose \ui{Build > CSL Grain Boundary}; drop \code{examples/cu_fcc.cif} into its reference preview.
+\subsection*{Create a reproducible Cu--Ni alloy: preview and result}
 
 \begin{center}
 
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=322.5bp 206.25bp 322.5bp 222.75bp,clip]{figures/tutorials/csl-search.jpg}
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=0bp 0bp 0bp 0bp,clip]{figures/tutorials/alloy-output.png}
 
-\par\small\textit{CSL candidate search before loading a reference. Find can populate candidates while Build still needs a source.}
+\par\small\textit{Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots.}
+
+\end{center}
+
+\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. Expect 350 Cu and 150 Ni atoms, matching \code{examples/cu_ni_alloy.cif}. Coordinates remain on host sites.
+
+\clearpage
+
+\subsection{Find and build a Sigma-5 boundary}\label{tutorial:csl}
+
+\textbf{Start here.} Choose \ui{Build > CSL Grain Boundary}; drop \code{examples/cu_fcc.cif} into its reference preview. Use \ui{Load reference} to select the source with the shared file browser.
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=322.5bp 21.75bp 184.5bp 234.75bp,clip]{figures/tutorials/csl-loaded.jpg}
+
+\par\small\textit{Loaded four-atom copper reference and selected $\Sigma5$ [001] candidate before Build. This capture still has one repeat per grain and zero overlap distance; apply the exercise values below before generating its 60-atom result.}
 
 \end{center}
 
@@ -175,6 +203,20 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 \textbf{Check the result.} The supplied \code{examples/cu_sigma5.cif} has 60 atoms. The candidate angle shown here is approximately $53.13^\circ$.
 
 \textbf{Try the options.} Find must be repeated after changing the axis. The plane selector chooses a candidate, not an arbitrary Miller triplet. Increase grain thickness for a larger sample; an overlap cutoff can change atom count and stoichiometry.
+
+\clearpage
+
+\subsection*{Find and build a Sigma-5 boundary: preview and result}
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=0bp 0bp 0bp 0bp,clip]{figures/tutorials/csl-output.png}
+
+\par\small\textit{Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots.}
+
+\end{center}
+
+\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied \code{examples/cu_sigma5.cif} has 60 atoms. The candidate angle shown here is approximately $53.13^\circ$.
 
 \clearpage
 
@@ -233,6 +275,20 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 \textbf{Check the result.} The native example has 336 atoms. \code{examples/shapes/sphere.xyz} supplies the corresponding output.
 
 \textbf{Try the options.} Manual centre changes surface termination. Manual replication must cover the entire requested shape. The output vacuum changes its enclosure rather than its surface cut. The next exercises show every shape option with native output images.
+
+\clearpage
+
+\subsection*{Choose a nanocrystal construction: preview and result}
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=285bp 29.25bp 285bp 69.75bp,clip]{figures/tutorials/wulff-loaded.jpg}
+
+\par\small\textit{A populated Nanocrystal dialog in Wulff mode. The left preview displays the source crystal; the right preview displays the facet construction. Shape Cut uses its own geometry controls.}
+
+\end{center}
+
+\textbf{Interpretation.} The native example has 336 atoms. \code{examples/shapes/sphere.xyz} supplies the corresponding output.
 
 \clearpage
 
@@ -434,19 +490,19 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \subsection{Build a Wulff particle from facet families}\label{tutorial:wulff}
 
-\textbf{Start here.} Open Nanocrystal, select Wulff Construction, and load \code{examples/cu_fcc.cif}.
+\textbf{Start here.} Open Nanocrystal, select Wulff Construction, and load \code{examples/cu_fcc.cif}. Use \ui{Load reference} to select the source with the shared file browser.
 
 \begin{center}
 
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=285bp 41.25bp 285bp 57.75bp,clip]{figures/tutorials/wulff-controls.jpg}
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=285bp 29.25bp 285bp 69.75bp,clip]{figures/tutorials/wulff-loaded.jpg}
 
-\par\small\textit{Initial Wulff controls with one family, before loading the reference. Scroll the options panel for additional controls.}
+\par\small\textit{Before Build: loaded copper, radius 20 \angstrom, and (100)/(111) families with both energies set to 1. The dialog shows the reference and facet geometry, not the final atomic particle.}
 
 \end{center}
 
 \begin{enumerate}
 
-\item Use family $(100)$ with energy 1.0, then add $(111)$ with energy 0.9. Choose distinct family colours.
+\item Use family $(100)$ with energy 1.0, then add $(111)$ with energy 1.0. Choose distinct family colours.
 
 \item Set Max radius to 20 \angstrom. Keep automatic centring/replication and a rectangular cell with 5 \angstrom\ vacuum.
 
@@ -456,7 +512,35 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \textbf{Check the result.} The families should define a bounded intersection. A family hidden behind other bounding planes may contribute no exposed facet.
 
-\textbf{Try the options.} Change a positive energy ratio and rebuild to compare facet areas. Add/remove families using the row controls. The highest-energy family is placed at Max radius; that value is not necessarily the farthest vertex radius. The demonstration energies are illustrative, not measured surface energies.
+\textbf{Try the options.} Try changing the (111) energy to 0.9 and rebuild to compare facet areas. Change a positive energy ratio and rebuild to compare facet areas. Add/remove families using the row controls. The highest-energy family is placed at Max radius; that value is not necessarily the farthest vertex radius. The demonstration energies are illustrative, not measured surface energies.
+
+\clearpage
+
+\subsection*{Build a Wulff particle from facet families: preview and result}
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=285bp 29.25bp 285bp 69.75bp,clip]{figures/tutorials/wulff-built.jpg}
+
+\par\small\textit{After Build with the captured equal-energy settings: the status reports 3,552 atoms and 14 faces. The finished particle opens in the main workspace.}
+
+\end{center}
+
+\textbf{Interpretation.} The families should define a bounded intersection. A family hidden behind other bounding planes may contribute no exposed facet.
+
+\clearpage
+
+\subsection*{Build a Wulff particle from facet families: preview and result}
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=337.5bp 46.5bp 337.5bp 86.25bp,clip]{figures/tutorials/wulff-result.jpg}
+
+\par\small\textit{The generated equal-energy Wulff particle in the actual AtomForge viewport. Orbit the main view to inspect its facets.}
+
+\end{center}
+
+\textbf{Interpretation.} The families should define a bounded intersection. A family hidden behind other bounding planes may contribute no exposed facet.
 
 \clearpage
 
@@ -466,15 +550,15 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \begin{center}
 
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=315bp 93.75bp 315bp 110.25bp,clip]{figures/tutorials/custom-controls.jpg}
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=315bp 81.75bp 315bp 122.25bp,clip]{figures/tutorials/custom-loaded.jpg}
 
-\par\small\textit{Custom Structure input panels and fill options before either input is supplied.}
+\par\small\textit{Immediately before Build Fill: copper reference and octahedron mesh previews, automatic repetition, scale 12 \angstrom/model unit, orientation disabled, and a rectangular output cell with 5 \angstrom\ vacuum. Scroll upward for the source picker.}
 
 \end{center}
 
 \begin{enumerate}
 
-\item Open \ui{Build > Custom Structure}. Drop the crystal into the left input and the OBJ into the right. Alternatively copy an appropriate periodic scene using \ui{Use Current Scene}.
+\item Open \ui{Build > Custom Structure}. Choose \ui{Load structure or model} twice: select the crystal file, then the OBJ. Each file is routed to its corresponding preview. File drops also work. Alternatively copy an appropriate periodic scene using \ui{Use Current Scene}.
 
 \item Set Scale to 12 \angstrom\ per model unit, automatic centring, and rectangular output with 5 \angstrom\ vacuum.
 
@@ -485,6 +569,34 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 \textbf{Check the result.} The supplied native example \code{examples/cu_mesh.xyz} contains 224 Cu atoms. The OBJ has six unit-axis vertices and eight triangular faces.
 
 \textbf{Try the options.} Scale converts mesh units to physical distances. A non-watertight mesh or a feature smaller than lattice spacing can produce a missing fill. Use a closed mesh, verify its dimensions, and confirm sufficient replication before raising sample size.
+
+\clearpage
+
+\subsection*{Fill an OBJ mesh with copper sites: preview and result}
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=420bp 69bp 420bp 97.5bp,clip]{figures/tutorials/custom-result.jpg}
+
+\par\small\textit{The 224-atom filled octahedron in the AtomForge main viewport after Build Fill.}
+
+\end{center}
+
+\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied native example \code{examples/cu_mesh.xyz} contains 224 Cu atoms. The OBJ has six unit-axis vertices and eight triangular faces.
+
+\clearpage
+
+\subsection*{Fill an OBJ mesh with copper sites: preview and result}
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=0bp 0bp 0bp 0bp,clip]{figures/tutorials/custom-output.png}
+
+\par\small\textit{Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots.}
+
+\end{center}
+
+\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied native example \code{examples/cu_mesh.xyz} contains 224 Cu atoms. The OBJ has six unit-axis vertices and eight triangular faces.
 
 \clearpage
 
@@ -516,6 +628,20 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \clearpage
 
+\subsection*{Orient the lattice inside a mesh: preview and result}
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=315bp 81.75bp 315bp 122.25bp,clip]{figures/tutorials/custom-loaded.jpg}
+
+\par\small\textit{Loaded source and model previews before enabling the orientation controls illustrated on the preceding page. The reference preview is not a regenerated, oriented atomic fill.}
+
+\end{center}
+
+\textbf{Interpretation.} The lattice alignment and discrete surface termination can change. Orbiting the preview alone does not perform this orientation operation.
+
+\clearpage
+
 \subsection{Align a crystallographic direction to the mesh}\label{tutorial:custom-miller}
 
 \textbf{Start here.} Use the same periodic reference and closed mesh as the Custom Structure tutorial.
@@ -544,11 +670,25 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \clearpage
 
+\subsection*{Align a crystallographic direction to the mesh: preview and result}
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=315bp 81.75bp 315bp 122.25bp,clip]{figures/tutorials/custom-loaded.jpg}
+
+\par\small\textit{Loaded source and model previews before enabling the orientation controls illustrated on the preceding page. The reference preview is not a regenerated, oriented atomic fill.}
+
+\end{center}
+
+\textbf{Interpretation.} The direction must be nonzero. It is a direct-lattice direction, which differs from a reciprocal plane normal for a general skew cell.
+
+\clearpage
+
 \section{Build: grains and random packing}
 
 \subsection{Build a four-grain copper sample}\label{tutorial:polycrystal}
 
-\textbf{Start here.} Open \ui{Build > Polycrystal} and drop \code{examples/cu_fcc.cif} onto the reference preview.
+\textbf{Start here.} Open \ui{Build > Polycrystal} and drop \code{examples/cu_fcc.cif} onto the reference preview. Use \ui{Load reference} to select the source with the shared file browser.
 
 \begin{center}
 
@@ -571,6 +711,34 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 \textbf{Check the result.} The supplied \code{examples/cu_polycrystal.cif} has 1,329 atoms. Orientation colouring needs corresponding metadata.
 
 \textbf{Try the options.} Increase box size at fixed grain count to enlarge typical grain interiors. Increase grain count at fixed size to refine the partition. Save seed and dimensions; the grain count alone does not reproduce a sample.
+
+\clearpage
+
+\subsection*{Build a four-grain copper sample: preview and result}
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=412.5bp 104.25bp 412.5bp 144.75bp,clip]{figures/tutorials/polycrystal-loaded.jpg}
+
+\par\small\textit{Loaded copper reference in the narrow, vertically stacked layout. Scroll the outer dialog to reach Builder Options and Build; orbit or zoom inside this reference preview.}
+
+\end{center}
+
+\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied \code{examples/cu_polycrystal.cif} has 1,329 atoms. Orientation colouring needs corresponding metadata.
+
+\clearpage
+
+\subsection*{Build a four-grain copper sample: preview and result}
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=0bp 0bp 0bp 0bp,clip]{figures/tutorials/polycrystal-output.png}
+
+\par\small\textit{Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots.}
+
+\end{center}
+
+\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied \code{examples/cu_polycrystal.cif} has 1,329 atoms. Orientation colouring needs corresponding metadata.
 
 \clearpage
 
@@ -627,6 +795,20 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 \textbf{Check the result.} Expect 120 atoms, with Si:O = 1:2. \code{examples/sio2_pack.xyz} is the supplied packing example.
 
 \textbf{Try the options.} Counts determine composition; at% is derived. Remove a species with its row X. Cell scale multiplies all lengths, so density is divided by its cube. This is random packing, not an equilibrated glass.
+
+\clearpage
+
+\subsection*{Pack a Si--O starting configuration: preview and result}
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=0bp 0bp 0bp 0bp,clip]{figures/tutorials/amorphous-output.png}
+
+\par\small\textit{Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots.}
+
+\end{center}
+
+\textbf{Interpretation.} Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. Expect 120 atoms, with Si:O = 1:2. \code{examples/sio2_pack.xyz} is the supplied packing example.
 
 \clearpage
 
@@ -1527,6 +1709,54 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 \textbf{Check the result.} PNG supports alpha; JPEG does not. Higher raster scale increases pixel dimensions and memory use. Inspect SVG in the intended downstream viewer.
 
 \textbf{Try the options.} Scale ranges from 1 to 8. Cancel dismisses the operation. The image is a rendered view, so also save the structure file and settings needed to reproduce it.
+
+\clearpage
+
+\subsection{Inspect geometric Voronoi cells}\label{tutorial:voronoi}
+
+\textbf{Start here.} Open \code{examples/cu_fcc.cif} and choose \ui{View}.
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=110.25bp 276.75bp 1178.25bp 19.5bp,clip]{figures/tutorials/view-menu.jpg}
+
+\par\small\textit{View menu: projection, overlays, information, measurements, and Reset Default View are separate commands.}
+
+\end{center}
+
+\begin{enumerate}
+
+\item Enable \ui{Show Voronoi Volume}. Orbit the main scene and compare cells around symmetry-equivalent sites.
+
+\item Toggle \ui{Show Atoms} to expose cell faces, then restore atoms. Disable the Voronoi toggle when finished.
+
+\end{enumerate}
+
+\textbf{Check the result.} These are geometric cells, not integrated electronic charges. Nonperiodic exterior cells depend on an artificial enclosing box. See the full display reference for periodic-image limitations.
+
+\clearpage
+
+\subsection{Adapt the interface to the screen}\label{tutorial:interface-size}
+
+\textbf{Start here.} Open \ui{Settings > Interface size}.
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=195bp 612.75bp 937.5bp 19.5bp,clip]{figures/tutorials/interface-size.jpg}
+
+\par\small\textit{Current Settings > Interface size menu, with Automatic selected and all five scale choices visible.}
+
+\end{center}
+
+\begin{enumerate}
+
+\item Start with Automatic. Choose Larger (125\%) or Large (150\%) if labels are difficult to read; Extra large is 200\% and Compact is 85\%.
+
+\item Resize the application. Scroll stacked dialogs to reach lower panels, then return to Automatic to restore display-derived scaling.
+
+\end{enumerate}
+
+\textbf{Check the result.} The setting applies next frame and lasts for the session; restarting restores Automatic. It changes interface dimensions, not atomic radii.
 
 \clearpage
 

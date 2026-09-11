@@ -1,6 +1,6 @@
 \chapter{Building atomic structures}\label{ch:builders}
 \section{Common builder workflow}
-Choose the appropriate command under \ui{Build}, supply a periodic reference where required, set parameters, inspect the preview, and run the build action. Read status messages before saving the result. Source previews and generated previews serve different purposes: changing a parameter may update an illustrative preview while the atomic result still needs rebuilding.
+Choose the appropriate command under \ui{Build}, supply a periodic reference where required, set parameters, inspect the preview, and run the build action. Use Load reference in Nanocrystal, CSL, or Polycrystal; Load structure or model in Custom Structure; and Add structure in Merge. These buttons open the shared file picker, while file drops remain available. Read status messages before saving the result. Source previews and generated previews serve different purposes: changing a parameter may update an illustrative preview while the atomic result still needs rebuilding.
 
 Successful Build-menu results open in a new structure tab through the main application's builder callback, preserving the source tab. Merge uses this same new-tab route. Select the generated tab before saving or running another tool. Direct atom edits, Cell Sculptor, Dislocation replacement, and Interstitial insertion update the current structure instead. In the detailed controls below, ``updates the main scene'' refers to the displayed result; it does not mean that every builder overwrites the original tab.
 

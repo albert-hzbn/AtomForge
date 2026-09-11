@@ -4,7 +4,7 @@ Fonts, widget dimensions, and spacing follow the display's content scale. Choose
 
 Dialogs stay inside the application work area, including when its window is resized. Large builder and analysis panels stack vertically in narrow layouts. Scroll the outer dialog to reach a lower panel, and scroll inside a panel to reach its remaining controls. Wide tables and the periodic table retain horizontal scrolling so labels and cells remain readable. The view toolbar uses multiple rows when space is limited. Tab and Shift+Tab navigate supported controls; Enter or Space activates the focused control.
 
-Tutorial screenshots were captured before this responsive-layout update, at their stated source baseline. Control meanings and scientific recipes remain the same, but placement, dialog size, and panel arrangement can differ with screen size. Any dimensions mentioned elsewhere describe the original design scale; runtime dialog bounds take precedence on smaller screens.
+The illustrated tutorials combine updated populated builder captures with earlier control-reference captures. Control meanings and scientific recipes remain the same, but placement, dialog size, and panel arrangement can differ with screen size. Any dimensions mentioned elsewhere describe the original design scale; runtime dialog bounds take precedence on smaller screens.
 
 \subsection{Structure tabs and file navigation}
 When several structures are open, select the desired structure tab before saving, editing, or analysing. Tabs can be reordered, and switching restores that tab's camera. The tab's close button closes that structure; File > Close is the active-structure command. Keep a saved copy of edits before closing. Two tabs can share a display title, so confirm the file and structure information rather than relying on the title alone.
@@ -18,12 +18,64 @@ Builder source buttons and drop targets feed the currently open tool, not necess
 \item[Cartesian X/Y/Z and lattice a/b/c views.] Align the main camera to a Cartesian axis or input lattice direction. Lattice-direction buttons require a cell. The Rotate angle and adjacent X/Y/Z buttons apply a repeatable camera/view rotation; they do not edit atom coordinates despite the internal ``Rotate Crystal'' naming.
 \item[Isometric / Orthographic / Reset Default View.] Choose the intended projection/view preset and restore framing with Reset. This does not undo structural edits. Orbiting changes viewing direction; panning changes framing; zoom changes scale.
 \item[Show Element / Show Atoms / Show Bounding Box.] Toggle labels, atom rendering, and the cell enclosure separately. Hiding atoms does not delete them or exclude them from numerical analysis.
-\item[View Structure By.] Element Type uses chemical colours; Crystal Orientation uses available grain/orientation metadata; Grain Boundary uses boundary metadata; Dislocation Lines selects the available line-oriented presentation. Missing metadata cannot be recovered just by changing the colour mode.
+\item[View Structure By.] Element Type uses chemical colours; Crystal Orientation uses available grain/orientation metadata; Grain Boundary uses boundary metadata; Dislocation Lines toggles a separate line overlay without changing the selected colour mode. Missing metadata cannot be recovered just by changing the colour mode.
 \item[View Atoms By.] Balls emphasises sites, Ball and Stick adds geometric connections, Space Filling emphasises occupied visual space, and Polyhedral uses coordination geometry when available. Representation does not alter the atom list.
 \item[Structure Info.] Read formula, species counts, total atoms, lattice lengths and angles, and cell volume. Symmetry information includes space-group number, international symbol, Hall symbol, and point group when the calculation succeeds. Wait while symmetry is computing; an error or unavailable cell is not a symmetry assignment. The positions table includes element, Cartesian coordinates, and direct coordinates where available.
 \item[Atom Info and measurements.] Select the intended atom(s), read the overlay, and clear selection when done. Measurements follow the selected displayed geometry. Save the selection/order and cell convention when a value is used quantitatively.
 \item[Help > Manual / About.] Manual opens the application's built-in help; the detailed PDF in this folder is the longer reference. About provides application information. A source-only feature is not made available by appearing in an older help description.
 \end{description}
+
+\subsection{Camera workflow: orientation, projection, and framing}
+\begin{enumerate}
+\item Open \code{examples/cu_mesh.xyz} or a generated periodic crystal. Start with \ui{View > Reset Default View}. Left-drag the scene to orbit; right-drag to pan; use the wheel or middle-button vertical drag to zoom. Disable box/lasso selection before using right-drag for panning.
+\item Choose \ui{View > Orthographic View} to remove perspective size variation, then click toolbar \ui{Z} for an XY projection. The atoms still form a 3D structure: atoms at different depths can overlap in this projection. It is not a 2D section or an electronic slice.
+\item Choose \ui{Isometric View} for the alternative view preset, and use \ui{X/Y/Z} or \ui{a/b/c} to compare directions. In a skew cell, a lattice vector need not coincide with a Cartesian axis. Orbiting remains available in either projection mode.
+\item Enter a Rotate angle, then press the adjacent axis button for a repeatable viewing increment. This rotates the view, not the atomic coordinates. Use Edit tools for a structural rotation.
+\item Reset Default View restores framing after panning or zooming. Export an image only after checking the whole object fits and required overlays are visible. Main-view camera settings do not set the electronic dialog's independent 2D/3D cameras.
+\end{enumerate}
+
+\subsection{Every View menu option: dependencies and interpretation}
+\begin{longtable}{p{.30\linewidth}p{.64\linewidth}}
+\toprule Option & How to use it and what to expect \\ \midrule\endhead
+Show Element & Adds chemical-symbol labels. Use a small structure or zoom into a region to avoid overlapping labels. Toggle again to hide. \\
+View Structure By: Element Type & Colours by species using Settings > Display Settings > Colors. This is the useful starting point for composition comparisons. \\
+Crystal Orientation & Uses available orientation/IPF information; a uniform single crystal may have one colour. Load the accompanying orientation sidecar when supplied with a generated polycrystal. A colour is not a strain or energy measurement. \\
+Grain Boundary & Emphasises the boundary classification carried by the structure. Verify the underlying geometry and metadata; switching modes alone is not a new grain-boundary calculation. \\
+Dislocation Lines / Show Dislocation Lines & Both menu locations control the same line-visibility flag. Lines require available dislocation geometry. Enabling the flag does not insert a dislocation or infer Burgers vectors from an arbitrary image. \\
+View Atoms By: Balls & Shows atomic sites without bond sticks. Useful for dense crystals and point-like site comparisons. \\
+Ball and Stick & Shows sites plus geometric connections. A displayed stick is not a calculated bond order or proof of chemical bonding. \\
+Space Filling & Uses larger visual spheres to emphasise the envelope. Interior atoms can become hidden; return to Balls or reduce display radii when inspecting defects. \\
+Polyhedral & Displays coordination polyhedra configured under Settings. Disabled above 5,000 atoms; the overlay also has this limit. See the centre/ligand workflow below. \\
+Show Lattice Planes / Lattice Planes & The first toggles the collection; the second edits its rows. A unit cell is required. Both collection and per-row visibility matter. \\
+Show Miller Directions / Miller Directions & Toggle the collection or open its vector editor. A unit cell is required; row lengths and colours are independent. \\
+Isometric View / Orthographic View & Select the view/projection preset and reset framing. These do not cut the structure into a slice. \\
+Show Voronoi Volume & Draws geometric nearest-site cells, coloured by relative cell volume. See the limitations below before quantitative use. \\
+Polyhedral Viewer & Enables the coordination overlay independently of the selected atom representation. Thus the viewer can remain enabled after selecting Balls; disable this toggle as well to remove the overlay. \\
+Show Atoms & Hides or shows atom geometry without deleting sites. Analysis and export of structure coordinates still use the underlying atoms. \\
+Show Bounding Box & Hides or shows the available unit-cell enclosure. It requires a cell and is independent of atom visibility. \\
+Structure Info & Opens composition, cell, symmetry, and atom-position information for the active tab. Check direct coordinates only when a valid cell exists. \\
+Measure Distance / Measure Angle & Select exactly two atoms for distance or three for angle, then open the corresponding command. The second selected atom is the angle vertex. If the selection count is wrong, close the message, correct the selection, and request the measurement again. \\
+Atom Info & Displays information for the selected atom; select a visible site first. Recheck indices after editing or rebuilding. \\
+Reset Default View & Restores camera framing; it does not undo edits or reset lighting, colours, and radii. \\
+Select Theme: Dark / Light & Changes interface/scene presentation. It does not change element identity or electronic data. Check text and geometry contrast after switching. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Voronoi volume: a geometric overlay}
+Open a small periodic crystal and enable \ui{View > Show Voronoi Volume}. Each cell encloses positions closer to its atom than to neighbouring sites. The overlay maps relative cell volumes to colours and highlights selected cells. Orbit to inspect faces, then temporarily hide atoms to expose the cells. Disable the toggle to return to the ordinary atom view.
+
+This construction partitions geometric space; it is not Bader charge analysis and does not integrate a charge-density grid. With a valid cell, periodic neighbour images are used. Without periodicity, exterior cells are bounded by an artificial padded box, so their displayed volumes depend on that enclosure. The periodic implementation considers neighbouring images within one translation in each direction; inspect highly skew cells carefully. Equal colours in an ideal crystal can simply reflect equal local volumes. For publication, report the cell, boundary convention, and numerical method instead of treating a screenshot colour as a measured value.
+
+\subsection{Settings workflow: choose the control that changes the desired property}
+\begin{enumerate}
+\item For small text or crowded buttons, open \ui{Settings > Interface size}. Start with Automatic, increase to 125\% or 150\% for readability, and use 200\% when needed. Compact reduces interface size. These are session settings and multiply display scaling. Resize the window and scroll stacked panels to reach lower controls.
+\item For larger/smaller atomic spheres, choose \ui{Atomic Sizes}, select a species, and edit its radius in \angstrom. The selected species changes immediately. Apply Literature Radius To Selected Element restores that species; Reset to Literature Defaults restores all radii. Positions and lattice constants are unchanged.
+\item For darker shadows or clearer depth cues, open \ui{Display Settings > Lighting}. Adjust one slider at a time while keeping the same camera. Ambient brightens shadowed areas; Saturation affects colour vividness; Contrast changes tonal separation; Shadow Strength controls shadow darkness. Reset Lighting Defaults provides a reproducible starting point.
+\item For broad/diffuse versus sharp highlights, use \ui{Material}. Specular Intensity changes brightness, Shininess Scale changes the per-element highlight response, and Shininess Floor prevents very diffuse highlights. Reset Material Defaults restores only this tab's three controls.
+\item For a different species palette, use \ui{Colors}, select the element, and edit its colour. Reset Color restores the selected species; Reset All Colors restores the palette. Return to Element Type colouring to see chemical colours when an orientation mode is active.
+\item For coordination faces, use \ui{Polyhedral Settings}. Choose a few centre IDs, centre and ligand species, neighbour count, and opacity, then enable Polyhedral Viewer. Reset Defaults restores those overlay controls; it does not reset lighting or atomic radii.
+\end{enumerate}
+Display Settings changes are live; closing the dialog retains them for the current application state. Keep camera, representation, palette, radii, illumination, and image-export scale consistent across comparison figures. These settings do not replace external relaxation or an electronic calculation.
 
 \subsection{Lattice Planes: every row and visibility control}
 Open View > Lattice Planes on a structure with a cell. The global Show control enables the collection. Enter nonzero H/K/L, Offset n, Opacity, and colour in the new-plane controls, then Add Plane. The offset specifies the member of the parallel plane family; it is not the electronic arbitrary-plane point. In the list, each plane has its own Visible checkbox, editable indices and offset, opacity/colour, and Delete. Individual visibility and global visibility must both allow a plane to be seen.

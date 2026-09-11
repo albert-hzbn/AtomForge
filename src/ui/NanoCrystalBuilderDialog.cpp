@@ -999,6 +999,12 @@ void NanoCrystalBuilderDialog::drawDialog(
     }
     m_isOpen = true;
 
+    if (responsive::button("Load reference##sourcePicker"))
+        m_sourcePicker.open("Load reference", false, "");
+    if (const auto path = m_sourcePicker.draw())
+        feedDroppedFile(*path);
+    ImGui::Spacing();
+
     ImGui::TextWrapped("Drop a reference crystal into the left panel, then build the nanocrystal.");
     ImGui::Separator();
 

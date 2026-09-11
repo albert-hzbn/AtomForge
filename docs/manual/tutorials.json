@@ -1,7 +1,7 @@
 {
   "capture_date": "2026-09-09",
   "application_source_baseline": "e43038c",
-  "notes": "Windows GUI captures plus native nanocrystal output plots. See each caption for input state and validation limits.",
+  "notes": "Windows captures from September 9 and 11, 2026, plus scientific native-output plots. Captions distinguish input previews, controls, and generated results.",
   "required_tutorials": [
     "build-menu",
     "bulk",
@@ -62,7 +62,9 @@
     "sro-tabs",
     "electronic-volume",
     "electronic-plane",
-    "electronic-operations"
+    "electronic-operations",
+    "voronoi",
+    "interface-size"
   ],
   "groups": [
     {
@@ -114,7 +116,14 @@
             "Choose \\ui{Build}. Inspect the new structure, then save as \\code{cu_fcc_tutorial.cif}."
           ],
           "check": "Four Cu atoms should be present in the conventional cell. The supplied \\code{examples/cu_fcc.cif} is a reference result.",
-          "options": "Use \\ui{+ Add} for additional independent sites, \\ui{Delete} for one row, or \\ui{Clear} to start the site list again. Try BCC Fe: Cubic, group 229, $a=2.87$ \\angstrom, Fe at the origin; expect two atoms."
+          "options": "Use \\ui{+ Add} for additional independent sites, \\ui{Delete} for one row, or \\ui{Clear} to start the site list again. Try BCC Fe: Cubic, group 229, $a=2.87$ \\angstrom, Fe at the origin; expect two atoms.",
+          "result_images": [
+            {
+              "file": "tutorials/bulk-output.png",
+              "caption": "Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots."
+            }
+          ],
+          "result_note": "Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. Four Cu atoms should be present in the conventional cell. The supplied \\code{examples/cu_fcc.cif} is a reference result."
         },
         {
           "id": "crystal-systems",
@@ -186,22 +195,29 @@
             "Choose \\ui{Build Solid Solution}, inspect the new tab, and save."
           ],
           "check": "Expect 350 Cu and 150 Ni atoms, matching \\code{examples/cu_ni_alloy.cif}. Coordinates remain on host sites.",
-          "options": "\\ui{+ Add Element} creates another species row; remove a row with its X. For a ternary 50:30:20, enter 50 and 30 in the first two rows. Keep seed and input ordering fixed to reproduce site assignment; seed zero requests a random assignment."
+          "options": "\\ui{+ Add Element} creates another species row; remove a row with its X. For a ternary 50:30:20, enter 50 and 30 in the first two rows. Keep seed and input ordering fixed to reproduce site assignment; seed zero requests a random assignment.",
+          "result_images": [
+            {
+              "file": "tutorials/alloy-output.png",
+              "caption": "Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots."
+            }
+          ],
+          "result_note": "Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. Expect 350 Cu and 150 Ni atoms, matching \\code{examples/cu_ni_alloy.cif}. Coordinates remain on host sites."
         },
         {
           "id": "csl",
           "title": "Find and build a Sigma-5 boundary",
-          "start": "Choose \\ui{Build > CSL Grain Boundary}; drop \\code{examples/cu_fcc.cif} into its reference preview.",
+          "start": "Choose \\ui{Build > CSL Grain Boundary}; drop \\code{examples/cu_fcc.cif} into its reference preview. Use \\ui{Load reference} to select the source with the shared file browser.",
           "images": [
             {
-              "file": "tutorials/csl-search.jpg",
+              "file": "tutorials/csl-loaded.jpg",
+              "caption": "Loaded four-atom copper reference and selected $\\Sigma5$ [001] candidate before Build. This capture still has one repeat per grain and zero overlap distance; apply the exercise values below before generating its 60-atom result.",
               "bounds": [
                 430,
-                297,
-                1490,
-                757
-              ],
-              "caption": "CSL candidate search before loading a reference. Find can populate candidates while Build still needs a source."
+                313,
+                1674,
+                1003
+              ]
             }
           ],
           "steps": [
@@ -210,7 +226,14 @@
             "Scroll down to Build, generate, and inspect the interface and outer periodic contacts."
           ],
           "check": "The supplied \\code{examples/cu_sigma5.cif} has 60 atoms. The candidate angle shown here is approximately $53.13^\\circ$.",
-          "options": "Find must be repeated after changing the axis. The plane selector chooses a candidate, not an arbitrary Miller triplet. Increase grain thickness for a larger sample; an overlap cutoff can change atom count and stoichiometry."
+          "options": "Find must be repeated after changing the axis. The plane selector chooses a candidate, not an arbitrary Miller triplet. Increase grain thickness for a larger sample; an overlap cutoff can change atom count and stoichiometry.",
+          "result_images": [
+            {
+              "file": "tutorials/csl-output.png",
+              "caption": "Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots."
+            }
+          ],
+          "result_note": "Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied \\code{examples/cu_sigma5.cif} has 60 atoms. The candidate angle shown here is approximately $53.13^\\circ$."
         },
         {
           "id": "csl-options",
@@ -263,7 +286,19 @@
             "Inspect the finite particle from two directions, then save a coordinate file."
           ],
           "check": "The native example has 336 atoms. \\code{examples/shapes/sphere.xyz} supplies the corresponding output.",
-          "options": "Manual centre changes surface termination. Manual replication must cover the entire requested shape. The output vacuum changes its enclosure rather than its surface cut. The next exercises show every shape option with native output images."
+          "options": "Manual centre changes surface termination. Manual replication must cover the entire requested shape. The output vacuum changes its enclosure rather than its surface cut. The next exercises show every shape option with native output images.",
+          "result_images": [
+            {
+              "file": "tutorials/wulff-loaded.jpg",
+              "caption": "A populated Nanocrystal dialog in Wulff mode. The left preview displays the source crystal; the right preview displays the facet construction. Shape Cut uses its own geometry controls.",
+              "bounds": [
+                380,
+                93,
+                1540,
+                993
+              ]
+            }
+          ]
         },
         {
           "id": "shape-sphere",
@@ -394,26 +429,48 @@
         {
           "id": "wulff",
           "title": "Build a Wulff particle from facet families",
-          "start": "Open Nanocrystal, select Wulff Construction, and load \\code{examples/cu_fcc.cif}.",
+          "start": "Open Nanocrystal, select Wulff Construction, and load \\code{examples/cu_fcc.cif}. Use \\ui{Load reference} to select the source with the shared file browser.",
           "images": [
             {
-              "file": "tutorials/wulff-controls.jpg",
+              "file": "tutorials/wulff-loaded.jpg",
+              "caption": "Before Build: loaded copper, radius 20 \\angstrom, and (100)/(111) families with both energies set to 1. The dialog shows the reference and facet geometry, not the final atomic particle.",
               "bounds": [
                 380,
-                77,
+                93,
                 1540,
-                977
-              ],
-              "caption": "Initial Wulff controls with one family, before loading the reference. Scroll the options panel for additional controls."
+                993
+              ]
             }
           ],
           "steps": [
-            "Use family $(100)$ with energy 1.0, then add $(111)$ with energy 0.9. Choose distinct family colours.",
+            "Use family $(100)$ with energy 1.0, then add $(111)$ with energy 1.0. Choose distinct family colours.",
             "Set Max radius to 20 \\angstrom. Keep automatic centring/replication and a rectangular cell with 5 \\angstrom\\ vacuum.",
             "Inspect the Wulff Plane View, build the atomic result, and compare facets against the guide planes."
           ],
           "check": "The families should define a bounded intersection. A family hidden behind other bounding planes may contribute no exposed facet.",
-          "options": "Change a positive energy ratio and rebuild to compare facet areas. Add/remove families using the row controls. The highest-energy family is placed at Max radius; that value is not necessarily the farthest vertex radius. The demonstration energies are illustrative, not measured surface energies."
+          "options": "Try changing the (111) energy to 0.9 and rebuild to compare facet areas. Change a positive energy ratio and rebuild to compare facet areas. Add/remove families using the row controls. The highest-energy family is placed at Max radius; that value is not necessarily the farthest vertex radius. The demonstration energies are illustrative, not measured surface energies.",
+          "result_images": [
+            {
+              "file": "tutorials/wulff-built.jpg",
+              "caption": "After Build with the captured equal-energy settings: the status reports 3,552 atoms and 14 faces. The finished particle opens in the main workspace.",
+              "bounds": [
+                380,
+                93,
+                1540,
+                993
+              ]
+            },
+            {
+              "file": "tutorials/wulff-result.jpg",
+              "caption": "The generated equal-energy Wulff particle in the actual AtomForge viewport. Orbit the main view to inspect its facets.",
+              "bounds": [
+                450,
+                115,
+                1470,
+                970
+              ]
+            }
+          ]
         },
         {
           "id": "custom",
@@ -421,23 +478,40 @@
           "start": "Prepare \\code{examples/cu_fcc.cif} and the supplied closed \\code{examples/octahedron.obj}.",
           "images": [
             {
-              "file": "tutorials/custom-controls.jpg",
+              "file": "tutorials/custom-loaded.jpg",
+              "caption": "Immediately before Build Fill: copper reference and octahedron mesh previews, automatic repetition, scale 12 \\angstrom/model unit, orientation disabled, and a rectangular output cell with 5 \\angstrom\\ vacuum. Scroll upward for the source picker.",
               "bounds": [
                 420,
-                147,
+                163,
                 1500,
-                907
-              ],
-              "caption": "Custom Structure input panels and fill options before either input is supplied."
+                923
+              ]
             }
           ],
           "steps": [
-            "Open \\ui{Build > Custom Structure}. Drop the crystal into the left input and the OBJ into the right. Alternatively copy an appropriate periodic scene using \\ui{Use Current Scene}.",
+            "Open \\ui{Build > Custom Structure}. Choose \\ui{Load structure or model} twice: select the crystal file, then the OBJ. Each file is routed to its corresponding preview. File drops also work. Alternatively copy an appropriate periodic scene using \\ui{Use Current Scene}.",
             "Set Scale to 12 \\angstrom\\ per model unit, automatic centring, and rectangular output with 5 \\angstrom\\ vacuum.",
             "Leave crystal orientation disabled for the baseline exercise. Build Fill and inspect the result."
           ],
           "check": "The supplied native example \\code{examples/cu_mesh.xyz} contains 224 Cu atoms. The OBJ has six unit-axis vertices and eight triangular faces.",
-          "options": "Scale converts mesh units to physical distances. A non-watertight mesh or a feature smaller than lattice spacing can produce a missing fill. Use a closed mesh, verify its dimensions, and confirm sufficient replication before raising sample size."
+          "options": "Scale converts mesh units to physical distances. A non-watertight mesh or a feature smaller than lattice spacing can produce a missing fill. Use a closed mesh, verify its dimensions, and confirm sufficient replication before raising sample size.",
+          "result_images": [
+            {
+              "file": "tutorials/custom-result.jpg",
+              "caption": "The 224-atom filled octahedron in the AtomForge main viewport after Build Fill.",
+              "bounds": [
+                560,
+                130,
+                1360,
+                940
+              ]
+            },
+            {
+              "file": "tutorials/custom-output.png",
+              "caption": "Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots."
+            }
+          ],
+          "result_note": "Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied native example \\code{examples/cu_mesh.xyz} contains 224 Cu atoms. The OBJ has six unit-axis vertices and eight triangular faces."
         },
         {
           "id": "custom-euler",
@@ -461,7 +535,19 @@
             "Return angles to zero and rebuild when checking the original result."
           ],
           "check": "The lattice alignment and discrete surface termination can change. Orbiting the preview alone does not perform this orientation operation.",
-          "options": "Try rotations about one axis at a time, then combine them. Record all three angles and the order convention from the detailed controls when reproducing a fill."
+          "options": "Try rotations about one axis at a time, then combine them. Record all three angles and the order convention from the detailed controls when reproducing a fill.",
+          "result_images": [
+            {
+              "file": "tutorials/custom-loaded.jpg",
+              "caption": "Loaded source and model previews before enabling the orientation controls illustrated on the preceding page. The reference preview is not a regenerated, oriented atomic fill.",
+              "bounds": [
+                420,
+                163,
+                1500,
+                923
+              ]
+            }
+          ]
         },
         {
           "id": "custom-miller",
@@ -485,7 +571,19 @@
             "Compare against $[001]$ with the same scale and centre."
           ],
           "check": "The direction must be nonzero. It is a direct-lattice direction, which differs from a reciprocal plane normal for a general skew cell.",
-          "options": "Switching orientation type changes which inputs define the transform. Recheck the active type before reproducing an Euler-angle recipe."
+          "options": "Switching orientation type changes which inputs define the transform. Recheck the active type before reproducing an Euler-angle recipe.",
+          "result_images": [
+            {
+              "file": "tutorials/custom-loaded.jpg",
+              "caption": "Loaded source and model previews before enabling the orientation controls illustrated on the preceding page. The reference preview is not a regenerated, oriented atomic fill.",
+              "bounds": [
+                420,
+                163,
+                1500,
+                923
+              ]
+            }
+          ]
         }
       ]
     },
@@ -495,7 +593,7 @@
         {
           "id": "polycrystal",
           "title": "Build a four-grain copper sample",
-          "start": "Open \\ui{Build > Polycrystal} and drop \\code{examples/cu_fcc.cif} onto the reference preview.",
+          "start": "Open \\ui{Build > Polycrystal} and drop \\code{examples/cu_fcc.cif} onto the reference preview. Use \\ui{Load reference} to select the source with the shared file browser.",
           "images": [
             {
               "file": "tutorials/polycrystal-controls.jpg",
@@ -514,7 +612,24 @@
             "Build, inspect boundaries, and save the structure together with any orientation sidecar."
           ],
           "check": "The supplied \\code{examples/cu_polycrystal.cif} has 1,329 atoms. Orientation colouring needs corresponding metadata.",
-          "options": "Increase box size at fixed grain count to enlarge typical grain interiors. Increase grain count at fixed size to refine the partition. Save seed and dimensions; the grain count alone does not reproduce a sample."
+          "options": "Increase box size at fixed grain count to enlarge typical grain interiors. Increase grain count at fixed size to refine the partition. Save seed and dimensions; the grain count alone does not reproduce a sample.",
+          "result_images": [
+            {
+              "file": "tutorials/polycrystal-loaded.jpg",
+              "caption": "Loaded copper reference in the narrow, vertically stacked layout. Scroll the outer dialog to reach Builder Options and Build; orbit or zoom inside this reference preview.",
+              "bounds": [
+                550,
+                193,
+                1370,
+                893
+              ]
+            },
+            {
+              "file": "tutorials/polycrystal-output.png",
+              "caption": "Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots."
+            }
+          ],
+          "result_note": "Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. The supplied \\code{examples/cu_polycrystal.cif} has 1,329 atoms. Orientation colouring needs corresponding metadata."
         },
         {
           "id": "poly-orientations",
@@ -562,7 +677,14 @@
             "Open Advanced Settings, set seed 7, Build, and inspect the placement status."
           ],
           "check": "Expect 120 atoms, with Si:O = 1:2. \\code{examples/sio2_pack.xyz} is the supplied packing example.",
-          "options": "Counts determine composition; at% is derived. Remove a species with its row X. Cell scale multiplies all lengths, so density is divided by its cube. This is random packing, not an equilibrated glass."
+          "options": "Counts determine composition; at% is derived. Remove a species with its row X. Cell scale multiplies all lengths, so density is divided by its cube. This is random packing, not an equilibrated glass.",
+          "result_images": [
+            {
+              "file": "tutorials/amorphous-output.png",
+              "caption": "Scientific plots of the supplied native builder result: 3D geometry (left) and an XY projection of all atoms (right). These are coordinate plots, not application screenshots."
+            }
+          ],
+          "result_note": "Open the corresponding example in AtomForge, reset the camera, and compare an orbit view with Orthographic View and toolbar Z. The XY projection includes every depth; it is not a section. Expect 120 atoms, with Si:O = 1:2. \\code{examples/sio2_pack.xyz} is the supplied packing example."
         },
         {
           "id": "amorphous-advanced",
@@ -1345,6 +1467,50 @@
           ],
           "check": "PNG supports alpha; JPEG does not. Higher raster scale increases pixel dimensions and memory use. Inspect SVG in the intended downstream viewer.",
           "options": "Scale ranges from 1 to 8. Cancel dismisses the operation. The image is a rendered view, so also save the structure file and settings needed to reproduce it."
+        },
+        {
+          "id": "voronoi",
+          "title": "Inspect geometric Voronoi cells",
+          "start": "Open \\code{examples/cu_fcc.cif} and choose \\ui{View}.",
+          "steps": [
+            "Enable \\ui{Show Voronoi Volume}. Orbit the main scene and compare cells around symmetry-equivalent sites.",
+            "Toggle \\ui{Show Atoms} to expose cell faces, then restore atoms. Disable the Voronoi toggle when finished."
+          ],
+          "check": "These are geometric cells, not integrated electronic charges. Nonperiodic exterior cells depend on an artificial enclosing box. See the full display reference for periodic-image limitations.",
+          "images": [
+            {
+              "file": "tutorials/view-menu.jpg",
+              "bounds": [
+                147,
+                26,
+                349,
+                663
+              ],
+              "caption": "View menu: projection, overlays, information, measurements, and Reset Default View are separate commands."
+            }
+          ]
+        },
+        {
+          "id": "interface-size",
+          "title": "Adapt the interface to the screen",
+          "start": "Open \\ui{Settings > Interface size}.",
+          "steps": [
+            "Start with Automatic. Choose Larger (125\\%) or Large (150\\%) if labels are difficult to read; Extra large is 200\\% and Compact is 85\\%.",
+            "Resize the application. Scroll stacked dialogs to reach lower panels, then return to Automatic to restore display-derived scaling."
+          ],
+          "check": "The setting applies next frame and lasts for the session; restarting restores Automatic. It changes interface dimensions, not atomic radii.",
+          "images": [
+            {
+              "file": "tutorials/interface-size.jpg",
+              "bounds": [
+                260,
+                26,
+                670,
+                215
+              ],
+              "caption": "Current Settings > Interface size menu, with Automatic selected and all five scale choices visible."
+            }
+          ]
         }
       ]
     },

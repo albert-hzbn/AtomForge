@@ -620,6 +620,12 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
 
     m_isOpen = true;
 
+    if (responsive::button("Add structure##sourcePicker"))
+        m_sourcePicker.open("Add structure", false, "");
+    if (const auto path = m_sourcePicker.draw())
+        feedDroppedFile(*path);
+    ImGui::Spacing();
+
     // ---- Top bar ----
     ImGui::TextWrapped("Arrange multiple structures in 3D before merging. "
                        "Left-click atoms to select, drag gizmo handles to move/rotate, "
