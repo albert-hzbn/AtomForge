@@ -57,6 +57,14 @@ set(_exclude_pre
 )
 set(_exclude_post ".*/[Ww][Ii][Nn][Dd][Oo][Ww][Ss]/.*"  ".*/System/Library/.*")
 
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    # Keep the host's loader, glibc and graphics dispatch/driver stack together.
+    # Bundling libc beside a different host loader can prevent startup entirely.
+    list(APPEND _exclude_pre
+        "^ld-linux.*" "^lib(c|m|pthread|dl|rt|resolv|util)\\.so.*"
+        "^libnss_.*" "^lib(GL|EGL|GLX|GLdispatch|OpenGL|GLESv1_CM|GLESv2)\\.so.*")
+endif()
+
 # Pass 1: resolve direct dependencies of the executable.
 file(GET_RUNTIME_DEPENDENCIES
     EXECUTABLES "${_atomforge_exe}"
@@ -109,33 +117,36 @@ foreach(_dep IN LISTS _all_resolved)
     get_filename_component(_dep_name "${_dep}" NAME)
     set(_dep_out "${_atomforge_bin_dir}/${_dep_name}")
     if(NOT EXISTS "${_dep_out}")
-        file(INSTALL DESTINATION "${_atomforge_bin_dir}" TYPE SHARED_LIBRARY FILES "${_dep}")
+        file(INSTALL DESTINATION "${_atomforge_bin_dir}" TYPE SHARED_LIBRARY
+            FOLLOW_SYMLINK_CHAIN FILES "${_dep}")
     endif()
 endforeach()
 
 if(_unresolved)
     list(REMOVE_DUPLICATES _unresolved)
-    message(WARNING "Portable packaging unresolved runtime dependencies: ${_unresolved}")
+    message(FATAL_ERROR "Portable packaging unresolved runtime dependencies: ${_unresolved}")
 endif()
 
 # Final safety net: ensure critical MinGW runtime DLLs are present even if
 # the dependency walker missed them entirely.
-set(_mingw_runtime_dlls
-    libgcc_s_seh-1.dll
-    libstdc++-6.dll
-    libwinpthread-1.dll
-)
-foreach(_rt_dll IN LISTS _mingw_runtime_dlls)
-    set(_rt_out "${_atomforge_bin_dir}/${_rt_dll}")
-    if(NOT EXISTS "${_rt_out}")
-        find_file(_rt_path "${_rt_dll}" PATHS "${_compiler_dir}" ${_extra_dll_dirs} "$ENV{PATH}" NO_DEFAULT_PATH)
-        if(NOT _rt_path)
-            find_file(_rt_path "${_rt_dll}")
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+    set(_mingw_runtime_dlls
+        libgcc_s_seh-1.dll
+        libstdc++-6.dll
+        libwinpthread-1.dll
+    )
+    foreach(_rt_dll IN LISTS _mingw_runtime_dlls)
+        set(_rt_out "${_atomforge_bin_dir}/${_rt_dll}")
+        if(NOT EXISTS "${_rt_out}")
+            find_file(_rt_path "${_rt_dll}" PATHS "${_compiler_dir}" ${_extra_dll_dirs} "$ENV{PATH}" NO_DEFAULT_PATH)
+            if(NOT _rt_path)
+                find_file(_rt_path "${_rt_dll}")
+            endif()
+            if(_rt_path)
+                file(INSTALL DESTINATION "${_atomforge_bin_dir}" TYPE SHARED_LIBRARY FILES "${_rt_path}")
+                message(STATUS "Bundled MinGW runtime (safety net): ${_rt_path}")
+            endif()
+            unset(_rt_path CACHE)
         endif()
-        if(_rt_path)
-            file(INSTALL DESTINATION "${_atomforge_bin_dir}" TYPE SHARED_LIBRARY FILES "${_rt_path}")
-            message(STATUS "Bundled MinGW runtime (safety net): ${_rt_path}")
-        endif()
-        unset(_rt_path CACHE)
-    endif()
-endforeach()
+    endforeach()
+endif()
