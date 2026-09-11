@@ -5,3 +5,13 @@ src/**/*.o
 src/**/*.d
 imgui/*.o
 imgui/*.d
+
+# LaTeX editor output; the published manual is docs/manual/AtomForge-manual.pdf.
+docs/manual/*.aux
+docs/manual/*.fdb_latexmk
+docs/manual/*.fls
+docs/manual/*.log
+docs/manual/*.out
+docs/manual/*.synctex.gz
+docs/manual/*.toc
+docs/manual/manual.pdf

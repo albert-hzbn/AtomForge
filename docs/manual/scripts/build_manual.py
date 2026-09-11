@@ -30,7 +30,8 @@ def main():
     if problems:
         raise SystemExit("Resolve LaTeX diagnostics before publishing:\n" + "\n".join(problems))
     output = manual / "AtomForge-manual.pdf"
-    shutil.copy2(build / "manual.pdf", output)
+    # Publish the validated file without leaving a second manual in build/.
+    (build / "manual.pdf").replace(output)
     print(f"Built {output} ({output.stat().st_size:,} bytes)")
 
 

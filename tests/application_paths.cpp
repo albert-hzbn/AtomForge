@@ -25,6 +25,17 @@ int main()
             fs::create_directories(manual.parent_path());
             std::ofstream(manual) << "%PDF-1.4";
             if (findManualPdf(executable) != manual) throw std::runtime_error("manual layout not resolved");
+            if (std::string(layout) == "development")
+            {
+                // A stale copy beside the executable must not shadow the source manual.
+                std::ofstream(executable / "AtomForge-manual.pdf") << "old manual";
+                if (findManualPdf(executable) != manual)
+                    throw std::runtime_error("development manual shadowed by stale copy");
+                const auto configuration = executable / "Release";
+                fs::create_directories(configuration);
+                if (findManualPdf(configuration) != manual)
+                    throw std::runtime_error("multi-configuration manual not resolved");
+            }
         }
         if (applicationDirectory().empty()) throw std::runtime_error("missing executable directory");
         fs::remove_all(root);
