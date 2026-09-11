@@ -2,7 +2,7 @@
 
 Read [AtomForge-manual.pdf](AtomForge-manual.pdf) for detailed desktop workflows, all 33 electronic operation choices, charge studies, Python/CLI usage, examples, and troubleshooting. Edit [manual.tex](manual.tex) and the modular files in `chapters/` to update it.
 
-The expanded reference covers every Build and Edit tool, their individual controls and application behavior, all View/Settings families, file handling, structural analysis, and optional/source-only features. The generated appendix documents 71 public Python API entries and all eight native builder CLI modes. The coverage checklist distinguishes enabled workflows from source-only implementations.
+The expanded reference covers every Build and Edit tool, their individual controls and application behavior, all View/Settings families, file handling, structural analysis, and optional/source-only features. The generated appendix documents 74 public Python API entries and all eight native builder CLI modes. The coverage checklist distinguishes enabled workflows from source-only implementations.
 
 Chapter 9 adds 62 illustrated quick tutorials with starting files, numbered steps, result checks, and options to try. The screenshot collection includes populated reference/mesh previews and completed structures, alongside seven nanocrystal plots and six paired 3D/XY output plots. Input previews are distinguished from finished results. Each of the seven shape cuts has a reusable XYZ example in `examples/shapes/`. Screenshots show the states described in their captions; they are not all completed exercises. The SRO tutorial records an observed shell-distance discrepancy and explains how to detect it using the FCC reference and RDF.
 
@@ -46,6 +46,6 @@ Check source drift and the generated API/CLI reference:
 python docs/manual/scripts/check_coverage.py --verify-executable build/AtomForge.exe
 ```
 
-`coverage.json` maps 108 source files to manual chapters and records 590 literal UI control declarations, including internal IDs. It is a source-drift check, not an automated proof of semantic completeness. After a code change, review the affected features and update the prose before running `check_coverage.py --refresh`. Normal PDF builds run the coverage check automatically. On other platforms, pass the corresponding executable path or omit `--verify-executable` for a source-only check.
+`coverage.json` maps 109 source files to manual chapters and records 590 literal UI control declarations, including internal IDs. It is a source-drift check, not an automated proof of semantic completeness. After a code change, review the affected features and update the prose before running `check_coverage.py --refresh`. Normal PDF builds run the coverage check automatically. On other platforms, pass the corresponding executable path or omit `--verify-executable` for a source-only check.
 
 The dislocation example is a geometric starting configuration; its generation reports a lattice-family change warning. It preserves 500 host atoms and is included to demonstrate the operation, not to claim a relaxed defect structure.

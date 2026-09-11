@@ -47,6 +47,25 @@ s.save("illustrative_pair.xyz")
 
 The Python structure codecs cover XYZ and extended XYZ, VASP files, PDB, CIF with explicit P1 sites, and LAMMPS data. This is not identical to the desktop's Open Babel coverage. The Python CIF path does not replace the bulk builder's space-group expansion: use already expanded sites when importing a symmetry-rich CIF through this API. LAMMPS restricted-triclinic conversion can rotate geometry and shift origins; verify the resulting cell in the consuming simulator.
 
+\section{Python package 0.2.0: native builders}
+Install \code{atomforge-py==0.2.0} from PyPI and import it as \code{atomforge}. The wheel contains Python code; install the current AtomForge executable and electronic shared library separately for native features. Set \code{ATOMFORGE_PATH} to the executable, or place it on PATH. The electronic loader searches alongside that executable; \code{ATOMFORGE_ELECTRONIC_LIBRARY} remains an explicit override. Basic structure editing and codecs need neither binary.
+
+\begin{lstlisting}[language=Python]
+import atomforge as af
+cu = af.build("bulk", ["--a", "3.61", "--atom", "Cu 0 0 0"]).structure
+alloy = af.build("sss", ["--frac", "Cu=0.7,Ni=0.3", "--seed", "42"],
+                 source=cu.repeat(5, 5, 5), output="alloy.cif")
+print(alloy.stdout, alloy.stderr)
+particle = af.wulff(cu, [(1, 0, 0, 1), (1, 1, 1, 1)],
+                    radius=20, vacuum=5, output="wulff.cif")
+assert len(particle.structure) == 3552
+print(af.builder_help("nano"))
+\end{lstlisting}
+
+\code{af.build} accepts bulk, gb, poly, nano, amorphous, sss, dislocation, and custom. Pass an argument list, with each vector or site specification in one string; repeated flags are preserved. Pass the reference as \code{source}, a Structure or a file path. The result exposes \code{structure}, \code{stdout}, \code{stderr}, and \code{output}. Inspect diagnostics for scientific warnings. An explicit output is written/replaced and retains native orientation sidecars; without it, temporary files are removed after loading. Python Structure does not import grain/IPF sidecar metadata. Supported result suffixes are CIF, XYZ/extXYZ, VASP, PDB, and LAMMPS variants listed by the API.
+
+Native errors raise \code{subprocess.CalledProcessError} with diagnostic streams. The default timeout is 300 seconds; a time limit raises \code{subprocess.TimeoutExpired}. No command shell or GUI is opened. Use \code{builder_help(mode)} to check the installed executable's supported flags. Wulff scripting requires the updated executable with \code{--shape wulff}; repeated \code{--facet "h k l energy"} entries specify nonzero Miller indices and positive relative energies. Radius is the maximum plane distance, not the farthest vertex distance. GUI camera, transparency, lighting, interface scaling, and file-dialog controls are presentation settings and do not alter these numerical APIs.
+
 \section{Desktop and notebook viewing}
 \code{structure.view()} opens the structure in AtomForge without blocking the Python workflow. \code{af.view(structure)} provides the package-level viewer. \code{structure.view_notebook(width=620,height=460)} requests an inline notebook view; if IPython support is absent it falls back to the desktop viewer. The notebook representation is a visual aid and does not run an electronic calculation.
 

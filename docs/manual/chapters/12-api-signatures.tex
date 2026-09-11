@@ -225,6 +225,66 @@ non-blocking.
 
 
 
+\section{Native Python builders}
+
+\subsection{BuildResult}
+
+Built structure and native diagnostics; output is a saved path or None.
+
+Inspect stdout and stderr for algorithm warnings. Explicit output files and
+native orientation sidecars are retained. Structure holds coordinates and
+cell data; it does not import the sidecar's grain metadata.
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+builder_help(mode, *, executable=None)
+\end{lstlisting}
+
+Return installed native help for one of the eight builder modes.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+build(mode, options=(), *, source=None, output=None, executable=None, timeout=300)
+\end{lstlisting}
+
+Run a native builder and return BuildResult without opening the GUI.
+
+mode is bulk, gb, poly, nano, amorphous, sss, dislocation, or custom.
+options is an argument sequence, e.g. ['--a', '3.61', '--atom', 'Cu 0 0 0'].
+Repeated flags are retained; multi-component values occupy one argument.
+source accepts a Structure or an input path. output optionally retains a
+CIF, XYZ/\allowbreak{}extXYZ, VASP, PDB, or LAMMPS result and native sidecars; otherwise
+temporary VASP files are cleaned up after loading. Coordinates are Angstrom.
+Native failures raise subprocess.CalledProcessError with stdout/\allowbreak{}stderr;
+timeout raises subprocess.TimeoutExpired. No command shell is used.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+wulff(source, facets, *, radius=20, vacuum=5, output=None, executable=None, timeout=300)
+\end{lstlisting}
+
+Build a Wulff particle using (h, k, l, energy) facet families.
+
+Positive relative surface energies set plane distances; radius is the
+maximum plane distance in Angstrom, not the farthest vertex radius.
+Uses symmetry expansion and the same native engine as the desktop.
+Returns BuildResult. Requires an executable supporting --shape wulff.
+
+\end{samepage}
+
+
+
 \section{Electronic data types and operations}
 
 \subsection{Grid}
@@ -1028,7 +1088,9 @@ NANOCRYSTAL  (--build nano)
   --input  <file>             Reference crystal (must have a unit cell)
   --shape  <name>             sphere | ellipsoid | box | cylinder |
                                octahedron | truncated-octahedron |
-                               cuboctahedron   (default: sphere)
+                               cuboctahedron | wulff (default: sphere)
+  --facet "h k l energy"      Wulff facet family; repeat for each family.
+                               --radius sets maximum Wulff plane distance.
   --radius <Ang>              Sphere/octahedron/cuboctahedron radius (default: 15)
   --rx <Ang>                  Ellipsoid half-extent X  (default: 15)
   --ry <Ang>                  Ellipsoid half-extent Y  (default: 12)

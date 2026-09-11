@@ -15,6 +15,12 @@ target_link_libraries(atomforge_electronic_tests PRIVATE AtomForge::Core)
 add_test(NAME electronic_regressions COMMAND atomforge_electronic_tests)
 
 if(TARGET AtomForge)
+    add_executable(atomforge_application_paths_tests
+        ${PROJECT_SOURCE_DIR}/tests/application_paths.cpp
+        ${PROJECT_SOURCE_DIR}/src/util/ApplicationPaths.cpp)
+    target_include_directories(atomforge_application_paths_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    add_test(NAME application_paths COMMAND atomforge_application_paths_tests)
+
     add_executable(atomforge_ui_layout_tests
         ${PROJECT_SOURCE_DIR}/tests/ui_layout.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/ResponsiveLayout.cpp
@@ -51,6 +57,10 @@ if(Python3_Interpreter_FOUND)
             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tests/${suite}.py)
     endforeach()
     if(TARGET AtomForge)
+        add_test(NAME python_builders
+            COMMAND ${CMAKE_COMMAND} -E env "ATOMFORGE_PATH=$<TARGET_FILE:AtomForge>"
+                ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tests/test_builders.py)
+        set_tests_properties(python_builders PROPERTIES TIMEOUT 180)
         add_test(NAME cli_smoke
             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/cli_smoke.py $<TARGET_FILE:AtomForge>)
         set_tests_properties(cli_smoke PROPERTIES TIMEOUT 180)

@@ -204,7 +204,9 @@ static void printHelpNano()
 "  --input  <file>             Reference crystal (must have a unit cell)\n"
 "  --shape  <name>             sphere | ellipsoid | box | cylinder |\n"
 "                               octahedron | truncated-octahedron |\n"
-"                               cuboctahedron   (default: sphere)\n"
+"                               cuboctahedron | wulff (default: sphere)\n"
+"  --facet \"h k l energy\"      Wulff facet family; repeat for each family.\n"
+"                               --radius sets maximum Wulff plane distance.\n"
 "  --radius <Ang>              Sphere/octahedron/cuboctahedron radius (default: 15)\n"
 "  --rx <Ang>                  Ellipsoid half-extent X  (default: 15)\n"
 "  --ry <Ang>                  Ellipsoid half-extent Y  (default: 12)\n"
@@ -1030,11 +1032,33 @@ static int runNano(int argc, char* argv[])
         else if (s == "octahedron")           params.shape = NanoShape::Octahedron;
         else if (s == "truncated-octahedron") params.shape = NanoShape::TruncatedOctahedron;
         else if (s == "cuboctahedron")        params.shape = NanoShape::Cuboctahedron;
+        else if (s == "wulff")               params.generationMode = NanoGenerationMode::WulffConstruction;
         else {
             std::cerr << "Error: unknown shape '" << shapeStr << "'\n";
             return 1;
         }
     }
+
+    const auto facets = findAllArgs(argc, argv, "--facet");
+    if (params.generationMode == NanoGenerationMode::WulffConstruction)
+    {
+        if (facets.empty())
+            throw std::invalid_argument("Wulff construction requires at least one --facet");
+        for (const auto& text : facets)
+        {
+            WulffPlaneInput plane;
+            std::istringstream input(text);
+            std::string extra;
+            if (!(input >> plane.h >> plane.k >> plane.l >> plane.surfaceEnergy)
+                || (input >> extra) || !std::isfinite(plane.surfaceEnergy)
+                || plane.surfaceEnergy <= 0 || (plane.h == 0 && plane.k == 0 && plane.l == 0))
+                throw std::invalid_argument("Invalid --facet: expected nonzero h k l and positive finite energy");
+            params.wulffPlanes.push_back(plane);
+        }
+        params.wulffMaxRadius = static_cast<float>(argDouble(argc, argv, "--radius", 20.0));
+    }
+    else if (!facets.empty())
+        throw std::invalid_argument("--facet requires --shape wulff");
 
     float defaultRadius = static_cast<float>(argDouble(argc, argv, "--radius", 15.0));
     params.sphereRadius   = defaultRadius;
@@ -1086,7 +1110,8 @@ static int runNano(int argc, char* argv[])
     }
 
     std::cout << "Built nanocrystal: " << result.outputAtoms << " atoms"
-              << " (shape: " << shapeLabel(params.shape) << ")\n";
+              << " (shape: " << (params.generationMode == NanoGenerationMode::WulffConstruction
+                  ? "Wulff" : shapeLabel(params.shape)) << ")\n";
 
     std::string fmt = detectFormat(outPath);
     if (!saveStructure(structure, outPath, fmt))

@@ -19,6 +19,7 @@ Quick-start
 from ._structure import Atom, Structure
 from ._io import load, save
 from ._viewer import view
+from .builders import BuildResult, build, builder_help, wulff
 
-__all__ = ["Atom", "Structure", "load", "save", "view"]
-__version__ = "0.1.0"
+__all__ = ["Atom", "Structure", "load", "save", "view", "BuildResult", "build", "builder_help", "wulff"]
+__version__ = "0.2.0"

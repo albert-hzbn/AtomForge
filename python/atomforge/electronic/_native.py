@@ -28,7 +28,8 @@ def library():
         package.parent.parent / "build" / name,
         package.parent.parent / "build" / "Release" / name,
     ]
-    viewer = os.environ.get("ATOMFORGE_PATH")
+    from .._viewer import _find_atomforge
+    viewer = _find_atomforge()
     if viewer and not explicit:
         candidates.insert(0, Path(viewer).resolve().parent / name)
         candidates.insert(1, Path(viewer).resolve().parent / "lib" / name)

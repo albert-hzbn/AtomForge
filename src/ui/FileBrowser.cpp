@@ -4,6 +4,7 @@
 #include "ElementData.h"
 #include "ImGuiSetup.h"
 #include "util/PathUtils.h"
+#include "util/ApplicationPaths.h"
 #include "app/StructureFileService.h"
 #include "ui/PeriodicTableDialog.h"
 
@@ -1974,8 +1975,8 @@ void FileBrowser::draw(Structure& structure,
 
     if (showManual)
     {
-        ImGui::OpenPopup("Manual");
         showManual = false;
+        openPdfManual();
     }
 
     auto wrappedBullet = [](const char* text) {
@@ -1985,147 +1986,6 @@ void FileBrowser::draw(Structure& structure,
         ImGui::TextWrapped("%s", text);
         ImGui::PopTextWrapPos();
     };
-
-    responsive::windowSize(ImVec2(800.0f, 700.0f), ImGuiCond_Appearing);
-    bool manualOpen = true;
-    if (responsive::beginModal("Manual", &manualOpen, ImGuiWindowFlags_NoResize))
-    {
-        ImGui::Text("AtomForge Manual");
-        ImGui::PushTextWrapPos(0.0f);
-        ImGui::TextDisabled("Complete reference for all features and operations");
-        ImGui::PopTextWrapPos();
-        ImGui::Separator();
-
-        if (responsive::beginChild("##manual-scroll", responsive::size(0.0f,640.0f), false))
-        {
-            ImGui::Text("Getting Started");
-            wrappedBullet("Open a structure from File -> Open or press Ctrl+O.");
-            wrappedBullet("Use left-drag to rotate the scene and the scroll wheel to zoom.");
-            wrappedBullet("Use View -> Reset Default View to restore the fitted isometric camera.");
-            wrappedBullet("The interface scales automatically on HiDPI / high-resolution displays so text and controls remain readable.");
-
-            ImGui::Spacing();
-            ImGui::Text("Selection and Editing");
-            wrappedBullet("Left-click selects one atom.");
-            wrappedBullet("Ctrl+left-click adds or removes atoms from the current selection.");
-            wrappedBullet("Ctrl+A selects all atoms. Ctrl+D or Esc clears the selection.");
-            wrappedBullet("Delete removes the selected atoms from the structure.");
-            wrappedBullet("Right-click opens the context menu when atoms are selected.");
-            wrappedBullet("Enable Edit -> Box Select Mode to select with a right-drag screen rectangle.");
-            wrappedBullet("Enable Edit -> Lasso Select Mode to select with a freehand right-drag polygon.");
-
-            ImGui::Spacing();
-            ImGui::Text("Keyboard Shortcuts");
-            wrappedBullet("Ctrl+O: open structure file.");
-            wrappedBullet("Ctrl+S: save current structure.");
-            wrappedBullet("Ctrl+Shift+S: save structure as.");
-            wrappedBullet("Ctrl+Alt+S: export the current rendered view.");
-            wrappedBullet("Ctrl+Z: undo. Ctrl+Y or Ctrl+Shift+Z: redo.");
-
-            ImGui::Spacing();
-            ImGui::Text("File Menu");
-            wrappedBullet("Open loads supported structure formats such as CIF, MOL, PDB, XYZ, SDF, VASP, MOL2, PWI, and GJF.");
-            wrappedBullet("Save As exports the current structure to supported chemistry and crystal formats.");
-            wrappedBullet("Export Image writes PNG, JPG, or SVG output with optional background and adjustable resolution scale for high-resolution output.");
-            wrappedBullet("Close unloads the current structure.");
-
-            ImGui::Spacing();
-            ImGui::Text("Edit Menu");
-            wrappedBullet("Undo and Redo track structure edits and style changes.");
-            wrappedBullet("Edit Structure modifies lattice vectors and the atom list directly.");
-            wrappedBullet("Atomic Sizes adjusts per-element radii used for display and some builders.");
-            wrappedBullet("Display Settings adjusts per-element color, shininess and global lighting.");
-            wrappedBullet("Transform Structure applies a 3x3 transformation matrix to periodic structures.");
-            wrappedBullet("Merge Structures opens a 3D arrangement dialog to load, place, rotate, and merge multiple structures.");
-
-            ImGui::Spacing();
-            ImGui::Text("Build Menu");
-            wrappedBullet("Contains builders for Bulk Crystal, CSL Grain Boundary, Nanocrystal, Polycrystal, and Custom Structure.");
-            wrappedBullet("See the individual builder sections below for details on each.");
-
-            ImGui::Spacing();
-            ImGui::Text("Bulk Crystal Builder");
-            wrappedBullet("Builds a full periodic unit cell from crystal system, space group, lattice parameters, and asymmetric-unit atoms.");
-            wrappedBullet("Useful for creating reference single crystals and simulation-ready periodic cells.");
-
-            ImGui::Spacing();
-            ImGui::Text("CSL Grain Boundary Builder");
-            wrappedBullet("Builds cubic bicrystals from ideal sc, bcc, fcc, or diamond source lattices.");
-            wrappedBullet("Controls Sigma selection, grain-boundary plane, replication, overlap removal, and rigid translation.");
-
-            ImGui::Spacing();
-            ImGui::Text("Nanocrystal Builder");
-            wrappedBullet("Uses the currently loaded structure as the reference source for carving.");
-            wrappedBullet("You can drag and drop a supported structure file into the reference preview area while the dialog is open.");
-            wrappedBullet("Preview controls: left-drag orbits the preview, scroll zooms the preview camera.");
-            wrappedBullet("Options include auto-centering, manual center coordinates, auto-replication for periodic inputs, and rectangular output-cell padding.");
-
-            ImGui::Spacing();
-            ImGui::Text("Polycrystal Builder");
-            wrappedBullet("Requires a loaded reference single crystal with unit-cell information.");
-            wrappedBullet("The left panel accepts drag-and-drop and displays a 3D preview of the reference crystal.");
-            wrappedBullet("The builder creates grains by Voronoi tessellation inside a user-defined simulation box.");
-            wrappedBullet("Grain orientations can be all-random, all user-specified with Euler angles, or partially specified.");
-            wrappedBullet("Generated structures include per-atom IPF-Z orientation colors for crystal-orientation visualization.");
-
-            ImGui::Spacing();
-            ImGui::Text("Custom Structure Builder");
-            wrappedBullet("Accepts drag-and-drop input for both the source crystal and the target 3D model.");
-            wrappedBullet("Displays live 3D previews of the reference crystal and the imported model side by side.");
-            wrappedBullet("The model preview is rendered as a shaded surface instead of a wireframe for easier inspection.");
-            wrappedBullet("Use it to generate finite atomistic structures constrained by imported mesh geometry.");
-
-            ImGui::Spacing();
-            ImGui::Text("Merge Structures");
-            wrappedBullet("Located in Edit -> Merge Structures.");
-            wrappedBullet("Provides a large 3D preview with per-structure selection and translate/rotate gizmo controls.");
-            wrappedBullet("Supports drag-and-drop loading and optional bounding-box display before committing merge output.");
-
-            ImGui::Spacing();
-            ImGui::Text("View Menu");
-            wrappedBullet("Show Element toggles element labels.");
-            wrappedBullet("Show Bonds toggles bond-cylinder rendering.");
-            wrappedBullet("Isometric View and Orthographic View switch the camera projection mode.");
-            wrappedBullet("Select Theme switches between the default dark theme and the light theme.");
-            wrappedBullet("View Structure By switches between element-type colors and crystal-orientation IPF coloring.");
-            wrappedBullet("Structure Info shows composition, lattice metrics, positions, and symmetry when available.");
-            wrappedBullet("Measure Distance, Measure Angle, and Atom Info open the corresponding dialogs for the current selection.");
-
-            ImGui::Spacing();
-            ImGui::Text("Crystal Orientation / IPF");
-            wrappedBullet("Crystal Orientation coloring uses cubic IPF-Z colors and displays an IPF triangle legend in the main view.");
-            wrappedBullet("When available, IPF data is restored from a saved sidecar file named basename.atomforge-ipf.");
-            wrappedBullet("If no saved IPF metadata is present, AtomForge can fall back to geometry-based orientation reconstruction.");
-
-            ImGui::Spacing();
-            ImGui::Text("Analysis Menu");
-            wrappedBullet("Common Neighbour Analysis reports pair signatures and per-atom structural environments.");
-            wrappedBullet("Radial Distribution Function plots RDF with configurable species filters, normalization, radius range, bin count, and smoothing.");
-
-            ImGui::Spacing();
-            ImGui::Text("Context Menu");
-            wrappedBullet("Substitute Atom replaces the selected atoms with a chosen element.");
-            wrappedBullet("Insert Atom at Midpoint places a new atom at the centroid of the current selection.");
-            wrappedBullet("Measure Distance, Measure Angle, Atom Info, Delete, and Deselect are available when selection rules are satisfied.");
-
-            ImGui::Spacing();
-            ImGui::Text("Display and Measurement Features");
-            wrappedBullet("Element labels can be shown for periodic-image atoms as well.");
-            wrappedBullet("Bonds are inferred from covalent radii and rendered with split element colors.");
-            wrappedBullet("Selected atoms are highlighted and helper overlays are drawn for distance and angle tools.");
-            wrappedBullet("Periodic boundary visualization includes duplicated boundary atoms and transformed supercell views when applicable.");
-            wrappedBullet("Overlay, gizmo, and bounding-box colors adapt automatically to the selected dark or light theme.");
-
-            ImGui::EndChild();
-        }
-
-        if (responsive::button("Close", responsive::size(120,0)))
-            ImGui::CloseCurrentPopup();
-
-        ImGui::EndPopup();
-    }
-    if (!manualOpen)
-        ImGui::CloseCurrentPopup();
 
     if (showAbout)
     {
@@ -2225,6 +2085,9 @@ void FileBrowser::draw(Structure& structure,
             ImGui::EndChild();
         }
 
+        if (responsive::button("Manual##about", responsive::size(120.0f,0.0f)))
+            openPdfManual();
+        ImGui::SameLine();
         if (responsive::button("Close##about", responsive::size(120.0f,0.0f)))
             ImGui::CloseCurrentPopup();
 
@@ -2664,4 +2527,17 @@ bool FileBrowser::isAllowedFile(const std::string& name) const
             return true;
     }
     return false;
+}
+
+void FileBrowser::openPdfManual()
+{
+    const auto path = findManualPdf(applicationDirectory());
+    if (path.empty())
+    {
+        showNotification("Manual PDF not found. Restore AtomForge-manual.pdf from the application package.", true);
+        return;
+    }
+    const auto open = ImGui::GetPlatformIO().Platform_OpenInShellFn;
+    if (!open || !open(ImGui::GetCurrentContext(), path.u8string().c_str()))
+        showNotification("Unable to open the manual. Install or select a default PDF viewer.", true);
 }

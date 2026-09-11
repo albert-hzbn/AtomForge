@@ -31,6 +31,7 @@ PUBLIC_FILES = {
     "python/atomforge/_structure.py": "Atom and Structure",
     "python/atomforge/_io.py": "Structure file functions",
     "python/atomforge/_viewer.py": "Desktop viewer function",
+    "python/atomforge/builders.py": "Native Python builders",
     "python/atomforge/electronic/_grid.py": "Electronic data types and operations",
     "python/atomforge/electronic/_models.py": "Electronic model helpers",
 }

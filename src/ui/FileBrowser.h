@@ -381,6 +381,7 @@ struct FileBrowser
 
 private:
     void triggerSaveAsDialog();
+    void openPdfManual();
     void performQuickSave(const Structure& structure);
     void drawMainMenuBar(Structure& structure,
                          EditMenuDialogs& editMenuDialogs,

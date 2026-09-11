@@ -126,6 +126,7 @@ set(ATOMFORGE_SOURCES
     src/ui/InterstitialAtomsDialog.cpp
     src/ui/CellSculptorDialog.cpp
     src/util/PathUtils.cpp
+    src/util/ApplicationPaths.cpp
     src/algorithms/CSLComputation.cpp
     src/algorithms/NanoCrystalBuilder.cpp
     src/algorithms/PolyCrystalBuilder.cpp

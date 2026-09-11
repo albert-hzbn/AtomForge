@@ -75,7 +75,7 @@ Select \ui{Wulff Construction} in the nanocrystal dialog. Add facet families, ea
 \item Inspect the \ui{Wulff Plane View}; family colours help identify the contribution of each family. Remove redundant families or add missing ones as required.
 \item Build the atomic nanocrystal. Inspect discrete surface termination separately from the continuous plane preview, then export.
 \end{enumerate}
-The construction requires a bounded intersection of planes. A family may disappear from the final shape when other planes enclose it. Energy ratios must come from comparable surface calculations if a physical equilibrium-shape interpretation is intended. Atomic discretisation can break an ideal continuous shape's apparent symmetry in a very small particle. Wulff controls are documented here as a GUI workflow; the shape-cut CLI examples do not expose the same family editor.
+The construction requires a bounded intersection of planes. A family may disappear from the final shape when other planes enclose it. Energy ratios must come from comparable surface calculations if a physical equilibrium-shape interpretation is intended. Atomic discretisation can break an ideal continuous shape's apparent symmetry in a very small particle. The same construction is available through Python \code{af.wulff} and native \code{--build nano --shape wulff}; use repeated \code{--facet "h k l energy"} arguments for the families.
 
 \section{Custom Structure from OBJ/STL}
 \textbf{Purpose.} Fill a closed mesh with lattice sites. The mesh is a spatial boundary, not a collection of atoms. Use a watertight OBJ or STL, a periodic atomic reference, a physical scale, and an orientation.
