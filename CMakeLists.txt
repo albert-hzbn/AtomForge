@@ -15,7 +15,7 @@ option(ATOMFORGE_ENABLE_SPGLIB "Enable spglib/symspg support when available" ON)
 option(BUILD_PORTABLE "Build portable package with bundled dependencies" OFF)
 
 option(ATOMFORGE_ENABLE_SSS_BUILDER "Enable Substitutional Solid Solution builder UI" ON)
-option(ATOMFORGE_ENABLE_SFE_BUILDER "Enable Stacking Fault (SFE) builder UI" OFF)
+option(ATOMFORGE_ENABLE_SFE_BUILDER "Enable Stacking Fault (SFE) builder UI" ON)
 
 if(UNIX AND NOT APPLE)
     if(BUILD_PORTABLE)
@@ -71,6 +71,8 @@ endif()
 
 set(ATOMFORGE_SOURCES
     src/main.cpp
+    src/cli/AnalysisCLI.cpp
+    src/ui/TrajectoryDialog.cpp
     src/app/EditorApplication.cpp
     src/app/FileDropHandler.cpp
     src/app/ImageExport.cpp

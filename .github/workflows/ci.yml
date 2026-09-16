@@ -42,6 +42,19 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install scientific Python integrations
+        run: python -m pip install './python[science]'
+
+      - name: Test scientific integrations
+        env:
+          ATOMFORGE_PATH: ${{ github.workspace }}/build/AtomForge
+          ATOMFORGE_ELECTRONIC_LIBRARY: ${{ github.workspace }}/build/atomforge_electronic.so
+        run: python python/tests/test_science.py
+
   # --------------------------------------------------------------------------
   # Windows – MinGW-w64 (MSYS2 UCRT64), mirrors the documented quick-start
   # --------------------------------------------------------------------------

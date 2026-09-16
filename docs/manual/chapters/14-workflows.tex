@@ -1,0 +1,118 @@
+\chapter{Projects and scientific workflows}\label{ch:workflows}
+This chapter describes additions in the current source build. Rebuild the application and install the matching Python source package before using them; previously downloaded release binaries do not acquire new features automatically.
+
+\section{Save a project and recover a session}
+Use the File menu's project commands to save all open tabs in one \code{.afproject} file. A project stores atomic structures, grain colours and region IDs, camera framing, basic display switches, electronic primary and reference fields, the current mesh and result table, slice settings, and electronic operation history. Opening a project creates tabs without replacing unrelated open work. Projects store the numerical fields themselves, so the original CHGCAR or Cube file is not required to restore the saved calculation.
+
+Use the electronic workspace's Open/Save workspace buttons to exchange a single analysis independently. A project is not a copy of every application preference: per-element material settings, every builder's transient inputs, and running calculations are not serialized. Save important builder parameters alongside the structure. A calculation must finish or be cancelled before a project can be saved. File writes replace the destination only after successful serialization; a failed write preserves the previous project.
+
+Enable autosave in the File menu to write a recovery project approximately once per minute while calculations are idle. The recovery command loads the latest completed snapshot. On Windows the recovery file is below \code{LOCALAPPDATA/AtomForge}; on Linux it is below \code{XDG_STATE_HOME/AtomForge}, falling back to \code{HOME/.local/state/AtomForge}. Autosave is a recovery aid, not a versioned backup system. Work after the latest successful snapshot may need to be repeated.
+
+\section{Electronic history, cancellation and export}
+Electronic Undo and Redo restore the previous numerical workspace and views. Interactive history keeps at most four snapshots and clears the undo stack for a state larger than 32 MiB; save a project before expensive operations on large grids. The history records operation selections, numeric parameters and input filenames. It does not independently establish the provenance or physical validity of an external file.
+
+Cancel calculation requests cooperative cancellation. The current stage's progress is shown where the algorithm can measure it. The completed result is discarded if cancellation was requested. Loading and long grid loops check cancellation, although external blocking I/O and uninstrumented work may delay the response.
+
+The Appearance quality selector offers four resolutions. It changes the displayed volume texture, ray-sampling budget and 2D sampling grid; the underlying numerical field and numerical exports retain their original resolution. Use lower quality for interaction and higher quality for a final view. Rendering quality cannot recover detail absent from the input file.
+
+The export selector includes a 3D PNG and a 2D SVG. The PNG is rendered at 1600 by 1200 pixels using the current camera, palette and opacity. It exports the data viewport rather than the whole application dialog. The SVG preserves the current section, pan, zoom, rotation and contour display. For a rotatable downstream model export OBJ or PLY instead. Save a project to retain all loaded and derived fields together.
+
+\section{Structural analysis and automation}
+Common-neighbour and angular-distribution analysis are available from Analysis. Interface Builder and Stacking Faults are available from Build. Their C++ algorithms are also exposed through native CLI and Python workflows.
+\begin{lstlisting}[language=Python]
+import atomforge as af
+host = af.load("POSCAR")
+rows = af.cna(host, cutoff=3.1)
+rdf = af.rdf(host, cutoff=6, bins=120)
+adf = af.adf(host, cutoff=3.1, centre="Cu")
+sro = af.sro(host, shells=3, tolerance=0.1)
+voids = af.interstitial_sites(host, resolution=14, clearance=0.6)
+cut = af.sculpt(host, [(1,0,0,-5,5), (0,1,0,-5,5),
+                      (0,0,1,-5,5)])
+\end{lstlisting}
+Cutoff lengths and sculpt bounds are in Angstrom. Manual sculpt bounds are relative to the supercell centroid; periodic bounds instead specify an integer start plane and a number of structural periods. CNA is cutoff-sensitive: include the complete intended neighbour shell and use a sufficiently large periodic cell. FCC/HCP and BCC require different neighbour-shell conventions. ADF counts unordered neighbour pairs; smoothing affects the displayed values, not raw counts. These geometrical analyses do not replace energetic validation.
+
+The native \code{--analyze} modes are cna, rdf, adf, sro, interstitial and sculpt. All require \code{--input} and \code{--output}; analyses write CSV, while sculpt writes a structure. Unsupported options are rejected. Native \code{--convert} provides structure conversion and extended XYZ export. The generated API appendix lists Python parameters and all ten builder modes, including interface and stacking-fault sequence export.
+
+\section{Recipes and batch electronic processing}
+\begin{lstlisting}[language=Python]
+from atomforge.electronic import load_volume, run_pipeline, batch_process
+density = load_volume("CHGCAR").fields[0]
+steps = [
+    {"operation":"scale", "parameters":{"factor":2}, "name":"twice"},
+    {"operation":"subtract", "reference":"input", "name":"difference"},
+    {"operation":"integrate", "name":"electrons"},
+]
+results = run_pipeline(density, steps)
+report = batch_process(["density1.cube", "density2.cube"],
+                       steps, "batch-results")
+\end{lstlisting}
+Every step names an allowlisted operation, optional parameters and an optional unique result name. A reference can identify an earlier grid or an external file. The original input remains available as \code{input}; intermediate results can be inspected before saving. Geometry and units must match for binary operations; resampling is explicit. Batch outputs use input stems, reject name collisions and existing destinations, and report each input's success or failure. Inputs named CHGCAR in different folders need distinct output names or separate batch destinations.
+
+The Python electronic command accepts an operation, a reference, JSON parameters, a JSON recipe or batch inputs. Use its \code{--help} for current argument syntax. Recipe execution does not evaluate Python expressions. Save the recipe, source calculation settings and input hashes separately when preparing an independently reproducible study.
+
+\section{Trajectories and animation}
+Open Analysis > Trajectory playback, choose an XYZ or extended XYZ trajectory, and use Play/Pause, First frame, the frame slider and playback speed. Frames replace the active structure; preserve the original in another tab or project first. Main-window orbit, zoom and pan remain available. The desktop reader requires species followed by Cartesian coordinates; extended XYZ properties must begin with \code{species:S:1:pos:R:3}. It reads lattice vectors from the comment and rejects incomplete frames.
+
+Python provides broader ASE trajectory formats, including XDATCAR and LAMMPS dumps:
+\begin{lstlisting}[language=Python]
+from atomforge.science import read_trajectory, write_trajectory, export_animation
+frames = read_trajectory("XDATCAR", format="vasp-xdatcar")
+write_trajectory(frames, "trajectory.extxyz")
+export_animation(frames, "trajectory.gif", fps=12, radii=0.5)
+\end{lstlisting}
+GIF export uses fixed projection bounds across frames and explicitly chosen radii. Conversion preserves species, positions and a full cell, but the current Structure model does not retain per-axis periodicity, velocities or arbitrary per-atom trajectory properties. Keep the original trajectory for dynamics analysis.
+
+\section{Install scientific integrations}
+The following workflows live in \code{atomforge.science}; they are Python integrations rather than additional native desktop dialogs. Install the source package with its \code{science} extra to obtain ASE, pymatgen, Matplotlib and Gemmi. The native electronic library is additionally needed for stockholder integration and reciprocal-surface triangulation. External DFT, Bader and Chargemol executables and licensed calculation inputs are not bundled.
+
+Gaussian input and Quantum ESPRESSO input conversion use ASE. A PWI export is a structural template with element-named UPF placeholders; supply real pseudopotentials and calculation parameters before running it. MOL, MOL2 and SDF conversion uses the native executable. CIFs carrying nontrivial space-group information require the crystallography extra (Gemmi) and expand symmetry-related sites. Validate disorder/partial-occupancy models separately because the Structure model represents explicit atoms.
+
+\section{Bands, DOS, projected data and orbitals}
+\begin{lstlisting}[language=Python]
+from atomforge.science import read_bands, plot_bands, read_dos, plot_dos
+bands = read_bands("EIGENVAL")
+plot_bands(bands, "bands.svg", fermi_eV=5.2)
+dos = read_dos("DOSCAR")
+plot_dos(dos, "dos.png")
+\end{lstlisting}
+Band arrays are indexed by k point then band, separated by spin channel. Without an explicit reciprocal-path distance array, the plot labels its horizontal axis as k-point index. DOSCAR parsing checks finite data, complete blocks and consistent energy grids. Projected DOS column meanings depend on the producer's spin and LORBIT settings; pass \code{projected_labels} when these are known rather than inferring orbital labels from an ambiguous column count.
+
+\code{read_projections("PROCAR")} returns pymatgen's projection object. Select and sum the intended ion/orbital channels to construct nonnegative weights matching the band arrays, then pass these to \code{plot_bands(..., projections=weights)} for fat bands. Spin-orbit projections require the conventions of the supplied PROCAR. Compare the number and ordering of k points and bands before combining files.
+
+\code{orbital_density(wavecar,poscar,output,kpoint=0,band=0)} reconstructs a selected orbital and writes PARCHG for the desktop electronic viewer. Indices are zero-based; spin, spinor and FFT scale are explicit options. This is a plane-wave reconstruction through pymatgen and excludes PAW augmentation; it is not an all-electron density or an exact total-energy calculation.
+
+\section{Reciprocal-space surfaces}
+\begin{lstlisting}[language=Python]
+from atomforge.science import read_bandgrid, plot_surface
+bands = read_bandgrid("bands.bxsf", energy_unit="eV", reciprocal_unit="1/A")
+label = next(iter(bands.bands))
+plot_surface(bands, label, "fermi-surface.png")
+bands.surface(label).save("fermi-surface.obj")
+\end{lstlisting}
+BXSF BANDGRID data are read in z-fastest order and preserve endpoint samples. The default isosurface level is the file's Fermi energy; out-of-range levels are rejected. Supply the producing program's actual units. The resulting surface spans the reciprocal parallelepiped and is not folded into the first Brillouin zone. Keep it separate from real-space charge grids. Raw BXSF input is intentionally not passed to the desktop real-space density loader.
+
+\section{Charge partitioning}
+\code{hirshfeld(density, proatoms)} applies stockholder weights to an electron-density grid using caller-supplied neutral-proatom grids. All geometries and density units must agree. Proatoms must cover every nonzero density sample. The electron populations sum to the integrated density; optional reference electron counts produce net atomic charges. Use compatible valence or all-electron conventions throughout. AtomForge does not invent atomic reference densities from Gaussian functions.
+
+\code{bader(path, reference=..., potcar=..., executable=...)} runs the actual Henkelman solver through pymatgen. A summed AECCAR0+AECCAR2 reference can define basins while CHGCAR supplies the integrated valence charge. Returned raw populations count electrons; when POTCAR is provided, net charge is reference valence count minus population. Inspect vacuum charge and total electron count as convergence checks. Cube input requires the explicit cube format option.
+
+\code{ddec(directory, atomic_densities=...)} uses Chargemol DDEC6/CM5. It requires the actual solver, atomic-density database and required VASP files. Set \code{run=False} to parse existing results. Errors are reported directly; neither Bader nor DDEC falls back to a Voronoi partition. Backend availability and numerical convergence are separate from successful import of the Python wrapper.
+
+\section{Diffraction, relaxation, dynamics and phonons}
+\code{powder_diffraction(structure)} uses pymatgen's X-ray or neutron calculator with explicit wavelength and angle limits. The result contains peak angles, intensities and reflection information; \code{plot_diffraction} produces a broadened pattern. \code{single_crystal} uses explicitly supplied per-site, per-reflection complex scattering factors. Include any intended occupancy and displacement attenuation in those effective factors. Radiation, isotope and form-factor assumptions affect intensities and should be recorded.
+
+\begin{lstlisting}[language=Python]
+from ase.calculators.emt import EMT
+from atomforge.science import relax, molecular_dynamics, phonons, mode_frames
+result = relax(host, EMT(), fmax=0.02, steps=200)
+print(result.converged, result.energy)
+motion = molecular_dynamics(host, EMT(), steps=100,
+                            timestep_fs=1, temperature_K=300, seed=7)
+modes = phonons(host, EMT(), [[0,0,0]], directory="fresh-phonon-cache",
+                supercell=(2,2,2), displacement=0.01)
+animation = mode_frames(host, modes["modes"][0,0])
+\end{lstlisting}
+EMT is an example potential with limited element support, not a general DFT model. A caller-configured ASE calculator can instead connect an external DFT or interatomic-potential engine. Its executable, pseudopotentials, settings and convergence remain the caller's responsibility. BFGS returns a convergence flag; reaching the step limit does not establish equilibrium. Cell relaxation requires a periodic structure and stress-capable calculator.
+
+Dynamics uses NVE velocity-Verlet. Temperature sets the initial velocity distribution, not a thermostat. Check total-energy drift and timestep convergence. Phonons use finite displacements in a fresh cache directory; q points are fractional reciprocal coordinates, energies are in eV, and negative values denote imaginary frequencies. Check supercell and displacement convergence. \code{mode_frames} animates a supplied Gamma-point mode with an explicit maximum displacement amplitude. A geometric builder or a rendered vibration does not by itself establish dynamical stability.

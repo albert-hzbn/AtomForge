@@ -14,9 +14,9 @@ static glm::mat3 recipMatrix(const Structure& source)
 {
     const auto& cv = source.cellVectors;
     const glm::mat3 A(
-        (float)cv[0][0], (float)cv[1][0], (float)cv[2][0],
-        (float)cv[0][1], (float)cv[1][1], (float)cv[2][1],
-        (float)cv[0][2], (float)cv[1][2], (float)cv[2][2]);
+        (float)cv[0][0], (float)cv[0][1], (float)cv[0][2],
+        (float)cv[1][0], (float)cv[1][1], (float)cv[1][2],
+        (float)cv[2][0], (float)cv[2][1], (float)cv[2][2]);
     return glm::transpose(glm::inverse(A));
 }
 
@@ -53,9 +53,9 @@ static int structuralPeriodMultiplier(const CellSlabPlane& slab,
     // Build A (columns = cell vectors) and its inverse for fractional coords.
     const auto& cv = source.cellVectors;
     const glm::mat3 A(
-        (float)cv[0][0], (float)cv[1][0], (float)cv[2][0],
-        (float)cv[0][1], (float)cv[1][1], (float)cv[2][1],
-        (float)cv[0][2], (float)cv[1][2], (float)cv[2][2]);
+        (float)cv[0][0], (float)cv[0][1], (float)cv[0][2],
+        (float)cv[1][0], (float)cv[1][1], (float)cv[1][2],
+        (float)cv[2][0], (float)cv[2][1], (float)cv[2][2]);
     const glm::mat3 Ainv = glm::inverse(A);
 
     // Fractional positions of all source atoms, reduced to [0,1), paired with
@@ -289,9 +289,9 @@ Structure cscBuildSupercell(const Structure& source, int nx, int ny, int nz)
     // due to editor moves or floating-point drift) end up in the correct tiled
     // cell rather than doubling up or disappearing.
     const glm::mat3 A(
-        (float)cv[0][0], (float)cv[1][0], (float)cv[2][0],
-        (float)cv[0][1], (float)cv[1][1], (float)cv[2][1],
-        (float)cv[0][2], (float)cv[1][2], (float)cv[2][2]);
+        (float)cv[0][0], (float)cv[0][1], (float)cv[0][2],
+        (float)cv[1][0], (float)cv[1][1], (float)cv[1][2],
+        (float)cv[2][0], (float)cv[2][1], (float)cv[2][2]);
     const glm::mat3 Ainv   = glm::inverse(A);
     const glm::vec3 origin((float)source.cellOffset[0],
                             (float)source.cellOffset[1],
@@ -305,9 +305,9 @@ Structure cscBuildSupercell(const Structure& source, int nx, int ny, int nz)
         const double tx = cv[0][0]*ia + cv[1][0]*ib + cv[2][0]*ic;
         const double ty = cv[0][1]*ia + cv[1][1]*ib + cv[2][1]*ic;
         const double tz = cv[0][2]*ia + cv[1][2]*ib + cv[2][2]*ic;
-        for (const auto& atom : source.atoms)
+        for (std::size_t index=0;index<source.atoms.size();++index)
         {
-            AtomSite a = atom;
+            AtomSite a = source.atoms[index];
 
             // Wrap the source atom to fractional [0,1) relative to cellOffset
             // so that atoms outside the canonical cell (e.g. face atoms at
@@ -326,6 +326,8 @@ Structure cscBuildSupercell(const Structure& source, int nx, int ny, int nz)
 
             a.x += tx; a.y += ty; a.z += tz;
             sc.atoms.push_back(a);
+            if (source.grainColors.size()==source.atoms.size()) sc.grainColors.push_back(source.grainColors[index]);
+            if (source.grainRegionIds.size()==source.atoms.size()) sc.grainRegionIds.push_back(source.grainRegionIds[index]);
         }
     }
     return sc;
@@ -358,10 +360,13 @@ Structure cscApplySlabs(const Structure& sc,
 
     Structure result = sc;
     result.atoms.clear();
+    result.grainColors.clear(); result.grainRegionIds.clear();
+    result.dislocationLoopPoints.clear(); result.dislocationDetectionDone=false;
     result.atoms.reserve(sc.atoms.size());
 
-    for (const auto& atom : sc.atoms)
+    for (std::size_t index=0;index<sc.atoms.size();++index)
     {
+        const auto& atom=sc.atoms[index];
         const glm::vec3 p((float)atom.x, (float)atom.y, (float)atom.z);
         bool keep = true;
         for (const auto& sd : enabled)
@@ -377,7 +382,11 @@ Structure cscApplySlabs(const Structure& sc,
                              : (proj >  sd.d2 + kCscSlabTol))
             { keep = false; break; }
         }
-        if (keep) result.atoms.push_back(atom);
+        if (keep) {
+            result.atoms.push_back(atom);
+            if (sc.grainColors.size()==sc.atoms.size()) result.grainColors.push_back(sc.grainColors[index]);
+            if (sc.grainRegionIds.size()==sc.atoms.size()) result.grainRegionIds.push_back(sc.grainRegionIds[index]);
+        }
     }
 
     // Build cell vectors from the cutting planes when exactly 3 slabs are
@@ -413,7 +422,7 @@ Structure cscApplySlabs(const Structure& sc,
             // Each cell vector = slab normal × slab width (Å).
             for (int j = 0; j < 3; ++j)
             {
-                const glm::vec3 cv = enabled[j].n * (enabled[j].d2 - enabled[j].d1);
+                const glm::vec3 cv = glm::inverse(A)[j] * (enabled[j].d2 - enabled[j].d1);
                 result.cellVectors[j][0] = (double)cv.x;
                 result.cellVectors[j][1] = (double)cv.y;
                 result.cellVectors[j][2] = (double)cv.z;
@@ -485,13 +494,16 @@ Structure cscDeduplicateAtoms(const Structure& s, float tol)
 
     Structure result = s;
     result.atoms.clear();
+    result.grainColors.clear(); result.grainRegionIds.clear();
+    result.dislocationLoopPoints.clear(); result.dislocationDetectionDone=false;
     result.atoms.reserve(s.atoms.size());
 
     std::vector<glm::vec3> canonicalPositions;
     canonicalPositions.reserve(s.atoms.size());
 
-    for (const auto& a : s.atoms)
+    for (std::size_t index=0;index<s.atoms.size();++index)
     {
+        const auto& a=s.atoms[index];
         glm::vec3 canonical((float)a.x, (float)a.y, (float)a.z);
         if (usePeriodicCanonical)
         {
@@ -528,6 +540,8 @@ Structure cscDeduplicateAtoms(const Structure& s, float tol)
         {
             grid[{cx, cy, cz}].push_back((int)result.atoms.size());
             result.atoms.push_back(a);
+            if (s.grainColors.size()==s.atoms.size()) result.grainColors.push_back(s.grainColors[index]);
+            if (s.grainRegionIds.size()==s.atoms.size()) result.grainRegionIds.push_back(s.grainRegionIds[index]);
             canonicalPositions.push_back(canonical);
         }
     }

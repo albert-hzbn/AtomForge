@@ -1,4 +1,5 @@
 #include "electronic/Volume.h"
+#include "util/TaskControl.h"
 
 #include <algorithm>
 #include <cmath>
@@ -18,6 +19,7 @@ Grid derivative(const Grid& g, int axis, bool second)
         for (int y = 0; y < g.shape[1]; ++y)
             for (int x = 0; x < g.shape[0]; ++x)
             {
+                if (x==0 && y==0) atomforge::taskProgress(double(z)/g.shape[2]);
                 glm::ivec3 p(x, y, z);
                 const int i = p[axis];
                 auto at = [&](int j)
@@ -131,6 +133,7 @@ Grid smooth(const Grid& grid, double sigma, int radius)
         for (int y = 0; y < grid.shape[1]; ++y)
             for (int x = 0; x < grid.shape[0]; ++x)
             {
+                if (x==0 && y==0) atomforge::taskProgress(double(z)/grid.shape[2]);
                 double sum = 0, weights = 0;
                 for (const auto& k : kernel)
                 {
@@ -173,6 +176,7 @@ std::vector<glm::dvec2> planarAverage(const Grid& grid, int axis)
         for (int y = 0; y < grid.shape[1]; ++y)
             for (int x = 0; x < grid.shape[0]; ++x)
             {
+                if (x==0 && y==0) atomforge::taskProgress(double(z)/grid.shape[2]);
                 const int i = glm::ivec3(x, y, z)[axis];
                 const double w = grid.weight(x, y, z);
                 out[i].y += grid.values[grid.index(x, y, z)] * w;

@@ -171,6 +171,8 @@ void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
         bool changed = false;
         changed |= ImGui::Checkbox("Use PBC when unit cell is available", &usePbc);
         changed |= ImGui::SliderFloat("Bond cutoff scale", &cutoffScale, 1.00f, 1.60f, "%.2f");
+        changed |= ImGui::InputFloat("Fixed cutoff (A; 0 = covalent radii)", &m_params.cutoffRadius);
+        ImGui::TextWrapped("For crystalline CNA, choose a cutoff between neighbour shells: first and second for FCC/HCP; second and third for BCC. Use a sufficiently repeated periodic cell. Complex graphs with more than 16 common neighbours have chain index -1.");
         ImGui::SameLine();
         
         bool computeRequested = false;

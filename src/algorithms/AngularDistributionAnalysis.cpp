@@ -43,8 +43,8 @@ static void smoothHistogram(std::vector<float>& v, int passes)
         std::vector<float> tmp(v.size(), 0.0f);
         for (int i = 0; i < (int)v.size(); ++i) {
             float s = v[i] * 0.5f;
-            if (i > 0)              s += v[i-1] * 0.25f;
-            if (i < (int)v.size()-1) s += v[i+1] * 0.25f;
+            s += v[i > 0 ? i-1 : i] * 0.25f;
+            s += v[i + 1 < (int)v.size() ? i+1 : i] * 0.25f;
             tmp[i] = s;
         }
         v = tmp;
@@ -93,7 +93,6 @@ AdfResult computeADF(const Structure& structure, const AdfParams& params)
     AdfResult result;
     result.rCutoff   = params.rCutoff;
     result.binCount  = params.binCount;
-    result.binWidth  = 180.0f / static_cast<float>(params.binCount);
     result.normalized = params.normalize;
     result.nAtoms    = static_cast<int>(structure.atoms.size());
 
@@ -101,10 +100,18 @@ AdfResult computeADF(const Structure& structure, const AdfParams& params)
         result.message = "No atoms in structure.";
         return result;
     }
-    if (params.rCutoff < 0.1f) {
-        result.message = "Cutoff radius too small.";
+    if (!std::isfinite(params.rCutoff) || params.rCutoff < 0.1f ||
+        params.binCount < 1 || params.binCount > 100000 ||
+        params.smoothPasses < 0 || params.smoothPasses > 1000) {
+        result.message = "Use a finite cutoff >= 0.1 A, 1-100000 bins and 0-1000 smoothing passes.";
         return result;
     }
+    result.binWidth = 180.0f / static_cast<float>(params.binCount);
+    for (const auto& atom : structure.atoms)
+        if (!std::isfinite(atom.x) || !std::isfinite(atom.y) || !std::isfinite(atom.z)) {
+            result.message = "Atom coordinates must be finite.";
+            return result;
+        }
 
     // Count elements
     for (const auto& a : structure.atoms)
@@ -166,13 +173,15 @@ AdfResult computeADF(const Structure& structure, const AdfParams& params)
 
         coordCounts[ai.symbol].push_back(static_cast<int>(neighs.size()));
 
-        // All ordered (j, k) pairs → angle at i
+        // Each unordered neighbour pair contributes once, independent of atom order.
         for (int a = 0; a < (int)neighs.size(); ++a)
         {
-            if (!isNeigh1(structure.atoms[neighs[a].first])) continue;
             for (int b = a + 1; b < (int)neighs.size(); ++b)
             {
-                if (!isNeigh2(structure.atoms[neighs[b].first])) continue;
+                const auto& first = structure.atoms[neighs[a].first];
+                const auto& second = structure.atoms[neighs[b].first];
+                if (!((isNeigh1(first) && isNeigh2(second)) ||
+                      (isNeigh1(second) && isNeigh2(first)))) continue;
                 float ang = angleDeg(neighs[a].second, neighs[b].second);
                 int bin = static_cast<int>(ang / result.binWidth);
                 if (bin >= params.binCount) bin = params.binCount - 1;
@@ -192,7 +201,8 @@ AdfResult computeADF(const Structure& structure, const AdfParams& params)
         return result;
     }
 
-    // Smooth
+    const auto rawCounts = hist;
+    // Reflect at the endpoints so smoothing preserves the total histogram weight.
     smoothHistogram(hist, params.smoothPasses);
 
     // Build bin structs
@@ -200,7 +210,7 @@ AdfResult computeADF(const Structure& structure, const AdfParams& params)
     float gmax = *std::max_element(hist.begin(), hist.end());
     for (int b = 0; b < params.binCount; ++b) {
         result.bins[b].angleDeg = (b + 0.5f) * result.binWidth;
-        result.bins[b].count    = hist[b];
+        result.bins[b].count    = rawCounts[b];
         result.bins[b].value    = (params.normalize && gmax > 1e-10f)
                                   ? hist[b] / gmax : hist[b];
     }

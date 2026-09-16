@@ -1,5 +1,6 @@
 #include "electronic/Volume.h"
 #include "util/ElementData.h"
+#include "util/TaskControl.h"
 
 #include <algorithm>
 #include <cctype>
@@ -20,6 +21,7 @@ int atomicNumberFromSymbol(const std::string& symbol)
 }
 std::string line(std::istream& in)
 {
+    atomforge::taskCheckpoint();
     std::string s;
     if (!std::getline(in, s)) throw std::runtime_error("Unexpected end of volumetric file");
     return s;
@@ -33,6 +35,7 @@ std::vector<std::string> words(const std::string& s)
 }
 double number(std::string s)
 {
+    atomforge::taskCheckpoint();
     std::replace(s.begin(), s.end(), 'D', 'E');
     std::replace(s.begin(), s.end(), 'd', 'e');
     std::size_t end = 0;
@@ -293,7 +296,7 @@ Volume loadVolume(const std::string& path, const std::string& quantity, const st
     if (q == "auto")
     {
         const auto name = std::filesystem::u8path(path).filename().u8string();
-        if (name.rfind("CHGCAR", 0) == 0 || name == "CHG") q = "density";
+        if (name.rfind("CHGCAR", 0) == 0 || name == "CHG" || name.rfind("PARCHG",0)==0 || name.rfind("AECCAR",0)==0) q = "density";
         else if (name.rfind("LOCPOT", 0) == 0) q = "potential";
         else if (name.rfind("ELFCAR", 0) == 0) q = "elf";
         else q = "raw";
@@ -368,8 +371,8 @@ void saveVolume(const Volume& volume, const std::string& path, const std::string
         for (auto site : volume.sites) out << elementSymbol(site.number) << ' ';
         out << '\n';
         for (std::size_t i = 0; i < volume.sites.size(); ++i) out << "1 ";
-        out << "\nCartesian\n";
-        for (auto site : volume.sites) writeVector(out, site.position);
+        out << "\nDirect\n";
+        for (auto site : volume.sites) writeVector(out, glm::inverse(first.cell)*site.position);
         for (const auto& f : volume.fields)
         {
             out << '\n' << f.shape[0] << ' ' << f.shape[1] << ' ' << f.shape[2] << '\n';

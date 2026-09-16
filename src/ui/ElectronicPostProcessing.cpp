@@ -4,6 +4,7 @@
 #include "electronic/ChargeAnalysis.h"
 #include "ui/DialogLayout.h"
 #include "imgui.h"
+#include "third_party/stb_image_write.h"
 
 #include <algorithm>
 #include <cmath>
@@ -11,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <numeric>
 #include <sstream>
 #include <stdexcept>
@@ -77,6 +79,174 @@ void filename(const char* label, const std::string& path)
 }
 }
 
+atomforge::Workspace ElectronicPostProcessingDialog::snapshot(bool includeData) const
+{
+    atomforge::Workspace out;
+    if (includeData) {
+        out.volume=m_volume; out.reference=m_referenceVolume; out.surface=m_surface;
+        out.table=m_result.table; out.columns=m_result.columns; out.heading=m_result.heading;
+    }
+    out.sourcePath=m_loadedPath; out.referencePath=m_referencePath; out.history=m_history;
+    out.sliceSettings=m_sliceViewport.settings();
+    out.settings["m_quantity"]=m_quantity;
+    out.settings["m_cubeUnits"]=m_cubeUnits;
+    out.settings["m_selected"]=m_selected;
+    out.settings["m_reference"]=m_reference;
+    out.settings["m_localReference"]=m_localReference;
+    out.settings["m_operation"]=m_operation;
+    out.settings["m_toolGroup"]=m_toolGroup;
+    out.settings["m_axis"]=m_axis;
+    out.settings["m_count"]=m_count;
+    out.settings["m_window"]=m_window;
+    out.settings["m_radius"]=m_radius;
+    out.settings["m_exportFormat"]=m_exportFormat;
+    out.settings["m_scalar"]=m_scalar;
+    out.settings["m_maskLow"]=m_maskLow;
+    out.settings["m_maskHigh"]=m_maskHigh;
+    out.settings["m_referenceWeight"]=m_referenceWeight;
+    out.settings["m_booleanOperation"]=m_booleanOperation;
+    out.settings["m_surfaceLevel"]=m_surfaceLevel;
+    out.settings["m_suggestedLevel"]=m_suggestedLevel;
+    out.settings["m_renderMode"]=m_renderMode;
+    out.settings["m_viewLayout"]=m_viewLayout;
+    out.settings["m_showSlicePlane"]=m_showSlicePlane;
+    out.settings["m_sigma"]=m_sigma;
+    out.settings["m_alpha"]=m_alpha;
+    out.settings["m_realCutoff"]=m_realCutoff;
+    out.settings["m_reciprocalCutoff"]=m_reciprocalCutoff;
+    out.settings["m_yaw"]=m_yaw;
+    out.settings["m_pitch"]=m_pitch;
+    out.settings["m_opacity"]=m_opacity;
+    out.settings["m_zoom"]=m_zoom;
+    out.settings["m_specular"]=m_specular;
+    out.settings["m_shininess"]=m_shininess;
+    out.settings["m_colorLow"]=m_colorLow;
+    out.settings["m_colorHigh"]=m_colorHigh;
+    out.settings["m_autoLow"]=m_autoLow;
+    out.settings["m_autoHigh"]=m_autoHigh;
+    out.settings["m_palette"]=m_palette;
+    out.settings["m_quality"]=m_quality;
+    out.settings["m_autoRange"]=m_autoRange;
+    out.settings["m_sliceLow"]=m_sliceLow;
+    out.settings["m_sliceHigh"]=m_sliceHigh;
+    out.settings["m_colorSurface"]=m_colorSurface;
+    out.settings["m_appendSurface"]=m_appendSurface;
+    out.settings["m_pan.x"]=m_pan.x;
+    out.settings["m_pan.y"]=m_pan.y;
+    out.settings["m_start[0]"]=m_start[0];
+    out.settings["m_start[1]"]=m_start[1];
+    out.settings["m_start[2]"]=m_start[2];
+    out.settings["m_end[0]"]=m_end[0];
+    out.settings["m_end[1]"]=m_end[1];
+    out.settings["m_end[2]"]=m_end[2];
+    out.settings["m_u[0]"]=m_u[0];
+    out.settings["m_u[1]"]=m_u[1];
+    out.settings["m_u[2]"]=m_u[2];
+    out.settings["m_v[0]"]=m_v[0];
+    out.settings["m_v[1]"]=m_v[1];
+    out.settings["m_v[2]"]=m_v[2];
+    return out;
+}
+
+void ElectronicPostProcessingDialog::restore(const atomforge::Workspace& saved)
+{
+    if (m_task.running()) throw std::runtime_error("Wait for or cancel the calculation before restoring a workspace");
+    // Validate before changing any live state or narrowing a stored double.
+    for (const auto* settings:{&saved.settings,&saved.sliceSettings})
+        for (const auto& entry:*settings)
+            if (!std::isfinite(entry.second) || std::abs(entry.second)>std::numeric_limits<int>::max())
+                throw std::runtime_error("Workspace setting outside the supported range: "+entry.first);
+    m_volume=saved.volume; m_referenceVolume=saved.reference; m_surface=saved.surface;
+    m_result={}; m_result.table=saved.table; m_result.columns=saved.columns; m_result.heading=saved.heading;
+    m_loadedPath=saved.sourcePath; m_referencePath=saved.referencePath; m_history=saved.history;
+    const auto setting=[&](const char* name,auto& target) {
+        const auto found=saved.settings.find(name);
+        if (found!=saved.settings.end()) target=static_cast<std::decay_t<decltype(target)>>(found->second);
+    };
+    setting("m_quantity",m_quantity);
+    setting("m_cubeUnits",m_cubeUnits);
+    setting("m_selected",m_selected);
+    setting("m_reference",m_reference);
+    setting("m_localReference",m_localReference);
+    setting("m_operation",m_operation);
+    setting("m_toolGroup",m_toolGroup);
+    setting("m_axis",m_axis);
+    setting("m_count",m_count);
+    setting("m_window",m_window);
+    setting("m_radius",m_radius);
+    setting("m_exportFormat",m_exportFormat);
+    setting("m_scalar",m_scalar);
+    setting("m_maskLow",m_maskLow);
+    setting("m_maskHigh",m_maskHigh);
+    setting("m_referenceWeight",m_referenceWeight);
+    setting("m_booleanOperation",m_booleanOperation);
+    setting("m_surfaceLevel",m_surfaceLevel);
+    setting("m_suggestedLevel",m_suggestedLevel);
+    setting("m_renderMode",m_renderMode);
+    setting("m_viewLayout",m_viewLayout);
+    setting("m_showSlicePlane",m_showSlicePlane);
+    setting("m_sigma",m_sigma);
+    setting("m_alpha",m_alpha);
+    setting("m_realCutoff",m_realCutoff);
+    setting("m_reciprocalCutoff",m_reciprocalCutoff);
+    setting("m_yaw",m_yaw);
+    setting("m_pitch",m_pitch);
+    setting("m_opacity",m_opacity);
+    setting("m_zoom",m_zoom);
+    setting("m_specular",m_specular);
+    setting("m_shininess",m_shininess);
+    setting("m_colorLow",m_colorLow);
+    setting("m_colorHigh",m_colorHigh);
+    setting("m_autoLow",m_autoLow);
+    setting("m_autoHigh",m_autoHigh);
+    setting("m_palette",m_palette);
+    setting("m_quality",m_quality);
+    setting("m_autoRange",m_autoRange);
+    setting("m_sliceLow",m_sliceLow);
+    setting("m_sliceHigh",m_sliceHigh);
+    setting("m_colorSurface",m_colorSurface);
+    setting("m_appendSurface",m_appendSurface);
+    setting("m_pan.x",m_pan.x);
+    setting("m_pan.y",m_pan.y);
+    setting("m_start[0]",m_start[0]);
+    setting("m_start[1]",m_start[1]);
+    setting("m_start[2]",m_start[2]);
+    setting("m_end[0]",m_end[0]);
+    setting("m_end[1]",m_end[1]);
+    setting("m_end[2]",m_end[2]);
+    setting("m_u[0]",m_u[0]);
+    setting("m_u[1]",m_u[1]);
+    setting("m_u[2]",m_u[2]);
+    setting("m_v[0]",m_v[0]);
+    setting("m_v[1]",m_v[1]);
+    setting("m_v[2]",m_v[2]);
+    m_selected=std::clamp(m_selected,0,std::max(0,static_cast<int>(m_volume.fields.size())-1));
+    const auto& references=m_localReference || m_referenceVolume.fields.empty() ? m_volume : m_referenceVolume;
+    m_reference=std::clamp(m_reference,0,std::max(0,static_cast<int>(references.fields.size())-1));
+    m_operation=std::clamp(m_operation,0,32); m_axis=std::clamp(m_axis,0,2);
+    m_quantity=std::clamp(m_quantity,0,4); m_cubeUnits=std::clamp(m_cubeUnits,0,1);
+    m_exportFormat=std::clamp(m_exportFormat,0,7); m_booleanOperation=std::clamp(m_booleanOperation,0,3);
+    m_quality=std::clamp(m_quality,0,3); m_palette=std::clamp(m_palette,0,2);
+    m_renderMode=std::clamp(m_renderMode,0,1); m_viewLayout=std::clamp(m_viewLayout,0,2);
+    m_opacity=std::clamp(m_opacity,0.0f,1.0f); m_zoom=std::clamp(m_zoom,.1f,100.0f);
+    m_viewport.setQuality(m_quality); m_viewport.setMesh(m_surface); m_volumeDirty=true;
+    m_sliceViewport.setResolution(std::array<int,4>{65,129,257,513}[m_quality]);
+    m_sliceViewport.restoreSettings(saved.sliceSettings); m_sliceField=m_selected;
+    m_open=!m_volume.fields.empty() || !m_referenceVolume.fields.empty();
+}
+
+void ElectronicPostProcessingDialog::remember()
+{
+    std::size_t bytes=m_surface.vertices.size()*sizeof(glm::dvec3)+m_surface.colors.size()*sizeof(double);
+    for (const auto& grid:m_volume.fields) bytes+=grid.values.size()*sizeof(double);
+    for (const auto& grid:m_referenceVolume.fields) bytes+=grid.values.size()*sizeof(double);
+    m_redo.clear();
+    // Keep interactive undo bounded; disk projects retain full-resolution data.
+    if (bytes>32*1024*1024) { m_undo.clear(); return; }
+    m_undo.push_back(snapshot());
+    while (m_undo.size()>4) m_undo.pop_front();
+}
+
 void ElectronicPostProcessingDialog::drawMenuItem()
 {
     if (ImGui::MenuItem("Electronic Post-processing...")) m_open = true;
@@ -94,6 +264,8 @@ void ElectronicPostProcessingDialog::drawDialog()
         m_error = m_task.error();
         if (m_task.result())
         {
+            remember();
+            if (!m_pendingOperation.empty()) m_history.push_back(m_pendingOperation);
             m_result = *m_task.result();
             if (m_result.surfaceReady)
             {
@@ -140,6 +312,21 @@ void ElectronicPostProcessingDialog::drawDialog()
     const float sidebar = stackPanels ? ImGui::GetContentRegionAvail().x : std::clamp(ImGui::GetContentRegionAvail().x * .38f,responsive::dp(340),responsive::dp(440));
     responsive::beginChild("Electronic controls",ImVec2(sidebar,stackPanels ? responsive::dp(420) : 0),true);
     ImGui::BeginDisabled(m_task.running());
+    if (responsive::button("Open workspace...")) { m_pickerAction=3; m_picker.open("Open electronic workspace",false,"workspace.afproject"); }
+    ImGui::SameLine();
+    if (responsive::button("Save workspace...")) { m_pickerAction=4; m_picker.open("Save electronic workspace",true,"workspace.afproject"); }
+    ImGui::BeginDisabled(m_undo.empty());
+    if (responsive::button("Undo calculation")) {
+        m_redo.push_back(snapshot()); auto previous=std::move(m_undo.back()); m_undo.pop_back(); restore(previous);
+    }
+    ImGui::EndDisabled(); ImGui::SameLine(); ImGui::BeginDisabled(m_redo.empty());
+    if (responsive::button("Redo")) {
+        m_undo.push_back(snapshot()); auto next=std::move(m_redo.back()); m_redo.pop_back(); restore(next);
+    }
+    ImGui::EndDisabled();
+    ImGui::TextWrapped("Undo retains 4 states up to 32 MiB each. Save larger workspaces to disk.");
+    if (ImGui::CollapsingHeader("Operation history"))
+        for (const auto& entry:m_history) ImGui::TextWrapped("%s",entry.c_str());
     dialogLayout::section("Tools");
     if (ImGui::RadioButton("Charge transfer",m_toolGroup==1)) { m_toolGroup=1; m_operation=25; }
     ImGui::SameLine();
@@ -286,6 +473,10 @@ void ElectronicPostProcessingDialog::drawDialog()
             const bool existingSurface = !m_surface.vertices.empty();
             const std::string existingColorUnit = m_colorUnit;
             m_error.clear();
+            std::ostringstream provenance;
+            provenance << "Operation " << op << ", input " << source.name << ", reference " << reference.name;
+            for (const auto& parameter:snapshot(false).settings) provenance << "; " << parameter.first << '=' << parameter.second;
+            m_pendingOperation=provenance.str();
             m_task.start([=]
             {
                 if (op==22 && !displayRange(source.values).contains(scalar))
@@ -394,10 +585,10 @@ void ElectronicPostProcessingDialog::drawDialog()
         ImGui::Spacing();
         if (ImGui::CollapsingHeader("Export",ImGuiTreeNodeFlags_DefaultOpen))
         {
-            if (combo("Format",&m_exportFormat,"Grid: XSF\0Grid: Cube\0Grid: VASP\0Table: CSV\0Surface: OBJ\0Surface: PLY\0"))
+            if (combo("Format",&m_exportFormat,"Grid: XSF\0Grid: Cube\0Grid: VASP\0Table: CSV\0Surface: OBJ\0Surface: PLY\0View: 3D PNG\0View: 2D SVG\0"))
             {
                 auto output = std::filesystem::u8path(m_output);
-                output.replace_extension(std::array<const char*,6>{".xsf",".cube",".vasp",".csv",".obj",".ply"}[m_exportFormat]);
+                output.replace_extension(std::array<const char*,8>{".xsf",".cube",".vasp",".csv",".obj",".ply",".png",".svg"}[m_exportFormat]);
                 std::snprintf(m_output,sizeof(m_output),"%s",output.u8string().c_str());
             }
             if (responsive::button("Save as...",ImVec2(-FLT_MIN,0)))
@@ -411,12 +602,23 @@ void ElectronicPostProcessingDialog::drawDialog()
         }
     }
     ImGui::EndDisabled();
-    if (m_task.running()) ImGui::TextUnformatted("Calculating...");
+    if (m_task.running())
+    {
+        ImGui::TextUnformatted("Calculating...");
+        if (m_task.progress()>=0) ImGui::ProgressBar(m_task.progress(),ImVec2(-1,0),"Current calculation stage");
+        if (responsive::button("Cancel calculation")) m_task.cancel();
+    }
     if (!m_pendingDrops.empty()) ImGui::Text("Queued files: %zu",m_pendingDrops.size());
     if (!m_error.empty()) ImGui::TextWrapped("%s",m_error.c_str());
     ImGui::Spacing();
     if (ImGui::CollapsingHeader("Appearance"))
     {
+        if (combo("Preview quality",&m_quality,"Fast\0Balanced\0High\0Very high\0"))
+        {
+            m_viewport.setQuality(m_quality);
+            m_sliceViewport.setResolution(std::array<int,4>{65,129,257,513}[m_quality]);
+            m_volumeDirty=true;
+        }
         combo("Colors",&m_palette,"Spectrum\0Blue-white-red\0Sequential blue\0");
         if (ImGui::Checkbox("Automatic range",&m_autoRange) && m_autoRange) { m_colorLow=m_autoLow; m_colorHigh=m_autoHigh; }
         if (!m_autoRange)
@@ -457,8 +659,12 @@ void ElectronicPostProcessingDialog::drawDialog()
     ImGui::EndChild();
     if (auto path=m_picker.draw())
     {
-        if (m_pickerAction==2) save(*path);
-        else load(*path,m_pickerAction==1);
+        try {
+            if (m_pickerAction==4) atomforge::saveWorkspace({snapshot()},*path);
+            else if (m_pickerAction==3) { auto saved=atomforge::loadWorkspace(*path); remember(); restore(saved.front()); }
+            else if (m_pickerAction==2) save(*path);
+            else load(*path,m_pickerAction==1);
+        } catch (const std::exception& error) { m_error=error.what(); }
     }
     ImGui::End();
 }
@@ -468,6 +674,7 @@ void ElectronicPostProcessingDialog::load(const std::string& path, bool referenc
     const std::string q=std::array<const char*,5>{"auto","density","potential","elf","raw"}[m_quantity];
     const std::string units=m_cubeUnits ? "angstrom" : "bohr";
     m_error.clear();
+    m_pendingOperation=std::string(reference ? "Load reference: " : "Load: ")+path;
     if (!m_task.start([path,q,units,reference]
     {
         Output out; out.volume=loadVolume(path,q,units);
@@ -481,6 +688,26 @@ void ElectronicPostProcessingDialog::save(const std::string& path)
     {
         if (m_volume.fields.empty()) throw std::invalid_argument("Load a volume first.");
         if (m_exportFormat<3) saveVolume({m_volume.sites,{m_volume.fields.at(m_selected)}},path,std::array<const char*,3>{"xsf","cube","vasp"}[m_exportFormat]);
+        else if (m_exportFormat==6)
+        {
+            constexpr int width=1600,height=1200;
+            if (m_renderMode==0) {
+                m_viewport.setVolume(m_volume.fields.at(m_selected));
+                m_viewport.renderVolume(width,height,m_yaw,m_pitch,m_zoom,m_pan,m_opacity,m_surfaceLevel,m_sliceLow,m_sliceHigh,m_palette);
+            } else {
+                if (m_surface.vertices.empty()) throw std::invalid_argument("Calculate an isosurface first");
+                m_viewport.render(width,height,m_yaw,m_pitch,m_zoom,m_pan,m_opacity,m_colorLow,m_colorHigh,m_palette,m_specular,m_shininess);
+            }
+            const auto pixels=m_viewport.pixels();
+            std::ofstream stream(std::filesystem::u8path(path),std::ios::binary);
+            const auto write=[](void* context,void* data,int size) {
+                static_cast<std::ostream*>(context)->write(static_cast<const char*>(data),size);
+            };
+            const bool written=stbi_write_png_to_func(write,&stream,width,height,4,pixels.data(),width*4)!=0;
+            stream.close();
+            if (!written || !stream) throw std::runtime_error("Failed to write viewport PNG");
+        }
+        else if (m_exportFormat==7) m_sliceViewport.saveSvg(m_volume.fields.at(m_selected),path,m_sliceLow,m_sliceHigh,m_palette);
         else if (m_exportFormat>=4)
         {
             if (m_surface.vertices.empty()) throw std::invalid_argument("Calculate an isosurface first.");

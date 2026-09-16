@@ -241,7 +241,7 @@ cell data; it does not import the sidecar's grain metadata.
 builder_help(mode, *, executable=None)
 \end{lstlisting}
 
-Return installed native help for one of the eight builder modes.
+Return installed native help for a registered builder mode.
 
 \end{samepage}
 
@@ -991,6 +991,520 @@ The orthonormal in-plane orientation is chosen deterministically.
 
 
 
+\section{Structural analyses and sculpting}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+analyze(source, method, *, executable=None, timeout=300, **parameters)
+\end{lstlisting}
+
+Run cna, rdf, adf, sro or interstitial and return named CSV rows.
+
+Parameter names match CLI flags with underscores replacing hyphens.
+no\_\allowbreak{}pbc=True and raw=True are switches. SRO currently uses the
+native shell convention and does not accept a no\_\allowbreak{}pbc override.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+cna(source, **parameters)
+\end{lstlisting}
+
+Common-neighbour indices and full-environment classification per atom.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+rdf(source, **parameters)
+\end{lstlisting}
+
+Radial distribution, directed raw pair counts and coordination.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+adf(source, **parameters)
+\end{lstlisting}
+
+Angular distribution of unordered neighbour pairs, in degrees.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+sro(source, **parameters)
+\end{lstlisting}
+
+Warren-Cowley and Rao-Curtin short-range order by neighbour shell.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+interstitial_sites(source, **parameters)
+\end{lstlisting}
+
+Interstitial candidates, clearance, volume and coordination.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+sculpt(source, slabs, *, repeat=(1, 1, 1), periodic=False, executable=None, timeout=300)
+\end{lstlisting}
+
+Apply intersecting Miller slabs with the desktop sculptor engine.
+
+Each slab is (h,k,l,lower,upper). Manual bounds are A relative to the
+supercell centroid; periodic bounds mean integer start plane and period
+count, using the native structural-period convention.
+
+\end{samepage}
+
+
+
+\section{Electronic recipes and batch jobs}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+apply_operation(grid, operation, parameters=None, reference=None)
+\end{lstlisting}
+
+Evaluate one allowlisted operation; return a grid, fields, surface or table.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+run_pipeline(grid, steps, *, base_directory='.')
+\end{lstlisting}
+
+Run JSON-compatible steps and retain all named intermediate results.
+
+Each step contains operation, optional parameters, name,
+input (an earlier grid name), and reference (earlier name or file).
+field selects a component when an operation returns multiple fields.
+File references resolve relative to base\_\allowbreak{}directory. Recipes cannot call
+arbitrary Python functions or execute shell commands.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+save_result(result, path, format=None)
+\end{lstlisting}
+
+Write a grid/\allowbreak{}mesh, numeric CSV, JSON summary, or numbered grid components.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+batch_process(paths, steps, output_directory, *, quantity='auto', channel=0, format='xsf', base_directory='.', overwrite=False)
+\end{lstlisting}
+
+Apply one recipe to every input and write the last result plus provenance.
+
+Refuses name collisions and existing outputs by default. Failed inputs are
+reported individually; successful results remain available.
+
+\end{samepage}
+
+
+
+\section{Relaxation, dynamics and phonons}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+to_ase(structure)
+\end{lstlisting}
+
+Copy species, Cartesian positions and cell into an ASE Atoms object.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+from_ase(atoms)
+\end{lstlisting}
+
+Copy species, positions and a full-rank cell into an AtomForge Structure.
+
+\end{samepage}
+
+
+
+\subsection{RelaxationResult}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+relax(structure, calculator, *, fmax=0.02, steps=200, relax_cell=False, trajectory=None)
+\end{lstlisting}
+
+Run BFGS with an explicitly supplied ASE calculator (including DFT engines).
+
+converged must be checked: reaching the step limit is not convergence.
+Calculator setup, pseudopotentials and electronic convergence are controlled
+by the caller. The source Structure is never modified.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+molecular_dynamics(structure, calculator, *, steps=100, timestep_fs=1, temperature_K=300, seed=0, sample_interval=1, velocities=None)
+\end{lstlisting}
+
+Run NVE velocity-Verlet; return frames and total energies in eV.
+
+With velocities omitted, initialize a Maxwell-Boltzmann distribution using
+seed. Supplied velocities use ASE's internal velocity units. Temperature is
+an initialization target, not a thermostat. Inspect energy drift to select dt.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+phonons(structure, calculator, qpoints, directory, *, supercell=(2, 2, 2), displacement=0.01)
+\end{lstlisting}
+
+Finite-displacement phonons; energies in eV and complex eigenvectors.
+
+qpoints are fractional reciprocal coordinates. Negative energies denote
+imaginary frequencies. A fresh cache directory prevents stale force reuse.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+mode_frames(structure, mode, *, amplitude=0.2, frames=40)
+\end{lstlisting}
+
+Animate one Gamma-point mode, with maximum displacement amplitude in A.
+
+\end{samepage}
+
+
+
+\section{Bands and density of states}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+read_bands(path)
+\end{lstlisting}
+
+Read EIGENVAL with validated dimensions; return kpoints, weights, spin energies/\allowbreak{}occupancies.
+
+Energies are absolute VASP eigenvalues in eV. Fermi energy is not present in
+EIGENVAL and must be supplied separately when plotting.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+read_projections(path)
+\end{lstlisting}
+
+Read PROCAR, including spin and SOC projections via pymatgen.
+
+Returns the native Procar object: data[spin][kpoint,band,ion,orbital],
+eigenvalues, occupancies, orbital names and SOC xyz\_\allowbreak{}data when present.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+read_dos(path, *, projected_labels=None)
+\end{lstlisting}
+
+Read DOSCAR total DOS and all projected columns without guessing LORBIT.
+
+Total DOS columns are labelled by spin; projected columns require caller
+labels or remain column\_\allowbreak{}1, column\_\allowbreak{}2, ... because DOSCAR does not identify
+the orbital/\allowbreak{}SOC convention. Integrated total DOS is retained separately.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+plot_bands(data, output, *, fermi_eV=0, distances=None, projections=None)
+\end{lstlisting}
+
+Plot bands or fat bands; projections map spin to nonnegative (k,band) weights.
+
+Without reciprocal-space distances the horizontal axis is k-point index,
+avoiding an incorrect metric for non-orthogonal reciprocal cells.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+plot_dos(data, output, *, sites=(), columns=None)
+\end{lstlisting}
+
+Save total and optionally site-projected DOS relative to the file's Fermi energy.
+
+\end{samepage}
+
+
+
+\section{Population analysis and orbital reconstruction}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+hirshfeld(density, proatoms, *, reference_electrons=None)
+\end{lstlisting}
+
+Stockholder partition using supplied neutral proatom density grids.
+
+All grids must share geometry, units and periodicity. The caller supplies
+physically appropriate neutral-atom densities; this routine does not invent
+Gaussian substitutes. Returns electron populations and optional net atomic
+charges, reference\_\allowbreak{}electrons - population. A valence density requires valence
+proatoms/\allowbreak{}reference electron counts; do not mix all-electron and valence data.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+bader(path, *, reference=None, potcar=None, executable=None, format='vasp')
+\end{lstlisting}
+
+Run the Henkelman Bader executable through pymatgen.
+
+reference can be AECCAR0+AECCAR2 for basin definition while integrating the
+supplied valence density. POTCAR supplies reference valence counts for charge
+transfer; raw electron populations are always returned. No Voronoi fallback.
+Temporary solver inputs use six-decimal lattice/\allowbreak{}site coordinates for legacy
+fixed-column readers; scalar samples retain 16 digits. Calls use pymatgen's
+working-directory-based runner and should run in separate processes, not threads.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+ddec(directory, *, atomic_densities=None, run=True)
+\end{lstlisting}
+
+Run/\allowbreak{}read Chargemol DDEC6 and CM5 results through pymatgen.
+
+Requires the Chargemol executable and its atomic-density database. Input
+directory contains the calculation's CHGCAR/\allowbreak{}POTCAR/\allowbreak{}AECCAR files. External
+solver failures propagate; an approximate partition is never substituted.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+orbital_density(wavecar, poscar, output, *, kpoint=0, band=0, spin=None, spinor=None, scale=2)
+\end{lstlisting}
+
+Export a selected WAVECAR orbital as PARCHG, loadable in the desktop.
+
+Indices are zero-based. Uses pymatgen's plane-wave reconstruction; PAW
+augmentation is not included, so this is not an all-electron density.
+Occupation and k-point weights are not applied. A collinear spin selection
+returns one component; omitted spin in ISPIN=2 returns total and difference.
+
+\end{samepage}
+
+
+
+\section{Trajectory conversion and animation}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+read_trajectory(path, *, format=None, index=':')
+\end{lstlisting}
+
+Read XYZ/\allowbreak{}extXYZ, XDATCAR, LAMMPS dumps and other ASE-supported trajectories.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+write_trajectory(frames, path, *, format=None)
+\end{lstlisting}
+
+Write a nonempty sequence of structures using an ASE trajectory format.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+export_animation(frames, path, *, fps=12, rotation='20x,30y', radii=0.5)
+\end{lstlisting}
+
+Export a GIF with fixed spatial bounds and explicitly chosen atom radii.
+
+\end{samepage}
+
+
+
+\section{Diffraction}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+powder_diffraction(structure, *, radiation='xray', wavelength=1.5406, two_theta=(0, 90))
+\end{lstlisting}
+
+Return pymatgen diffraction peaks; wavelength A, scattering angle degrees.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+single_crystal(structure, indices, scattering)
+\end{lstlisting}
+
+Return hkl, reciprocal vectors (2*pi/\allowbreak{}A) and |F|\textasciicircum{}2 for explicit site factors.
+
+scattering is [reflection][atom], permitting complex anomalous factors and
+neutron isotope factors. Intensities omit instrument/\allowbreak{}polarization corrections.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+plot_diffraction(pattern, output, *, fwhm=0.1, points=4000)
+\end{lstlisting}
+
+Plot Gaussian-broadened powder peaks; FWHM is in degrees of 2 theta.
+
+\end{samepage}
+
+
+
+\section{Reciprocal-space band grids}
+
+\subsection{BandGrid}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+BandGrid.surface(band, energy=None)
+\end{lstlisting}
+
+Triangulate E(k)=energy; the default is the file's Fermi energy.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+read_bandgrid(path, *, energy_unit='eV', reciprocal_unit='1/A')
+\end{lstlisting}
+
+Read one three-dimensional BXSF block, preserving band labels.
+
+BXSF does not declare universal physical units. Supply the producing
+program's units explicitly when they differ from eV and inverse Angstrom.
+Endpoint samples are retained, as required for general BXSF grids.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+plot_surface(grid, band, output, *, energy=None)
+\end{lstlisting}
+
+Save a labeled reciprocal-space surface plot as PNG, SVG or PDF.
+
+\end{samepage}
+
+
+
 \section{Native builder options}
 
 Use \code{AtomForge --help MODE} for detailed help. \code{AtomForge --build MODE --help} prints the general overview in this version. These option listings are extracted from the source help and checked against the normal executable. CLI defaults may differ from a dialog's remembered settings. The caret line continuations shown in help are for Windows cmd; use a single line or a subprocess argument list in PowerShell/Python.
@@ -1226,4 +1740,44 @@ Fill a 3D mesh model with atoms from a reference crystal structure.
 Example:
   AtomForge --build custom --input cu.cif --mesh bunny.stl ^
             --scale 0.1 --vacuum 5 --output cu_bunny.xyz
+\end{lstlisting}
+
+\clearpage
+
+\subsection{interface}
+
+\begin{lstlisting}
+------------------------------------------------------------------
+HETEROGENEOUS INTERFACE  (--build interface)
+------------------------------------------------------------------
+  --layerA <file>             Structure for layer A (must have a unit cell)
+  --layerB <file>             Structure for layer B (must have a unit cell)
+  --nmax   <N>                Max supercell search index  (default: 4)
+  --maxcells <N>              Max supercell area (unit cells)  (default: 16)
+  --pick   <N>                Index of strain-matched supercell pair to use
+                               (0 = best match, default: 0)
+  --layersA <N>               Z repetitions of layer A  (default: 1)
+  --layersB <N>               Z repetitions of layer B  (default: 1)
+  --gap    <Ang>              Interface gap  (default: 2.0)
+  --vacuum <Ang>              Vacuum above/below  (default: 10.0)
+  --repx   <N>                XY repeat X  (default: 1)
+  --repy   <N>                XY repeat Y  (default: 1)
+  --output <file>             Output file (format from extension)
+
+Example:
+  AtomForge --build interface --layerA cu.cif --layerB ni.cif ^
+            --nmax 4 --layersA 3 --layersB 3 ^
+            --gap 2.0 --vacuum 10.0 --output cu_ni_interface.cif
+\end{lstlisting}
+
+\clearpage
+
+\subsection{stacking-fault}
+
+\begin{lstlisting}
+STACKING FAULT (--build stacking-fault)
+--input FILE --output FILE [--plane 0..6] [--layers 9] [--interval 0.1]
+[--maximum 2] [--frame 0] [--orthogonal] [--sequence DIRECTORY]
+Planes: 0 auto, 1 FCC111, 2 HCP basal, 3 HCP prismatic,
+4 HCP pyramidal, 5 BCC110, 6 BCC112. Sequence writes numbered VASP files.
 \end{lstlisting}

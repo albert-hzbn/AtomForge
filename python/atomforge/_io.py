@@ -15,11 +15,14 @@ from ._formats.vasp import _load_vasp, _save_vasp
 from ._formats.pdb import _load_pdb, _save_pdb
 from ._formats.cif import _load_cif, _save_cif
 from ._formats.lammps import _load_lammps, _save_lammps
+from ._formats.native import _load_native, _save_native
 
 if TYPE_CHECKING:
     from ._structure import Structure
 
 _FORMAT_MAP: Dict[str, Tuple[Callable, Callable]] = {
+    **{extension: (_load_native, _save_native) for extension in
+       (".sdf", ".mol", ".mol2", ".pwi", ".gjf", ".com")},
     ".xyz":     (_load_xyz,    _save_xyz),
     ".extxyz":  (_load_xyz,    _save_xyz),
     ".vasp":    (_load_vasp,   _save_vasp),
@@ -47,10 +50,15 @@ def _resolve_format(path: str) -> Tuple[Callable, Callable]:
 def load(path: str) -> "Structure":
     """Load a structure; format is inferred from the filename."""
     loader, _ = _resolve_format(path)
-    return loader(path)
+    structure = loader(path)
+    from ._metadata import load_metadata
+    load_metadata(structure, path)
+    return structure
 
 
 def save(s: "Structure", path: str) -> None:
     """Save a structure; format is inferred from the filename."""
     _, saver = _resolve_format(path)
     saver(s, path)
+    from ._metadata import save_metadata
+    save_metadata(s, path)

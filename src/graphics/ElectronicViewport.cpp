@@ -217,12 +217,41 @@ GLuint ElectronicViewport::render(int width,int height,float yaw,float pitch,flo
     return m_texture;
 }
 
+void ElectronicViewport::setQuality(int quality)
+{
+    static const int resolutions[] = {64,96,192,256};
+    static const int steps[] = {128,256,512,1024};
+    quality=std::clamp(quality,0,3);
+    m_volumeResolution=resolutions[quality]; m_raySteps=steps[quality];
+}
+
+std::vector<unsigned char> ElectronicViewport::pixels() const
+{
+    if (!m_fbo || m_width<=0 || m_height<=0) throw std::runtime_error("Render a view before exporting");
+    GLint previous=0, pack=0, rowLength=0, skipRows=0, skipPixels=0, buffer=0;
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING,&previous); glGetIntegerv(GL_PACK_ALIGNMENT,&pack);
+    glGetIntegerv(GL_PACK_ROW_LENGTH,&rowLength); glGetIntegerv(GL_PACK_SKIP_ROWS,&skipRows);
+    glGetIntegerv(GL_PACK_SKIP_PIXELS,&skipPixels); glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING,&buffer);
+    std::vector<unsigned char> result(static_cast<std::size_t>(m_width)*m_height*4);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER,m_fbo); glBindBuffer(GL_PIXEL_PACK_BUFFER,0);
+    glPixelStorei(GL_PACK_ALIGNMENT,1); glPixelStorei(GL_PACK_ROW_LENGTH,0);
+    glPixelStorei(GL_PACK_SKIP_ROWS,0); glPixelStorei(GL_PACK_SKIP_PIXELS,0);
+    glReadPixels(0,0,m_width,m_height,GL_RGBA,GL_UNSIGNED_BYTE,result.data());
+    glBindFramebuffer(GL_READ_FRAMEBUFFER,previous); glBindBuffer(GL_PIXEL_PACK_BUFFER,buffer);
+    glPixelStorei(GL_PACK_ALIGNMENT,pack); glPixelStorei(GL_PACK_ROW_LENGTH,rowLength);
+    glPixelStorei(GL_PACK_SKIP_ROWS,skipRows); glPixelStorei(GL_PACK_SKIP_PIXELS,skipPixels);
+    const auto row=static_cast<std::size_t>(m_width)*4;
+    for (int y=0;y<m_height/2;++y)
+        std::swap_ranges(result.begin()+y*row,result.begin()+(y+1)*row,result.begin()+(m_height-y-1)*row);
+    return result;
+}
+
 void ElectronicViewport::setVolume(const atomforge::electronic::Grid& grid)
 {
     grid.validate();
     State state;
     // Bound GPU memory and upload cost. Numerical grids and exports remain full resolution.
-    for(int i=0;i<3;++i) m_volumeShape[i]=std::clamp(grid.shape[i]+(grid.periodic ? 1 : 0),2,96);
+    for(int i=0;i<3;++i) m_volumeShape[i]=std::clamp(grid.shape[i]+(grid.periodic ? 1 : 0),2,m_volumeResolution);
     std::vector<float> values(static_cast<std::size_t>(m_volumeShape.x)*m_volumeShape.y*m_volumeShape.z);
     for(int z=0;z<m_volumeShape.z;++z) for(int y=0;y<m_volumeShape.y;++y) for(int x=0;x<m_volumeShape.x;++x)
     {
@@ -270,6 +299,7 @@ uniform mat3 inverseRotation;
 uniform vec3 dimensions;
 uniform vec2 pan;
 uniform float aspect, extent, opacity, threshold, low, high;
+uniform int raySteps;
 uniform int palette;
 )")+surface.substr(begin,end-begin)+R"(
 void main() {
@@ -287,9 +317,10 @@ void main() {
         }
     }
     if(leave<=entry) { outputColor=vec4(background,1); return; }
-    float stepLength=(leave-entry)/256.0;
+    float stepLength=(leave-entry)/float(raySteps);
     vec4 accumulated=vec4(0);
-    for(int i=0;i<256;++i) {
+    for(int i=0;i<1024;++i) {
+        if(i>=raySteps) break;
         vec3 p=origin+direction*(entry+(float(i)+.5)*stepLength);
         float value=texture(density,(p*(dimensions-1.0)+.5)/dimensions).r;
         if(value<threshold) continue;
@@ -325,6 +356,7 @@ void main() {
     uniform("aspect",static_cast<float>(m_width)/m_height); uniform("extent",1.25f/std::max(.1f,zoom));
     uniform("opacity",opacity); uniform("threshold",threshold); uniform("low",low); uniform("high",high);
     glUniform1i(glGetUniformLocation(m_volumeProgram,"palette"),palette);
+    glUniform1i(glGetUniformLocation(m_volumeProgram,"raySteps"),m_raySteps);
     glDrawArrays(GL_TRIANGLES,0,3);
     return m_texture;
 }

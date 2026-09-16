@@ -15,6 +15,8 @@ public:
     ElectronicViewport& operator=(const ElectronicViewport&) = delete;
     void setMesh(const atomforge::electronic::Mesh& mesh);
     void setVolume(const atomforge::electronic::Grid& grid);
+    void setQuality(int quality);
+    std::vector<unsigned char> pixels() const;
     GLuint renderVolume(int width, int height, float yaw, float pitch, float zoom,
                         glm::vec2 pan, float opacity, float threshold, float low, float high, int palette);
     GLuint render(int width, int height, float yaw, float pitch, float zoom,
@@ -40,4 +42,5 @@ private:
     glm::ivec3 m_volumeShape{0};
     glm::dvec3 m_meshCenter{0}, m_volumeCenter{0};
     double m_meshRadius=1, m_volumeRadius=1;
+    int m_volumeResolution=96, m_raySteps=256;
 };

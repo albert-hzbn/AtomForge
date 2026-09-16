@@ -1,4 +1,5 @@
 #include "electronic/Volume.h"
+#include "util/TaskControl.h"
 
 #include <algorithm>
 #include <cmath>
@@ -22,6 +23,7 @@ Mesh isosurface(const Grid& grid, double level, const Grid* color)
         for (int y = 0; y < grid.shape[1] - (grid.periodic ? 0 : 1); ++y)
             for (int x = 0; x < grid.shape[0] - (grid.periodic ? 0 : 1); ++x)
             {
+                if (x==0 && y==0) atomforge::taskProgress(double(z)/grid.shape[2]);
                 glm::dvec3 p[8];
                 double values[8];
                 for (int i = 0; i < 8; ++i)

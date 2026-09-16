@@ -549,6 +549,11 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
 
         ImGui::Separator();
 
+        if (ImGui::MenuItem("Open Project...")) { projectAction=1; projectPicker.open("Open AtomForge project",false,"project.afproject"); }
+        if (ImGui::MenuItem("Save Project As...")) { projectAction=2; projectPicker.open("Save AtomForge project",true,"project.afproject"); }
+        ImGui::MenuItem("Autosave project every minute",nullptr,&autosaveEnabled);
+        if (ImGui::MenuItem("Recover Last Autosave")) projectAction=3;
+        ImGui::Separator();
         if (ImGui::MenuItem("Quit"))
             glfwSetWindowShouldClose(glfwGetCurrentContext(), true);
 
@@ -590,6 +595,7 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         stackingFaultDialog.drawMenuItem(true);
 #endif
         cslDialog.drawMenuItem(true);
+        interfaceBuilderDialog.drawMenuItem(true);
         nanoCrystalDialog.drawMenuItem(true);
         customStructureDialog.drawMenuItem(true);
         polyCrystalDialog.drawMenuItem(true);
@@ -667,7 +673,7 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
                 }
             }
             {
-                const bool polyhedralAllowed = (int)structure.atoms.size() <= 5000;
+                const bool polyhedralAllowed = !structure.atoms.empty();
                 if (!polyhedralAllowed && atomDisplayMode == AtomDisplayMode::Polyhedral)
                     atomDisplayMode = AtomDisplayMode::BallAndStick;
                 if (ImGui::MenuItem("Polyhedral", nullptr, atomDisplayMode == AtomDisplayMode::Polyhedral, polyhedralAllowed))
@@ -679,7 +685,7 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
                     }
                 }
                 if (!polyhedralAllowed && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                    ImGui::SetTooltip("Polyhedral view is disabled for structures with more than 5\u202f000 atoms.");
+                    ImGui::SetTooltip("Load a structure to use polyhedral view.");
             }
             ImGui::EndMenu();
         }
@@ -747,11 +753,12 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
 
     if (ImGui::BeginMenu("Analysis"))
     {
-        // cnaDialog.drawMenuItem(!structure.atoms.empty()); // disabled: not ready
+        cnaDialog.drawMenuItem(!structure.atoms.empty());
         rdfDialog.drawMenuItem(!structure.atoms.empty());
         electronicDialog.drawMenuItem();
+        trajectoryDialog.drawMenuItem();
         drawShortRangeOrderMenuItem(!structure.atoms.empty(), shortRangeOrderDialog);
-        // angularDistributionDialog.drawMenuItem(!structure.atoms.empty()); // disabled: not ready
+        angularDistributionDialog.drawMenuItem(!structure.atoms.empty());
         ImGui::EndMenu();
     }
 
@@ -1591,6 +1598,7 @@ void FileBrowser::draw(Structure& structure,
     cnaDialog.drawDialog(structure);
     rdfDialog.drawDialog(structure);
     electronicDialog.drawDialog();
+    trajectoryDialog.draw(structure,updateBuffers);
     drawShortRangeOrderDialog(shortRangeOrderDialog, structure);
     angularDistributionDialog.drawDialog(structure);
     cellSculptorDialog.drawDialog(structure, updateBuffers);
@@ -2540,4 +2548,53 @@ void FileBrowser::openPdfManual()
     const auto open = ImGui::GetPlatformIO().Platform_OpenInShellFn;
     if (!open || !open(ImGui::GetCurrentContext(), path.u8string().c_str()))
         showNotification("Unable to open the manual. Install or select a default PDF viewer.", true);
+}
+
+atomforge::Workspace FileBrowser::workspace(const Structure& structure) const
+{
+    auto saved=electronicDialog.snapshot(); saved.structure=structure;
+    saved.settings["desktop.useLightTheme"]=useLightTheme;
+    saved.settings["desktop.showElementLabels"]=showElementLabels;
+    saved.settings["desktop.showBonds"]=showBonds;
+    saved.settings["desktop.showAtoms"]=showAtoms;
+    saved.settings["desktop.showBoundingBox"]=showBoundingBox;
+    saved.settings["desktop.showDislocationLines"]=showDislocationLines;
+    saved.settings["desktop.showLatticePlanes"]=showLatticePlanes;
+    saved.settings["desktop.showMillerDirections"]=showMillerDirections;
+    saved.settings["desktop.showVoronoi"]=showVoronoi;
+    saved.settings["desktop.showPolyhedralViewer"]=showPolyhedralViewer;
+    saved.settings["desktop.bondElementFilterEnabled"]=bondElementFilterEnabled;
+    saved.settings["desktop.viewMode"]=static_cast<int>(viewMode);
+    saved.settings["desktop.atomColorMode"]=static_cast<int>(atomColorMode);
+    saved.settings["desktop.atomDisplayMode"]=static_cast<int>(atomDisplayMode);
+    return saved;
+}
+
+void FileBrowser::restoreWorkspace(const atomforge::Workspace& saved, Structure& structure)
+{
+    electronicDialog.restore(saved); structure=saved.structure;
+    const auto read=[&](const char* key,double fallback) {
+        const auto found=saved.settings.find(key); return found==saved.settings.end() ? fallback : found->second;
+    };
+    useLightTheme=read("desktop.useLightTheme",useLightTheme)!=0;
+    showElementLabels=read("desktop.showElementLabels",showElementLabels)!=0;
+    showBonds=read("desktop.showBonds",showBonds)!=0;
+    showAtoms=read("desktop.showAtoms",showAtoms)!=0;
+    showBoundingBox=read("desktop.showBoundingBox",showBoundingBox)!=0;
+    showDislocationLines=read("desktop.showDislocationLines",showDislocationLines)!=0;
+    showLatticePlanes=read("desktop.showLatticePlanes",showLatticePlanes)!=0;
+    showMillerDirections=read("desktop.showMillerDirections",showMillerDirections)!=0;
+    showVoronoi=read("desktop.showVoronoi",showVoronoi)!=0;
+    showPolyhedralViewer=read("desktop.showPolyhedralViewer",showPolyhedralViewer)!=0;
+    bondElementFilterEnabled=read("desktop.bondElementFilterEnabled",bondElementFilterEnabled)!=0;
+    viewMode=static_cast<ViewMode>(static_cast<int>(std::clamp(read("desktop.viewMode",0),0.0,1.0)));
+    atomColorMode=static_cast<AtomColorMode>(static_cast<int>(std::clamp(read("desktop.atomColorMode",0),0.0,2.0)));
+    atomDisplayMode=static_cast<AtomDisplayMode>(static_cast<int>(std::clamp(read("desktop.atomDisplayMode",0),0.0,3.0)));
+}
+
+ProjectRequest FileBrowser::drawProjectPicker()
+{
+    if (projectAction==3) { projectAction=0; return {3,{}}; }
+    if (auto path=projectPicker.draw()) { const int action=projectAction; projectAction=0; return {action,*path}; }
+    return {};
 }

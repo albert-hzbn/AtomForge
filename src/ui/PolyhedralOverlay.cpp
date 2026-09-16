@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <functional>
+#include <queue>
 #include <map>
 #include <set>
 #include <tuple>
@@ -194,8 +196,17 @@ NeighborCloud buildNeighborCloud(const Structure& structure,
 
     const int maxNeighborCandidates = std::max(kMinNeighborCount, settings.maxNeighborCandidates);
 
+    const auto nearer=[](const Candidate& a,const Candidate& b) { return a.dist<b.dist; };
+    using Nearest=std::priority_queue<Candidate,std::vector<Candidate>,decltype(nearer)>;
+    std::map<int,Nearest> byElement;
+    const auto retain=[&](const Candidate& candidate) {
+        auto found=byElement.find(candidate.atomicNumber);
+        if (found==byElement.end()) found=byElement.emplace(candidate.atomicNumber,Nearest(nearer)).first;
+        auto& nearest=found->second;
+        if (nearest.size()<static_cast<std::size_t>(maxNeighborCandidates)) nearest.push(candidate);
+        else if (candidate.dist<nearest.top().dist) { nearest.pop(); nearest.push(candidate); }
+    };
     std::vector<Candidate> candidates;
-    candidates.reserve(std::min((size_t)maxNeighborCandidates * 4, structure.atoms.size()));
 
     const glm::vec3 cellA = usePbc ? cell[0] : glm::vec3(0.0f);
     const glm::vec3 cellB = usePbc ? cell[1] : glm::vec3(0.0f);
@@ -230,7 +241,7 @@ NeighborCloud buildNeighborCloud(const Structure& structure,
             candidate.color = (atom.atomicNumber >= 1 && atom.atomicNumber < (int)elementColors.size())
                 ? elementColors[(size_t)atom.atomicNumber]
                 : glm::vec3(atom.r, atom.g, atom.b);
-            candidates.push_back(candidate);
+            retain(candidate);
             continue;
         }
 
@@ -259,12 +270,15 @@ NeighborCloud buildNeighborCloud(const Structure& structure,
                     candidate.color = (atom.atomicNumber >= 1 && atom.atomicNumber < (int)elementColors.size())
                         ? elementColors[(size_t)atom.atomicNumber]
                         : glm::vec3(atom.r, atom.g, atom.b);
-                    candidates.push_back(candidate);
+                    retain(candidate);
                 }
             }
         }
     }
 
+    for (auto& entry:byElement) while (!entry.second.empty()) {
+        candidates.push_back(entry.second.top()); entry.second.pop();
+    }
     if (candidates.size() < (size_t)kMinNeighborCount)
         return {};
 
@@ -482,7 +496,7 @@ void drawPolyhedralOverlay(ImDrawList* drawList,
         glm::vec3 color;      // source atom display color (r,g,b)
         int atomicNumber = 0; // kept for reference
     };
-    std::vector<OutsideLigand> outsideLigands;
+    static std::vector<OutsideLigand> outsideLigands;
     outsideLigands.reserve(256);
 
     auto appendOutsideLigand = [&](const glm::vec3& p, const glm::vec3& col, int z)
@@ -507,11 +521,35 @@ void drawPolyhedralOverlay(ImDrawList* drawList,
         ImU32 fillCol = IM_COL32_WHITE;
         ImU32 edgeCol = IM_COL32_WHITE;
     };
-    std::vector<PolyhedronData> polyhedra;
+    // World-space geometry survives camera moves. A complete content hash also
+    // invalidates it after edits, tab switches, recoloring or selection changes.
+    static std::vector<PolyhedronData> polyhedra;
+    static std::size_t previousKey=0, nextCenter=0;
+    std::size_t key=structure.atoms.size();
+    const auto hash=[&](double value) {
+        key ^= std::hash<double>{}(value)+0x9e3779b9+(key<<6)+(key>>2);
+    };
+    hash(usePbc); hash(faceOpacity); hash(edgeOpacity); hash(settings.maxNeighborCandidates);
+    hash(settings.ligandElementFilterEnabled);
+    for (bool value:settings.ligandElementMask) hash(value);
+    for (const auto& v:structure.cellVectors) for (double value:v) hash(value);
+    for (double value:structure.cellOffset) hash(value);
+    for (const auto& a:structure.atoms) {
+        hash(a.x); hash(a.y); hash(a.z); hash(a.atomicNumber); hash(a.r); hash(a.g); hash(a.b);
+    }
+    for (const auto& color:elementColors) { hash(color.r); hash(color.g); hash(color.b); }
+    for (const auto& entry:centerEntries) {
+        hash(entry.pos.x); hash(entry.pos.y); hash(entry.pos.z); hash(entry.atomicNumber);
+    }
+    if (key!=previousKey) {
+        previousKey=key; nextCenter=0; polyhedra.clear(); outsideLigands.clear();
+    }
     polyhedra.reserve(centerEntries.size());
-
-    for (const auto& entry : centerEntries)
+    // Large structures fill progressively; orbit and pan never rebuild hulls.
+    const auto end=std::min(centerEntries.size(),nextCenter+4);
+    for (;nextCenter<end;++nextCenter)
     {
+        const auto& entry=centerEntries[nextCenter];
         const NeighborCloud cloud = buildNeighborCloud(structure,
                                                        entry.pos,
                                                        entry.atomicNumber,

@@ -26,6 +26,7 @@ HELP_NAMES = {
     "bulk": "Bulk", "gb": "GB", "poly": "Poly", "nano": "Nano",
     "amorphous": "Amorphous", "sss": "SSS", "dislocation": "Dislocation",
     "custom": "Custom",
+    "interface": "Interface", "stacking-fault": "StackingFault",
 }
 PUBLIC_FILES = {
     "python/atomforge/_structure.py": "Atom and Structure",
@@ -34,6 +35,14 @@ PUBLIC_FILES = {
     "python/atomforge/builders.py": "Native Python builders",
     "python/atomforge/electronic/_grid.py": "Electronic data types and operations",
     "python/atomforge/electronic/_models.py": "Electronic model helpers",
+    "python/atomforge/analysis.py": "Structural analyses and sculpting",
+    "python/atomforge/electronic/pipeline.py": "Electronic recipes and batch jobs",
+    "python/atomforge/science/simulation.py": "Relaxation, dynamics and phonons",
+    "python/atomforge/science/spectra.py": "Bands and density of states",
+    "python/atomforge/science/population.py": "Population analysis and orbital reconstruction",
+    "python/atomforge/science/trajectory.py": "Trajectory conversion and animation",
+    "python/atomforge/science/diffraction.py": "Diffraction",
+    "python/atomforge/science/reciprocal.py": "Reciprocal-space band grids",
 }
 FALLBACK = {
     "Atom.copy": "Return a separate atom with the same coordinates and colour.",
@@ -93,6 +102,8 @@ def source_files():
 
 def documentation_for(path):
     name = path.name
+    if "science" in path.parts or name in {"Workspace.cpp","Workspace.h","TrajectoryDialog.cpp","TrajectoryDialog.h","pipeline.py","analysis.py"}:
+        return ["14-workflows.tex", "12-api-signatures.tex"]
     if "electronic" in path.parts or name.startswith("Electronic"):
         return ["05-electronic.tex", "06-charge.tex", "07-reference.tex", "08-python.tex", "04-display-controls.tex"]
     if "python" in path.parts:

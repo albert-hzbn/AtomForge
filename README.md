@@ -107,7 +107,9 @@ The current Python release is **0.2.0**. Basic structure operations do not requi
 - **Report a problem or suggest a feature:** use [GitHub Issues](https://github.com/albert-hzbn/AtomForge/issues). Include the application version, operating system and steps to reproduce the issue; attach a shareable example when possible.
 - **Build or extend AtomForge:** see the [installation guide](INSTALL.md) and [architecture guide](ARCHITECTURE.md).
 
-The standard desktop release does not expose common-neighbour analysis, angular-distribution analysis or the interface builder. The stacking-fault builder is optional and disabled in the distributed builds. These availability limits are documented in the manual.
+The current source includes common-neighbour and angular-distribution analysis, interface matching and stacking-fault generation. It also adds saved projects, autosave recovery, trajectory playback, electronic history and image export. Rebuild from source to use these additions; existing release downloads are unchanged.
+
+Optional scientific Python integrations cover bands and projected DOS, diffraction, reciprocal-space surfaces, phonons, relaxation, molecular dynamics and charge partitioning. ASE and pymatgen provide the underlying integrations. Bader and DDEC calculations require their external solvers; DFT workflows require a configured calculator. See the manual for setup, examples and physical conventions.
 
 ## Citation and licence
 

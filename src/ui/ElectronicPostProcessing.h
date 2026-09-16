@@ -5,6 +5,7 @@
 #include "ui/PathPicker.h"
 #include "ui/ElectronicSliceViewport.h"
 #include "graphics/ElectronicViewport.h"
+#include "model/Workspace.h"
 #include <string>
 #include <deque>
 #include <utility>
@@ -15,6 +16,9 @@ struct ElectronicPostProcessingDialog
     void drawDialog();
     bool isOpen() const { return m_open; }
     void feedDroppedFile(const std::string& path);
+    atomforge::Workspace snapshot(bool includeData=true) const;
+    void restore(const atomforge::Workspace& workspace);
+    bool busy() const { return m_task.running(); }
 
 private:
     struct Output
@@ -85,6 +89,7 @@ private:
     float m_colorLow = 0, m_colorHigh = 1;
     float m_autoLow = 0, m_autoHigh = 1;
     int m_palette = 0;
+    int m_quality = 1;
     bool m_autoRange = true;
     std::string m_colorUnit = "raw";
     std::string m_loadedPath;
@@ -102,4 +107,8 @@ private:
     atomforge::electronic::Volume m_referenceVolume;
     Output m_result;
     atomforge::BackgroundTask<Output> m_task;
+    std::deque<atomforge::Workspace> m_undo, m_redo;
+    std::vector<std::string> m_history;
+    std::string m_pendingOperation;
+    void remember();
 };

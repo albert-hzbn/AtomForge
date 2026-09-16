@@ -44,6 +44,16 @@ int main()
         if(rectangle[0]!=3 || rectangle[1]!=4 || rectangle[2]!=50 || rectangle[3]!=60 || !glIsEnabled(GL_SCISSOR_TEST) || glIsEnabled(GL_DEPTH_TEST))
             throw std::runtime_error("Offscreen render leaked editor GL state");
         const auto a=pixels(texture);
+        glPixelStorei(GL_PACK_ALIGNMENT,8); glPixelStorei(GL_PACK_ROW_LENGTH,256);
+        const auto exported=viewport.pixels();
+        GLint pack=0,rowLength=0;
+        glGetIntegerv(GL_PACK_ALIGNMENT,&pack); glGetIntegerv(GL_PACK_ROW_LENGTH,&rowLength);
+        if(pack!=8 || rowLength!=256 || exported.size()!=128*128*4)
+            throw std::runtime_error("Image export leaked pixel packing state");
+        for(int y=0;y<128;++y) for(int x=0;x<128*4;++x)
+            if(exported[y*128*4+x]!=a[(127-y)*128*4+x])
+                throw std::runtime_error("Image export must have top-down orientation");
+        glPixelStorei(GL_PACK_ALIGNMENT,4); glPixelStorei(GL_PACK_ROW_LENGTH,0);
         if(a[0]<240 || a[1]<240 || a[2]<240) throw std::runtime_error("Viewport background is not light");
         const auto center=(64*128+64)*4;
         if(a[center+2]<a[center] || a[center]>200) throw std::runtime_error("Density color mapping was not rendered");

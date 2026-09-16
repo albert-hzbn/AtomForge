@@ -905,12 +905,14 @@ StackingFaultResult buildStackingFaultSequence(const Structure& base,
         result.message = "Stacking faults builder requires a structure with a unit cell.";
         return result;
     }
-    if (params.layerCount < 2)
+    if (params.layerCount < 2 || params.layerCount > 10000)
     {
         result.message = "Layer count must be at least 2.";
         return result;
     }
-    if (params.interval <= 0.0f || params.maxDisplacementFactor < 0.0f)
+    if (!std::isfinite(params.interval) || !std::isfinite(params.maxDisplacementFactor) ||
+        params.interval <= 0.0f || params.maxDisplacementFactor < 0.0f ||
+        params.maxDisplacementFactor / params.interval > 10000.0f)
     {
         result.message = "Interval and maximum displacement must be positive.";
         return result;

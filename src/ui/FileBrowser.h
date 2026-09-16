@@ -22,6 +22,7 @@
 #include "ui/EditMenuDialogs.h"
 #include "ui/CellSculptorDialog.h"
 #include "ui/ElectronicPostProcessing.h"
+#include "ui/TrajectoryDialog.h"
 
 #include <array>
 #include <functional>
@@ -78,6 +79,8 @@ struct ImageExportRequest
     bool includeGizmo = false;
 };
 
+struct ProjectRequest { int action=0; std::string path; };
+
 struct LatticePlane
 {
     int h = 1;
@@ -102,6 +105,12 @@ struct MillerDirection
 struct FileBrowser
 {
     FileBrowser();
+    atomforge::Workspace workspace(const Structure& structure) const;
+    void restoreWorkspace(const atomforge::Workspace& saved, Structure& structure);
+    ProjectRequest drawProjectPicker();
+    bool workspaceBusy() const { return electronicDialog.busy(); }
+    bool trajectoryPlaying() const { return trajectoryDialog.isPlaying(); }
+    bool autosaveEnabled=true;
 
     // Initialize browser state from a starting path.
     void initFromPath(const std::string& initialPath);
@@ -380,6 +389,8 @@ struct FileBrowser
     void showNotification(const std::string& message, bool isError = false);
 
 private:
+    PathPicker projectPicker;
+    int projectAction=0;
     void triggerSaveAsDialog();
     void openPdfManual();
     void performQuickSave(const Structure& structure);
@@ -527,6 +538,7 @@ private:
     CommonNeighbourAnalysisDialog cnaDialog;
     RadialDistributionAnalysisDialog rdfDialog;
     ElectronicPostProcessingDialog electronicDialog;
+    TrajectoryDialog trajectoryDialog;
     ShortRangeOrderDialogState shortRangeOrderDialog;
     AngularDistributionAnalysisDialog angularDistributionDialog;
     TransformAtomsDialog transformDialog;

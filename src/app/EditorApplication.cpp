@@ -32,6 +32,9 @@
 #include <glm/glm.hpp>
 
 #include <cmath>
+#include <filesystem>
+#include <cstdlib>
+#include "model/Workspace.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -720,6 +723,23 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         dst.fileBrowser.setLightTheme(src.fileBrowser.isLightThemeEnabled());
     };
 
+    atomforge::BackgroundTask<bool> autosaveTask;
+    double lastAutosave=glfwGetTime();
+    std::string autosavePath;
+    try {
+        std::filesystem::path root;
+#ifdef _WIN32
+        if (const char* folder=std::getenv("LOCALAPPDATA")) root=std::filesystem::u8path(folder);
+#else
+        if (const char* folder=std::getenv("XDG_STATE_HOME")) root=std::filesystem::u8path(folder);
+        else if (const char* userDirectory=std::getenv("HOME")) root=std::filesystem::u8path(userDirectory)/".local"/"state";
+#endif
+        if (!root.empty()) {
+            root/="AtomForge"; std::filesystem::create_directories(root);
+            autosavePath=(root/"recovery.afproject").u8string();
+        }
+    } catch (const std::exception& error) { std::cerr << "Autosave unavailable: " << error.what() << '\n'; }
+
     while (!glfwWindowShouldClose(window))
     {
         // --- Active-tab alias ---
@@ -861,10 +881,77 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         state.fileBrowser.draw(
             state.structure,
             state.editMenuDialogs,
-            [&](Structure& structure) { updateBuffers(state, structure); },
+            [&](Structure& structure) {
+                const bool previous=state.suppressHistoryCommit;
+                state.suppressHistoryCommit=previous || state.fileBrowser.trajectoryPlaying();
+                updateBuffers(state, structure);
+                state.suppressHistoryCommit=previous;
+            },
             [&](Structure s) { state.pendingNewTabStructures.push_back(std::move(s)); },
             state.undoRedo.canUndo(),
             state.undoRedo.canRedo());
+
+        const auto captureProject=[&]() {
+            saveCameraToTab(camera,*tabs[activeTabIdx]);
+            std::vector<atomforge::Workspace> saved;
+            for (const auto& tab:tabs) {
+                if (tab->state.fileBrowser.workspaceBusy()) throw std::runtime_error("Wait for or cancel calculations before saving the project");
+                auto item=tab->state.fileBrowser.workspace(tab->state.structure);
+                const auto& c=tab->cameraState;
+                item.camera={c.yaw,c.pitch,c.roll,c.distance,c.panOffset.x,c.panOffset.y,c.panOffset.z};
+                item.title=tab->title; saved.push_back(std::move(item));
+            }
+            return saved;
+        };
+        if (autosaveTask.poll() && !autosaveTask.error().empty())
+            state.fileBrowser.showLoadError("Autosave failed: "+autosaveTask.error());
+        const auto projectRequest=state.fileBrowser.drawProjectPicker();
+        try {
+            if (projectRequest.action==2) {
+                atomforge::saveWorkspace(captureProject(),projectRequest.path);
+                state.fileBrowser.showNotification("Project saved: "+projectRequest.path);
+            } else if (projectRequest.action==1 || projectRequest.action==3) {
+                const auto path=projectRequest.action==3 ? autosavePath : projectRequest.path;
+                auto saved=atomforge::loadWorkspace(path);
+                // Build all tabs before publishing any of them. Existing work remains open.
+                std::vector<std::unique_ptr<StructureTab>> restored;
+                for (const auto& item:saved) {
+                    auto tab=std::make_unique<StructureTab>();
+                    initTabResources(*tab,sphere,lowPolyMesh,billboardMesh,cylinder,renderer);
+                    tab->state.fileBrowser.restoreWorkspace(item,tab->state.structure);
+                    if (item.camera.size()==7) {
+                        auto& c=tab->cameraState;
+                        c.yaw=item.camera[0]; c.pitch=item.camera[1]; c.roll=item.camera[2];
+                        c.distance=std::max(.01, item.camera[3]);
+                        c.panOffset={item.camera[4],item.camera[5],item.camera[6]};
+                    }
+                    std::snprintf(tab->title,sizeof(tab->title),"%s",item.title.empty() ? "Restored project" : item.title.c_str());
+                    updateBuffers(tab->state); tab->state.pendingDefaultViewReset=false;
+                    tab->state.undoRedo.reset(captureSnapshot(tab->state));
+                    restored.push_back(std::move(tab));
+                }
+                saveCameraToTab(camera,*tabs[activeTabIdx]);
+                activeTabIdx=static_cast<int>(tabs.size()); pendingTabSwitch=activeTabIdx;
+                for (auto& tab:restored) tabs.push_back(std::move(tab));
+                restoreCameraFromTab(camera,*tabs[activeTabIdx]);
+            }
+            if (state.fileBrowser.autosaveEnabled && !autosavePath.empty() && !autosaveTask.running() &&
+                glfwGetTime()-lastAutosave>=60) {
+                lastAutosave=glfwGetTime();
+                bool anyContent=false, busy=false;
+                for (const auto& tab:tabs) {
+                    busy |= tab->state.fileBrowser.workspaceBusy();
+                    anyContent |= !tab->state.structure.atoms.empty();
+                }
+                if (!busy) {
+                    auto saved=captureProject();
+                    for (const auto& item:saved) anyContent |= !item.volume.fields.empty();
+                    if (anyContent) autosaveTask.start([saved=std::move(saved),autosavePath] {
+                        atomforge::saveWorkspace(saved,autosavePath); return true;
+                    });
+                }
+            }
+        } catch (const std::exception& error) { state.fileBrowser.showLoadError(error.what()); }
 
         // Handle File > Open requests: load into current tab (if empty) or new tab
         {
@@ -1091,8 +1178,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                               activeState.sceneBuffers.atomIndices,
                               activeState.fileBrowser.getPolyhedralOverlaySettings(),
                               activeState.editMenuDialogs.elementColors,
-                              activeState.fileBrowser.isShowPolyhedralViewerEnabled()
-                              && (int)activeState.structure.atoms.size() <= 5000);
+                              activeState.fileBrowser.isShowPolyhedralViewerEnabled());
 
         activeState.fileBrowser.drawInterstitialVoidOverlay(drawList,
                                                             frame.projection,

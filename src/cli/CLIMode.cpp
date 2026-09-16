@@ -1,10 +1,13 @@
 #include "cli/CLIMode.h"
+#include "cli/AnalysisCLI.h"
 
 #include "algorithms/AmorphousBuilder.h"
 #include "algorithms/BulkCrystalBuilder.h"
 #include "algorithms/CSLComputation.h"
 #include "algorithms/DislocationBuilder.h"
 #include "algorithms/InterfaceBuilder.h"
+#include "algorithms/StackingFaultBuilder.h"
+#include <filesystem>
 #include "algorithms/MeshLoader.h"
 #include "algorithms/NanoCrystalBuilder.h"
 #include "algorithms/PolyCrystalBuilder.h"
@@ -375,6 +378,8 @@ static void printHelp()
 "\n"
 "Usage:\n"
 "  AtomForge --build <mode> [options] --output <file>\n"
+"  AtomForge --analyze <cna|rdf|adf|sro|interstitial|sculpt> --input FILE --output FILE\n"
+"  AtomForge --convert --input FILE --output FILE [--format FORMAT]\n"
 "\n"
 "Modes:\n"
 "  bulk        Build a bulk crystal from a space group and lattice parameters\n"
@@ -384,6 +389,8 @@ static void printHelp()
 "  amorphous   Pack an amorphous structure by random sequential addition\n"
 "  sss         Build a substitutional solid solution from a host structure\n"
 "  dislocation Insert a dislocation displacement field into a structure\n"
+"  interface   Match and assemble two periodic layers\n"
+"  stacking-fault Generate a sliding stacking-fault sequence\n"
 "  custom      Fill a 3D mesh model (OBJ/STL) with atoms from a reference crystal\n"
 "\n"
 "For detailed options per mode run:\n"
@@ -395,6 +402,9 @@ static void printHelp()
 "  AtomForge --help sss\n"
 "  AtomForge --help dislocation\n"
 "  AtomForge --help custom\n"
+"  AtomForge --help interface\n"
+"  AtomForge --help stacking-fault\n"
+"  AtomForge --analyze cna --help\n"
 << std::endl;
 }
 
@@ -1287,6 +1297,11 @@ static int runAmorphous(int argc, char* argv[])
     int  repx      = argInt   (argc, argv, "--repx",     1);
     int  repy      = argInt   (argc, argv, "--repy",     1);
 
+    if (nmax < 1 || nmax > 8 || maxCells < 1 || maxCells > 64 || pickIdx < 0 ||
+        layersA < 1 || layersB < 1 || layersA > 1000 || layersB > 1000 ||
+        repx < 1 || repy < 1 || repx > 100 || repy > 100 || gap < 0 || vacuum < 0)
+        throw std::invalid_argument("Invalid interface search bounds, repeats, gap or vacuum");
+
     // Build 2D bases
     double basisA[2][2], basisB[2][2];
     get2DBasis(sA, basisA);
@@ -1353,7 +1368,16 @@ static int runAmorphous(int argc, char* argv[])
     if (layersB > 1) superB = repeatLayersZ(superB, layersB);
 
     // Strain layer B to match A's 2D cell
-    Structure strainedB = applyTransform2D(superB, best.vA);
+    const auto& u = best.vB;
+    const auto& v = best.vA;
+    const double determinant = u[0][0]*u[1][1] - u[1][0]*u[0][1];
+    if (std::abs(determinant) < 1e-12) throw std::invalid_argument("Singular layer B basis");
+    const double transform[2][2] = {
+        {(v[0][0]*u[1][1]-v[1][0]*u[0][1])/determinant,
+         (-v[0][0]*u[1][0]+v[1][0]*u[0][0])/determinant},
+        {(v[0][1]*u[1][1]-v[1][1]*u[0][1])/determinant,
+         (-v[0][1]*u[1][0]+v[1][1]*u[0][0])/determinant}};
+    Structure strainedB = applyTransform2D(superB, transform);
 
     // Stack into interface
     Structure iface = assembleInterface(superA, strainedB, gap, vacuum);
@@ -1637,6 +1661,48 @@ static int runSSS(int argc, char* argv[])
     return 0;
 }
 
+static void printHelpStackingFault()
+{
+    std::cout << "STACKING FAULT (--build stacking-fault)\n"
+        "--input FILE --output FILE [--plane 0..6] [--layers 9] [--interval 0.1]\n"
+        "[--maximum 2] [--frame 0] [--orthogonal] [--sequence DIRECTORY]\n"
+        "Planes: 0 auto, 1 FCC111, 2 HCP basal, 3 HCP prismatic,\n"
+        "4 HCP pyramidal, 5 BCC110, 6 BCC112. Sequence writes numbered VASP files.\n";
+}
+
+static int runStackingFault(int argc, char* argv[])
+{
+    const auto input = findArg(argc,argv,"--input");
+    const auto output = findArg(argc,argv,"--output");
+    if (!input || !output) throw std::invalid_argument("--input and --output are required");
+    Structure source; std::string error;
+    if (!loadStructureFromFile(input,source,error)) throw std::runtime_error(error);
+    StackingFaultParams params;
+    const int plane=argInt(argc,argv,"--plane",0);
+    if (plane<0 || plane>6) throw std::invalid_argument("Plane must be 0..6");
+    params.plane=static_cast<StackingFaultPlane>(plane);
+    params.layerCount=argInt(argc,argv,"--layers",9);
+    params.interval=argDouble(argc,argv,"--interval",.1);
+    params.maxDisplacementFactor=argDouble(argc,argv,"--maximum",2);
+    if (hasFlag(argc,argv,"--orthogonal")) params.cellMode=StackingFaultCellMode::OrthogonalCell;
+    const auto result=buildStackingFaultSequence(source,params);
+    if (!result.success) throw std::runtime_error(result.message);
+    const int frame=argInt(argc,argv,"--frame",0);
+    if (frame<0 || frame>=(int)result.sequence.size()) throw std::invalid_argument("Frame out of range");
+    if (!saveStructure(result.sequence[frame].structure,output,detectFormat(output)))
+        throw std::runtime_error("Failed to save stacking fault");
+    if (const auto directory=findArg(argc,argv,"--sequence")) {
+        std::filesystem::create_directories(directory);
+        for (std::size_t i=0;i<result.sequence.size();++i) {
+            const auto path=std::filesystem::path(directory)/("frame-"+std::to_string(i)+".vasp");
+            if (!saveStructure(result.sequence[i].structure,path.string(),"vasp"))
+                throw std::runtime_error("Failed to save sequence frame");
+        }
+    }
+    std::cout << result.message << "\nFrames: " << result.sequence.size() << '\n';
+    return 0;
+}
+
 namespace
 {
 struct BuildMode
@@ -1647,7 +1713,7 @@ struct BuildMode
 };
 
 // Register a mode once for both execution and topic-specific help.
-constexpr std::array<BuildMode, 8> kBuildModes{{
+constexpr std::array<BuildMode, 10> kBuildModes{{
     {"bulk", runBulk, printHelpBulk},
     {"gb", runGB, printHelpGB},
     {"poly", runPoly, printHelpPoly},
@@ -1656,6 +1722,8 @@ constexpr std::array<BuildMode, 8> kBuildModes{{
     {"sss", runSSS, printHelpSSS},
     {"dislocation", runDislocation, printHelpDislocation},
     {"custom", runCustom, printHelpCustom},
+    {"interface", runInterface, printHelpInterface},
+    {"stacking-fault", runStackingFault, printHelpStackingFault},
 }};
 
 const BuildMode* findBuildMode(std::string_view name)
@@ -1684,6 +1752,8 @@ bool isCLIMode(int argc, char* argv[])
     for (int i = 1; i < argc; ++i)
     {
         if (std::strcmp(argv[i], "--build")   == 0) return true;
+        if (std::strcmp(argv[i], "--analyze") == 0) return true;
+        if (std::strcmp(argv[i], "--convert") == 0) return true;
         if (std::strcmp(argv[i], "--help")    == 0) return true;
         if (std::strcmp(argv[i], "-h")        == 0) return true;
         if (std::strcmp(argv[i], "--version") == 0) return true;
@@ -1694,6 +1764,8 @@ bool isCLIMode(int argc, char* argv[])
 
 int runCLI(int argc, char* argv[])
 {
+    if (hasFlag(argc,argv,"--analyze") || hasFlag(argc,argv,"--convert"))
+        return runAnalysisCLI(argc,argv);
     if (hasFlag(argc, argv, "--version") || hasFlag(argc, argv, "-v"))
     {
         std::cout << "AtomForge " << ATOMFORGE_VERSION << "\n";

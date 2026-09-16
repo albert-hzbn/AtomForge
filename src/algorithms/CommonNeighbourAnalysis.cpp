@@ -29,18 +29,16 @@ glm::ivec3 getGridCell(const glm::vec3& position)
                       (int)std::floor(position.z / kSpatialHashCellSize));
 }
 
-std::string classifyEnvironment(const Signature& s)
+std::string classifyEnvironment(const std::map<Signature, int>& signatures, int coordination)
 {
-    Signature fcc; fcc.common = 4; fcc.bonds = 2; fcc.chain = 1;
-    Signature hcp; hcp.common = 4; hcp.bonds = 2; hcp.chain = 2;
-    Signature bccA; bccA.common = 4; bccA.bonds = 4; bccA.chain = 1;
-    Signature bccB; bccB.common = 6; bccB.bonds = 6; bccB.chain = 1;
-    Signature ico; ico.common = 5; ico.bonds = 5; ico.chain = 1;
-
-    if (s == fcc) return "FCC-like";
-    if (s == hcp) return "HCP-like";
-    if (s == bccA || s == bccB) return "BCC-like";
-    if (s == ico) return "ICO-like";
+    const auto count = [&](Signature signature) {
+        const auto found = signatures.find(signature);
+        return found == signatures.end() ? 0 : found->second;
+    };
+    if (coordination == 12 && count({4, 2, 1}) == 12) return "FCC-like";
+    if (coordination == 12 && count({4, 2, 1}) == 6 && count({4, 2, 2}) == 6) return "HCP-like";
+    if (coordination == 14 && count({4, 4, 4}) == 6 && count({6, 6, 6}) == 8) return "BCC-like";
+    if (coordination == 12 && count({5, 5, 5}) == 12) return "ICO-like";
     return "Unknown";
 }
 
@@ -53,55 +51,37 @@ uint64_t edgeKey(int a, int b)
 int longestChainLength(const std::vector<int>& commonNodes,
                        const std::unordered_set<uint64_t>& edgeSet)
 {
-    if (commonNodes.empty())
-        return 0;
-    if (commonNodes.size() == 1)
-        return 1;
-
-    std::map<int, int> localIndex;
-    for (int i = 0; i < (int)commonNodes.size(); ++i)
-        localIndex[commonNodes[i]] = i;
-
+    // Count bonds, not vertices. A ring includes its closing bond.
+    // Bound the exponential search for highly coordinated, non-crystalline graphs.
+    if (commonNodes.size() > 16) return -1;
     std::vector<std::vector<int>> adjacency(commonNodes.size());
     for (int i = 0; i < (int)commonNodes.size(); ++i)
-    {
         for (int j = i + 1; j < (int)commonNodes.size(); ++j)
-        {
-            if (edgeSet.find(edgeKey(commonNodes[i], commonNodes[j])) != edgeSet.end())
-            {
+            if (edgeSet.count(edgeKey(commonNodes[i], commonNodes[j]))) {
                 adjacency[i].push_back(j);
                 adjacency[j].push_back(i);
             }
-        }
-    }
-
-    int best = 1;
-    for (int src = 0; src < (int)commonNodes.size(); ++src)
-    {
-        std::vector<int> dist(commonNodes.size(), -1);
-        std::queue<int> q;
-        dist[src] = 0;
-        q.push(src);
-
-        while (!q.empty())
-        {
-            int u = q.front();
-            q.pop();
-            for (int v : adjacency[u])
-            {
-                if (dist[v] >= 0)
-                    continue;
-                dist[v] = dist[u] + 1;
-                best = std::max(best, dist[v] + 1);
-                q.push(v);
+    int best = 0;
+    int visits = 0;
+    bool exhausted = false;
+    for (int start = 0; start < (int)commonNodes.size(); ++start) {
+        const auto visit = [&](const auto& self, int node, unsigned visited, int length) -> void {
+            if (++visits > 200000) { exhausted=true; return; }
+            best = std::max(best, length);
+            for (int next : adjacency[node]) {
+                if (exhausted) return;
+                if (next == start && length >= 2) best = std::max(best, length + 1);
+                else if (!(visited & (1u << next)))
+                    self(self, next, visited | (1u << next), length + 1);
             }
-        }
+        };
+        visit(visit, start, 1u << start, 0);
     }
 
-    return best;
+    return exhausted ? -1 : best;
 }
 
-CnaResult runCna(const Structure& structure, float cutoffScale, bool usePbcRequest)
+CnaResult runCna(const Structure& structure, float cutoffScale, bool usePbcRequest, float cutoffRadius)
 {
     CnaResult result;
     result.atomCount = (int)structure.atoms.size();
@@ -150,7 +130,7 @@ CnaResult runCna(const Structure& structure, float cutoffScale, bool usePbcReque
         if (d <= kMinBondDistance)
             return;
 
-        float cutoff = (ri + rj) * cutoffScale;
+        float cutoff = cutoffRadius > 0.0f ? cutoffRadius : (ri + rj) * cutoffScale;
         if (d > cutoff)
             return;
 
@@ -159,7 +139,15 @@ CnaResult runCna(const Structure& structure, float cutoffScale, bool usePbcReque
         edgeSet.insert(edgeKey(i, j));
     };
 
-    if (!usePbc)
+    float maximumCutoff = cutoffRadius;
+    if (maximumCutoff == 0.0f)
+        for (const auto& atom : structure.atoms) {
+            const int z = atom.atomicNumber;
+            const float radius = z >= 0 && z < (int)radii.size() ? radii[z] : 1.0f;
+            maximumCutoff = std::max(maximumCutoff, 2.0f * radius * cutoffScale);
+        }
+    const int reach = (int)std::ceil(maximumCutoff / kSpatialHashCellSize);
+    if (!usePbc && reach <= 8)
     {
         std::unordered_map<glm::ivec3, std::vector<int>, Vec3iHash> grid;
         grid.reserve(positions.size());
@@ -169,11 +157,11 @@ CnaResult runCna(const Structure& structure, float cutoffScale, bool usePbcReque
         for (int i = 0; i < (int)positions.size(); ++i)
         {
             const glm::ivec3 cellCoord = getGridCell(positions[i]);
-            for (int dx = -1; dx <= 1; ++dx)
+            for (int dx = -reach; dx <= reach; ++dx)
             {
-                for (int dy = -1; dy <= 1; ++dy)
+                for (int dy = -reach; dy <= reach; ++dy)
                 {
-                    for (int dz = -1; dz <= 1; ++dz)
+                    for (int dz = -reach; dz <= reach; ++dz)
                     {
                         const glm::ivec3 neighborCell(cellCoord.x + dx,
                                                       cellCoord.y + dy,
@@ -265,7 +253,7 @@ CnaResult runCna(const Structure& structure, float cutoffScale, bool usePbcReque
 
         row.dominantSignature = dominant;
         row.dominantSignatureCount = dominantCount;
-        row.environment = (dominantCount > 0) ? classifyEnvironment(dominant) : "Unknown";
+        row.environment = classifyEnvironment(atomSignatures[i], row.coordination);
 
         ++result.environmentCounts[row.environment];
         result.atomRows.push_back(row);
@@ -280,12 +268,21 @@ CnaResult runCna(const Structure& structure, float cutoffScale, bool usePbcReque
 
 CnaResult computeCna(const Structure& structure, const CnaParams& params)
 {
-    if (!std::isfinite(params.cutoffScale) || params.cutoffScale <= 0.0f)
+    if (!std::isfinite(params.cutoffScale) || params.cutoffScale <= 0.0f ||
+        !std::isfinite(params.cutoffRadius) || params.cutoffRadius < 0.0f ||
+        params.cutoffRadius > 100000.0f || params.cutoffScale > 100.0f)
     {
         CnaResult result;
         result.message = "Cutoff scale must be finite and positive.";
         return result;
     }
-    return runCna(structure, params.cutoffScale, params.usePbc);
+    for (const auto& atom : structure.atoms)
+        if (!std::isfinite(atom.x) || !std::isfinite(atom.y) || !std::isfinite(atom.z) ||
+            std::abs(atom.x) > 1e8 || std::abs(atom.y) > 1e8 || std::abs(atom.z) > 1e8) {
+            CnaResult result;
+            result.message = "Atom coordinates must be finite and within 1e8 A.";
+            return result;
+        }
+    return runCna(structure, params.cutoffScale, params.usePbc, params.cutoffRadius);
 }
 } // namespace atomforge::analysis

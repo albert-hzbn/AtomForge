@@ -99,6 +99,18 @@ VASP density values are converted to e/angstrom³. Cube/XSF `quantity='auto'` re
 
 ## Documentation and release checks
 
+The current source also adds structural analyses (`cna`, `rdf`, `adf`, `sro`,
+`interstitial_sites`, `sculpt`), interface/stacking-fault builders, grain metadata,
+and electronic recipes/batch processing. These require the matching native build.
+
+The optional `atomforge.science` package adds bands/DOS/PDOS, projected-band plots,
+WAVECAR orbital reconstruction, reciprocal-space BXSF surfaces, diffraction,
+trajectories/GIFs, Hirshfeld integration, and ASE relaxation/dynamics/phonons.
+Install the `science` extra using Python 3.12 for the tested dependency set.
+Bader and DDEC use external Henkelman and Chargemol solvers; DFT requires a
+caller-configured ASE calculator. The updated manual explains conventions and
+examples. Existing PyPI wheels do not acquire these source additions automatically.
+
 The detailed [AtomForge PDF manual](https://github.com/albert-hzbn/AtomForge/blob/main/docs/manual/AtomForge-manual.pdf) includes complete signatures, physical interpretation, tutorials, and native CLI options. Help > Manual and About > Manual in the updated desktop open the packaged PDF.
 
 For maintainers, run CTest against the native build, then build and validate both wheel and source distribution:

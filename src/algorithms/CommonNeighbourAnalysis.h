@@ -55,6 +55,7 @@ struct CnaParams
 {
     float cutoffScale = 1.18f;
     bool usePbc = true;
+    float cutoffRadius = 0.0f; // Angstrom; zero selects scaled covalent radii.
 };
 
 [[nodiscard]] CnaResult computeCna(const Structure& structure, const CnaParams& params = {});

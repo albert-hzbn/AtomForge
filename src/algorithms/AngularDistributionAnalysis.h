@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 // Angular Distribution Function (ADF) — i-j-k triplet bond angles
 //
-// For every ordered triplet (j, i, k) where both j and i, and k and i are
+// For every unordered neighbour pair (j, k) around i, where both j and i, and k and i are
 // within rCutoff, the angle at vertex i is accumulated into a histogram.
 // Three centre-selection modes are supported:
 //   All        — every atom can be a centre

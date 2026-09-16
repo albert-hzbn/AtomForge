@@ -11,18 +11,38 @@ if TYPE_CHECKING:
     from .._structure import Structure
 
 
-def _load_cif(path: str) -> "Structure":
+def _load_cif(path: str, *, _expanded=False) -> "Structure":
     """
     Load a CIF file.  Reads cell parameters and the first _atom_site loop.
     Handles fractional (fract_x/y/z) and Cartesian (Cartn_x/y/z) coords.
-    Symmetry expansion is NOT performed — the file must already be in P1
-    (all symmetry-equivalent atoms listed explicitly), which is what
-    AtomForge and most MD/DFT export tools produce.
+    P1 files use the dependency-free reader. Symmetry-bearing CIFs use Gemmi
+    (the crystallography or science extra) for complete space-group expansion.
     """
     from .._structure import Atom, Structure
 
     with open(path, encoding="utf-8", errors="replace") as fh:
         text = fh.read()
+
+    symmetry = re.search(r"(?im)^\s*_(?:symmetry_equiv_pos_as_xyz|space_group_symop_operation_xyz)\b", text)
+    group = re.search(r"(?im)^\s*_(?:symmetry_Int_Tables_number|space_group_IT_number)\s+['\"]?(\d+)", text)
+    name = re.search(r"(?im)^\s*_(?:symmetry_space_group_name_H-M|space_group_name_H-M_alt)\s+([^\n]+)", text)
+    nontrivial_name = name and name.group(1).strip().strip("'\"").replace(" ", "").upper() != "P1"
+    if not _expanded and (symmetry or (group and int(group.group(1)) != 1) or nontrivial_name):
+        try:
+            import gemmi
+        except ImportError as error:
+            raise ImportError("Symmetry-bearing CIF import requires atomforge-py[crystallography]") from error
+        crystal = gemmi.read_small_structure(str(path))
+        if crystal.spacegroup is None and not crystal.symops:
+            raise ValueError("Cannot determine CIF symmetry from the supplied space-group data")
+        crystal.setup_cell_images()
+        result = Structure()
+        unit = crystal.cell
+        result.cell = _cell_from_params(unit.a,unit.b,unit.c,unit.alpha,unit.beta,unit.gamma)
+        for site in crystal.get_all_unit_cell_sites():
+            point = unit.orthogonalize(site.fract.wrap_to_unit())
+            result.add_atom(site.element.name,point.x,point.y,point.z)
+        return result
 
     # Remove CIF comments
     text = re.sub(r"#[^\n]*", "", text)

@@ -2,6 +2,7 @@
 #include "math/StructureMath.h"
 #include "algorithms/SubstitutionalSolidSolutionBuilder.h"
 #include "algorithms/AmorphousBuilder.h"
+#include "algorithms/CellSculptorAlgo.h"
 #include <cstdlib>
 #include <iostream>
 #include <limits>
@@ -35,6 +36,26 @@ int main()
     base.cellVectors = {{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}};
     glm::mat3 cell, inverse;
     check(tryMakeCellMatrices(base, cell, inverse), "Valid cell rejected");
+    Structure skew=base;
+    skew.atoms.resize(1); skew.atoms[0].symbol="Cu"; skew.atoms[0].atomicNumber=29;
+    skew.grainColors={{{.1f,.2f,.3f}}}; skew.grainRegionIds={42};
+    skew.cellVectors={{{2,0,0},{1,2,0},{0,0,3}}};
+    CellSlabPlane slab; slab.h=1; slab.k=0; slab.l=0;
+    const auto normal=cscNormal(slab,skew);
+    check(std::abs(glm::dot(normal,glm::vec3(1,2,0)))<1e-6,"Miller normal must be perpendicular to skew b vector");
+    const auto repeated=cscBuildSupercell(skew,2,2,2);
+    check(repeated.atoms.size()==8 && repeated.grainRegionIds.size()==8 && repeated.grainColors.size()==8,
+          "Sculptor supercell must preserve grain metadata");
+    std::vector<CellSlabPlane> slabs(3);
+    for (int i=0;i<3;++i) { slabs[i].h=i==0; slabs[i].k=i==1; slabs[i].l=i==2; slabs[i].d1=-1; slabs[i].d2=1; slabs[i].usePeriodic=false; }
+    const auto cut=cscApplySlabs(repeated,slabs,skew);
+    check(cut.grainRegionIds.size()==cut.atoms.size(),"Sculpting must align grain metadata");
+    check(cut.hasUnitCell,"Independent planes must produce a cell");
+    for (int i=0;i<3;++i) for (int j=0;j<3;++j) {
+        const auto n=cscNormal(slabs[i],skew);
+        const glm::vec3 v(cut.cellVectors[j][0],cut.cellVectors[j][1],cut.cellVectors[j][2]);
+        check(std::abs(glm::dot(n,v)-(i==j ? 2.0f : 0.0f))<1e-5,"Sculpted cell must respect nonorthogonal slab widths");
+    }
     base.cellVectors[0][0] = std::numeric_limits<double>::quiet_NaN();
     check(!tryMakeCellMatrices(base, cell, inverse), "Non-finite cell accepted");
     base.atoms.resize(101);

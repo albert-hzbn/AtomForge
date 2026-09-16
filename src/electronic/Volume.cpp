@@ -1,4 +1,5 @@
 #include "electronic/Volume.h"
+#include "util/TaskControl.h"
 
 #include <algorithm>
 #include <cmath>
@@ -9,6 +10,7 @@ namespace atomforge::electronic
 {
 void Grid::validate() const
 {
+    atomforge::taskCheckpoint();
     std::size_t count = 1;
     for (int n : shape)
     {
@@ -32,6 +34,7 @@ void Grid::validate() const
 
 std::size_t Grid::index(int x, int y, int z) const
 {
+    atomforge::taskCheckpoint();
     return (static_cast<std::size_t>(z) * shape[1] + y) * shape[0] + x;
 }
 

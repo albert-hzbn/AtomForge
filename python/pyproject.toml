@@ -30,6 +30,10 @@ Homepage = "https://github.com/albert-hzbn/AtomForge"
 Repository = "https://github.com/albert-hzbn/AtomForge"
 "Bug Tracker" = "https://github.com/albert-hzbn/AtomForge/issues"
 
+[project.optional-dependencies]
+science = ["ase>=3.23", "pymatgen>=2024.5", "matplotlib>=3.7", "gemmi>=0.6"]
+crystallography = ["gemmi>=0.6"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["atomforge*"]

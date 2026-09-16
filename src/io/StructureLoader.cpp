@@ -13,6 +13,7 @@
 #include <array>
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -73,6 +74,9 @@ struct IpfKeyHash
 struct IpfRecord
 {
     IpfKey key;
+    std::array<double,3> position{};
+    int region=-1;
+    bool hasRegion=false;
     std::array<float, 3> color = {{0.0f, 0.0f, 0.0f}};
 };
 
@@ -88,7 +92,7 @@ struct Vec3iHash
 
 long long quantizeIpfCoord(double value)
 {
-    return (long long)std::llround(value * 10000.0);
+    return (long long)std::floor(value * 500.0);
 }
 
 IpfKey makeIpfKey(int atomicNumber, double x, double y, double z)
@@ -139,7 +143,8 @@ bool saveIpfSidecar(const Structure& structure, const std::string& filename)
     if (!out)
         return false;
 
-    out << "ATOMFORGE_IPF_V1\n";
+    const bool regions=structure.grainRegionIds.size()==structure.atoms.size();
+    out << (regions ? "ATOMFORGE_IPF_V2\n" : "ATOMFORGE_IPF_V1\n");
     out << structure.atoms.size() << "\n";
     out << std::setprecision(17);
     for (size_t i = 0; i < structure.atoms.size(); ++i)
@@ -148,7 +153,9 @@ bool saveIpfSidecar(const Structure& structure, const std::string& filename)
         const std::array<float, 3>& color = structure.grainColors[i];
         out << atom.atomicNumber << ' '
             << atom.x << ' ' << atom.y << ' ' << atom.z << ' '
-            << color[0] << ' ' << color[1] << ' ' << color[2] << '\n';
+            << color[0] << ' ' << color[1] << ' ' << color[2];
+        if (regions) out << ' ' << structure.grainRegionIds[i];
+        out << '\n';
     }
 
     return out.good();
@@ -182,7 +189,7 @@ bool loadIpfSidecarRecords(const std::string& filename,
 
     size_t count = 0;
     in >> count;
-    if (!in)
+    if (!in || count>10000000)
         return false;
 
     records.reserve(count);
@@ -191,21 +198,26 @@ bool loadIpfSidecarRecords(const std::string& filename,
         int atomicNumber = 0;
         double x = 0.0, y = 0.0, z = 0.0;
         float r = 0.0f, g = 0.0f, b = 0.0f;
+        int region=-1;
         if (isV1)
         {
             in >> atomicNumber >> x >> y >> z >> r >> g >> b;
         }
         else
         {
-            int ignoredRegionId = -1;
-            in >> atomicNumber >> x >> y >> z >> r >> g >> b >> ignoredRegionId;
+            in >> atomicNumber >> x >> y >> z >> r >> g >> b >> region;
         }
         if (!in)
             return false;
 
+        if (atomicNumber<1 || atomicNumber>118 || !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)
+            || std::abs(x)>1e9 || std::abs(y)>1e9 || std::abs(z)>1e9
+            || !std::isfinite(r) || !std::isfinite(g) || !std::isfinite(b)) return false;
         IpfRecord record;
+        record.position={x,y,z};
         record.key = makeIpfKey(atomicNumber, x, y, z);
         record.color = {{r, g, b}};
+        record.region=region; record.hasRegion=isV2;
         records.push_back(record);
     }
 
@@ -232,39 +244,40 @@ bool restoreIpfSidecar(const std::string& filename, Structure& structure)
     }
 
     std::vector<std::array<float, 3>> restored(structure.atoms.size(), {{0.0f, 0.0f, 0.0f}});
+    std::vector<int> regions(structure.atoms.size(),-1);
     std::vector<bool> assigned(structure.atoms.size(), false);
     size_t matched = 0;
 
     for (size_t i = 0; i < records.size(); ++i)
     {
-        auto range = byKey.equal_range(records[i].key);
         size_t chosen = structure.atoms.size();
-        for (auto it = range.first; it != range.second; ++it)
-        {
-            if (!assigned[it->second])
-            {
-                chosen = it->second;
-                break;
+        for (int dx=-1;dx<=1 && chosen==structure.atoms.size();++dx)
+        for (int dy=-1;dy<=1 && chosen==structure.atoms.size();++dy)
+        for (int dz=-1;dz<=1 && chosen==structure.atoms.size();++dz) {
+            auto key=records[i].key; key.qx+=dx; key.qy+=dy; key.qz+=dz;
+            const auto range=byKey.equal_range(key);
+            for (auto it=range.first;it!=range.second;++it) {
+                const auto& atom=structure.atoms[it->second];
+                const auto& p=records[i].position;
+                if (!assigned[it->second] && std::abs(atom.x-p[0])<.002 &&
+                    std::abs(atom.y-p[1])<.002 && std::abs(atom.z-p[2])<.002) {
+                    chosen=it->second; break;
+                }
             }
         }
         if (chosen == structure.atoms.size())
             break;
 
         restored[chosen] = records[i].color;
+        regions[chosen] = records[i].region;
         assigned[chosen] = true;
         ++matched;
     }
 
-    if (matched != structure.atoms.size())
-    {
-        // Fallback for formats that preserve atom order but perturb coordinates.
-        for (size_t i = 0; i < structure.atoms.size(); ++i)
-        {
-            restored[i] = records[i].color;
-        }
-    }
+    if (matched != structure.atoms.size()) return false;
 
     structure.grainColors.swap(restored);
+    if (!records.empty() && records.front().hasRegion) structure.grainRegionIds.swap(regions);
     return true;
 }
 

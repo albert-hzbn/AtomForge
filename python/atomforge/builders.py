@@ -11,7 +11,7 @@ from ._structure import Structure
 from ._viewer import _find_atomforge
 
 
-_MODES = ("bulk", "gb", "poly", "nano", "amorphous", "sss", "dislocation", "custom")
+_MODES = ("bulk", "gb", "poly", "nano", "amorphous", "sss", "dislocation", "custom", "interface", "stacking-fault")
 _RESERVED = {"--build", "--help", "--output", "--input"}
 
 
@@ -38,7 +38,7 @@ def _executable(executable):
 
 
 def builder_help(mode, *, executable=None):
-    """Return installed native help for one of the eight builder modes."""
+    """Return installed native help for a registered builder mode."""
     if mode not in _MODES:
         raise ValueError("Unknown builder mode: {!r}".format(mode))
     return subprocess.run(

@@ -9,6 +9,9 @@ add_test(NAME core_regressions COMMAND atomforge_core_tests)
 add_executable(atomforge_analysis_tests ${PROJECT_SOURCE_DIR}/tests/analysis_regressions.cpp)
 target_link_libraries(atomforge_analysis_tests PRIVATE AtomForge::Core)
 add_test(NAME analysis_regressions COMMAND atomforge_analysis_tests)
+add_executable(atomforge_workspace_tests ${PROJECT_SOURCE_DIR}/tests/workspace_regressions.cpp)
+target_link_libraries(atomforge_workspace_tests PRIVATE AtomForge::Core)
+add_test(NAME workspace_regressions COMMAND atomforge_workspace_tests)
 
 add_executable(atomforge_electronic_tests ${PROJECT_SOURCE_DIR}/tests/electronic_regressions.cpp)
 target_link_libraries(atomforge_electronic_tests PRIVATE AtomForge::Core)
@@ -71,6 +74,10 @@ if(Python3_Interpreter_FOUND)
             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tests/${suite}.py)
     endforeach()
     if(TARGET AtomForge)
+        add_test(NAME python_workflows
+            COMMAND ${CMAKE_COMMAND} -E env "ATOMFORGE_PATH=$<TARGET_FILE:AtomForge>"
+                "ATOMFORGE_ELECTRONIC_LIBRARY=$<TARGET_FILE:atomforge_electronic>"
+                ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tests/test_workflows.py)
         add_test(NAME python_builders
             COMMAND ${CMAKE_COMMAND} -E env "ATOMFORGE_PATH=$<TARGET_FILE:AtomForge>"
                 ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tests/test_builders.py)

@@ -35,9 +35,9 @@ struct LatticeKey
     double l1, l2, area;
     bool operator==(const LatticeKey& o) const
     {
-        return std::abs(l1 - o.l1) < 1e-6 &&
-               std::abs(l2 - o.l2) < 1e-6 &&
-               std::abs(area - o.area) < 1e-6;
+        return std::round(l1*1e6)==std::round(o.l1*1e6) &&
+               std::round(l2*1e6)==std::round(o.l2*1e6) &&
+               std::round(area*1e6)==std::round(o.area*1e6);
     }
 };
 
@@ -46,8 +46,7 @@ struct LatticeKeyHash
     size_t operator()(const LatticeKey& k) const
     {
         auto h = [](double v) -> size_t {
-            long long bits = static_cast<long long>(v * 1e6);
-            return std::hash<long long>()(bits);
+            return std::hash<double>()(std::round(v * 1e6));
         };
         size_t seed = h(k.l1);
         seed ^= h(k.l2) + 0x9e3779b9 + (seed << 6) + (seed >> 2);

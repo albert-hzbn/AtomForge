@@ -6,8 +6,77 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <stdexcept>
 
 using namespace atomforge::electronic;
+
+void ElectronicSliceViewport::saveSvg(const Grid& grid,const std::string& path,float low,float high,int palette) const
+{
+    const auto geometry=plane(grid);
+    if (geometry.boundary.size()<3) throw std::runtime_error("The section does not intersect the cell");
+    const auto slice=sampleSlicePlane(grid,geometry,m_resolution,m_resolution);
+    const auto ex=glm::normalize(slice.cell[0]);
+    const auto ey=glm::normalize(slice.cell[1]-glm::dot(slice.cell[1],ex)*ex);
+    const auto center=slice.origin+(slice.cell[0]+slice.cell[1])*.5;
+    const double extent=std::max(glm::length(slice.cell[0]+slice.cell[1]),glm::length(slice.cell[0]-slice.cell[1]));
+    const double scale=.85*1200*m_zoom/extent, angle=m_angle*pi/180;
+    const auto screen=[&](glm::dvec3 point) {
+        const auto p=point-center;
+        const double x=glm::dot(p,ex), y=glm::dot(p,ey);
+        return glm::dvec2(1200*(.5+m_pan.x)+scale*(std::cos(angle)*x-std::sin(angle)*y),
+                         1200*(.5+m_pan.y)-scale*(std::sin(angle)*x+std::cos(angle)*y));
+    };
+    std::ofstream out(std::filesystem::u8path(path));
+    out << std::setprecision(9) << "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1200\" height=\"1200\" viewBox=\"0 0 1200 1200\">\n"
+        << "<title>AtomForge density section</title><defs><clipPath id=\"frame\"><rect width=\"1200\" height=\"1200\"/></clipPath></defs>"
+        << "<rect width=\"1200\" height=\"1200\" fill=\"#f5f7fb\"/><g clip-path=\"url(#frame)\">\n";
+    for (int y=0;y<slice.shape[1]-1;++y) for (int x=0;x<slice.shape[0]-1;++x) {
+        const double value=(slice.values[slice.index(x,y,0)]+slice.values[slice.index(x+1,y,0)]+
+            slice.values[slice.index(x,y+1,0)]+slice.values[slice.index(x+1,y+1,0)])*.25;
+        const auto color=ElectronicViewport::color(high>low ? (value-low)/(high-low) : .5,palette);
+        auto polygon=std::vector<glm::dvec3>{slice.position(x,y,0),slice.position(x,y+1,0),slice.position(x+1,y+1,0),slice.position(x+1,y,0)};
+        if (m_axis==3) polygon=clipToCell(grid,std::move(polygon));
+        if (polygon.size()<3) continue;
+        out << "<polygon fill=\"rgb(" << int(color.r*255) << ',' << int(color.g*255) << ',' << int(color.b*255) << ")\" points=\"";
+        for (auto point:polygon) { const auto p=screen(point); out << p.x << ',' << p.y << ' '; }
+        out << "\"/>\n";
+    }
+    if (m_showContour) {
+        const auto lines=contours(slice,m_level);
+        for (std::size_t i=0;i+1<lines.size();i+=2) {
+            auto a=lines[i],b=lines[i+1];
+            if (m_axis==3 && !clipSegmentToCell(grid,a,b)) continue;
+            const auto start=screen(a),end=screen(b);
+            out << "<path stroke=\"#1e2837\" fill=\"none\" d=\"M" << start.x << ',' << start.y << " L" << end.x << ',' << end.y << "\"/>\n";
+        }
+    }
+    out << "</g></svg>\n"; out.close();
+    if (!out) throw std::runtime_error("Failed to write section SVG");
+}
+
+std::map<std::string,double> ElectronicSliceViewport::settings() const
+{
+    return {{"axis",m_axis},{"position",m_position},{"px",m_point[0]},{"py",m_point[1]},{"pz",m_point[2]},
+        {"nx",m_normal[0]},{"ny",m_normal[1]},{"nz",m_normal[2]},{"level",m_level},
+        {"zoom",m_zoom},{"angle",m_angle},{"panx",m_pan.x},{"pany",m_pan.y},{"contour",m_showContour}};
+}
+
+void ElectronicSliceViewport::restoreSettings(const std::map<std::string,double>& values)
+{
+    const auto read=[&](const char* name,double fallback) {
+        const auto found=values.find(name); return found==values.end() ? fallback : found->second;
+    };
+    m_axis=static_cast<int>(std::clamp(read("axis",2),0.0,3.0));
+    m_position=std::clamp(read("position",.5),0.0,1.0);
+    m_point[0]=read("px",.5); m_point[1]=read("py",.5); m_point[2]=read("pz",.5);
+    m_normal[0]=read("nx",1); m_normal[1]=read("ny",1); m_normal[2]=read("nz",1);
+    m_level=read("level",.1); m_zoom=std::clamp(read("zoom",1),.1,100.0);
+    m_angle=read("angle",0); m_pan={read("panx",0),read("pany",0)};
+    m_showContour=read("contour",0)!=0; m_dirty=true; m_estimateLevel=false;
+}
 
 SlicePlane ElectronicSliceViewport::plane(const Grid& grid) const
 {
@@ -48,8 +117,9 @@ void ElectronicSliceViewport::draw(const Grid& grid, float low, float high, int 
         // Preview sampling is bounded; the native section/contour tools retain
         // their full user-selected resolution for numerical work and export.
         const int a=m_axis==0 ? 1 : 0, b=m_axis==2 ? 1 : 2;
-        const int nu=m_axis==3 ? 129 : std::clamp(grid.shape[a]+(grid.periodic ? 1 : 0),2,129);
-        const int nv=m_axis==3 ? 129 : std::clamp(grid.shape[b]+(grid.periodic ? 1 : 0),2,129);
+        const int resolution=std::clamp(m_resolution,33,513);
+        const int nu=m_axis==3 ? resolution : std::clamp(grid.shape[a]+(grid.periodic ? 1 : 0),2,resolution);
+        const int nv=m_axis==3 ? resolution : std::clamp(grid.shape[b]+(grid.periodic ? 1 : 0),2,resolution);
         m_slice=sampleSlicePlane(grid,geometry,nu,nv);
         m_visibleValues.clear();
         const auto inverse=glm::inverse(grid.cell);
