@@ -2,6 +2,8 @@
 #include "ui/ElectronicPostProcessing.h"
 #include "electronic/DisplayRange.h"
 #include "electronic/ChargeAnalysis.h"
+#include "electronic/Topology.h"
+#include "electronic/BaderPartition.h"
 #include "ui/DialogLayout.h"
 #include "imgui.h"
 #include "third_party/stb_image_write.h"
@@ -111,6 +113,7 @@ atomforge::Workspace ElectronicPostProcessingDialog::snapshot(bool includeData) 
     out.settings["m_viewLayout"]=m_viewLayout;
     out.settings["m_showSlicePlane"]=m_showSlicePlane;
     out.settings["m_sigma"]=m_sigma;
+    out.settings["m_bondingFloor"]=m_bondingFloor;
     out.settings["m_alpha"]=m_alpha;
     out.settings["m_realCutoff"]=m_realCutoff;
     out.settings["m_reciprocalCutoff"]=m_reciprocalCutoff;
@@ -186,6 +189,7 @@ void ElectronicPostProcessingDialog::restore(const atomforge::Workspace& saved)
     setting("m_viewLayout",m_viewLayout);
     setting("m_showSlicePlane",m_showSlicePlane);
     setting("m_sigma",m_sigma);
+    setting("m_bondingFloor",m_bondingFloor);
     setting("m_alpha",m_alpha);
     setting("m_realCutoff",m_realCutoff);
     setting("m_reciprocalCutoff",m_reciprocalCutoff);
@@ -223,7 +227,7 @@ void ElectronicPostProcessingDialog::restore(const atomforge::Workspace& saved)
     m_selected=std::clamp(m_selected,0,std::max(0,static_cast<int>(m_volume.fields.size())-1));
     const auto& references=m_localReference || m_referenceVolume.fields.empty() ? m_volume : m_referenceVolume;
     m_reference=std::clamp(m_reference,0,std::max(0,static_cast<int>(references.fields.size())-1));
-    m_operation=std::clamp(m_operation,0,32); m_axis=std::clamp(m_axis,0,2);
+    m_operation=std::clamp(m_operation,0,37); m_axis=std::clamp(m_axis,0,2);
     m_quantity=std::clamp(m_quantity,0,4); m_cubeUnits=std::clamp(m_cubeUnits,0,1);
     m_exportFormat=std::clamp(m_exportFormat,0,7); m_booleanOperation=std::clamp(m_booleanOperation,0,3);
     m_quality=std::clamp(m_quality,0,3); m_palette=std::clamp(m_palette,0,2);
@@ -249,7 +253,7 @@ void ElectronicPostProcessingDialog::remember()
 
 void ElectronicPostProcessingDialog::drawMenuItem()
 {
-    if (ImGui::MenuItem("Electronic Post-processing...")) m_open = true;
+    if (ImGui::MenuItem("Electronic Post-processing")) m_open = true;
 }
 
 void ElectronicPostProcessingDialog::feedDroppedFile(const std::string& path)
@@ -331,6 +335,8 @@ void ElectronicPostProcessingDialog::drawDialog()
     if (ImGui::RadioButton("Charge transfer",m_toolGroup==1)) { m_toolGroup=1; m_operation=25; }
     ImGui::SameLine();
     if (ImGui::RadioButton("General analysis",m_toolGroup==0)) { m_toolGroup=0; m_operation=0; }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Bonding & topology",m_toolGroup==2)) { m_toolGroup=2; m_operation=33; }
     if (m_toolGroup==1)
     {
         const char* labels[]={"Density difference","Threshold mask","Boolean masks","Apply mask",
@@ -342,6 +348,22 @@ void ElectronicPostProcessingDialog::drawDialog()
                 ImGui::TableNextColumn();
                 ImGui::PushID(i);
                 if (ImGui::Selectable(labels[i],m_operation==25+i)) m_operation=25+i;
+                ImGui::PopID();
+            }
+            ImGui::EndTable();
+        }
+        if (m_volume.fields.empty()) ImGui::TextWrapped("Load a density file below to use the selected tool.");
+    }
+    else if (m_toolGroup==2)
+    {
+        const char* labels[]={"Reduced density gradient","Signed density (NCI)","DORI","Betti curve","Bader partition"};
+        if (ImGui::BeginTable("Bonding tools",2,ImGuiTableFlags_SizingStretchSame))
+        {
+            for (int i=0;i<5;++i)
+            {
+                ImGui::TableNextColumn();
+                ImGui::PushID(i);
+                if (ImGui::Selectable(labels[i],m_operation==33+i)) m_operation=33+i;
                 ImGui::PopID();
             }
             ImGui::EndTable();
@@ -455,6 +477,19 @@ void ElectronicPostProcessingDialog::drawDialog()
             combo("Plane normal",&m_axis,"a*\0b*\0c*\0");
             ImGui::TextWrapped("Cumulative electrons from the lower cell face. The final row includes the whole cell; periodic profiles depend on the cell origin.");
         }
+        if (m_operation>=33 && m_operation<=35)
+        {
+            inputFloat("Density floor (e/A^3)",&m_bondingFloor,0,0,"%.3g");
+            ImGui::TextWrapped("Requires nonnegative electron density in e/A^3. Samples at or below the floor are masked to zero, avoiding the divergent gradient/density ratio near vacuum.");
+            if (m_operation==34) ImGui::TextWrapped("Sign(lambda_2)*rho: negative values mark bonding/hydrogen-bonding accumulation, positive values mark steric repulsion.");
+            if (m_operation==35) ImGui::TextWrapped("Density Overlap Regions Indicator, in [0,1); values approaching 1 mark boundaries between density basins.");
+        }
+        if (m_operation==36)
+        {
+            ImGui::TextWrapped("One density threshold per line (e/A^3). Finite (non-periodic) grids only.");
+            ImGui::InputTextMultiline("##thresholds",m_thresholds,sizeof(m_thresholds),ImVec2(-1,80));
+        }
+        if (m_operation==37) ImGui::TextWrapped("Native QTAIM/Bader on-grid steepest-ascent partitioning (requires nonnegative e/A^3). Adds a basin-index field and a per-basin charge/volume/maximum table.");
         ImGui::Spacing();
         if (dialogLayout::primaryButton("Calculate",ImVec2(-FLT_MIN,0)) || (m_generateSurface && !m_task.running()))
         {
@@ -467,7 +502,8 @@ void ElectronicPostProcessingDialog::drawDialog()
             const int booleanOperation=m_booleanOperation;
             const double scalar = op == 22 ? m_surfaceLevel : m_scalar, sigma = m_sigma, alpha = m_alpha, realCutoff = m_realCutoff, reciprocalCutoff = m_reciprocalCutoff;
             const auto start = vector(m_start), end = vector(m_end), u = vector(m_u), v = vector(m_v);
-            const std::string reflectionText(m_reflections), chargeText(m_charges);
+            const std::string reflectionText(m_reflections), chargeText(m_charges), thresholdText(m_thresholds);
+            const double bondingFloor = m_bondingFloor;
             const bool colored = m_colorSurface;
             const bool appendSurface = m_appendSurface;
             const bool existingSurface = !m_surface.vertices.empty();
@@ -579,6 +615,33 @@ void ElectronicPostProcessingDialog::drawDialog()
                 {
                     add(periodicEndpoints(source));
                 }
+                else if (op == 33) add(reducedDensityGradient(source,bondingFloor));
+                else if (op == 34) add(signedDensity(source,bondingFloor));
+                else if (op == 35) add(dori(source,bondingFloor));
+                else if (op == 36)
+                {
+                    std::istringstream input(thresholdText);
+                    std::vector<double> thresholds;
+                    for (double t; input >> t;) thresholds.push_back(t);
+                    if (thresholds.empty()) throw std::invalid_argument("Supply at least one threshold");
+                    out.columns = 4; out.heading = "threshold,betti0,betti1,betti2";
+                    for (auto row : bettiCurve(source,thresholds)) out.table.insert(out.table.end(),{row.x,row.y,row.z,row.w});
+                }
+                else if (op == 37)
+                {
+                    const auto partition = baderOnGrid(source);
+                    Grid basins = source;
+                    basins.name = "Bader basin index"; basins.unit = "basin index";
+                    for (std::size_t i=0;i<basins.values.size();++i) basins.values[i] = partition.basin[i];
+                    basins.validate();
+                    add(std::move(basins));
+                    out.columns = 6; out.heading = "basin,charge_e,volume_A3,max_x_A,max_y_A,max_z_A";
+                    for (std::size_t i=0;i<partition.basins.size();++i)
+                    {
+                        const auto& basin = partition.basins[i];
+                        out.table.insert(out.table.end(),{static_cast<double>(i),basin.charge,basin.volume,basin.maximum.x,basin.maximum.y,basin.maximum.z});
+                    }
+                }
                 return out;
             });
         }
@@ -644,6 +707,19 @@ void ElectronicPostProcessingDialog::drawDialog()
             std::vector<float> values;
             for (std::size_t i = 1; i < m_result.table.size(); i += 2) values.push_back(static_cast<float>(m_result.table[i]));
             ImGui::PlotLines("Profile",values.data(),static_cast<int>(values.size()),0,nullptr,FLT_MAX,FLT_MAX,ImVec2(-1,140));
+        }
+        else if (m_result.heading == "threshold,betti0,betti1,betti2")
+        {
+            std::vector<float> betti0,betti1,betti2;
+            for (std::size_t i = 0; i+3 < m_result.table.size(); i += 4)
+            {
+                betti0.push_back(static_cast<float>(m_result.table[i+1]));
+                betti1.push_back(static_cast<float>(m_result.table[i+2]));
+                betti2.push_back(static_cast<float>(m_result.table[i+3]));
+            }
+            ImGui::PlotLines("Connected components (betti0)",betti0.data(),static_cast<int>(betti0.size()),0,nullptr,0,FLT_MAX,ImVec2(-1,80));
+            ImGui::PlotLines("Loops (betti1)",betti1.data(),static_cast<int>(betti1.size()),0,nullptr,0,FLT_MAX,ImVec2(-1,80));
+            ImGui::PlotLines("Enclosed cavities (betti2)",betti2.data(),static_cast<int>(betti2.size()),0,nullptr,0,FLT_MAX,ImVec2(-1,80));
         }
         responsive::beginChild("Electronic table",responsive::size(0,100),true);
         for (std::size_t i = 0; i < std::min<std::size_t>(m_result.table.size(),m_result.columns * 200); i += m_result.columns)

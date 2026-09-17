@@ -5,6 +5,26 @@ import math
 from pathlib import Path
 
 
+def load_calculator(module, attribute, *args, **kwargs):
+    """Import ``module`` and return ``getattr(module, attribute)(*args, **kwargs)``.
+
+    A dotted-path convenience for handing relax()/molecular_dynamics()/phonons()
+    any pip-installed ASE calculator by name -- a DFT calculator, or a machine-
+    learned interatomic potential such as MACE (module="mace.calculators",
+    attribute="mace_mp"), CHGNet ("chgnet.model.dynamics", "CHGNetCalculator"),
+    MatterSim ("mattersim.forcefield", "MatterSimCalculator") or ORB
+    ("orb_models.forcefield.calculator", "ORBCalculator", model). AtomForge does
+    not install, select or validate the underlying package, model or weights;
+    consult that package's own documentation for arguments, accuracy and
+    hardware requirements. Import and construction errors propagate unchanged.
+    """
+    import importlib
+    if not isinstance(module, str) or not module or not isinstance(attribute, str) or not attribute:
+        raise ValueError("module and attribute must be nonempty strings")
+    factory = getattr(importlib.import_module(module), attribute)
+    return factory(*args, **kwargs)
+
+
 def to_ase(structure):
     """Copy species, Cartesian positions and cell into an ASE Atoms object."""
     from ase import Atoms

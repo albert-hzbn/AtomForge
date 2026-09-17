@@ -128,6 +128,13 @@ int main()
         }
         const auto grad = gradient(polynomial);
         const auto lap = laplacian(polynomial);
+        // rho = x^2+2y^2+3z^2+xy is an exact quadratic, so the engine's
+        // central- and one-sided-difference Hessian (obtained by differentiating
+        // gradient() a second time) is exact everywhere, including boundaries:
+        // Hessian = [[2,1,0],[1,4,0],[0,0,6]], middle eigenvalue 3+sqrt(2) > 0.
+        const auto rdg = reducedDensityGradient(polynomial);
+        const auto signedRho = signedDensity(polynomial);
+        const auto doriField = dori(polynomial);
         for (int z = 0; z < 8; ++z) for (int y = 0; y < 8; ++y) for (int x = 0; x < 8; ++x)
         {
             const auto p = polynomial.position(x,y,z);
@@ -136,7 +143,30 @@ int main()
             close(grad[1].values[i],4*p.y+p.x,1e-10);
             close(grad[2].values[i],6*p.z,1e-10);
             close(lap.values[i],12,1e-9);
+            const double rho = p.x*p.x+2*p.y*p.y+3*p.z*p.z+p.x*p.y;
+            if (rho <= 1e-12) { close(rdg.values[i],0); close(signedRho.values[i],0); close(doriField.values[i],0); continue; }
+            const double gx = 2*p.x+p.y, gy = 4*p.y+p.x, gz = 6*p.z;
+            const double gradNorm = std::sqrt(gx*gx+gy*gy+gz*gz);
+            const double constant = 2*std::pow(3*pi*pi,1.0/3);
+            close(rdg.values[i], gradNorm/(constant*std::pow(rho,4.0/3)), 1e-7);
+            close(signedRho.values[i], rho, 1e-7);
+            const double H[3][3] = {{2,1,0},{1,4,0},{0,0,6}};
+            const double g[3] = {gx,gy,gz};
+            const double k = (gx*gx+gy*gy+gz*gz)/(rho*rho);
+            double gradGammaSquared = 0;
+            for (int a=0;a<3;++a) for (int b=0;b<3;++b)
+            {
+                const double jacobian = (H[a][b]*rho-g[a]*g[b])/(rho*rho);
+                gradGammaSquared += jacobian*jacobian;
+            }
+            const double theta = gradGammaSquared/(k*k*k);
+            close(doriField.values[i], theta/(1+theta), 1e-6);
         }
+        rejects([&] { reducedDensityGradient(polynomial,0); });
+        auto wrongUnit = polynomial; wrongUnit.unit = "eV";
+        rejects([&] { reducedDensityGradient(wrongUnit); });
+        auto negative = polynomial; negative.values[0] = -1;
+        rejects([&] { dori(negative); });
         for (int n : {7,8})
         {
             auto g = constant(true,n);

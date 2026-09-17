@@ -22,6 +22,8 @@
 #include "ui/EditMenuDialogs.h"
 #include "ui/CellSculptorDialog.h"
 #include "ui/ElectronicPostProcessing.h"
+#include "ui/WannierAnalysisDialog.h"
+#include "ui/LobsterAnalysisDialog.h"
 #include "ui/TrajectoryDialog.h"
 
 #include <array>
@@ -538,6 +540,8 @@ private:
     CommonNeighbourAnalysisDialog cnaDialog;
     RadialDistributionAnalysisDialog rdfDialog;
     ElectronicPostProcessingDialog electronicDialog;
+    WannierAnalysisDialog wannierDialog;
+    LobsterAnalysisDialog lobsterDialog;
     TrajectoryDialog trajectoryDialog;
     ShortRangeOrderDialogState shortRangeOrderDialog;
     AngularDistributionAnalysisDialog angularDistributionDialog;

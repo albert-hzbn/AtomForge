@@ -67,6 +67,53 @@ def library():
         function.argtypes = args
     if lib.af_electronic_version() != 1:
         raise RuntimeError("Incompatible AtomForge electronic library ABI; rebuild/update the library")
+    wannier_signatures = {
+        "error": (ct.c_char_p, []),
+        "free": (None, [ct.c_void_p]),
+        "load": (ct.c_void_p, [ct.c_char_p]),
+        "num_wann": (ct.c_int, [ct.c_void_p]),
+        "hamiltonian": (ct.c_int, [ct.c_void_p, Doubles, Doubles]),
+        "bands": (ct.c_int, [ct.c_void_p, Doubles, ct.c_size_t, Doubles]),
+        "berry_curvature": (ct.c_int, [ct.c_void_p, Doubles, ct.c_int, ct.c_int, Doubles]),
+        "chern_number": (ct.c_int, [ct.c_void_p, ct.c_int, ct.c_int, ct.c_int, ct.c_int, ct.c_double, Doubles]),
+    }
+    for key, (result, args) in wannier_signatures.items():
+        function = getattr(lib, "af_wannier_" + key)
+        function.restype = result
+        function.argtypes = args
+    lobster_signatures = {
+        "af_lobster_error": (ct.c_char_p, []),
+        "af_cohpcar_load": (ct.c_void_p, [ct.c_char_p]),
+        "af_cohpcar_free": (None, [ct.c_void_p]),
+        "af_cohpcar_info": (ct.c_int, [ct.c_void_p, Ints, ct.POINTER(ct.c_size_t), Ints]),
+        "af_cohpcar_fermi_energy": (ct.c_double, [ct.c_void_p]),
+        "af_cohpcar_energies": (ct.c_int, [ct.c_void_p, Doubles]),
+        "af_cohpcar_bond": (ct.c_int, [ct.c_void_p, ct.c_int, Ints, Ints, Doubles]),
+        "af_cohpcar_average": (ct.c_int, [ct.c_void_p, ct.c_int, Doubles, Doubles]),
+        "af_cohpcar_bond_curve": (ct.c_int, [ct.c_void_p, ct.c_int, ct.c_int, Doubles, Doubles]),
+        "af_icohplist_load": (ct.c_void_p, [ct.c_char_p]),
+        "af_icohplist_free": (None, [ct.c_void_p]),
+        "af_icohplist_count": (ct.c_int, [ct.c_void_p]),
+        "af_icohplist_spin_polarized": (ct.c_int, [ct.c_void_p]),
+        "af_icohplist_entry": (ct.c_int, [ct.c_void_p, ct.c_int, Ints, Ints, Doubles, Ints, Doubles, Doubles]),
+    }
+    for name, (result, args) in lobster_signatures.items():
+        function = getattr(lib, name)
+        function.restype = result
+        function.argtypes = args
+    bader_signatures = {
+        "af_bader_error": (ct.c_char_p, []),
+        "af_bader_free": (None, [ct.c_void_p]),
+        "af_bader_partition": (ct.c_void_p, [Ints, Doubles, Doubles, ct.c_int, Doubles, ct.c_size_t, ct.c_char_p]),
+        "af_bader_num_basins": (ct.c_int, [ct.c_void_p]),
+        "af_bader_basin_ids": (ct.c_int, [ct.c_void_p, Doubles]),
+        "af_bader_basin": (ct.c_int, [ct.c_void_p, ct.c_int, Doubles, Doubles, Doubles]),
+        "af_bader_populations": (ct.c_int, [ct.c_void_p, Doubles, ct.c_size_t, Doubles]),
+    }
+    for name, (result, args) in bader_signatures.items():
+        function = getattr(lib, name)
+        function.restype = result
+        function.argtypes = args
     _library = lib
     return lib
 

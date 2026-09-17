@@ -1,6 +1,7 @@
 """Scientific integration tests with analytic fixtures and established engines."""
 
 from pathlib import Path
+import math
 import os
 import sys
 import tempfile
@@ -13,7 +14,7 @@ from ase.calculators.emt import EMT
 import atomforge as af
 from atomforge.science import (relax, molecular_dynamics, phonons, powder_diffraction,
     single_crystal, plot_diffraction, read_dos, plot_dos, read_bands, plot_bands,
-    read_trajectory, write_trajectory, export_animation, hirshfeld, mode_frames)
+    read_trajectory, write_trajectory, export_animation, hirshfeld, mode_frames, load_calculator)
 from atomforge.electronic import Grid
 
 
@@ -88,6 +89,47 @@ class ScienceTests(unittest.TestCase):
         energy=np.asarray(dynamics["total_energies_eV"])
         self.assertLess(np.max(np.abs(energy-energy[0])),2e-5)
         self.assertEqual(len(dynamics["frames"]),101)
+
+    def test_load_calculator_dotted_path_and_relax(self):
+        # Certifies the MLIP integration path: any dotted module/attribute
+        # (mace.calculators.mace_mp, chgnet.model.dynamics.CHGNetCalculator,
+        # etc.) plugs into relax()/molecular_dynamics() exactly like a DFT
+        # calculator, using a fixture module in place of a heavy ML package.
+        import sys
+        import types
+
+        fixture = types.ModuleType("atomforge_test_mlip_fixture")
+
+        class ScaledBond(HarmonicBond):
+            def __init__(self, stiffness=1):
+                super().__init__()
+                self.stiffness = stiffness
+
+            def calculate(self, atoms=None, properties=("energy",), system_changes=all_changes):
+                super().calculate(atoms, properties, system_changes)
+                self.results["energy"] = self.results["energy"] * self.stiffness
+                self.results["forces"] = self.results["forces"] * self.stiffness
+
+        fixture.ScaledBond = ScaledBond
+        sys.modules["atomforge_test_mlip_fixture"] = fixture
+        self.addCleanup(sys.modules.pop, "atomforge_test_mlip_fixture", None)
+
+        calculator = load_calculator("atomforge_test_mlip_fixture", "ScaledBond", stiffness=3)
+        self.assertIsInstance(calculator, HarmonicBond)
+        self.assertEqual(calculator.stiffness, 3)
+
+        result = relax(self.dimer(), calculator, fmax=1e-7)
+        self.assertTrue(result.converged)
+        self.assertLess(result.energy, 1e-12)
+
+        with self.assertRaises(ValueError):
+            load_calculator("", "ScaledBond")
+        with self.assertRaises(ValueError):
+            load_calculator("atomforge_test_mlip_fixture", "")
+        with self.assertRaises(ImportError):
+            load_calculator("atomforge_test_mlip_fixture_missing", "ScaledBond")
+        with self.assertRaises(AttributeError):
+            load_calculator("atomforge_test_mlip_fixture", "NotThere")
 
     def test_diffraction_extinctions_and_bragg_angle(self):
         source=self.copper()

@@ -9,6 +9,19 @@ if(NOT TARGET glm::glm)
     endif()
 endif()
 
+# Header-only; used for the general complex-Hermitian eigensolver that
+# Wannier-interpolated bands/Berry curvature need (unlike the fixed 3x3
+# case in FieldAnalysis.cpp, which is solved in closed form without it).
+find_package(Eigen3 3.3 CONFIG QUIET)
+if(NOT TARGET Eigen3::Eigen)
+    find_path(ATOMFORGE_EIGEN_INCLUDE_DIR Eigen/Dense
+        HINTS ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES}
+        PATH_SUFFIXES eigen3)
+    if(NOT ATOMFORGE_EIGEN_INCLUDE_DIR)
+        message(FATAL_ERROR "Eigen3 headers are required to build AtomForge core")
+    endif()
+endif()
+
 add_library(atomforge_core STATIC
     ${PROJECT_SOURCE_DIR}/src/model/Workspace.cpp
     ${PROJECT_SOURCE_DIR}/src/io/Trajectory.cpp
@@ -32,10 +45,18 @@ add_library(atomforge_core STATIC
     ${PROJECT_SOURCE_DIR}/src/electronic/FourierAnalysis.cpp
     ${PROJECT_SOURCE_DIR}/src/electronic/Electrostatics.cpp
     ${PROJECT_SOURCE_DIR}/src/electronic/Isosurface.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/Wannier.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/Lobster.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/Topology.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/BaderPartition.cpp
 )
 add_library(AtomForge::Core ALIAS atomforge_core)
 set_target_properties(atomforge_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
-add_library(atomforge_electronic SHARED ${PROJECT_SOURCE_DIR}/src/electronic/PythonAPI.cpp)
+add_library(atomforge_electronic SHARED
+    ${PROJECT_SOURCE_DIR}/src/electronic/PythonAPI.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/WannierAPI.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/LobsterAPI.cpp
+    ${PROJECT_SOURCE_DIR}/src/electronic/BaderAPI.cpp)
 target_link_libraries(atomforge_electronic PRIVATE AtomForge::Core)
 set_target_properties(atomforge_electronic PROPERTIES PREFIX "")
 if(NOT ATOMFORGE_BUILD_APP)
@@ -48,6 +69,11 @@ if(TARGET glm::glm)
     target_link_libraries(atomforge_core PUBLIC glm::glm)
 else()
     target_include_directories(atomforge_core SYSTEM PUBLIC ${ATOMFORGE_GLM_INCLUDE_DIR})
+endif()
+if(TARGET Eigen3::Eigen)
+    target_link_libraries(atomforge_core PUBLIC Eigen3::Eigen)
+else()
+    target_include_directories(atomforge_core SYSTEM PUBLIC ${ATOMFORGE_EIGEN_INCLUDE_DIR})
 endif()
 target_compile_options(atomforge_core PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall;-Wextra;-Wpedantic;-Wshadow>)

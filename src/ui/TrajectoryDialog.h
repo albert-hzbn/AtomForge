@@ -2,18 +2,18 @@
 #include "io/Trajectory.h"
 #include "ui/PathPicker.h"
 #include "util/BackgroundTask.h"
+#include "util/TrajectoryPlayback.h"
 #include <functional>
 
 struct TrajectoryDialog
 {
     void drawMenuItem();
     void draw(Structure& structure,const std::function<void(Structure&)>& update);
-    bool isPlaying() const { return playing; }
+    bool isPlaying() const { return playback.playing; }
 private:
-    bool open=false, playing=false;
-    int frame=0;
+    bool open=false;
+    TrajectoryPlayback playback;
     float fps=12;
-    double previous=0;
     std::vector<Structure> frames;
     PathPicker picker;
     atomforge::BackgroundTask<std::vector<Structure>> task;

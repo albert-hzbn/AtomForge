@@ -113,6 +113,118 @@ std::array<Grid, 3> energyDensity(const Grid& density, double floor)
     return result;
 }
 
+namespace
+{
+void validateDensity(const Grid& density, double floor)
+{
+    if (density.unit != "e/A^3") throw std::invalid_argument("This descriptor requires electron density in e/A^3");
+    if (!std::isfinite(floor) || floor <= 0) throw std::invalid_argument("Density floor must be positive and finite");
+    for (double v : density.values)
+        if (v < 0) throw std::invalid_argument("This descriptor requires nonnegative density, not spin/difference density");
+}
+
+// Middle eigenvalue (lambda_2) of a real symmetric 3x3 matrix via the closed-form
+// trigonometric solution (Smith, Comm. ACM 4, 168, 1961), avoiding an iterative solver.
+double middleEigenvalue(double a11, double a22, double a33, double a12, double a13, double a23)
+{
+    const double p1 = a12 * a12 + a13 * a13 + a23 * a23;
+    if (p1 < 1e-300) { const double lo = std::min({a11, a22, a33}), hi = std::max({a11, a22, a33}); return a11 + a22 + a33 - lo - hi; }
+    const double q = (a11 + a22 + a33) / 3;
+    const double p = std::sqrt(((a11 - q) * (a11 - q) + (a22 - q) * (a22 - q) + (a33 - q) * (a33 - q) + 2 * p1) / 6);
+    const double b11 = (a11 - q) / p, b22 = (a22 - q) / p, b33 = (a33 - q) / p, b12 = a12 / p, b13 = a13 / p, b23 = a23 / p;
+    double r = (b11 * (b22 * b33 - b23 * b23) - b12 * (b12 * b33 - b23 * b13) + b13 * (b12 * b23 - b22 * b13)) / 2;
+    r = std::clamp(r, -1.0, 1.0);
+    const double phi = std::acos(r) / 3;
+    const double eig1 = q + 2 * p * std::cos(phi), eig3 = q + 2 * p * std::cos(phi + 2 * pi / 3);
+    return 3 * q - eig1 - eig3;
+}
+
+struct DensityHessian { std::array<Grid, 3> grad; std::array<Grid, 6> h; };  // grad: d(rho)/dx,dy,dz; h: xx,yy,zz,xy,xz,yz
+
+// Second Cartesian derivatives from differentiating the engine's own metric-aware
+// gradient a second time; mixed partials are symmetrized to cancel first-order
+// finite-difference asymmetry. This is a finite-difference Hessian, not an
+// analytic one: exact for quadratic fields, approximate otherwise.
+DensityHessian densityHessian(const Grid& density)
+{
+    auto grad = gradient(density);
+    const auto gx = gradient(grad[0]), gy = gradient(grad[1]), gz = gradient(grad[2]);
+    Grid hxy = gx[1], hxz = gx[2], hyz = gy[2];
+    for (std::size_t i = 0; i < hxy.values.size(); ++i)
+    {
+        hxy.values[i] = (gx[1].values[i] + gy[0].values[i]) / 2;
+        hxz.values[i] = (gx[2].values[i] + gz[0].values[i]) / 2;
+        hyz.values[i] = (gy[2].values[i] + gz[1].values[i]) / 2;
+    }
+    return {grad, {gx[0], gy[1], gz[2], hxy, hxz, hyz}};
+}
+}
+
+Grid reducedDensityGradient(const Grid& density, double floor)
+{
+    validateDensity(density, floor);
+    const auto grad = gradient(density);
+    Grid result = density;
+    const double constant = 2 * std::pow(3 * pi * pi, 1.0 / 3);
+    for (std::size_t i = 0; i < density.values.size(); ++i)
+    {
+        const double rho = density.values[i];
+        if (rho <= floor) { result.values[i] = 0; continue; }
+        const double gradNorm = std::sqrt(grad[0].values[i] * grad[0].values[i] + grad[1].values[i] * grad[1].values[i]
+                                          + grad[2].values[i] * grad[2].values[i]);
+        result.values[i] = gradNorm / (constant * std::pow(rho, 4.0 / 3));
+    }
+    result.name = "reduced density gradient"; result.unit = "dimensionless"; result.validate();
+    return result;
+}
+
+Grid signedDensity(const Grid& density, double floor)
+{
+    validateDensity(density, floor);
+    const auto hessian = densityHessian(density);
+    Grid result = density;
+    for (std::size_t i = 0; i < density.values.size(); ++i)
+    {
+        const double rho = density.values[i];
+        if (rho <= floor) { result.values[i] = 0; continue; }
+        const double lambda2 = middleEigenvalue(hessian.h[0].values[i], hessian.h[1].values[i], hessian.h[2].values[i],
+                                                 hessian.h[3].values[i], hessian.h[4].values[i], hessian.h[5].values[i]);
+        result.values[i] = lambda2 == 0 ? 0.0 : std::copysign(rho, lambda2);
+    }
+    result.name = "sign(lambda_2) * density"; result.unit = "e/A^3"; result.validate();
+    return result;
+}
+
+Grid dori(const Grid& density, double floor)
+{
+    validateDensity(density, floor);
+    const auto hessian = densityHessian(density);
+    Grid result = density;
+    for (std::size_t i = 0; i < density.values.size(); ++i)
+    {
+        const double rho = density.values[i];
+        if (rho <= floor) { result.values[i] = 0; continue; }
+        const double g[3] = {hessian.grad[0].values[i], hessian.grad[1].values[i], hessian.grad[2].values[i]};
+        const double h[3][3] = {
+            {hessian.h[0].values[i], hessian.h[3].values[i], hessian.h[4].values[i]},
+            {hessian.h[3].values[i], hessian.h[1].values[i], hessian.h[5].values[i]},
+            {hessian.h[4].values[i], hessian.h[5].values[i], hessian.h[2].values[i]},
+        };
+        const double k = (g[0] * g[0] + g[1] * g[1] + g[2] * g[2]) / (rho * rho);
+        double gradGammaSquared = 0;
+        for (int a = 0; a < 3; ++a)
+            for (int b = 0; b < 3; ++b)
+            {
+                const double jacobian = (h[a][b] * rho - g[a] * g[b]) / (rho * rho);
+                gradGammaSquared += jacobian * jacobian;
+            }
+        const double theta = gradGammaSquared / (k * k * k);
+        result.values[i] = theta / (1 + theta);
+    }
+    result.name = "DORI"; result.unit = "dimensionless"; result.validate();
+    return result;
+}
+
 Grid smooth(const Grid& grid, double sigma, int radius)
 {
     grid.validate();

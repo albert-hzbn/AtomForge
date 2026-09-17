@@ -756,6 +756,8 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         cnaDialog.drawMenuItem(!structure.atoms.empty());
         rdfDialog.drawMenuItem(!structure.atoms.empty());
         electronicDialog.drawMenuItem();
+        wannierDialog.drawMenuItem();
+        lobsterDialog.drawMenuItem();
         trajectoryDialog.drawMenuItem();
         drawShortRangeOrderMenuItem(!structure.atoms.empty(), shortRangeOrderDialog);
         angularDistributionDialog.drawMenuItem(!structure.atoms.empty());
@@ -1598,6 +1600,8 @@ void FileBrowser::draw(Structure& structure,
     cnaDialog.drawDialog(structure);
     rdfDialog.drawDialog(structure);
     electronicDialog.drawDialog();
+    wannierDialog.drawDialog();
+    lobsterDialog.drawDialog();
     trajectoryDialog.draw(structure,updateBuffers);
     drawShortRangeOrderDialog(shortRangeOrderDialog, structure);
     angularDistributionDialog.drawDialog(structure);

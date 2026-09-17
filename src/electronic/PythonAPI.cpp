@@ -1,5 +1,6 @@
 #include "electronic/Volume.h"
 #include "electronic/ChargeAnalysis.h"
+#include "electronic/Topology.h"
 
 #include <algorithm>
 #include <limits>
@@ -197,6 +198,9 @@ AF_EXPORT void* af_electronic_calculate(void* h, void* other, const char* operat
         else if (op == "gradient") { need(0); for (auto& f : gradient(g)) field(std::move(f)); }
         else if (op == "laplacian") { need(0); field(laplacian(g)); }
         else if (op == "energy") { need(1); for (auto& f : energyDensity(g,p(0))) field(std::move(f)); }
+        else if (op == "reduced_density_gradient") { need(1); field(reducedDensityGradient(g,p(0))); }
+        else if (op == "signed_density") { need(1); field(signedDensity(g,p(0))); }
+        else if (op == "dori") { need(1); field(dori(g,p(0))); }
         else if (op == "line") { need(7); profile(lineProfile(g,vec(0),vec(3),exactInt(p(6)))); }
         else if (op == "planar") { need(1); profile(planarAverage(g,exactInt(p(0)))); }
         else if (op == "macro") { need(2); profile(macroscopicAverage(g,exactInt(p(0)),exactInt(p(1)))); }
@@ -222,6 +226,12 @@ AF_EXPORT void* af_electronic_calculate(void* h, void* other, const char* operat
             for (auto peak : peaks(g,exactInt(p(0)))) { for (int a = 0; a < 3; ++a) out->table.push_back(peak.position[a]); out->table.push_back(peak.value); }
         }
         else if (op == "patterson") { need(0); field(patterson(g)); }
+        else if (op == "betti_curve")
+        {
+            std::vector<double> thresholds(parameters, parameters + count);
+            out->columns = 4;
+            for (auto row : bettiCurve(g, thresholds)) for (int a = 0; a < 4; ++a) out->table.push_back(row[a]);
+        }
         else if (op == "factors")
         {
             if (count % 3) throw std::invalid_argument("Expected hkl triples");

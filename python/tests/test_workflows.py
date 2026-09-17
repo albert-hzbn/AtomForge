@@ -1,6 +1,8 @@
 """Cross-interface scientific reference cases and recipe regression tests."""
 
+import csv
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -104,6 +106,11 @@ class WorkflowTests(unittest.TestCase):
         result = run_pipeline(grid, steps)
         self.assertAlmostEqual(result["electrons"], 32)
         self.assertAlmostEqual(grid.integrate(), 16)
+        # Constant density has zero gradient, so the pipeline-dispatched
+        # reduced_density_gradient operation is a well-defined zero field
+        # (unlike dori(), which divides by the also-zero gradient norm).
+        bonding = run_pipeline(grid, [{"operation":"reduced_density_gradient", "parameters":{"floor":1e-12}, "name":"rdg"}])
+        self.assertEqual(bonding["rdg"].values, [0]*64)
         with self.assertRaises(ValueError):
             run_pipeline(grid, [{"operation":"__getattribute__"}])
         with self.assertRaises(ValueError):
@@ -128,6 +135,66 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(main([str(path), "--operation", "subtract", "--reference", str(path),
                                "--output", str(output), "--quantity", "density"]), 0)
         self.assertAlmostEqual(load_volume(output).fields[0].integrate(), 0)
+
+    def test_electronic_cli_bonding_topology_and_bader(self):
+        # rho is an exact quadratic form; the underlying native operations
+        # are already proven analytically correct in test_electronic.py, so
+        # this exercises the CLI wiring itself -- argument parsing, operation
+        # dispatch and output persistence -- by checking the CLI's output
+        # matches the same operation called directly through the Python API
+        # on the same (file-roundtripped) density.
+        n = 6
+        values = [5.0 + 0.01 * x * x + 0.02 * y * y + 0.03 * z * z
+                  for z in range(n) for y in range(n) for x in range(n)]
+        grid = Grid((n, n, n), ((4, 0, 0), (0, 4, 0), (0, 0, 4)), values, unit="e/A^3")
+        path = self.root / "density.xsf"
+        grid.save(path)
+        reloaded = load_volume(path, "density").fields[0]
+
+        for operation, expected in (
+            ("dori", reloaded.dori()),
+            ("reduced_density_gradient", reloaded.reduced_density_gradient()),
+            ("signed_density", reloaded.signed_density()),
+        ):
+            output = self.root / (operation + ".xsf")
+            self.assertEqual(main([str(path), "--operation", operation, "--output", str(output),
+                                   "--quantity", "density"]), 0)
+            restored = load_volume(output).fields[0]
+            self.assertEqual(len(restored.values), len(expected.values))
+            for actual, want in zip(restored.values, expected.values):
+                self.assertAlmostEqual(actual, want, places=6)
+
+        betti_output = self.root / "betti.csv"
+        self.assertEqual(main([str(path), "--operation", "betti_curve",
+                               "--parameters", json.dumps({"thresholds": [5.0, 5.5, 6.0]}),
+                               "--output", str(betti_output), "--quantity", "density"]), 0)
+        with open(betti_output, newline="", encoding="utf-8") as stream:
+            rows = [tuple(map(float, row)) for row in csv.reader(stream)]
+        expected_rows = reloaded.betti_curve([5.0, 5.5, 6.0])
+        self.assertEqual(len(rows), len(expected_rows))
+        for actual, want in zip(rows, expected_rows):
+            for a, w in zip(actual, want):
+                self.assertAlmostEqual(a, w, places=6)
+        self.assertGreater(rows[0][1], 0)  # sanity: some threshold is non-trivially solid
+
+        bader_output = self.root / "bader.csv"
+        self.assertEqual(main([str(path), "--operation", "bader_partition", "--output", str(bader_output),
+                               "--quantity", "density"]), 0)
+        with open(bader_output, newline="", encoding="utf-8") as stream:
+            rows = list(csv.DictReader(stream))
+        partition = reloaded.bader_partition()
+        self.assertEqual(len(rows), partition.num_basins)
+        self.assertGreater(partition.num_basins, 0)
+        for i, row in enumerate(rows):
+            basin = partition.basin(i)
+            self.assertEqual(int(row["basin"]), i)
+            self.assertAlmostEqual(float(row["charge_e"]), basin["charge"], places=6)
+            self.assertAlmostEqual(float(row["volume_A3"]), basin["volume"], places=6)
+            for axis, key in enumerate(("max_x_A", "max_y_A", "max_z_A")):
+                self.assertAlmostEqual(float(row[key]), basin["maximum"][axis], places=6)
+
+        # Missing --output is a user error, not a crash: main() reports failure via its return code.
+        self.assertEqual(main([str(path), "--operation", "bader_partition", "--quantity", "density"]), 1)
 
 
 if __name__ == "__main__":

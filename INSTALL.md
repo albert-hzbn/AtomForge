@@ -10,6 +10,7 @@
 | GLFW3 | any current | Window and input |
 | GLEW | any current | OpenGL extension loader |
 | GLM | any current | Math library |
+| Eigen3 | ≥ 3.3 | Header-only; general eigensolver for Wannier bands/Berry curvature |
 | Open Babel | 3.x | Structure file I/O |
 | spglib / symspg | any current | **Optional** – symmetry features |
 
@@ -22,7 +23,7 @@
 ```bash
 sudo apt update
 sudo apt install build-essential cmake pkg-config \
-                 libglfw3-dev libglew-dev libglm-dev \
+                 libglfw3-dev libglew-dev libglm-dev libeigen3-dev \
                  libopenbabel-dev
 
 # optional: symmetry support
@@ -81,6 +82,7 @@ pacman -S --needed \
     mingw-w64-ucrt-x86_64-glfw \
     mingw-w64-ucrt-x86_64-glew \
     mingw-w64-ucrt-x86_64-glm \
+    mingw-w64-ucrt-x86_64-eigen3 \
     mingw-w64-ucrt-x86_64-openbabel \
     mingw-w64-ucrt-x86_64-pkgconf
 

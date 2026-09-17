@@ -72,6 +72,8 @@ private:
     ElectronicSliceViewport m_sliceViewport;
     bool m_showSlicePlane = true;
     float m_sigma = 0.5f;
+    float m_bondingFloor = 1e-12f;
+    char m_thresholds[2048] = "0.1\n0.5\n1.0";
     float m_start[3]{};
     float m_end[3] = {1, 0, 0};
     float m_u[3] = {1, 0, 0};

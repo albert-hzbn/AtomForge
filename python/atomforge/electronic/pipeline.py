@@ -13,6 +13,7 @@ _METHODS = {
     "integrate_sphere", "voronoi_integrate", "peaks", "structure_factors",
     "fourier_synthesis", "patterson", "ewald", "isosurface", "threshold_mask",
     "invert_mask", "split_density", "charge_summary", "cumulative_charge", "as_periodic",
+    "reduced_density_gradient", "signed_density", "dori", "betti_curve",
 }
 _BINARY = {"add", "subtract", "multiply", "divide", "resample", "density_difference",
            "boolean", "apply_mask"}

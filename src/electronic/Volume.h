@@ -52,6 +52,11 @@ Grid smooth(const Grid& grid, double sigma, int radius);
 std::array<Grid, 3> gradient(const Grid& grid);
 Grid laplacian(const Grid& grid);
 std::array<Grid, 3> energyDensity(const Grid& density, double floor = 1e-12);
+// Real-space bonding descriptors (Johnson et al., JACS 2010; de Silva and
+// Corminboeuf, JCTC 2011). See FieldAnalysis.cpp for the Hessian convention.
+Grid reducedDensityGradient(const Grid& density, double floor = 1e-12);
+Grid signedDensity(const Grid& density, double floor = 1e-12);
+Grid dori(const Grid& density, double floor = 1e-12);
 std::vector<glm::dvec2> lineProfile(const Grid& grid, glm::dvec3 start, glm::dvec3 end, int count);
 std::vector<glm::dvec2> planarAverage(const Grid& grid, int axis);
 std::vector<glm::dvec2> macroscopicAverage(const Grid& grid, int axis, int window);

@@ -204,6 +204,51 @@ class Grid:
         """
         return self._fields("energy", [floor])
 
+    def reduced_density_gradient(self, floor=1e-12):
+        """Return s = |grad(rho)|/(2*(3*pi^2)^(1/3)*rho^(4/3)), dimensionless.
+
+        Small s at low density marks non-covalent interaction regions (van der
+        Waals contacts, hydrogen bonds); small s at bonding density marks
+        covalent/ionic bonds (Johnson et al., J. Am. Chem. Soc. 2010, 132,
+        6498). Requires nonnegative electron density in e/A^3; samples with
+        rho <= floor are masked to zero, avoiding the divergent ratio near vacuum.
+        """
+        return self._field("reduced_density_gradient", [floor])
+
+    def signed_density(self, floor=1e-12):
+        """Return sign(lambda_2)*rho (e/A^3), lambda_2 the middle Hessian eigenvalue of rho.
+
+        Plotted against reduced_density_gradient(), this is the standard NCI
+        scatter/isosurface descriptor: negative values mark attractive
+        (bonding or hydrogen-bonding) accumulation, positive values mark
+        steric repulsion. Samples with rho <= floor are masked to zero.
+        """
+        return self._field("signed_density", [floor])
+
+    def dori(self, floor=1e-12):
+        """Return the Density Overlap Regions Indicator, in [0, 1).
+
+        DORI = theta/(1+theta) with theta = |grad(gamma)|^2/|gamma|^6 and
+        gamma = grad(rho)/rho (de Silva and Corminboeuf, J. Chem. Theory
+        Comput. 2011, 7, 2439). Values approaching 1 mark boundaries between
+        density basins (bonds and non-covalent contacts alike); unlike
+        signed_density(), DORI does not distinguish attractive from repulsive
+        contacts. Samples with rho <= floor are masked to zero.
+        """
+        return self._field("dori", [floor])
+
+    def betti_curve(self, thresholds):
+        """Betti curve of the field's superlevel sets: connected components,
+        loops and enclosed cavities as a function of density threshold.
+
+        Returns one (threshold, betti0, betti1, betti2) row per requested
+        threshold; the solid set at each threshold is {value >= threshold}
+        (Bartel et al., ACS Mater. Lett. 2025, 7, 2158). Finite (non-periodic)
+        grids only: betti2 assumes an R^3 ambient space, not a periodic
+        3-torus cell.
+        """
+        return self._calculate("betti_curve", thresholds).rows()
+
     def smooth(self, sigma, radius=2):
         return self._field("smooth", [sigma, radius])
 
@@ -302,6 +347,73 @@ class Grid:
     def save(self, path, format=None):
         format = format or ({".cube": "cube", ".cub": "cube", ".xsf": "xsf"}.get(Path(path).suffix.lower(), "vasp"))
         self._handle.save(path, format)
+
+    def bader_partition(self):
+        """Native QTAIM/Bader on-grid steepest-ascent charge partitioning.
+
+        Requires nonnegative electron density in e/A^3. Implements the
+        on-grid step only (Henkelman, Sanville and Jonsson, Comput. Mater.
+        Sci. 36, 354, 2006), not the near-grid boundary refinement, so
+        individual dividing-surface placement is accurate to about one grid
+        spacing. A native alternative to the external Henkelman executable
+        wrapped by atomforge.science.bader() when that binary is
+        unavailable, and useful for inspecting basin shapes directly.
+        """
+        lib = self._handle.lib
+        shape, cell, origin, periodic = self._geometry()
+        values = self.values
+        pointer = lib.af_bader_partition(
+            (ct.c_int * 3)(*shape), doubles(_flatten(cell, 3)), doubles(origin),
+            int(periodic), doubles(values), len(values), self.unit.encode("utf-8"))
+        return BaderPartition(pointer, lib, len(values))
+
+
+class BaderPartition:
+    """Native QTAIM/Bader on-grid partition of a Grid; see Grid.bader_partition()."""
+
+    def __init__(self, pointer, lib, voxel_count):
+        if not pointer:
+            raise ValueError(lib.af_bader_error().decode("utf-8", errors="replace"))
+        self._lib = lib
+        self._pointer = pointer
+        self._voxel_count = voxel_count
+
+    def __del__(self):
+        pointer = getattr(self, "_pointer", None)
+        if pointer:
+            self._lib.af_bader_free(pointer)
+            self._pointer = None
+
+    def _check(self, ok):
+        if not ok:
+            raise ValueError(self._lib.af_bader_error().decode("utf-8", errors="replace"))
+
+    @property
+    def num_basins(self):
+        return self._lib.af_bader_num_basins(self._pointer)
+
+    @property
+    def basin_ids(self):
+        """One basin index per voxel, in the source grid's own value order."""
+        buffer = (ct.c_double * self._voxel_count)()
+        self._check(self._lib.af_bader_basin_ids(self._pointer, buffer))
+        return [int(v) for v in buffer]
+
+    def basin(self, index):
+        """Return {"charge", "volume", "maximum"} for one basin (0-based index)."""
+        charge, volume, maximum = ct.c_double(), ct.c_double(), (ct.c_double * 3)()
+        self._check(self._lib.af_bader_basin(self._pointer, index, ct.byref(charge), ct.byref(volume), maximum))
+        return {"charge": charge.value, "volume": volume.value, "maximum": tuple(maximum)}
+
+    def populations(self, sites):
+        """Sum each basin's charge into whichever site (Cartesian) its maximum is nearest to."""
+        sites = [tuple(s) for s in sites]
+        if not sites:
+            raise ValueError("Supply at least one site")
+        flat = doubles([v for s in sites for v in s])
+        buffer = (ct.c_double * len(sites))()
+        self._check(self._lib.af_bader_populations(self._pointer, flat, len(sites), buffer))
+        return list(buffer)
 
 
 class Volume:

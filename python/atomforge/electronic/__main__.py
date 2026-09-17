@@ -17,7 +17,7 @@ def main(argv=None):
     parser.add_argument("--cube-coordinates", choices=("bohr", "angstrom"), default="bohr")
     parser.add_argument("--channel", type=int, default=0)
     parser.add_argument("--periodic", action="store_true", help="Verify and drop duplicate endpoint planes")
-    parser.add_argument("--operation", choices=("info", "convert", "integrate", "laplacian", "patterson", "kinetic", "potential-energy", "total-energy", "planar", "peaks", "isosurface", *sorted(_METHODS | _BINARY | {"scale"})), default="info")
+    parser.add_argument("--operation", choices=("info", "convert", "integrate", "laplacian", "patterson", "kinetic", "potential-energy", "total-energy", "planar", "peaks", "isosurface", "bader_partition", *sorted(_METHODS | _BINARY | {"scale"})), default="info")
     parser.add_argument("--axis", type=int, choices=(0, 1, 2), default=2)
     parser.add_argument("--level", type=float, default=0.1)
     parser.add_argument("--output")
@@ -55,7 +55,7 @@ def main(argv=None):
             results = run_pipeline(grid, steps, base_directory=Path(args.recipe).resolve().parent)
             save_result(next(reversed(results.values())), args.output, args.format)
             return 0
-        legacy = {"info", "convert", "integrate", "laplacian", "patterson", "kinetic", "potential-energy", "total-energy", "planar", "peaks", "isosurface"}
+        legacy = {"info", "convert", "integrate", "laplacian", "patterson", "kinetic", "potential-energy", "total-energy", "planar", "peaks", "isosurface", "bader_partition"}
         if op not in legacy or parameters or args.reference:
             aliases = {"planar": "planar_average"}
             reference = load_volume(args.reference, args.quantity, args.cube_coordinates).fields[0] if args.reference else None
@@ -81,6 +81,14 @@ def main(argv=None):
                     writer = csv.writer(stream)
                     writer.writerow(header)
                     writer.writerows(rows)
+            elif op == "bader_partition":
+                partition = grid.bader_partition()
+                with open(args.output, "w", newline="", encoding="utf-8") as stream:
+                    writer = csv.writer(stream)
+                    writer.writerow(("basin", "charge_e", "volume_A3", "max_x_A", "max_y_A", "max_z_A"))
+                    for basin_index in range(partition.num_basins):
+                        basin = partition.basin(basin_index)
+                        writer.writerow((basin_index, basin["charge"], basin["volume"], *basin["maximum"]))
             elif op == "isosurface":
                 grid.isosurface(args.level).save(args.output)
             else:

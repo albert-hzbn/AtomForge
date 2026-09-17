@@ -17,6 +17,22 @@ add_executable(atomforge_electronic_tests ${PROJECT_SOURCE_DIR}/tests/electronic
 target_link_libraries(atomforge_electronic_tests PRIVATE AtomForge::Core)
 add_test(NAME electronic_regressions COMMAND atomforge_electronic_tests)
 
+add_executable(atomforge_wannier_tests ${PROJECT_SOURCE_DIR}/tests/wannier_regressions.cpp)
+target_link_libraries(atomforge_wannier_tests PRIVATE AtomForge::Core)
+add_test(NAME wannier_regressions COMMAND atomforge_wannier_tests)
+
+add_executable(atomforge_lobster_tests ${PROJECT_SOURCE_DIR}/tests/lobster_regressions.cpp)
+target_link_libraries(atomforge_lobster_tests PRIVATE AtomForge::Core)
+add_test(NAME lobster_regressions COMMAND atomforge_lobster_tests)
+
+add_executable(atomforge_topology_tests ${PROJECT_SOURCE_DIR}/tests/topology_regressions.cpp)
+target_link_libraries(atomforge_topology_tests PRIVATE AtomForge::Core)
+add_test(NAME topology_regressions COMMAND atomforge_topology_tests)
+
+add_executable(atomforge_bader_tests ${PROJECT_SOURCE_DIR}/tests/bader_regressions.cpp)
+target_link_libraries(atomforge_bader_tests PRIVATE AtomForge::Core)
+add_test(NAME bader_regressions COMMAND atomforge_bader_tests)
+
 if(TARGET AtomForge)
     add_executable(atomforge_nanocrystal_metadata_tests
         ${PROJECT_SOURCE_DIR}/tests/nanocrystal_metadata.cpp
