@@ -27,6 +27,7 @@ jobs:
             libglfw3-dev \
             libglew-dev \
             libglm-dev \
+            libeigen3-dev \
             libopenbabel-dev
 
       - name: Install optional dependencies (spglib)
@@ -79,6 +80,7 @@ jobs:
             mingw-w64-ucrt-x86_64-glfw
             mingw-w64-ucrt-x86_64-glew
             mingw-w64-ucrt-x86_64-glm
+            mingw-w64-ucrt-x86_64-eigen3
             mingw-w64-ucrt-x86_64-openbabel
             mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-spglib
