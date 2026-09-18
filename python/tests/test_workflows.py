@@ -196,6 +196,27 @@ class WorkflowTests(unittest.TestCase):
         # Missing --output is a user error, not a crash: main() reports failure via its return code.
         self.assertEqual(main([str(path), "--operation", "bader_partition", "--quantity", "density"]), 1)
 
+    def test_render_cli_reference(self):
+        structure = af.Structure()
+        structure.add_atom("Cu", 0, 0, 0)
+        structure.add_atom("Cu", 1.8, 1.8, 0)
+        structure.set_element_color("Cu", 0.9, 0.4, 0.1)
+
+        output = self.root / "cu.png"
+        try:
+            af.render(structure, output, width=64, height=64, yaw=15, pitch=10,
+                      radii={"Cu": 1.3})
+        except subprocess.CalledProcessError as error:
+            if "OpenGL context" in (error.stderr or ""):
+                self.skipTest("No GPU/display available for headless rendering: " + error.stderr.strip())
+            raise
+        data = output.read_bytes()
+        self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
+        self.assertGreater(len(data), 100)
+
+        with self.assertRaises(subprocess.CalledProcessError):
+            af.render(structure, self.root / "bad.png", colors={"Xx": (0.5, 0.5, 0.5)})
+
 
 if __name__ == "__main__":
     unittest.main()

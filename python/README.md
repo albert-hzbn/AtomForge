@@ -64,6 +64,21 @@ Wulff `radius` is the maximum facet-plane distance in angstrom, not the farthest
 
 `af.load` / `af.save` support XYZ/extXYZ, VASP POSCAR/CONTCAR, PDB, explicit-site CIF, and LAMMPS data. Python CIF reading does not expand asymmetric-unit symmetry; use the native bulk builder for that. `Structure.copy`, `repeat`, and `filter_species` return separate objects; `translate` and `scale` mutate in place. `view()` opens the desktop; `view_notebook()` displays the existing interactive notebook viewer.
 
+## Render snapshots without the GUI
+
+`af.render` produces a PNG snapshot of a structure headlessly (an offscreen OpenGL context is still required — a GPU/display driver, not a visible window):
+
+```python
+cu.set_element_color('Cu', 0.9, 0.5, 0.2)
+af.render(cu, 'cu.png', width=1600, height=1200, yaw=30, pitch=20,
+          radii={'Cu': 1.4}, background=(1, 1, 1))
+
+# Turntable: writes cu_turn-000.png .. cu_turn-011.png
+af.render(cu, 'cu_turn.png', frames=12, yaw_step=30)
+```
+
+`render(structure, output, *, width=1600, height=1200, yaw=0.0, pitch=0.0, roll=0.0, distance=None, orthographic=False, background=(1,1,1), show_bonds=True, show_box=True, colors=None, radii=None, radius_scale=1.0, frames=None, yaw_step=None, executable=None, timeout=120)` returns the output path. `colors`/`radii` override one element's appearance at a time (`{'Fe': (0.8, 0.4, 0.1)}`, `{'Fe': 1.4}` in angstrom); any color already set via `Structure.set_element_color` or direct `atom.r/g/b` edits is used unless overridden, since the structure file written for the native renderer doesn't itself carry per-atom color. `distance` defaults to an auto-fit view. Color/size customization is per-element, matching the desktop GUI's own Edit Structure dialog. The same options are available from the CLI: `AtomForge --render --input FILE --output FILE.png [options]` (see `AtomForge --render --help`).
+
 ## Charge transfer and electronic analysis
 
 The existing native-backed electronic APIs are included in this release. Read VASP CHGCAR/LOCPOT-style grids, Gaussian Cube, and XSF:

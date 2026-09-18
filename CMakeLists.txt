@@ -72,6 +72,7 @@ endif()
 set(ATOMFORGE_SOURCES
     src/main.cpp
     src/cli/AnalysisCLI.cpp
+    src/cli/RenderCLI.cpp
     src/ui/TrajectoryDialog.cpp
     src/app/EditorApplication.cpp
     src/app/FileDropHandler.cpp

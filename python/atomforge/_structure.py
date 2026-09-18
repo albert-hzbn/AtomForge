@@ -80,6 +80,13 @@ class Structure:
         """Remove and return the atom at *index*."""
         return self.atoms.pop(index)
 
+    def set_element_color(self, symbol: str, r: float, g: float, b: float) -> "Structure":
+        """Set r/g/b (0..1) on every atom of *symbol* already in this structure. Returns self."""
+        for atom in self.atoms:
+            if atom.symbol == symbol:
+                atom.r, atom.g, atom.b = r, g, b
+        return self
+
     # ── Bulk transforms ─────────────────────────────────────────────────────────
 
     def translate(self, dx: float, dy: float, dz: float) -> "Structure":

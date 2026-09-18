@@ -21,7 +21,8 @@ from ._io import load, save
 from ._viewer import view
 from .builders import BuildResult, build, builder_help, wulff
 from .analysis import analyze, cna, rdf, adf, sro, interstitial_sites, sculpt
+from .render import render
 
 __all__ = ["Atom", "Structure", "load", "save", "view", "BuildResult", "build", "builder_help", "wulff",
-           "analyze", "cna", "rdf", "adf", "sro", "interstitial_sites", "sculpt"]
+           "analyze", "cna", "rdf", "adf", "sro", "interstitial_sites", "sculpt", "render"]
 __version__ = "0.2.0"

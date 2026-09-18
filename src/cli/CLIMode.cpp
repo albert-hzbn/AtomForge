@@ -1,5 +1,6 @@
 #include "cli/CLIMode.h"
 #include "cli/AnalysisCLI.h"
+#include "cli/RenderCLI.h"
 
 #include "algorithms/AmorphousBuilder.h"
 #include "algorithms/BulkCrystalBuilder.h"
@@ -380,6 +381,7 @@ static void printHelp()
 "  AtomForge --build <mode> [options] --output <file>\n"
 "  AtomForge --analyze <cna|rdf|adf|sro|interstitial|sculpt> --input FILE --output FILE\n"
 "  AtomForge --convert --input FILE --output FILE [--format FORMAT]\n"
+"  AtomForge --render --input FILE --output FILE.png [options]\n"
 "\n"
 "Modes:\n"
 "  bulk        Build a bulk crystal from a space group and lattice parameters\n"
@@ -405,6 +407,7 @@ static void printHelp()
 "  AtomForge --help interface\n"
 "  AtomForge --help stacking-fault\n"
 "  AtomForge --analyze cna --help\n"
+"  AtomForge --render --help\n"
 << std::endl;
 }
 
@@ -1754,6 +1757,7 @@ bool isCLIMode(int argc, char* argv[])
         if (std::strcmp(argv[i], "--build")   == 0) return true;
         if (std::strcmp(argv[i], "--analyze") == 0) return true;
         if (std::strcmp(argv[i], "--convert") == 0) return true;
+        if (std::strcmp(argv[i], "--render")  == 0) return true;
         if (std::strcmp(argv[i], "--help")    == 0) return true;
         if (std::strcmp(argv[i], "-h")        == 0) return true;
         if (std::strcmp(argv[i], "--version") == 0) return true;
@@ -1766,6 +1770,8 @@ int runCLI(int argc, char* argv[])
 {
     if (hasFlag(argc,argv,"--analyze") || hasFlag(argc,argv,"--convert"))
         return runAnalysisCLI(argc,argv);
+    if (hasFlag(argc, argv, "--render"))
+        return runRenderCLI(argc, argv);
     if (hasFlag(argc, argv, "--version") || hasFlag(argc, argv, "-v"))
     {
         std::cout << "AtomForge " << ATOMFORGE_VERSION << "\n";

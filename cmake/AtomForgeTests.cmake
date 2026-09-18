@@ -101,5 +101,8 @@ if(Python3_Interpreter_FOUND)
         add_test(NAME cli_smoke
             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/cli_smoke.py $<TARGET_FILE:AtomForge>)
         set_tests_properties(cli_smoke PROPERTIES TIMEOUT 180)
+        add_test(NAME render_cli_smoke
+            COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/render_cli_smoke.py $<TARGET_FILE:AtomForge>)
+        set_tests_properties(render_cli_smoke PROPERTIES TIMEOUT 60 SKIP_RETURN_CODE 77)
     endif()
 endif()
