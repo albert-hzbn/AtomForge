@@ -51,6 +51,25 @@ with tempfile.TemporaryDirectory(prefix="atomforge_render_") as folder:
         if not frame_path.is_file() or frame_path.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
             raise AssertionError(f"Missing or invalid turntable frame {frame_path}")
 
+    dpi_output = root / "cu_dpi.png"
+    result = subprocess.run(
+        [exe, "--render", "--input", str(source), "--output", str(dpi_output),
+         "--width", "32", "--height", "32", "--dpi", "300"],
+        capture_output=True, text=True, timeout=60)
+    if result.returncode != 0:
+        raise AssertionError(f"--render --dpi failed: exit {result.returncode}\n{result.stdout}\n{result.stderr}")
+    dpi_data = dpi_output.read_bytes()
+    if b"pHYs" not in dpi_data:
+        raise AssertionError("--dpi did not embed a pHYs chunk")
+    if b"pHYs" in data:
+        raise AssertionError("PNG written without --dpi should not contain a pHYs chunk")
+
+    result = subprocess.run(
+        [exe, "--render", "--input", str(source), "--output", str(root / "bad_dpi.png"), "--dpi", "-5"],
+        capture_output=True, text=True, timeout=30)
+    if result.returncode == 0:
+        raise AssertionError("--render accepted a non-positive --dpi value")
+
     # Invalid element symbols must be rejected, not silently ignored.
     result = subprocess.run(
         [exe, "--render", "--input", str(source), "--output", str(root / "bad.png"),
@@ -59,4 +78,4 @@ with tempfile.TemporaryDirectory(prefix="atomforge_render_") as folder:
     if result.returncode == 0:
         raise AssertionError("--render accepted an unknown element symbol in --color")
 
-print("Render CLI smoke tests passed (help, single PNG, turntable frames, invalid input)")
+print("Render CLI smoke tests passed (help, single PNG, turntable frames, DPI metadata, invalid input)")

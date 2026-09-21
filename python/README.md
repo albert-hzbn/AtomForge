@@ -77,7 +77,7 @@ af.render(cu, 'cu.png', width=1600, height=1200, yaw=30, pitch=20,
 af.render(cu, 'cu_turn.png', frames=12, yaw_step=30)
 ```
 
-`render(structure, output, *, width=1600, height=1200, yaw=0.0, pitch=0.0, roll=0.0, distance=None, orthographic=False, background=(1,1,1), show_bonds=True, show_box=True, colors=None, radii=None, radius_scale=1.0, frames=None, yaw_step=None, executable=None, timeout=120)` returns the output path. `colors`/`radii` override one element's appearance at a time (`{'Fe': (0.8, 0.4, 0.1)}`, `{'Fe': 1.4}` in angstrom); any color already set via `Structure.set_element_color` or direct `atom.r/g/b` edits is used unless overridden, since the structure file written for the native renderer doesn't itself carry per-atom color. `distance` defaults to an auto-fit view. Color/size customization is per-element, matching the desktop GUI's own Edit Structure dialog. The same options are available from the CLI: `AtomForge --render --input FILE --output FILE.png [options]` (see `AtomForge --render --help`).
+`render(structure, output, *, width=1600, height=1200, yaw=0.0, pitch=0.0, roll=0.0, distance=None, orthographic=False, background=(1,1,1), show_bonds=True, show_box=True, colors=None, radii=None, radius_scale=1.0, dpi=None, frames=None, yaw_step=None, executable=None, timeout=120)` returns the output path. `colors`/`radii` override one element's appearance at a time (`{'Fe': (0.8, 0.4, 0.1)}`, `{'Fe': 1.4}` in angstrom); any color already set via `Structure.set_element_color` or direct `atom.r/g/b` edits is used unless overridden, since the structure file written for the native renderer doesn't itself carry per-atom color. `distance` defaults to an auto-fit view. `dpi` embeds a physical resolution (dots per inch) in the saved PNG's metadata for print/publication use — it does not change the pixel dimensions (`width`/`height` do that); omitted, no resolution metadata is written. Color/size customization is per-element, matching the desktop GUI's own Edit Structure dialog. The same options are available from the CLI: `AtomForge --render --input FILE --output FILE.png [options]` (see `AtomForge --render --help`).
 
 ## Charge transfer and electronic analysis
 
@@ -136,3 +136,37 @@ python -m twine check python/dist/atomforge_py-0.2.0*
 ```
 
 Version 0.2.0 adds native builder scripting, Wulff scripting, shared executable discovery for electronic calculations, and updated package documentation. Existing structure and electronic API names remain available.
+
+### Condensed-matter tools in the current source
+
+The desktop's **Analysis** menu sections, Python API and scientific
+CLI share twenty tools: MSD, diffusion fitting, velocity autocorrelation,
+vibrational spectra, local strain/D2min, centrosymmetry, Steinhardt order,
+Wigner-Seitz defects, static structure factors, band gaps, effective masses,
+work functions, equation-of-state fitting, elastic tensors, phonon DOS, harmonic
+thermodynamics, NEB, NVT, NPT and symmetry-based reciprocal paths.
+
+Install the matching source with its `science` extra into Python 3.12. The
+desktop lets you browse for that interpreter. These tools require NumPy >=2,
+SciPy >=1.15, ASE >=3.26 and SeeK-path >=2.1 in addition to the existing science
+dependencies. Simulation tools require an explicitly chosen ASE calculator.
+
+```sh
+python -m atomforge.science --catalog
+python -m atomforge.science band-gap --input request.json --output gap.json
+```
+
+Here `request.json` can contain
+`{"energies_eV":{"file":"EIGENVAL"},"fermi_eV":5.4}`. Relative data paths are
+resolved beside the request. Numeric CSV, NPY and JSON arrays are also accepted.
+JSON references can select nested fields, such as `result.msd_A2`, and numeric
+tables can select a zero-based `column`. Result files preserve the full arrays
+and parameters; invalid local environments have a validity mask and JSON nulls.
+Existing result files require `--overwrite`.
+
+Use `--structures frames.extxyz` to export simulation images or a returned
+primitive cell. The desktop provides the same export and can open the final
+structure in a new tab. The manual lists the priority order, input shapes,
+units, examples and physical limits for every tool. Numerical regression tests
+are in `tests/test_condensed_matter.py`; `tests/test_science_workflows.py` runs
+all twenty through the entry point shared with the desktop.

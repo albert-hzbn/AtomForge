@@ -43,8 +43,15 @@ PUBLIC_FILES = {
     "python/atomforge/science/trajectory.py": "Trajectory conversion and animation",
     "python/atomforge/science/diffraction.py": "Diffraction",
     "python/atomforge/science/reciprocal.py": "Reciprocal-space band grids",
+    "python/atomforge/science/dynamics_analysis.py": "Trajectory statistics and diffusion",
+    "python/atomforge/science/local_structure.py": "Local strain, disorder and defects",
+    "python/atomforge/science/electronic_properties.py": "Band edges, effective masses and work functions",
+    "python/atomforge/science/thermomechanics.py": "Elasticity, equation of state and harmonic thermodynamics",
+    "python/atomforge/science/advanced_simulation.py": "NEB, NVT, NPT and symmetry paths",
+    "python/atomforge/science/workflows.py": "Shared scientific workflow interface",
 }
 FALLBACK = {
+    "BaderPartition.num_basins": "Number of basins in the native on-grid Bader partition.",
     "Atom.copy": "Return a separate atom with the same coordinates and colour.",
     "Structure.__init__": "Create an empty structure with atoms=[] and cell=None.",
     "Structure.copy": "Return a separate structure with copied atoms and cell vectors.",
@@ -102,7 +109,7 @@ def source_files():
 
 def documentation_for(path):
     name = path.name
-    if "science" in path.parts or name in {"Workspace.cpp","Workspace.h","TrajectoryDialog.cpp","TrajectoryDialog.h","pipeline.py","analysis.py"}:
+    if "science" in path.parts or name.startswith(("Scientific", "ScienceCatalog")) or name in {"Workspace.cpp","Workspace.h","TrajectoryDialog.cpp","TrajectoryDialog.h","pipeline.py","analysis.py"}:
         return ["14-workflows.tex", "12-api-signatures.tex"]
     if "electronic" in path.parts or name.startswith("Electronic"):
         return ["05-electronic.tex", "06-charge.tex", "07-reference.tex", "08-python.tex", "04-display-controls.tex"]

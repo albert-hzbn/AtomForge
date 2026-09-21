@@ -34,12 +34,19 @@ def to_ase(structure):
 
 
 def from_ase(atoms):
-    """Copy species, positions and a full-rank cell into an AtomForge Structure."""
+    """Copy species, positions and a fully periodic cell into an AtomForge Structure.
+
+    Mixed periodic/nonperiodic axes cannot be represented by Structure and are
+    rejected instead of silently converting a slab or wire to 3D periodicity.
+    Nonperiodic bounding boxes are not periodic unit cells.
+    """
     from .._structure import Structure
     result = Structure()
     for symbol, point in zip(atoms.get_chemical_symbols(), atoms.positions):
         result.add_atom(symbol, *point)
-    if atoms.cell.rank == 3:
+    if atoms.pbc.any() and (not atoms.pbc.all() or atoms.cell.rank != 3):
+        raise ValueError("AtomForge Structure requires either no periodic axes or a full 3D periodic cell")
+    if atoms.pbc.all():
         result.cell = atoms.cell.tolist()
     return result
 

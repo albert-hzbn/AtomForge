@@ -109,6 +109,14 @@ The current Python release is **0.2.0**. Basic structure operations do not requi
 
 The current source includes common-neighbour and angular-distribution analysis, interface matching and stacking-fault generation. It also adds saved projects, autosave recovery, trajectory playback, electronic history and image export. Rebuild from source to use these additions; existing release downloads are unchanged.
 
+The **Analysis** menu groups tools by scientific task, with twenty new tools for
+diffusion and trajectory statistics, local strain and defects, band edges and
+effective masses, work functions, elasticity, harmonic thermodynamics, migration
+paths, controlled molecular dynamics and reciprocal-space paths. Desktop forms,
+Python and command-line workflows use the same calculations. These tools need a
+Python environment with the optional scientific dependencies; the dialog lets
+you select it. Simulation tools additionally require a suitable calculator.
+
 Optional scientific Python integrations cover bands and projected DOS, diffraction, reciprocal-space surfaces, phonons, relaxation, molecular dynamics and charge partitioning. ASE and pymatgen provide the underlying integrations. Bader and DDEC calculations require their external solvers; DFT workflows require a configured calculator. See the manual for setup, examples and physical conventions.
 
 ## Citation and licence

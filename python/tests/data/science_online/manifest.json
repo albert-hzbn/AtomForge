@@ -1,0 +1,107 @@
+[
+  {
+    "file": "pymatgen-test-files/LICENSE",
+    "url": "https://raw.githubusercontent.com/materialsproject/pymatgen-test-files/85005108e99e40cbd59e78f067459b0ca664efc6/LICENSE",
+    "revision": "85005108e99e40cbd59e78f067459b0ca664efc6",
+    "sha256": "7c4d339b8152edd8f4fde8f54665b7a816d261f68eeec492f81fbb8f49c27ebe",
+    "bytes": 1071
+  },
+  {
+    "file": "pymatgen-test-files/EIGENVAL.gz",
+    "url": "https://raw.githubusercontent.com/materialsproject/pymatgen-test-files/85005108e99e40cbd59e78f067459b0ca664efc6/io/vasp/outputs/EIGENVAL.gz",
+    "revision": "85005108e99e40cbd59e78f067459b0ca664efc6",
+    "sha256": "16870a189826d97002a37b2b74d203b7b286133100ba66ed1e58f2517a0944f1",
+    "bytes": 24170
+  },
+  {
+    "file": "pymatgen-test-files/EIGENVAL.ispin2.gz",
+    "url": "https://raw.githubusercontent.com/materialsproject/pymatgen-test-files/85005108e99e40cbd59e78f067459b0ca664efc6/io/vasp/outputs/EIGENVAL.ispin2.gz",
+    "revision": "85005108e99e40cbd59e78f067459b0ca664efc6",
+    "sha256": "6cc1652474e569623a45c397bc816c6ec9d22fa0efe9c9f630291deaca8df459",
+    "bytes": 7665
+  },
+  {
+    "file": "pymatgen-test-files/EIGENVAL_separate_spins.gz",
+    "url": "https://raw.githubusercontent.com/materialsproject/pymatgen-test-files/85005108e99e40cbd59e78f067459b0ca664efc6/io/vasp/outputs/EIGENVAL_separate_spins.gz",
+    "revision": "85005108e99e40cbd59e78f067459b0ca664efc6",
+    "sha256": "a2f8b4e356fcdb88cbf3c42762d064517f8a7dd45b8a07eb2388461612c69a91",
+    "bytes": 9177
+  },
+  {
+    "file": "pymatgen-test-files/XDATCAR.MD",
+    "url": "https://raw.githubusercontent.com/materialsproject/pymatgen-test-files/85005108e99e40cbd59e78f067459b0ca664efc6/io/vasp/outputs/XDATCAR.MD",
+    "revision": "85005108e99e40cbd59e78f067459b0ca664efc6",
+    "sha256": "21b0999859d5d1c5d4d15c44133a995c9e884678fe39bae370deaf32c5634f61",
+    "bytes": 15516
+  },
+  {
+    "file": "pymatgen-test-files/LOCPOT.gz",
+    "url": "https://raw.githubusercontent.com/materialsproject/pymatgen-test-files/85005108e99e40cbd59e78f067459b0ca664efc6/io/vasp/outputs/LOCPOT.gz",
+    "revision": "85005108e99e40cbd59e78f067459b0ca664efc6",
+    "sha256": "0ba28ef645d0c5c30958088e2a45e34b5e6ab083a75a5f1376b490b4f4c06ae9",
+    "bytes": 209404
+  },
+  {
+    "file": "pymatgen-test-files/Sn_def_stress.json",
+    "url": "https://raw.githubusercontent.com/materialsproject/pymatgen-test-files/85005108e99e40cbd59e78f067459b0ca664efc6/analysis/elasticity/Sn_def_stress.json",
+    "revision": "85005108e99e40cbd59e78f067459b0ca664efc6",
+    "sha256": "83af35a65fb43158db645a6180d369f83425eef25c19c344031f2f053147f1a9",
+    "bytes": 3322
+  },
+  {
+    "file": "phonopy/LICENSE",
+    "url": "https://raw.githubusercontent.com/phonopy/phonopy/a01db0432c5ff98a658a2b118653bfb575dc6ce1/LICENSE",
+    "revision": "a01db0432c5ff98a658a2b118653bfb575dc6ce1",
+    "sha256": "2ce26839c8b70d28765d73e934cc1a979d896d8d228d30694fdd9a92e94d43a9",
+    "bytes": 1470
+  },
+  {
+    "file": "phonopy/POSCAR-05",
+    "url": "https://raw.githubusercontent.com/phonopy/phonopy/a01db0432c5ff98a658a2b118653bfb575dc6ce1/example/Cu-QHA/POSCAR-05",
+    "revision": "a01db0432c5ff98a658a2b118653bfb575dc6ce1",
+    "sha256": "55c39cf29cf87ca31be686c463f887ee8d2baa02e2b18d0dca977a24b1cdb8fb",
+    "bytes": 479
+  },
+  {
+    "file": "phonopy/e-v.dat",
+    "url": "https://raw.githubusercontent.com/phonopy/phonopy/a01db0432c5ff98a658a2b118653bfb575dc6ce1/example/Cu-QHA/e-v.dat",
+    "revision": "a01db0432c5ff98a658a2b118653bfb575dc6ce1",
+    "sha256": "aefe2836439967daeb76952bf91b85c480fd6fd9c6cbe6fcd7b6b91cf7b84704",
+    "bytes": 518
+  },
+  {
+    "file": "phonopy/mesh.yaml",
+    "url": "https://raw.githubusercontent.com/phonopy/phonopy/a01db0432c5ff98a658a2b118653bfb575dc6ce1/example/Al-ABACUS/abacus-pw/mesh.yaml",
+    "revision": "a01db0432c5ff98a658a2b118653bfb575dc6ce1",
+    "sha256": "e5cd965b51521e920914396c49423d93b692dc4810d2b44125812b62da21c90e",
+    "bytes": 14819
+  },
+  {
+    "file": "phonopy/POSCAR-unitcell",
+    "url": "https://raw.githubusercontent.com/phonopy/phonopy/a01db0432c5ff98a658a2b118653bfb575dc6ce1/example/Si/POSCAR-unitcell",
+    "revision": "a01db0432c5ff98a658a2b118653bfb575dc6ce1",
+    "sha256": "0f20caea94cd5c4c36ed727adffbf4a42ed7d73a5565fda46118825d1fda809c",
+    "bytes": 361
+  },
+  {
+    "file": "pymatgen-test-files/XDATCAR_traj",
+    "url": "https://raw.githubusercontent.com/materialsproject/pymatgen-test-files/85005108e99e40cbd59e78f067459b0ca664efc6/io/vasp/outputs/XDATCAR_traj",
+    "revision": "85005108e99e40cbd59e78f067459b0ca664efc6",
+    "sha256": "661f12d7f3a46a101279601bc80c6fbbb670c19e3a24aba0319a4edb02560f38",
+    "bytes": 231007
+  },
+  {
+    "file": "pymatgen-test-files/Cu_slab_init.cif",
+    "url": "https://raw.githubusercontent.com/materialsproject/pymatgen-test-files/85005108e99e40cbd59e78f067459b0ca664efc6/surfaces/Cu_slab_init.cif",
+    "revision": "85005108e99e40cbd59e78f067459b0ca664efc6",
+    "sha256": "45e3fdd3a4cb06fe61bec01a4541ef19f0dbc903e6750c79e6d9f3a2f8d43b16",
+    "bytes": 1225
+  },
+  {
+    "file": "pymatgen-test-files/Cu_slab_fin.cif",
+    "url": "https://raw.githubusercontent.com/materialsproject/pymatgen-test-files/85005108e99e40cbd59e78f067459b0ca664efc6/surfaces/Cu_slab_fin.cif",
+    "revision": "85005108e99e40cbd59e78f067459b0ca664efc6",
+    "sha256": "5c994a590f6bf4d6077dce3373f159b6ca8bda6b74925ca6e8b25f9e3d294215",
+    "bytes": 1225
+  }
+]

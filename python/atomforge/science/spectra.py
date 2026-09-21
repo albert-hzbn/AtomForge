@@ -11,7 +11,12 @@ def read_bands(path):
     EIGENVAL and must be supplied separately when plotting.
     """
     import numpy as np
-    lines = Path(path).read_text(encoding="utf-8").splitlines()
+    import gzip
+    import bz2
+    import lzma
+    opener = {".gz": gzip.open, ".bz2": bz2.open, ".xz": lzma.open}.get(Path(path).suffix.lower(), open)
+    with opener(path, "rt", encoding="utf-8") as stream:
+        lines = stream.read().splitlines()
     if len(lines) < 6:
         raise ValueError("Truncated EIGENVAL header")
     spin_count = int(lines[0].split()[-1])

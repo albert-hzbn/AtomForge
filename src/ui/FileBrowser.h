@@ -25,6 +25,7 @@
 #include "ui/WannierAnalysisDialog.h"
 #include "ui/LobsterAnalysisDialog.h"
 #include "ui/TrajectoryDialog.h"
+#include "ui/ScientificToolsDialog.h"
 
 #include <array>
 #include <functional>
@@ -543,6 +544,7 @@ private:
     WannierAnalysisDialog wannierDialog;
     LobsterAnalysisDialog lobsterDialog;
     TrajectoryDialog trajectoryDialog;
+    ScientificToolsDialog scientificToolsDialog;
     ShortRangeOrderDialogState shortRangeOrderDialog;
     AngularDistributionAnalysisDialog angularDistributionDialog;
     TransformAtomsDialog transformDialog;

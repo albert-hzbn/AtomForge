@@ -1,0 +1,3 @@
+# Scientific reference fixtures are checksum-verified against upstream bytes.
+# Preserve their original line endings on Windows and Linux checkouts.
+python/tests/data/science_online/** -text -whitespace

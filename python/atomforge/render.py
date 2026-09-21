@@ -32,6 +32,7 @@ def render(
     colors: Optional[Dict[str, Tuple[float, float, float]]] = None,
     radii: Optional[Dict[str, float]] = None,
     radius_scale: float = 1.0,
+    dpi: Optional[float] = None,
     frames: Optional[int] = None,
     yaw_step: Optional[float] = None,
     executable: Optional[str] = None,
@@ -46,6 +47,10 @@ def render(
     ``Structure.set_element_color`` or direct ``atom.r/g/b`` edits) is used
     for that element unless overridden by *colors*, since structure files
     written to disk for the native renderer don't carry per-atom color.
+
+    dpi optionally embeds a physical resolution (dots per inch) in the saved
+    PNG's metadata (a pHYs chunk); it does not change the pixel dimensions,
+    only how image viewers/editors interpret the print size.
 
     frames + yaw_step render a turntable sequence instead of a single image;
     output is then used as a base name, and each frame is written to
@@ -80,6 +85,8 @@ def render(
             "--background", "{} {} {}".format(*background),
             "--radius-scale", str(radius_scale),
         ]
+        if dpi is not None:
+            command += ["--dpi", str(dpi)]
         if distance is not None:
             command += ["--distance", str(distance)]
         if orthographic:

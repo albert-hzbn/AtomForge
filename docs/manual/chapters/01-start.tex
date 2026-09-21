@@ -2,7 +2,7 @@
 \section{What AtomForge does}
 AtomForge is a desktop structure builder and viewer with a native electronic post-processing engine. It constructs atomistic starting configurations, edits positions and cells, renders structures, measures geometric quantities, and processes scalar fields from electronic-structure calculations. It does not run a self-consistent electronic calculation, relax a structure, or predict a formation energy merely by building a model.
 
-The main structure workspace and the electronic dialog maintain different data. Opening a CIF in the main workspace supplies atom positions and a cell. Opening CHGCAR in \ui{Analysis > Electronic Post-processing} supplies a sampled scalar field and imported sites. A structure alone does not contain a charge density; a rendered mesh alone does not contain an electronic wavefunction.
+The main structure workspace and the electronic dialog maintain different data. Opening a CIF in the main workspace supplies atom positions and a cell. Opening CHGCAR in \ui{Analysis > Electronic structure > Electronic Post-processing} supplies a sampled scalar field and imported sites. A structure alone does not contain a charge density; a rendered mesh alone does not contain an electronic wavefunction.
 
 \section{First structure: a copper crystal}
 \begin{enumerate}
@@ -27,7 +27,7 @@ Save a new copy & \ui{File > Save As}, Ctrl+Shift+S. \\
 Export rendered image & \ui{File > Export Image}, Ctrl+Alt+S. \\
 Close active structure & \ui{File > Close}, Ctrl+W. \\
 Undo / redo & \ui{Edit > Undo} and \ui{Edit > Redo}; availability follows the edit history. \\
-Electronic analysis & \ui{Analysis > Electronic Post-processing}; available without a structure in the main scene. \\
+Electronic analysis & \ui{Analysis > Electronic structure > Electronic Post-processing}; available without a structure in the main scene. \\
 Appearance controls & \ui{Settings > Atomic Sizes}, \ui{Display Settings}, \ui{Polyhedral Settings}. \\
 \bottomrule
 \end{longtable}

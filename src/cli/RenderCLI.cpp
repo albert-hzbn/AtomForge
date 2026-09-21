@@ -21,10 +21,14 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <sstream>
 #include <stdexcept>
 
@@ -116,6 +120,75 @@ void applyRadiusOverrides(const std::vector<std::string>& specs, std::vector<flo
     }
 }
 
+// Standard PNG chunk CRC-32 (polynomial 0xEDB88320, reflected).
+uint32_t pngCrc32(const unsigned char* data, std::size_t length)
+{
+    uint32_t crc = 0xFFFFFFFFu;
+    for (std::size_t i = 0; i < length; ++i)
+    {
+        crc ^= data[i];
+        for (int bit = 0; bit < 8; ++bit)
+            crc = (crc & 1u) ? (crc >> 1) ^ 0xEDB88320u : (crc >> 1);
+    }
+    return crc ^ 0xFFFFFFFFu;
+}
+
+void appendBigEndian32(std::vector<unsigned char>& buffer, uint32_t value)
+{
+    buffer.push_back(static_cast<unsigned char>((value >> 24) & 0xFF));
+    buffer.push_back(static_cast<unsigned char>((value >> 16) & 0xFF));
+    buffer.push_back(static_cast<unsigned char>((value >> 8) & 0xFF));
+    buffer.push_back(static_cast<unsigned char>(value & 0xFF));
+}
+
+// stb_image_write has no facility for embedding physical resolution, so a
+// pHYs chunk (pixels-per-metre, PNG's DPI equivalent) is spliced into the
+// already-written file immediately after the mandatory IHDR chunk.
+bool embedPngDpi(const std::string& path, double dpi, std::string& errorMessage)
+{
+    std::ifstream in(path, std::ios::binary);
+    std::vector<unsigned char> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    in.close();
+
+    static const unsigned char signature[8] = {0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
+    const std::size_t afterIhdr = 8 + 25; // signature + (length+type+13-byte data+crc)
+    if (bytes.size() < afterIhdr || !std::equal(signature, signature + 8, bytes.begin())
+        || bytes[12] != 'I' || bytes[13] != 'H' || bytes[14] != 'D' || bytes[15] != 'R')
+    {
+        errorMessage = "Unexpected PNG layout; cannot embed DPI metadata.";
+        return false;
+    }
+
+    const uint32_t pixelsPerMetre = static_cast<uint32_t>(std::lround(dpi / 0.0254));
+
+    std::vector<unsigned char> typeAndData;
+    typeAndData.push_back('p'); typeAndData.push_back('H'); typeAndData.push_back('Y'); typeAndData.push_back('s');
+    appendBigEndian32(typeAndData, pixelsPerMetre);
+    appendBigEndian32(typeAndData, pixelsPerMetre);
+    typeAndData.push_back(1); // unit specifier: metre
+
+    std::vector<unsigned char> chunk;
+    appendBigEndian32(chunk, 9); // pHYs data length
+    chunk.insert(chunk.end(), typeAndData.begin(), typeAndData.end());
+    appendBigEndian32(chunk, pngCrc32(typeAndData.data(), typeAndData.size()));
+
+    bytes.insert(bytes.begin() + static_cast<std::ptrdiff_t>(afterIhdr), chunk.begin(), chunk.end());
+
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out)
+    {
+        errorMessage = "Failed to rewrite '" + path + "' with DPI metadata.";
+        return false;
+    }
+    out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+    if (!out.good())
+    {
+        errorMessage = "Failed to rewrite '" + path + "' with DPI metadata.";
+        return false;
+    }
+    return true;
+}
+
 void printHelp()
 {
     std::cout <<
@@ -137,6 +210,9 @@ void printHelp()
 "  --color SYMBOL R G B   Override one element's color, 0..1 (repeatable)\n"
 "  --radius SYMBOL VALUE  Override one element's covalent radius, Angstrom (repeatable)\n"
 "  --radius-scale FACTOR  Global atom-size multiplier      (default: 1.0)\n"
+"  --dpi N                Embed a physical resolution (dots per inch) in the\n"
+"                         saved PNG's metadata; does not change pixel size\n"
+"                         (default: none written, matching plain stb PNGs)\n"
 "  --frames N             Turntable: render N frames (writes output-000.png, ...)\n"
 "  --yaw-step D           Turntable: yaw increment per frame, degrees\n"
 "\n"
@@ -198,6 +274,11 @@ int runRenderCLI(int argc, char* argv[])
         const float radiusScale = static_cast<float>(argDouble(argc, argv, "--radius-scale", 1.0));
         if (!(radiusScale > 0.0f))
             throw std::invalid_argument("--radius-scale must be positive");
+
+        const bool hasDpi = findArg(argc, argv, "--dpi") != nullptr;
+        const double dpi = argDouble(argc, argv, "--dpi", 0.0);
+        if (hasDpi && !(dpi > 0.0))
+            throw std::invalid_argument("--dpi must be positive");
 
         glm::vec4 background(1.0f, 1.0f, 1.0f, 1.0f);
         if (const char* bg = findArg(argc, argv, "--background"))
@@ -329,6 +410,12 @@ int runRenderCLI(int argc, char* argv[])
                                           sceneBuffers, renderer, shadow, structure, exportError))
                 {
                     throw std::runtime_error("Error writing image: " + exportError);
+                }
+                if (hasDpi)
+                {
+                    std::string dpiError;
+                    if (!embedPngDpi(request.outputPath, dpi, dpiError))
+                        throw std::runtime_error(dpiError);
                 }
                 std::cout << "Saved to: " << request.outputPath << "\n";
 

@@ -205,7 +205,7 @@ class WorkflowTests(unittest.TestCase):
         output = self.root / "cu.png"
         try:
             af.render(structure, output, width=64, height=64, yaw=15, pitch=10,
-                      radii={"Cu": 1.3})
+                      radii={"Cu": 1.3}, dpi=300)
         except subprocess.CalledProcessError as error:
             if "OpenGL context" in (error.stderr or ""):
                 self.skipTest("No GPU/display available for headless rendering: " + error.stderr.strip())
@@ -213,6 +213,11 @@ class WorkflowTests(unittest.TestCase):
         data = output.read_bytes()
         self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
         self.assertGreater(len(data), 100)
+        self.assertIn(b"pHYs", data)  # --dpi embeds a physical-resolution chunk
+
+        no_dpi_output = self.root / "cu_no_dpi.png"
+        af.render(structure, no_dpi_output, width=64, height=64)
+        self.assertNotIn(b"pHYs", no_dpi_output.read_bytes())
 
         with self.assertRaises(subprocess.CalledProcessError):
             af.render(structure, self.root / "bad.png", colors={"Xx": (0.5, 0.5, 0.5)})

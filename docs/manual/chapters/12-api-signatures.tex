@@ -85,6 +85,18 @@ Remove and return the atom at index.
 \begin{samepage}
 
 \begin{lstlisting}[language=Python]
+Structure.set_element_color(symbol: str, r: float, g: float, b: float)
+\end{lstlisting}
+
+Set r/\allowbreak{}g/\allowbreak{}b (0..1) on every atom of symbol already in this structure. Returns self.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
 Structure.translate(dx: float, dy: float, dz: float)
 \end{lstlisting}
 
@@ -638,6 +650,79 @@ not the kinetic energy evaluated from Kohn-Sham orbitals.
 \begin{samepage}
 
 \begin{lstlisting}[language=Python]
+Grid.reduced_density_gradient(floor=1e-12)
+\end{lstlisting}
+
+Return s = |grad(rho)|/\allowbreak{}(2*(3pi\textasciicircum{}2)\textasciicircum{}(1/\allowbreak{}3)rho\textasciicircum{}(4/\allowbreak{}3)), dimensionless.
+
+Small s at low density marks non-covalent interaction regions (van der
+Waals contacts, hydrogen bonds); small s at bonding density marks
+covalent/\allowbreak{}ionic bonds (Johnson et al., J. Am. Chem. Soc. 2010, 132,
+6498). Requires nonnegative electron density in e/\allowbreak{}A\textasciicircum{}3; samples with
+rho <= floor are masked to zero, avoiding the divergent ratio near vacuum.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.signed_density(floor=1e-12)
+\end{lstlisting}
+
+Return sign(lambda\_\allowbreak{}2)*rho (e/\allowbreak{}A\textasciicircum{}3), lambda\_\allowbreak{}2 the middle Hessian eigenvalue of rho.
+
+Plotted against reduced\_\allowbreak{}density\_\allowbreak{}gradient(), this is the standard NCI
+scatter/\allowbreak{}isosurface descriptor: negative values mark attractive
+(bonding or hydrogen-bonding) accumulation, positive values mark
+steric repulsion. Samples with rho <= floor are masked to zero.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.dori(floor=1e-12)
+\end{lstlisting}
+
+Return the Density Overlap Regions Indicator, in [0, 1).
+
+DORI = theta/\allowbreak{}(1+theta) with theta = |grad(gamma)|\textasciicircum{}2/\allowbreak{}|gamma|\textasciicircum{}6 and
+gamma = grad(rho)/\allowbreak{}rho (de Silva and Corminboeuf, J. Chem. Theory
+Comput. 2011, 7, 2439). Values approaching 1 mark boundaries between
+density basins (bonds and non-covalent contacts alike); unlike
+signed\_\allowbreak{}density(), DORI does not distinguish attractive from repulsive
+contacts. Samples with rho <= floor are masked to zero.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.betti_curve(thresholds)
+\end{lstlisting}
+
+Betti curve of the field's superlevel sets: connected components,
+loops and enclosed cavities as a function of density threshold.
+
+Returns one (threshold, betti0, betti1, betti2) row per requested
+threshold; the solid set at each threshold is \{value >= threshold\}
+(Bartel et al., ACS Mater. Lett. 2025, 7, 2158). Finite (non-periodic)
+grids only: betti2 assumes an R\textasciicircum{}3 ambient space, not a periodic
+3-torus cell.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
 Grid.smooth(sigma, radius=2)
 \end{lstlisting}
 
@@ -852,6 +937,78 @@ Grid.save(path, format=None)
 \end{lstlisting}
 
 Write this field. Explicit format is xsf, cube, or vasp. Without format, .cube/\allowbreak{}.cub and .xsf are recognised; other suffixes default to VASP.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Grid.bader_partition()
+\end{lstlisting}
+
+Native QTAIM/\allowbreak{}Bader on-grid steepest-ascent charge partitioning.
+
+Requires nonnegative electron density in e/\allowbreak{}A\textasciicircum{}3. Implements the
+on-grid step only (Henkelman, Sanville and Jonsson, Comput. Mater.
+Sci. 36, 354, 2006), not the near-grid boundary refinement, so
+individual dividing-surface placement is accurate to about one grid
+spacing. A native alternative to the external Henkelman executable
+wrapped by atomforge.science.bader() when that binary is
+unavailable, and useful for inspecting basin shapes directly.
+
+\end{samepage}
+
+
+
+\subsection{BaderPartition}
+
+Native QTAIM/\allowbreak{}Bader on-grid partition of a Grid; see Grid.bader\_\allowbreak{}partition().
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+BaderPartition.num_basins
+\end{lstlisting}
+
+Number of basins in the native on-grid Bader partition.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+BaderPartition.basin_ids
+\end{lstlisting}
+
+One basin index per voxel, in the source grid's own value order.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+BaderPartition.basin(index)
+\end{lstlisting}
+
+Return \{"charge", "volume", "maximum"\} for one basin (0-based index).
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+BaderPartition.populations(sites)
+\end{lstlisting}
+
+Sum each basin's charge into whichever site (Cartesian) its maximum is nearest to.
 
 \end{samepage}
 
@@ -1149,6 +1306,28 @@ reported individually; successful results remain available.
 \begin{samepage}
 
 \begin{lstlisting}[language=Python]
+load_calculator(module, attribute, *args, **kwargs)
+\end{lstlisting}
+
+Import module and return getattr(module, attribute)(args, *kwargs).
+
+A dotted-path convenience for handing relax()/\allowbreak{}molecular\_\allowbreak{}dynamics()/\allowbreak{}phonons()
+any pip-installed ASE calculator by name -- a DFT calculator, or a machine-
+learned interatomic potential such as MACE (module="mace.calculators",
+attribute="mace\_\allowbreak{}mp"), CHGNet ("chgnet.model.dynamics", "CHGNetCalculator"),
+MatterSim ("mattersim.forcefield", "MatterSimCalculator") or ORB
+("orb\_\allowbreak{}models.forcefield.calculator", "ORBCalculator", model). AtomForge does
+not install, select or validate the underlying package, model or weights;
+consult that package's own documentation for arguments, accuracy and
+hardware requirements. Import and construction errors propagate unchanged.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
 to_ase(structure)
 \end{lstlisting}
 
@@ -1164,7 +1343,11 @@ Copy species, Cartesian positions and cell into an ASE Atoms object.
 from_ase(atoms)
 \end{lstlisting}
 
-Copy species, positions and a full-rank cell into an AtomForge Structure.
+Copy species, positions and a fully periodic cell into an AtomForge Structure.
+
+Mixed periodic/\allowbreak{}nonperiodic axes cannot be represented by Structure and are
+rejected instead of silently converting a slab or wire to 3D periodicity.
+Nonperiodic bounding boxes are not periodic unit cells.
 
 \end{samepage}
 
@@ -1500,6 +1683,418 @@ plot_surface(grid, band, output, *, energy=None)
 \end{lstlisting}
 
 Save a labeled reciprocal-space surface plot as PNG, SVG or PDF.
+
+\end{samepage}
+
+
+
+\section{Trajectory statistics and diffusion}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+mean_square_displacement(positions, timestep_fs, *, cell=None, pbc=(True, True, True), wrapped=False, remove_drift=False, max_lag=None)
+\end{lstlisting}
+
+Time-origin-averaged MSD and Cartesian displacement covariance.
+
+Atom ordering must be stable. Unwrapped coordinates are recommended.
+With wrapped=True, unwrap successive displacements in a FIXED cell using
+its shortest image; sampling must resolve motion below the MIC ambiguity.
+Variable-cell trajectories must first be mapped to an explicit reference
+frame. remove\_\allowbreak{}drift subtracts the geometric centroid at every frame.
+Covariance is <dr\_\allowbreak{}a dr\_\allowbreak{}b>, not a covariance about the mean displacement.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+diffusion_coefficient(lag_fs, msd_A2, *, fit_range_fs, dimensions=3)
+\end{lstlisting}
+
+Einstein diffusion from an explicitly selected diffusive time interval.
+
+D = slope/\allowbreak{}(2*d); input MSD must sum ONLY the d selected directions.
+Reports slope, intercept, R-squared and OLS fit uncertainty. Overlapping
+time origins correlate MSD samples: the OLS uncertainty is NOT a physical
+confidence interval. Use independent trajectories/\allowbreak{}block estimates for that.
+A linear fit alone does not establish the diffusive regime.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+velocity_autocorrelation(velocities, timestep_fs, *, max_lag=None, remove_drift=False, normalize=False)
+\end{lstlisting}
+
+Unbiased time-origin average of v(t) dot v(t+lag), per atom.
+
+remove\_\allowbreak{}drift removes each frame's geometric mean velocity, not its
+mass-weighted centre-of-mass velocity. Units before normalization: A\textasciicircum{}2/\allowbreak{}fs\textasciicircum{}2.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+vibrational_spectrum(velocities, timestep_fs, *, masses=None, window='hann', remove_mean=True)
+\end{lstlisting}
+
+One-sided velocity power spectrum, the Fourier partner of velocity correlation.
+
+Uses a nonnegative periodogram, with optional atomic-mass weighting, and
+returns unit-integral spectral weight per THz. This is a classical velocity
+spectrum, not quantum neutron/\allowbreak{}IR/\allowbreak{}Raman intensity. Resolution and Nyquist
+frequency are determined by duration and sampling; zero padding adds no data.
+
+\end{samepage}
+
+
+
+\section{Local strain, disorder and defects}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+local_strain(reference, current, cutoff_A, *, reference_cell=None, current_cell=None, pbc=(False, False, False))
+\end{lstlisting}
+
+Least-squares deformation gradient, Green-Lagrange strain and D2min.
+
+Atom IDs/\allowbreak{}order must correspond. Neighbors are selected in the reference.
+D2min is the SUM of residual squared distances (A\textasciicircum{}2), not a per-neighbor
+mean. Rank-deficient environments have valid=False and NaN tensors; they
+must not be interpreted as unstrained. Box deformation is included.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+centrosymmetry(positions, cutoff_A, *, neighbors=12, cell=None, pbc=(False, False, False))
+\end{lstlisting}
+
+Kelchner CSP: sum the N/\allowbreak{}2 smallest |r\_\allowbreak{}i+r\_\allowbreak{}j|\textasciicircum{}2 of all distinct pairs.
+
+Selects the nearest N neighbors within cutoff, including periodic images.
+This is the conventional smallest-pair algorithm, not disjoint optimal
+matching. Missing neighbors produce valid=False and NaN, not zero.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+bond_order(positions, cutoff_A, *, degrees=(4, 6), cell=None, pbc=(False, False, False))
+\end{lstlisting}
+
+Local rotationally invariant Steinhardt q\_\allowbreak{}l, with equal bond weights.
+
+q\_\allowbreak{}l = sqrt(4pi/\allowbreak{}(2l+1) sum\_\allowbreak{}m |mean\_\allowbreak{}j Y\_\allowbreak{}lm(r\_\allowbreak{}ij)|\textasciicircum{}2).
+Reports q\_\allowbreak{}l (not w\_\allowbreak{}l or neighbor-averaged qbar\_\allowbreak{}l). No neighbors => invalid.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+wigner_seitz(reference_sites, positions, *, cell=None, current_cell=None, pbc=(False, False, False))
+\end{lstlisting}
+
+Assign each atom to its nearest reference site; count vacancies/\allowbreak{}excess atoms.
+
+A site with occupancy n>1 contributes n-1 interstitial excess atoms. This
+does not identify a unique interstitial atom within that site. A supplied
+current\_\allowbreak{}cell maps homogeneous box deformation back to the reference cell.
+Ties choose the lowest site index and are flagged for inspection.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+static_structure_factor(positions, q_vectors, *, weights=None)
+\end{lstlisting}
+
+S(q)=<|sum\_\allowbreak{}j b\_\allowbreak{}j exp(i q.r\_\allowbreak{}j)|\textasciicircum{}2>/\allowbreak{}sum\_\allowbreak{}j |b\_\allowbreak{}j|\textasciicircum{}2.
+
+Positions have shape (atoms,3) or (frames,atoms,3). q vectors are Cartesian
+radians/\allowbreak{}A (include 2*pi in reciprocal lattice vectors). Equal weights give
+S(0)=N. No forward-scattering subtraction, powder average or quantum effects
+are implied. Use commensurate q for wrapped periodic coordinates.
+
+\end{samepage}
+
+
+
+\section{Band edges, effective masses and work functions}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+band_gap(energies_eV, fermi_eV, *, tolerance_eV=1e-06)
+\end{lstlisting}
+
+Sampled band edges and smallest same-spin direct gap, relative to E\_\allowbreak{}F.
+
+Shape is (k,band) or (spin,k,band). Detects a metal when a band crosses E\_\allowbreak{}F
+on the supplied mesh, or a sampled state lies within tolerance of E\_\allowbreak{}F.
+A sparse mesh can miss crossings/\allowbreak{}extrema. Smearing occupations are not
+interpreted here, and the direct gap is not an optical excitation energy.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+effective_mass(kpoints_inv_A, energies_eV, *, center_inv_A)
+\end{lstlisting}
+
+Fit E=E0+g.dk+1/\allowbreak{}2 dk.H.dk; return signed principal masses in m\_\allowbreak{}e.
+
+k is Cartesian wavevector in radians/\allowbreak{}A, not fractional reciprocal position
+or path length. Use a small 3D neighborhood of a band extremum, with one
+consistently tracked band. Negative masses describe valence curvature;
+positive hole masses are their negatives. This is a local quadratic model.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+work_function(distance_A, potential_eV, fermi_eV, *, vacuum_range_A, max_slope_eV_per_A=0.01)
+\end{lstlisting}
+
+Phi=<V\_\allowbreak{}vac>-E\_\allowbreak{}F for a user-selected vacuum interval of a planar potential.
+
+Supply an electron potential-energy profile with a consistent reference,
+e.g. the appropriate VASP LOCPOT channel. A linear-fit slope and spread flag
+a poorly converged/\allowbreak{}nonflat vacuum. Calculate the two slab faces separately.
+This does not insert dipole corrections or detect vacuum automatically.
+
+\end{samepage}
+
+
+
+\section{Elasticity, equation of state and harmonic thermodynamics}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+equation_of_state(volumes_A3, energies_eV)
+\end{lstlisting}
+
+Third-order Birch-Murnaghan E(V) fit; energy and volume must share a cell basis.
+
+Requires at least five distinct positive volumes bracketing the fitted
+minimum. Returns bulk modulus and pressure derivative, residuals and fit
+covariance (a numerical diagnostic, not model/\allowbreak{}convergence uncertainty).
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+elastic_tensor(strains, stresses_GPa)
+\end{lstlisting}
+
+Fit sigma=sigma0+C epsilon with engineering-Voigt order xx,yy,zz,yz,xz,xy.
+
+Strain shears are 2*epsilon\_\allowbreak{}ij; stress shears are sigma\_\allowbreak{}ij, with tension
+positive. Input stresses are GPa, not eV/\allowbreak{}A\textasciicircum{}3 or pressure-positive outputs.
+Requires a full-rank strain design including an intercept. Symmetrizes C
+and reports the antisymmetric mismatch and residual. Stability is the
+positive-definiteness test appropriate to small strain at zero prestress.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+phonon_dos(energies_eV, energy_grid_eV, *, sigma_eV=0.001, weights=None)
+\end{lstlisting}
+
+Gaussian harmonic DOS, normalized to number of branches per cell.
+
+Input is (qpoints,branches) in eV with negative energies denoting imaginary
+frequencies. Those are retained on the negative axis; they are not stable
+modes. Finite plot bounds can truncate Gaussian tails; enclosed weight is
+returned without silently renormalizing the plotted curve.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+harmonic_thermodynamics(energies_eV, temperatures_K, *, weights=None, zero_tolerance_eV=1e-08)
+\end{lstlisting}
+
+Harmonic F,U,S,Cv per cell, including zero-point energy.
+
+Negative modes below -tolerance are rejected. Modes within +/\allowbreak{}-tolerance
+(e.g. exact Gamma acoustic zeros) are omitted and their weight reported;
+use a converged q mesh. Outputs eV/\allowbreak{}cell and eV/\allowbreak{}(cell K), not per mole.
+Electronic, configurational and anharmonic contributions are excluded.
+
+\end{samepage}
+
+
+
+\section{NEB, NVT, NPT and symmetry paths}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+migration_path(initial, final, calculator_factory, *, images=7, fmax=0.03, steps=300, spring_eV_per_A2=0.1, climb=True, mic=False)
+\end{lstlisting}
+
+Optimize a fixed-cell climbing-image NEB using ASE's improved tangent.
+
+Endpoints must already be relaxed, have identical cell/\allowbreak{}species/\allowbreak{}order, and
+describe the intended atom mapping. Factory is called separately for EVERY
+image (external calculators must also use distinct working directories).
+Barriers are sampled image energies; convergence and endpoint forces are
+reported rather than assumed. mic=True chooses shortest periodic paths.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+nvt_dynamics(structure, calculator, *, steps=1000, timestep_fs=1.0, temperature_K=300.0, thermostat_fs=100.0, seed=0, sample_interval=10)
+\end{lstlisting}
+
+Langevin NVT with a thermostat relaxation time in fs and reproducible seed.
+
+Returns temperatures, physical energies, frames and velocities. Physical
+energy is not conserved under a thermostat. COM is not constrained; remove
+any unwanted drift explicitly during analysis. Equilibration is not inferred.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+npt_dynamics(structure, calculator, *, steps=1000, timestep_fs=1.0, temperature_K=300.0, pressure_GPa=0.0, thermostat_fs=100.0, barostat_fs=1000.0, seed=0, sample_interval=10)
+\end{lstlisting}
+
+Isotropic Martyna-Tobias-Klein NPT via ASE, pressure positive in compression.
+
+Cell volume changes while shape remains fixed. A stress-capable calculator
+is required. Finite runs must be checked for equilibration, fluctuations and
+integration convergence; instantaneous T and P need not equal targets.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+reciprocal_path(structure, *, spacing_inv_A=0.025, symprec_A=1e-05, time_reversal=True)
+\end{lstlisting}
+
+SeeK-path HPKOT high-symmetry path in the standardized primitive cell.
+
+Returns the primitive structure, reciprocal basis and segment endpoints so
+fractional k coordinates cannot be confused with the input supercell basis.
+Nonmagnetic spatial symmetry is used; time\_\allowbreak{}reversal controls path completion,
+not a magnetic-space-group analysis. Disconnected segments remain explicit.
+
+\end{samepage}
+
+
+
+\section{Shared scientific workflow interface}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+tool_catalog()
+\end{lstlisting}
+
+Return names, documentation and parameter defaults for all twenty tools.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+run_tool(tool, parameters, *, base_directory='.')
+\end{lstlisting}
+
+Execute one catalog tool; preserve numerical arrays in the returned result.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+json_result(value)
+\end{lstlisting}
+
+Strict JSON representation: invalid local environments become null, with validity masks retained.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+result_report(tool, result)
+\end{lstlisting}
+
+Compact desktop summary; full arrays and structures remain in result JSON.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+export_structures(result, path, *, overwrite=False)
+\end{lstlisting}
+
+Export returned simulation frames/\allowbreak{}images or a primitive structure as extXYZ.
+
+Returns False for numerical analyses with no structural output. Velocities
+from NVT/\allowbreak{}NPT are retained as momenta through ASE's extXYZ convention.
 
 \end{samepage}
 

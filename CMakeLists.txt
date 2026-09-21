@@ -74,6 +74,8 @@ set(ATOMFORGE_SOURCES
     src/cli/AnalysisCLI.cpp
     src/cli/RenderCLI.cpp
     src/ui/TrajectoryDialog.cpp
+    src/ui/ScientificToolsDialog.cpp
+    src/util/ScientificProcess.cpp
     src/app/EditorApplication.cpp
     src/app/FileDropHandler.cpp
     src/app/ImageExport.cpp
@@ -286,6 +288,7 @@ if(NOT EXISTS "${ATOMFORGE_MANUAL_PDF}")
     message(FATAL_ERROR "The published AtomForge manual PDF is missing: ${ATOMFORGE_MANUAL_PDF}")
 endif()
 target_compile_definitions(AtomForge PRIVATE ATOMFORGE_SOURCE_MANUAL="${ATOMFORGE_MANUAL_PDF}")
+target_compile_definitions(AtomForge PRIVATE ATOMFORGE_SOURCE_PYTHON="${PROJECT_SOURCE_DIR}/python")
 if(BUILD_PORTABLE)
     install(TARGETS AtomForge DESTINATION "${ATOMFORGE_PORTABLE_BIN_DIR}")
     install(TARGETS atomforge_electronic
@@ -333,6 +336,8 @@ if(BUILD_PORTABLE)
     install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/InstallPortableDependencies.cmake")
 else()
     # Standard installation (system-wide)
+    install(DIRECTORY python/atomforge DESTINATION share/atomforge/python
+        PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
     install(FILES "${ATOMFORGE_MANUAL_PDF}" DESTINATION share/doc/atomforge)
     install(TARGETS atomforge_electronic RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
     if(WIN32)

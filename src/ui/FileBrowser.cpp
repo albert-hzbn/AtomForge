@@ -753,14 +753,42 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
 
     if (ImGui::BeginMenu("Analysis"))
     {
-        cnaDialog.drawMenuItem(!structure.atoms.empty());
-        rdfDialog.drawMenuItem(!structure.atoms.empty());
-        electronicDialog.drawMenuItem();
-        wannierDialog.drawMenuItem();
-        lobsterDialog.drawMenuItem();
-        trajectoryDialog.drawMenuItem();
-        drawShortRangeOrderMenuItem(!structure.atoms.empty(), shortRangeOrderDialog);
-        angularDistributionDialog.drawMenuItem(!structure.atoms.empty());
+        if (ImGui::BeginMenu("Structure and defects")) {
+            cnaDialog.drawMenuItem(!structure.atoms.empty());
+            rdfDialog.drawMenuItem(!structure.atoms.empty());
+            angularDistributionDialog.drawMenuItem(!structure.atoms.empty());
+            drawShortRangeOrderMenuItem(!structure.atoms.empty(), shortRangeOrderDialog);
+            ImGui::Separator();
+            scientificToolsDialog.drawMenuItems("Structure and defects");
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Trajectories and transport")) {
+            trajectoryDialog.drawMenuItem();
+            ImGui::Separator();
+            scientificToolsDialog.drawMenuItems("Trajectories and transport");
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Electronic structure")) {
+            electronicDialog.drawMenuItem();
+            wannierDialog.drawMenuItem();
+            lobsterDialog.drawMenuItem();
+            ImGui::Separator();
+            scientificToolsDialog.drawMenuItems("Electronic structure");
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Reciprocal space")) {
+            scientificToolsDialog.drawMenuItems("Reciprocal space");
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Thermal and mechanical")) {
+            scientificToolsDialog.drawMenuItems("Thermal and mechanical");
+            ImGui::EndMenu();
+        }
+        ImGui::Separator();
+        if (ImGui::BeginMenu("Simulation")) {
+            scientificToolsDialog.drawMenuItems("Simulation");
+            ImGui::EndMenu();
+        }
         ImGui::EndMenu();
     }
 
@@ -1603,6 +1631,7 @@ void FileBrowser::draw(Structure& structure,
     wannierDialog.drawDialog();
     lobsterDialog.drawDialog();
     trajectoryDialog.draw(structure,updateBuffers);
+    scientificToolsDialog.draw(structure, updateFromBuilderToNewTab);
     drawShortRangeOrderDialog(shortRangeOrderDialog, structure);
     angularDistributionDialog.drawDialog(structure);
     cellSculptorDialog.drawDialog(structure, updateBuffers);

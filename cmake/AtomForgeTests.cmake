@@ -81,6 +81,14 @@ endif()
 
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
+    add_executable(atomforge_scientific_process_tests
+        ${PROJECT_SOURCE_DIR}/tests/scientific_process.cpp
+        ${PROJECT_SOURCE_DIR}/src/util/ScientificProcess.cpp)
+    target_include_directories(atomforge_scientific_process_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    target_link_libraries(atomforge_scientific_process_tests PRIVATE Threads::Threads)
+    add_test(NAME scientific_process COMMAND atomforge_scientific_process_tests ${Python3_EXECUTABLE})
+    set_tests_properties(scientific_process PROPERTIES TIMEOUT 15)
+    add_test(NAME scientific_catalog COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tools/generate_science_catalog.py --check)
     add_test(NAME python_electronic
         COMMAND ${CMAKE_COMMAND} -E env
             "ATOMFORGE_ELECTRONIC_LIBRARY=$<TARGET_FILE:atomforge_electronic>"
