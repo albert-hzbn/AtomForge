@@ -34,7 +34,7 @@ when their dependencies and independent tests support it.
 
 ```sh
 cmake -S . -B build-core -DATOMFORGE_BUILD_APP=OFF
-cmake --build build-core --parallel
+cmake --build build-core --parallel 1
 ctest --test-dir build-core --output-on-failure
 ```
 

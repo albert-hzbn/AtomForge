@@ -5,7 +5,7 @@ Extract a complete package into a writable folder and run the executable. Keep t
 The desktop requires a working OpenGL environment. If the window fails to render, check the graphics driver and whether a remote/virtual session supplies the needed OpenGL support. A successful compiler run and a working graphics runtime are separate checks.
 
 \section{Build requirements}
-The source uses C++17 and CMake 3.16 or newer. Desktop dependencies include GLFW, GLEW, GLM, Open Babel 3, and an OpenGL implementation. spglib enables symmetry-related capabilities. Use a consistent compiler/runtime family for all linked libraries. See the repository's \code{INSTALL.md} and actual CMake configuration for platform-specific dependency discovery.
+The source uses C++17 and CMake 3.16 or newer. Desktop dependencies include GLFW, GLEW, GLM, Eigen3, Open Babel 3, and an OpenGL implementation. spglib enables symmetry-related capabilities. Use a consistent compiler/runtime family for all linked libraries. See the repository's \code{INSTALL.md} and actual CMake configuration for platform-specific dependency discovery.
 
 \begin{longtable}{p{.49\linewidth}p{.42\linewidth}}
 \toprule CMake setting & Purpose \\ \midrule\endhead
@@ -13,28 +13,35 @@ The source uses C++17 and CMake 3.16 or newer. Desktop dependencies include GLFW
 \code{ATOMFORGE_BUILD_APP=OFF} & Build core/library functionality without the desktop app. \\
 \code{BUILD_TESTING=ON} & Configure available automated tests. \\
 \code{ATOMFORGE_ENABLE_SSS_BUILDER=ON} & Enable the substitutional-alloy desktop builder (default on). \\
-\code{ATOMFORGE_ENABLE_SFE_BUILDER=ON} & Enable the optional stacking-fault desktop builder (default off). \\
+\code{ATOMFORGE_ENABLE_SFE_BUILDER=ON} & Enable the optional stacking-fault desktop builder (default on). \\
 \code{BUILD_PORTABLE=ON} & Enable runtime packaging support. \\
 \code{Python3_EXECUTABLE} & Select the Python interpreter used by configured tests. \\
 \bottomrule
 \end{longtable}
 
+\section{Automatic build resource protection}
+Normal Ninja and Makefile builds automatically serialize C++ compilation and linking to prevent many memory-heavy compiler processes from running together. Release optimization and all application features remain unchanged. No machine-specific preset or configuration is required: update the source and reconfigure your existing build directory.
+
+Ninja uses a one-job pool; both generators also use a shared compiler/linker lock in the build directory. Use \code{--parallel 1} as shown below to avoid unnecessary waiting processes. Separate build directories have separate locks, so avoid running multiple builds in different directories simultaneously.
+
+A single compiler process still needs memory. If a full-system freeze persists with serial compilation, inspect system logs, available memory, swap/page-file space and cooling after restarting. A freeze alone does not identify its cause. Packaged releases avoid compilation entirely.
+
 \section{Linux build}
-Install a C++ toolchain, CMake, pkg-config, and development packages for GLFW, GLEW, GLM, Open Babel, and optionally spglib using your distribution's package manager. Configure a fresh build directory:
+Install a C++ toolchain, CMake, pkg-config, and development packages for GLFW, GLEW, GLM, Eigen3, Open Babel, and optionally spglib using your distribution's package manager. Configure a fresh build directory:
 \begin{lstlisting}
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
-cmake --build build -j
+cmake --build build --parallel 1
 ctest --test-dir build --output-on-failure
 ./build/AtomForge
 \end{lstlisting}
 Run from a graphics-capable session for desktop use. For a headless server, use the native builder CLI or electronic library/API instead. A core-only build does not create a desktop executable.
 
 \section{Windows build with MSYS2 UCRT64}
-Use the MSYS2 UCRT64 toolchain and its matching dependency packages. Typical packages include the UCRT64 toolchain, CMake, GLFW, GLEW, GLM, Open Babel, pkgconf, spglib, and Python when running the Python tests. Avoid mixing MINGW64, UCRT64, and unrelated compiler libraries in one build directory.
+Use the MSYS2 UCRT64 toolchain and its matching dependency packages. Typical packages include the UCRT64 toolchain, CMake, GLFW, GLEW, GLM, Eigen3, Open Babel, pkgconf, spglib, and Python when running the Python tests. Avoid mixing MINGW64, UCRT64, and unrelated compiler libraries in one build directory.
 
 \begin{lstlisting}
 cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DPython3_EXECUTABLE=C:/msys64/ucrt64/bin/python.exe
-cmake --build build -j
+cmake --build build --parallel 1
 ctest --test-dir build --output-on-failure
 \end{lstlisting}
 These commands assume the compiler and matching libraries are discoverable, normally from the UCRT64 shell. If using PowerShell, supply the correct toolchain paths and runtime DLLs. Select a Python interpreter compatible with the native library's runtime requirements for tests; discovering an unrelated system Python can make a correct library build appear to fail during loading.

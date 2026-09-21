@@ -81,6 +81,9 @@ endif()
 
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
+    add_test(NAME build_resources
+        COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/build_resources.py ${CMAKE_COMMAND})
+    set_tests_properties(build_resources PROPERTIES TIMEOUT 60)
     add_executable(atomforge_scientific_process_tests
         ${PROJECT_SOURCE_DIR}/tests/scientific_process.cpp
         ${PROJECT_SOURCE_DIR}/src/util/ScientificProcess.cpp)

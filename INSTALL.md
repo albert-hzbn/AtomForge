@@ -16,6 +16,16 @@
 
 ---
 
+## Build resource protection
+
+Normal builds automatically serialize C++ compilation and linking on the supported Ninja and Makefile generators. This prevents heavyweight compiler processes from exhausting memory when an IDE or build command requests many jobs. Release optimization and application features are unchanged; no special laptop configuration is required.
+
+Ninja uses a one-job pool, and both Ninja and Makefiles use a shared compiler/linker lock in the build directory. The lock also coordinates separate build commands targeting that same directory. Keep the explicit `--parallel 1` in the commands below to avoid launching unnecessary waiting build processes. Avoid running builds in multiple different directories simultaneously, since each directory has its own lock.
+
+Update the source and reconfigure your existing build directory to activate the protection. A single compilation still needs memory. If the whole computer continues freezing with serial compilation, check system logs, available memory/page-file or swap space, and cooling after restarting. Downloading a prebuilt release avoids compilation entirely.
+
+---
+
 ## Linux
 
 ### Install dependencies
@@ -35,9 +45,9 @@ sudo apt install libsymspg-dev
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
     -DATOMFORGE_ENABLE_SSS_BUILDER=ON \
-    -DATOMFORGE_ENABLE_SFE_BUILDER=OFF \
+    -DATOMFORGE_ENABLE_SFE_BUILDER=ON \
     -DATOMFORGE_LINUX_STATIC_LINK=OFF
-cmake --build build -j
+cmake --build build --parallel 1
 ```
 
 ### Run
@@ -54,7 +64,7 @@ cmake --build build -j
 | `CMAKE_BUILD_TYPE` | `Release` | `Debug` or `Release` |
 | `ATOMFORGE_ENABLE_SPGLIB` | auto-detected | Enable spglib symmetry features |
 | `ATOMFORGE_ENABLE_SSS_BUILDER` | `ON` | Enable Substitutional Solid Solution builder UI |
-| `ATOMFORGE_ENABLE_SFE_BUILDER` | `OFF` | Enable Stacking Fault (SFE) builder UI |
+| `ATOMFORGE_ENABLE_SFE_BUILDER` | `ON` | Enable Stacking Fault (SFE) builder UI |
 | `ATOMFORGE_LINUX_STATIC_LINK` | `OFF` (Linux) | Statically link Linux build dependencies (opt-in) |
 | `BUILD_PORTABLE` | `OFF` | Bundle runtime libraries for redistribution |
 
@@ -94,7 +104,7 @@ pacman -S --needed mingw-w64-ucrt-x86_64-spglib
 
 ```bash
 cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
+cmake --build build --parallel 1
 ```
 
 ### Run
@@ -138,7 +148,7 @@ cmake --build build-mingw -- -j1
 cpack --config build-mingw/CPackConfig.cmake -B build-mingw/package
 ```
 
-Output: `build-mingw/package/AtomForge-0.2.0-win64.zip`
+Output: `build-mingw/package/AtomForge-0.3.0-win64.zip`
 
 Contents:
 - `AtomForge.exe`
@@ -156,7 +166,7 @@ Extract and run `AtomForge.exe` directly.
 ```bash
 cmake -S . -B build-portable -DCMAKE_BUILD_TYPE=Release -DBUILD_PORTABLE=ON \
     -DATOMFORGE_LINUX_STATIC_LINK=OFF
-cmake --build build-portable -j
+cmake --build build-portable --parallel 1
 cpack --config build-portable/CPackConfig.cmake -B build-portable/package
 ```
 
@@ -180,7 +190,7 @@ cd AtomForge/bin
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
+cmake --build build --parallel 1
 sudo cmake --install build
 ```
 

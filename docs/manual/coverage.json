@@ -3,7 +3,7 @@
   "files": [
     {
       "source": "CMakeLists.txt",
-      "sha256": "38722a6ad2c4cc0518cad670791417fa01949862ad401aa1ce5b7197917f823b",
+      "sha256": "9c7f7472c0758c87979723873e7a819eeec54120aa387e401c21387190a1fc49",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

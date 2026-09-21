@@ -107,6 +107,8 @@ The current Python release is **0.2.0**. Basic structure operations do not requi
 - **Report a problem or suggest a feature:** use [GitHub Issues](https://github.com/albert-hzbn/AtomForge/issues). Include the application version, operating system and steps to reproduce the issue; attach a shareable example when possible.
 - **Build or extend AtomForge:** see the [installation guide](INSTALL.md) and [architecture guide](ARCHITECTURE.md).
 
+Normal source builds automatically limit concurrent compilation and linking to reduce memory pressure, while retaining full Release optimization. See the installation guide for build instructions.
+
 The current source includes common-neighbour and angular-distribution analysis, interface matching and stacking-fault generation. It also adds saved projects, autosave recovery, trajectory playback, electronic history and image export. Rebuild from source to use these additions; existing release downloads are unchanged.
 
 The **Analysis** menu groups tools by scientific task, with twenty new tools for

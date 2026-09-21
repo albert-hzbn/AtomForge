@@ -10,6 +10,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
+include(cmake/AtomForgeBuildResources.cmake)
+
 option(ATOMFORGE_BUILD_APP "Build the OpenGL desktop application and CLI" ON)
 option(ATOMFORGE_ENABLE_SPGLIB "Enable spglib/symspg support when available" ON)
 option(BUILD_PORTABLE "Build portable package with bundled dependencies" OFF)
