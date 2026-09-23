@@ -1229,6 +1229,137 @@ Interstitial candidates, clearance, volume and coordination.
 \begin{samepage}
 
 \begin{lstlisting}[language=Python]
+nye_tensor(deformed, reference, *, cutoff=3.0, no_pbc=False, executable=None, timeout=300)
+\end{lstlisting}
+
+Nye (dislocation density) tensor per atom, comparing deformed against reference.
+
+Both structures need the same atom count and ordering (atom n in one is
+the same physical atom as atom n in the other), e.g. a perfect crystal
+and that same crystal after inserting a dislocation. Returns one row per
+atom: index, symbol, the nine alpha\_\allowbreak{}ij tensor components (1/\allowbreak{}Angstrom),
+and their Frobenius norm. See algorithms/\allowbreak{}NyeTensor.h for the exact
+algorithm (a native reimplementation of BABEL's documented Hartley \&
+Mishin lattice-correspondence method).
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+vitek_map(deformed, reference, line, *, burgers=0.0, cutoff=0.0, no_pbc=False, executable=None, timeout=300)
+\end{lstlisting}
+
+Differential-displacement (Vitek) map between deformed and reference.
+
+Both structures need the same atom count and ordering. line is the
+dislocation line/\allowbreak{}Burgers direction in Cartesian coordinates (e.g.
+dislocation.lineDirection, or (1,1,1) for a <111> bcc screw); burgers
+is its magnitude in Angstrom (0 disables wrapping the screw component
+onto the elastic part of the displacement). cutoff <= 0 auto-detects
+the first/\allowbreak{}second-neighbor-shell midpoint. Returns one row per neighbor
+pair: atom indices, both atoms' reference positions, the screw
+(along-line) component, and the two in-plane edge components -- the same
+quantities BABEL's vitek.f90 writes out for gnuplot differential-
+displacement arrows. See algorithms/\allowbreak{}VitekMap.h.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+build_pattern(reference, *, cutoff=3.2, no_pbc=False, executable=None, timeout=300)
+\end{lstlisting}
+
+Extract a crystallographic neighbor-direction pattern from a perfect structure.
+
+Returns \{"directions": [(dx,dy,dz), ...]\} (unit vectors from a
+representative atom to each first-neighbor), for use with
+detect\_\allowbreak{}pattern. cutoff should enclose exactly the first coordination
+shell. Follows the same two-stage design as BABEL's patternInit
+program, generalized to work with any reference structure rather than a
+fixed bcc/\allowbreak{}fcc/\allowbreak{}hcp table. See algorithms/\allowbreak{}PatternMatch.h.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+detect_pattern(structure, pattern, *, cutoff=None, angle_threshold=10.0, no_pbc=False, executable=None, timeout=300)
+\end{lstlisting}
+
+Match each atom's local neighbor environment against pattern (from build\_\allowbreak{}pattern).
+
+Returns one row per atom: index, matched (bool), neighbor\_\allowbreak{}count, and
+max\_\allowbreak{}angle\_\allowbreak{}deviation\_\allowbreak{}deg (for matched atoms). Atoms not matching the
+pattern are near a defect (dislocation core, stacking fault, free
+surface, ...). cutoff defaults to the cutoff pattern was built with.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+fit_dislocation(deformed, reference, line, *, cutoff=3.0, area=1.0, no_pbc=False, executable=None, timeout=300)
+\end{lstlisting}
+
+Recover a dislocation's position and Burgers vector from a measured field.
+
+Serves the same purpose as BABEL's displacementFit/\allowbreak{}vitekFit programs
+(self-described in BABEL's own docs as "not documented yet"):
+extracting dislocation properties from data, the reverse of af.build
+inserting a known dislocation. Uses the Nye tensor's own defining
+properties directly (its |alpha|-weighted centroid is the best-fit line
+position; its cross-sectional integral is the Burgers vector, by Nye's
+theorem) rather than BABEL's iterative nonlinear least-squares fit.
+line is the assumed Cartesian line direction; area is the
+cross-sectional area per atom (Angstrom\textasciicircum{}2) used to scale the Burgers
+vector estimate (leave at 1.0 for an uncalibrated, direction-only
+result). Returns \{"line\_\allowbreak{}position": (x,y,z), "burgers\_\allowbreak{}vector": (x,y,z)\}.
+See algorithms/\allowbreak{}DislocationFit.h.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+prepare_drag(initial, final, *, zeta=0.5, clip_displacement=False, no_pbc=False, executable=None, timeout=300)
+\end{lstlisting}
+
+Prepare a constrained-minimization ("drag") migration-barrier calculation.
+
+Linearly interpolates atom positions between initial and final
+(same atom count/\allowbreak{}order in both) at reaction coordinate zeta in
+[0, 1], e.g. to sample points along a dislocation's migration path
+between two neighboring equilibrium (Peierls-valley) positions.
+clip\_\allowbreak{}displacement wraps each atom's final-minus-initial vector to its
+minimum-image representation first, for migrations that would otherwise
+appear to cross most of the periodic cell. AtomForge does not perform
+the constrained minimization itself (like BABEL's prepareDrag program);
+this only prepares its inputs. Returns
+(interpolated\_\allowbreak{}structure, constraint\_\allowbreak{}directions), where
+constraint\_\allowbreak{}directions is a list of (dx, dy, dz) per atom -- the
+reaction-coordinate direction an external relaxation/\allowbreak{}MD code would fix
+the projection onto while relaxing every perpendicular degree of
+freedom. See algorithms/\allowbreak{}DragPrep.h.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
 sculpt(source, slabs, *, repeat=(1, 1, 1), periodic=False, executable=None, timeout=300)
 \end{lstlisting}
 
@@ -2302,10 +2433,33 @@ DISLOCATION  (--build dislocation)
   --ellipsoid "rx ry rz"     Ellipsoid radii for shape=ellipsoid
   --poly2d "x1 y1;x2 y2;..."  Freeform polygon for shape=freeform
 
+  Anisotropic elasticity (Stroh sextic formalism, replaces --nu; elastic
+  constants are given in GPa, in the SAME axes as the input structure's
+  unit cell -- see the BABEL reference in AnisotropicDislocation.h):
+  --anisotropic                Use anisotropic instead of isotropic elasticity
+  --elastic-symmetry <cubic|hexagonal>  (default: cubic)
+  --elastic-c11/--elastic-c12/--elastic-c44 <GPa>   cubic constants
+  --elastic-c13/--elastic-c33 <GPa>   additional hexagonal constants
+                                (hexagonal also needs c11/c12/c44; c-axis
+                                 must be the structure's third cell vector)
+  --elastic-noise <amplitude>  Relative perturbation to break the sextic's
+                                degeneracy at isotropic/high-symmetry
+                                orientations (default: 1e-4)
+
+  Dislocation dipole (adds a second, opposite-Burgers-vector dislocation,
+                       so the pair's net Burgers vector -- and hence its
+                       long-range field -- is periodicity-compatible):
+  --dipole                     Enable dipole mode
+  --dipole-offset "dx dy"     Partner offset in the local slip-plane axes,
+                                Angstrom (default: "15 0")
+
 Example:
   AtomForge --build dislocation --input base.cfg --character edge ^
             --manual-vectors --line "0 0 1" --burgers "1 0 0" ^
             --shape cylinder --cyl-radius 12 --output edge.cfg
+  AtomForge --build dislocation --input cu.cfg --character screw ^
+            --anisotropic --elastic-c11 168.4 --elastic-c12 121.4 ^
+            --elastic-c44 75.4 --shape cylinder --cyl-radius 12 --output cu_screw.cfg
 \end{lstlisting}
 
 \clearpage
