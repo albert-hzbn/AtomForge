@@ -58,9 +58,48 @@ glass = af.build('amorphous', ['--element', 'Si 40', '--element', 'O 80',
 # Defects require physically appropriate host geometry and parameters:
 # defect = af.build('dislocation', ['--character', 'edge', '--shape', 'cylinder',
 #                                   '--cyl-radius', '5', '--core', '1.2', '--cutoff', '8'], source=host)
+
+# Anisotropic elasticity (Stroh sextic formalism) instead of the default
+# isotropic model -- elastic constants in GPa, same axes as the input cell:
+cu_aniso = af.build('dislocation', ['--character', 'edge', '--shape', 'cylinder', '--cyl-radius', '15',
+                                    '--anisotropic', '--elastic-c11', '168.4',
+                                    '--elastic-c12', '121.4', '--elastic-c44', '75.4'], source=host)
 ```
 
 Wulff `radius` is the maximum facet-plane distance in angstrom, not the farthest vertex radius. Facets are `(h,k,l,positive_relative_energy)` rows, expanded using the native symmetry engine. Geometric builders do not relax structures.
+
+`--anisotropic` replaces the isotropic (`--nu`) dislocation displacement field with the anisotropic Stroh sextic formalism (see `AnisotropicDislocation.h` for the underlying literature and `AtomForge --help dislocation` for all elastic-constant flags, including `--elastic-symmetry hexagonal`). Use real single-crystal elastic constants for accuracy; elastically isotropic or high-symmetry orientations need the automatic `--elastic-noise` perturbation (on by default) since the sextic formalism is mathematically singular exactly there. `--dipole --dipole-offset "dx dy"` adds a second, opposite-Burgers-vector dislocation, giving a periodicity-compatible structure (zero net Burgers vector).
+
+```python
+# Nye (dislocation density) tensor: compare a dislocated structure against
+# its undeformed reference (same atom count/order in both).
+rows = af.nye_tensor(dislo.structure, reference, cutoff=3.0, no_pbc=True)
+core_atoms = sorted(rows, key=lambda r: -r["norm"])[:10]
+```
+`nye_tensor` returns one row per atom (`index`, `symbol`, the nine `alpha_xx..alpha_zz` tensor components in 1/Angstrom, and their Frobenius `norm`), following the same Hartley & Mishin lattice-correspondence algorithm BABEL's own `nyeTensor.f90` implements. Atoms far from any lattice defect have a norm near zero; the tensor is largest right at a dislocation core.
+
+A few more BABEL-equivalent post-processing tools, each a native reimplementation of the corresponding BABEL program (see the header comment in each source file for the exact literature/algorithm followed):
+
+```python
+# Differential-displacement (Vitek) map, for plotting a dislocation core's
+# characteristic pattern (e.g. the BCC screw core's 3-fold arrangement).
+pairs = af.vitek_map(dislo.structure, reference, line=(1, 1, 1), burgers=2.48)
+
+# Pattern-based defect detection: flag atoms whose local neighbor
+# environment no longer matches a perfect reference (near a core, fault, or
+# surface).
+pattern = af.build_pattern(reference, cutoff=3.2)
+rows = af.detect_pattern(dislo.structure, pattern, angle_threshold=10.0)
+
+# Prepare a constrained-minimization ("drag") migration-barrier calculation
+# by interpolating between two configurations (AtomForge does not itself
+# run the constrained minimization, matching BABEL's own prepareDrag).
+midpoint, constraint_directions = af.prepare_drag(initial, final, zeta=0.5)
+
+# Recover a dislocation's position/Burgers vector from a measured field
+# (the reverse of af.build inserting a known one).
+fit = af.fit_dislocation(dislo.structure, reference, line=(0, 0, 1))
+```
 
 `af.load` / `af.save` support XYZ/extXYZ, VASP POSCAR/CONTCAR, PDB, explicit-site CIF, and LAMMPS data. Python CIF reading does not expand asymmetric-unit symmetry; use the native bulk builder for that. `Structure.copy`, `repeat`, and `filter_species` return separate objects; `translate` and `scale` mutate in place. `view()` opens the desktop; `view_notebook()` displays the existing interactive notebook viewer.
 

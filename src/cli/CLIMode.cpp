@@ -365,10 +365,33 @@ static void printHelpDislocation()
 "  --ellipsoid \"rx ry rz\"     Ellipsoid radii for shape=ellipsoid\n"
 "  --poly2d \"x1 y1;x2 y2;...\"  Freeform polygon for shape=freeform\n"
 "\n"
+"  Anisotropic elasticity (Stroh sextic formalism, replaces --nu; elastic\n"
+"  constants are given in GPa, in the SAME axes as the input structure's\n"
+"  unit cell -- see the BABEL reference in AnisotropicDislocation.h):\n"
+"  --anisotropic                Use anisotropic instead of isotropic elasticity\n"
+"  --elastic-symmetry <cubic|hexagonal>  (default: cubic)\n"
+"  --elastic-c11/--elastic-c12/--elastic-c44 <GPa>   cubic constants\n"
+"  --elastic-c13/--elastic-c33 <GPa>   additional hexagonal constants\n"
+"                                (hexagonal also needs c11/c12/c44; c-axis\n"
+"                                 must be the structure's third cell vector)\n"
+"  --elastic-noise <amplitude>  Relative perturbation to break the sextic's\n"
+"                                degeneracy at isotropic/high-symmetry\n"
+"                                orientations (default: 1e-4)\n"
+"\n"
+"  Dislocation dipole (adds a second, opposite-Burgers-vector dislocation,\n"
+"                       so the pair's net Burgers vector -- and hence its\n"
+"                       long-range field -- is periodicity-compatible):\n"
+"  --dipole                     Enable dipole mode\n"
+"  --dipole-offset \"dx dy\"     Partner offset in the local slip-plane axes,\n"
+"                                Angstrom (default: \"15 0\")\n"
+"\n"
 "Example:\n"
 "  AtomForge --build dislocation --input base.cfg --character edge ^\n"
 "            --manual-vectors --line \"0 0 1\" --burgers \"1 0 0\" ^\n"
 "            --shape cylinder --cyl-radius 12 --output edge.cfg\n"
+"  AtomForge --build dislocation --input cu.cfg --character screw ^\n"
+"            --anisotropic --elastic-c11 168.4 --elastic-c12 121.4 ^\n"
+"            --elastic-c44 75.4 --shape cylinder --cyl-radius 12 --output cu_screw.cfg\n"
 << std::endl;
 }
 
@@ -579,6 +602,60 @@ static int runDislocation(int argc, char* argv[])
         if (params.freeformPoints.size() < 3)
         {
             std::cerr << "Error: --poly2d needs at least 3 points\n";
+            return 1;
+        }
+    }
+
+    if (hasFlag(argc, argv, "--dipole"))
+    {
+        params.dipole = true;
+        const char* off = findArg(argc, argv, "--dipole-offset");
+        if (off)
+        {
+            std::istringstream iss(off);
+            float dx = 0.0f, dy = 0.0f;
+            if (!(iss >> dx >> dy))
+            {
+                std::cerr << "Error: could not parse --dipole-offset \"dx dy\"\n";
+                return 1;
+            }
+            params.dipoleOffset = glm::vec2(dx, dy);
+        }
+    }
+
+    if (hasFlag(argc, argv, "--anisotropic"))
+    {
+        params.anisotropicElasticity = true;
+        const char* sym = findArg(argc, argv, "--elastic-symmetry");
+        if (sym)
+        {
+            std::string s = sym;
+            for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (s == "cubic") params.elasticSymmetry = DislocationParams::ElasticSymmetry::Cubic;
+            else if (s == "hexagonal") params.elasticSymmetry = DislocationParams::ElasticSymmetry::Hexagonal;
+            else
+            {
+                std::cerr << "Error: --elastic-symmetry must be cubic or hexagonal\n";
+                return 1;
+            }
+        }
+        params.elasticC11 = argDouble(argc, argv, "--elastic-c11", 0.0);
+        params.elasticC12 = argDouble(argc, argv, "--elastic-c12", 0.0);
+        params.elasticC44 = argDouble(argc, argv, "--elastic-c44", 0.0);
+        params.elasticC13 = argDouble(argc, argv, "--elastic-c13", 0.0);
+        params.elasticC33 = argDouble(argc, argv, "--elastic-c33", 0.0);
+        params.elasticNoiseAmplitude = argDouble(argc, argv, "--elastic-noise", params.elasticNoiseAmplitude);
+        if (params.elasticC11 <= 0.0 || params.elasticC12 < 0.0 || params.elasticC44 <= 0.0)
+        {
+            std::cerr << "Error: --anisotropic requires positive --elastic-c11/--elastic-c44 "
+                         "(and --elastic-c12 >= 0), in GPa\n";
+            return 1;
+        }
+        if (params.elasticSymmetry == DislocationParams::ElasticSymmetry::Hexagonal
+            && (params.elasticC13 <= 0.0 || params.elasticC33 <= 0.0))
+        {
+            std::cerr << "Error: --elastic-symmetry hexagonal also requires positive "
+                         "--elastic-c13/--elastic-c33, in GPa\n";
             return 1;
         }
     }

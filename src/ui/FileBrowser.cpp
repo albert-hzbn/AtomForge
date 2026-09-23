@@ -758,6 +758,7 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
             rdfDialog.drawMenuItem(!structure.atoms.empty());
             angularDistributionDialog.drawMenuItem(!structure.atoms.empty());
             drawShortRangeOrderMenuItem(!structure.atoms.empty(), shortRangeOrderDialog);
+            dislocationAnalysisDialog.drawMenuItem();
             ImGui::Separator();
             scientificToolsDialog.drawMenuItems("Structure and defects");
             ImGui::EndMenu();
@@ -1630,6 +1631,7 @@ void FileBrowser::draw(Structure& structure,
     electronicDialog.drawDialog();
     wannierDialog.drawDialog();
     lobsterDialog.drawDialog();
+    dislocationAnalysisDialog.drawDialog();
     trajectoryDialog.draw(structure,updateBuffers);
     scientificToolsDialog.draw(structure, updateFromBuilderToNewTab);
     drawShortRangeOrderDialog(shortRangeOrderDialog, structure);
@@ -2104,6 +2106,7 @@ void FileBrowser::draw(Structure& structure,
             ImGui::Text("Algorithm References");
             wrappedBullet("CSL Grain Boundary Builder: Jianli Cheng, Jian Luo, and Kesong Yang, Aimsgb: An Algorithm and Open-Source Python Library to Generate Periodic Grain Boundary Structures, Comput. Mater. Sci. 155, 92-103 (2018).");
             wrappedBullet("Nanocrystal Builder (Wulff construction): Georgios D. Barmparis, Zbigniew Lodziana, Nuria Lopez, and Ioannis N. Remediakis, Nanoparticle shapes by using Wulff constructions and first-principles calculations, Beilstein J. Nanotechnol. 6, 361-368 (2015).");
+            wrappedBullet("Dislocation Builder and Post-Processing: native reimplementations of the physical models and algorithms used by the BABEL dislocation toolkit (Douin, Clouet et al.). Isotropic and anisotropic (Stroh sextic formalism) displacement fields: A. N. Stroh, Philos. Mag. 3, 625 (1958); J. Math. Phys. 41, 77 (1962); D. M. Barnett and J. Lothe, Phys. Norv. 7, 13 (1973); J. P. Hirth and J. Lothe, Theory of Dislocations, 2nd ed. (1982), ch. 13. Nye tensor: J. F. Nye, Acta Metall. 1, 153 (1953); Hartley and Mishin, Acta Mater. 53, 1313 (2005), with the index-order correction documented in BABEL's own source (attributed there to David Olmsted). Vitek differential-displacement map: V. Vitek, Philos. Mag. 18, 773 (1968).");
 
             ImGui::Spacing();
             ImGui::Text("Features");

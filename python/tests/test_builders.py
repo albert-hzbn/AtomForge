@@ -46,6 +46,99 @@ class BuilderTests(unittest.TestCase):
             self.assertEqual(len(cu), 4)
             self.assertIsNone(sphere.output)
 
+    def test_anisotropic_dislocation(self):
+        # Real Cu single-crystal elastic constants (GPa); A = 2*C44/(C11-C12)
+        # = 3.2, strongly anisotropic, so this also exercises the Stroh
+        # sextic solver's non-degenerate path (no noise workaround needed).
+        cu = af.build('bulk', ['--a', '3.61', '--atom', 'Cu 0 0 0']).structure
+        host = cu.repeat(10, 10, 10)
+        aniso = af.build('dislocation', [
+            '--character', 'edge', '--shape', 'cylinder', '--cyl-radius', '15',
+            '--anisotropic', '--elastic-c11', '168.4', '--elastic-c12', '121.4', '--elastic-c44', '75.4',
+        ], source=host)
+        self.assertEqual(len(aniso.structure), 4000)
+        self.assertIn('Inserted edge dislocation', aniso.stdout)
+        self.assertNotIn('lattice family changed', aniso.stdout)
+        for atom in aniso.structure.atoms:
+            self.assertTrue(all(map(lambda v: v == v, (atom.x, atom.y, atom.z))))  # no NaN
+
+        # Missing elastic constants must be rejected with a clear error, not
+        # silently ignored or crash.
+        with self.assertRaises(subprocess.CalledProcessError) as ctx:
+            af.build('dislocation', ['--character', 'edge', '--anisotropic'], source=host)
+        self.assertIn('elastic-c11', ctx.exception.stderr)
+
+    def test_dislocation_dipole(self):
+        # A dipole's net Burgers vector is zero, so unlike a single
+        # dislocation it is periodicity-compatible; this exercises the
+        # dipole superposition path (a second, opposite-sign dislocation
+        # offset in the slip plane) independent of the anisotropic solver.
+        cu = af.build('bulk', ['--a', '3.61', '--atom', 'Cu 0 0 0']).structure
+        host = cu.repeat(10, 10, 10)
+        dipole = af.build('dislocation', [
+            '--character', 'edge', '--shape', 'halfplane', '--dipole', '--dipole-offset', '18 0',
+        ], source=host)
+        self.assertEqual(len(dipole.structure), 4000)
+        self.assertIn('dislocation dipole', dipole.stdout)
+        self.assertIn('Validation passed', dipole.stdout)
+
+    def test_prepare_drag(self):
+        # Uses a non-periodic (molecule-style) pair of configurations so the
+        # comparison isn't entangled with AtomForge's native loader always
+        # wrapping periodic structures back into their primary [0, cell)
+        # cell on load (an app-wide, deliberate behavior used by every
+        # native CLI operation, exercised precisely and directly -- with no
+        # file round-trip -- by the native drag_prep_regressions test).
+        initial = af.Structure()
+        initial.add_atom('Cu', 0.0, 0.0, 0.0)
+        initial.add_atom('Cu', 5.0, 0.0, 0.0)
+        final = af.Structure()
+        final.add_atom('Cu', 1.0, 2.0, -0.5)
+        final.add_atom('Cu', 5.3, 0.0, 0.0)
+
+        midpoint, directions = af.prepare_drag(initial, final, zeta=0.5)
+        self.assertEqual(len(midpoint), 2)
+        self.assertEqual(len(directions), 2)
+        self.assertAlmostEqual(midpoint.atoms[0].x, 0.5, places=3)
+        self.assertAlmostEqual(midpoint.atoms[0].y, 1.0, places=3)
+        self.assertAlmostEqual(midpoint.atoms[0].z, -0.25, places=3)
+        self.assertAlmostEqual(midpoint.atoms[1].x, 5.15, places=3)
+        self.assertAlmostEqual(directions[0][0], 1.0, places=3)
+        self.assertAlmostEqual(directions[0][1], 2.0, places=3)
+        self.assertAlmostEqual(directions[0][2], -0.5, places=3)
+
+        start, _ = af.prepare_drag(initial, final, zeta=0.0)
+        self.assertAlmostEqual(start.atoms[0].x, 0.0, places=4)
+        end, _ = af.prepare_drag(initial, final, zeta=1.0)
+        self.assertAlmostEqual(end.atoms[0].x, 1.0, places=3)
+        self.assertAlmostEqual(end.atoms[0].y, 2.0, places=3)
+
+        with self.assertRaises(ValueError):
+            af.prepare_drag(initial, final, zeta=1.5)
+
+    def test_fit_dislocation(self):
+        # Native, exact-line-direction validation (line = [0,0,1] for a
+        # manually-specified screw dislocation) lives in
+        # tests/dislocation_fit_regressions.cpp; this just exercises the
+        # CLI/Python plumbing end to end.
+        cu = af.build('bulk', ['--a', '3.61', '--atom', 'Cu 0 0 0']).structure
+        host = cu.repeat(13, 13, 13)
+        dislo = af.build('dislocation', ['--character', 'screw', '--shape', 'cylinder', '--cyl-radius', '15',
+                                         '--manual-vectors', '--line', '0 0 1', '--burgers', '0 0 1'],
+                          source=host).structure
+
+        fit = af.fit_dislocation(dislo, host, (0, 0, 1), cutoff=3.0, no_pbc=True)
+        self.assertIn('line_position', fit)
+        self.assertIn('burgers_vector', fit)
+        # This weighted-centroid/integral estimator is validated precisely
+        # (position and Burgers direction) for an edge dislocation in the
+        # native dislocation_fit_regressions.cpp test; here (a screw
+        # configuration) just confirm the CLI/Python plumbing returns a
+        # finite, non-trivial result end to end.
+        burgers_mag = sum(c * c for c in fit['burgers_vector']) ** 0.5
+        self.assertGreater(burgers_mag, 1e-6)
+        self.assertTrue(all(abs(c) < 1e6 for c in fit['line_position']))
+
     def test_rotated_cell_keeps_coordinate_frame(self):
         source = af.Structure()
         source.cell = [[0, 4, 0], [-4, 0, 0], [0, 0, 4]]

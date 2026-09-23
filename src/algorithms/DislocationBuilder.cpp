@@ -1,5 +1,7 @@
 #include "algorithms/DislocationBuilder.h"
 
+#include "algorithms/AnisotropicDislocation.h"
+#include "algorithms/ElasticConstants.h"
 #include "algorithms/StackingFaultBuilder.h"
 #include "math/StructureMath.h"
 
@@ -322,7 +324,17 @@ DislocationValidationReport buildValidationReport(const Structure& before,
     report.minInteratomicDistance = nearestDistanceApprox(after);
     report.minDistanceSafe = report.minInteratomicDistance >= 0.20f;
 
-    const DislocationDetectionResult afterDetection = detectDislocationLattice(after, true);
+    // A single Volterra dislocation has a non-zero net Burgers vector, so its
+    // displacement field is fundamentally incompatible with the original box's
+    // periodicity (the field does not return to zero at the boundaries). Reusing
+    // full periodic-image neighbor search for post-hoc classification therefore
+    // manufactures spurious wraparound "neighbors" for every atom near any face
+    // of the box -- not just atoms near the dislocation core -- and previously
+    // caused entire structures to be misclassified (e.g. FCC reported as HCP)
+    // even when only a small core region had actually been perturbed. Only a
+    // periodicity-compatible construction (e.g. a dipole/quadrupole with zero
+    // net Burgers vector) can be safely classified with PBC neighbor search.
+    const DislocationDetectionResult afterDetection = detectDislocationLattice(after, false);
     report.familyAfter = afterDetection.family;
     report.latticeFamilyPreserved = (familyBefore == DislocationLatticeFamily::Unknown)
         ? (report.familyAfter != DislocationLatticeFamily::Unknown)
@@ -394,6 +406,12 @@ struct DislocationKernelContext
     float poisson = 0.33f;
     float core = 1.0f;
     float lineHalfLength = 1.0e6f;
+
+    bool useAnisotropic = false;
+    atomforge::dislocation::StrohSolution strohSolution;
+
+    bool useDipole = false;
+    glm::vec3 dipoleLinePoint = glm::vec3(0.0f);
 };
 
 struct WorkerAccum
@@ -404,12 +422,17 @@ struct WorkerAccum
     double sumDz = 0.0;
 };
 
-glm::vec3 computeDisplacement(const DislocationParams& params,
-                              const DislocationKernelContext& ctx,
-                              const glm::vec3& position)
+// Evaluates one dislocation's contribution at `position`; `sign` is +1 for
+// the primary dislocation and -1 for a dipole partner (opposite Burgers
+// vector, same line orientation, offset origin).
+glm::vec3 computeOneDislocationDisplacement(const DislocationParams& params,
+                                            const DislocationKernelContext& ctx,
+                                            const glm::vec3& position,
+                                            const glm::vec3& linePoint,
+                                            float sign)
 {
     // Evaluate isotropic elasticity displacement at one atom in local coordinates.
-    const glm::vec3 rel = position - ctx.linePoint;
+    const glm::vec3 rel = position - linePoint;
     const float z = glm::dot(rel, ctx.lineDir);
     if (std::abs(z) > ctx.lineHalfLength)
         return glm::vec3(0.0f);
@@ -431,6 +454,39 @@ glm::vec3 computeDisplacement(const DislocationParams& params,
     float uy = 0.0f;
     float uz = 0.0f;
 
+    if (ctx.useAnisotropic)
+    {
+        // Same core regularization spirit as the isotropic branch below:
+        // never evaluate the log-singular field exactly at the line, clamp
+        // to the core radius along the same ray instead.
+        const float radial = std::sqrt(x * x + y * y);
+        double ex = x, ey = y;
+        if (radial < ctx.core)
+        {
+            // An atom can sit exactly on the dislocation line (radial == 0),
+            // where there is no direction to preserve; push it out along an
+            // arbitrary fixed ray instead of leaving it at the true log
+            // singularity (radial / radial would otherwise stay zero).
+            if (radial < 1e-6f)
+            {
+                ex = (double)ctx.core;
+                ey = 0.0;
+            }
+            else
+            {
+                ex = (double)(x / radial * ctx.core);
+                ey = (double)(y / radial * ctx.core);
+            }
+        }
+        // u is expressed in the same local (e1, e2, lineDir) frame the Stroh
+        // solve was built in, exactly like ux/uy/uz below.
+        const glm::dvec3 u = atomforge::dislocation::anisotropicDisplacement(ctx.strohSolution, ex, ey);
+        ux = (float)u.x;
+        uy = (float)u.y;
+        uz = (float)u.z;
+        return sign * weight * (ux * ctx.e1 + uy * ctx.e2 + uz * ctx.lineDir);
+    }
+
     if (std::abs(ctx.prefEdge) > 0.0f)
     {
         // Isotropic edge displacement in local (e1,e2) coordinates.
@@ -450,7 +506,17 @@ glm::vec3 computeDisplacement(const DislocationParams& params,
         uz = ctx.prefScrew * std::atan2(y, x);
     }
 
-    return weight * (ux * ctx.e1 + uy * ctx.e2 + uz * ctx.lineDir);
+    return sign * weight * (ux * ctx.e1 + uy * ctx.e2 + uz * ctx.lineDir);
+}
+
+glm::vec3 computeDisplacement(const DislocationParams& params,
+                              const DislocationKernelContext& ctx,
+                              const glm::vec3& position)
+{
+    glm::vec3 total = computeOneDislocationDisplacement(params, ctx, position, ctx.linePoint, 1.0f);
+    if (ctx.useDipole)
+        total += computeOneDislocationDisplacement(params, ctx, position, ctx.dipoleLinePoint, -1.0f);
+    return total;
 }
 }
 
@@ -540,7 +606,28 @@ DislocationResult buildDislocation(const Structure& base,
             lineDir = directionFromUvw(cell, lineUvw);
     }
 
-    const glm::vec3 e2 = safeNormalize(glm::cross(lineDir, burgersDir), planeNormal);
+    // For a pure screw dislocation lineDir == burgersDir, so
+    // cross(lineDir, burgersDir) is always exactly zero: e2 must instead
+    // come from planeNormal projected perpendicular to lineDir (a Gram-Schmidt
+    // step), not planeNormal directly, since planeNormal need not already be
+    // perpendicular to lineDir (e.g. the default planeHkl happening to equal
+    // the chosen line/Burgers direction, as for a <111> screw with the
+    // default (1,1,1) plane) -- using it unprojected would silently collapse
+    // the whole transverse (e1, e2) frame onto lineDir itself.
+    glm::vec3 e2;
+    if (params.character == DislocationCharacter::Screw)
+    {
+        glm::vec3 reference = planeNormal;
+        if (glm::length(glm::cross(lineDir, reference)) <= 1e-6f)
+            reference = (std::abs(glm::dot(lineDir, glm::vec3(0.0f, 0.0f, 1.0f))) < 0.9f)
+                ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(0.0f, 1.0f, 0.0f);
+        const glm::vec3 perpComponent = reference - lineDir * glm::dot(lineDir, reference);
+        e2 = safeNormalize(perpComponent, glm::vec3(1.0f, 0.0f, 0.0f));
+    }
+    else
+    {
+        e2 = safeNormalize(glm::cross(lineDir, burgersDir), planeNormal);
+    }
 
     if (params.character != DislocationCharacter::Screw && glm::length(glm::cross(lineDir, burgersDir)) <= 1e-6f)
     {
@@ -594,6 +681,70 @@ DislocationResult buildDislocation(const Structure& base,
     kernel.lineHalfLength = params.lineHalfLength;
     kernel.prefEdge = (edgeFraction * bmag) / (2.0f * kPi);
     kernel.prefScrew = (screwFraction * bmag) / (2.0f * kPi);
+
+    if (params.dipole)
+    {
+        kernel.useDipole = true;
+        kernel.dipoleLinePoint = linePoint + params.dipoleOffset.x * e1 + params.dipoleOffset.y * e2;
+    }
+
+    if (params.anisotropicElasticity)
+    {
+        ElasticTensor crystalElastic;
+        switch (params.elasticSymmetry)
+        {
+        case DislocationParams::ElasticSymmetry::Cubic:
+            crystalElastic = makeCubicElasticTensor(params.elasticC11, params.elasticC12, params.elasticC44);
+            break;
+        case DislocationParams::ElasticSymmetry::Hexagonal:
+            crystalElastic = makeHexagonalElasticTensor(params.elasticC11, params.elasticC12,
+                                                         params.elasticC13, params.elasticC33, params.elasticC44);
+            break;
+        case DislocationParams::ElasticSymmetry::General:
+            crystalElastic = makeVoigtElasticTensor(params.elasticVoigt);
+            break;
+        }
+
+        // Crystal axes: cubic/general assume the cell vectors are the
+        // orthogonal x/y/z the elastic constants are given in; hexagonal
+        // assumes cell[2] (c) is the 6-fold axis, matching BABEL's
+        // documented convention, with the in-plane axis choice irrelevant
+        // by basal-plane isotropy.
+        glm::dvec3 xCrystal, yCrystal, zCrystal;
+        if (params.elasticSymmetry == DislocationParams::ElasticSymmetry::Hexagonal)
+        {
+            zCrystal = glm::normalize(glm::dvec3(cell[2]));
+            glm::dvec3 aAxis(cell[0]);
+            xCrystal = glm::normalize(aAxis - glm::dot(aAxis, zCrystal) * zCrystal);
+            yCrystal = glm::cross(zCrystal, xCrystal);
+        }
+        else
+        {
+            xCrystal = glm::normalize(glm::dvec3(cell[0]));
+            yCrystal = glm::normalize(glm::dvec3(cell[1]));
+            zCrystal = glm::normalize(glm::dvec3(cell[2]));
+        }
+
+        // Local dislocation axes (e1, e2, lineDir), expressed in the
+        // crystal's own basis, is exactly what rotateElasticTensor expects.
+        const glm::dvec3 e1d(e1), e2d(e2), lineDird(lineDir);
+        const glm::dmat3 localInCrystalFrame(
+            glm::dvec3(glm::dot(e1d, xCrystal), glm::dot(e1d, yCrystal), glm::dot(e1d, zCrystal)),
+            glm::dvec3(glm::dot(e2d, xCrystal), glm::dot(e2d, yCrystal), glm::dot(e2d, zCrystal)),
+            glm::dvec3(glm::dot(lineDird, xCrystal), glm::dot(lineDird, yCrystal), glm::dot(lineDird, zCrystal)));
+
+        const ElasticTensor localElastic = rotateElasticTensor(crystalElastic, localInCrystalFrame);
+        const glm::dvec3 burgersLocal((double)(edgeFraction * bmag), 0.0, (double)(screwFraction * bmag));
+
+        kernel.strohSolution = atomforge::dislocation::solveStroh(
+            localElastic, burgersLocal, params.elasticNoiseSeed, params.elasticNoiseAmplitude);
+        if (!kernel.strohSolution.valid)
+        {
+            result.message = "Anisotropic elasticity solve failed: " + kernel.strohSolution.error;
+            return result;
+        }
+        kernel.useAnisotropic = true;
+    }
 
     Structure output = base;
     const size_t atomCount = output.atoms.size();
@@ -823,9 +974,11 @@ DislocationResult buildDislocation(const Structure& base,
     std::ostringstream oss;
     oss << "Inserted " << ((params.character == DislocationCharacter::Edge) ? "edge" :
                              (params.character == DislocationCharacter::Screw) ? "screw" : "mixed")
-        << " dislocation on " << dislocationLatticeFamilyName(detection.family)
+        << (params.dipole ? " dislocation dipole" : " dislocation")
+        << " on " << dislocationLatticeFamilyName(detection.family)
         << ". Shifted atoms: " << shifted
-        << ", |b| = " << bmag << " A. "
+        << ", |b| = " << bmag << " A"
+        << (params.dipole ? " per partner (net Burgers vector zero)." : ".") << " "
         << result.validation.message;
 
     result.message = oss.str();

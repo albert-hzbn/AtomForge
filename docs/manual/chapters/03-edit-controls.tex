@@ -64,7 +64,10 @@ For a non-diagonal transform, inspect the resulting cell vectors rather than inf
 \item[Shape.] Half-plane uses the plane-based construction. Cylinder and Sphere expose their respective radius. Ellipsoid exposes three radii. Freeform 2D exposes polygon points in local $(x,y)$ about the line: Add Point appends a vertex; Remove Last removes the final vertex; edit each coordinate pair to trace the intended region. Use a sensible non-self-intersecting polygon.
 \item[Generate Dislocation.] Calculates a result preview. Inspect Shifted atoms, $|b|$, RMS displacement, maximum displacement, minimum interatomic distance, and lattice family before/after.
 \item[Replace Main Scene.] Commits the generated structure and its line-overlay information. Generate alone is not this replacement action. Close dismisses the dialog; save after replacement and before external relaxation.
+\item[Use anisotropic elasticity.] Replaces the isotropic Poisson-ratio displacement field with the Stroh sextic formalism for a fully anisotropic elastic medium, given the crystal's elastic constants ($C_{11}$, $C_{12}$, $C_{44}$, and $C_{13}$/$C_{33}$ for hexagonal symmetry). A small noise amplitude breaks the sextic solve's degeneracy at isotropic or high-symmetry line/plane orientations.
+\item[Insert as dipole.] Superposes a second dislocation of opposite Burgers vector at a specified offset, giving a net-zero-Burgers-vector configuration that is periodicity-compatible, unlike a single dislocation in a periodic cell.
 \end{description}
+This tool and its post-processing counterpart (Section~\ref{sec:dislocation-postprocessing}) are native reimplementations of the physical models and algorithms used by the BABEL dislocation toolkit (Douin, Clouet et al.); see that section for the full literature list.
 
 \subsection{Add Interstitial Atoms: finding, filtering, and occupying voids}
 This workflow has two stages: detect candidate voids in the host, then choose where to insert a selected element. Re-run detection after a substantial host change.

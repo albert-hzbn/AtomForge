@@ -113,6 +113,7 @@ set(ATOMFORGE_SOURCES
     src/ui/ElectronicPostProcessing.cpp
     src/ui/WannierAnalysisDialog.cpp
     src/ui/LobsterAnalysisDialog.cpp
+    src/ui/DislocationAnalysisDialog.cpp
     src/ui/ElectronicSliceViewport.cpp
     src/ui/PathPicker.cpp
     src/graphics/ElectronicViewport.cpp
@@ -142,6 +143,13 @@ set(ATOMFORGE_SOURCES
     src/algorithms/BulkCrystalBuilder.cpp
     src/algorithms/InterfaceBuilder.cpp
     src/algorithms/DislocationBuilder.cpp
+    src/algorithms/ElasticConstants.cpp
+    src/algorithms/AnisotropicDislocation.cpp
+    src/algorithms/NyeTensor.cpp
+    src/algorithms/VitekMap.cpp
+    src/algorithms/PatternMatch.cpp
+    src/algorithms/DragPrep.cpp
+    src/algorithms/DislocationFit.cpp
     src/algorithms/StackingFaultBuilder.cpp
     src/cli/CLIMode.cpp
     src/io/StructureLoader.cpp

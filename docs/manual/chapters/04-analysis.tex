@@ -59,5 +59,18 @@ Choose \ui{File > Export Image}, select PNG, JPEG, or SVG, configure the availab
 
 An image records a view, not a reproducible calculation. Accompany it with the saved structure or density, camera orientation, visible species, radii, scalar palette/range, and isovalue where relevant. For quantitative electronic profiles, export CSV and generate a plot with explicit axes and units. For the electronic dialog itself, an operating-system screenshot records both the controls and current views, as illustrated in this manual.
 
+\section{Dislocation Post-Processing}\label{sec:dislocation-postprocessing}
+\textbf{Purpose.} Compare a deformed structure against its undeformed reference to characterise dislocation content: Nye tensor, Vitek differential-displacement map, crystallographic pattern matching, drag/migration-barrier preparation, and dislocation position/Burgers-vector fitting. Open \ui{Analysis > Structure and defects > Dislocation Post-Processing}, load a reference (undeformed) and a deformed structure with the same atom count and ordering, then run the desired analysis. Results with a numeric field export to CSV; the drag-preparation interpolated structure saves directly as a structure file.
+
+\textbf{Origin.} Each analysis is a native reimplementation of the corresponding program in the BABEL dislocation toolkit (Douin, Clouet et al.), following the same published methods rather than porting BABEL's Fortran source:
+\begin{itemize}
+\item \textbf{Nye tensor} (\ui{nyeTensor.f90}): J. F. Nye, \textit{Acta Metall.} \textbf{1}, 153 (1953); Hartley and Mishin, \textit{Acta Mater.} \textbf{53}, 1313 (2005) lattice-correspondence convention, including the index-order correction documented in BABEL's own source (attributed there to David Olmsted).
+\item \textbf{Vitek differential-displacement map} (\ui{vitek.f90}): V. Vitek, \textit{Philos. Mag.} \textbf{18}, 773 (1968).
+\item \textbf{Pattern matching} (\ui{patternInit}/\ui{patternDetect}): same two-stage neighbour-environment comparison as BABEL, generalised here to build the reference pattern from any supplied perfect structure rather than a hardcoded bcc/fcc/hcp table.
+\item \textbf{Drag/migration-barrier preparation} (\ui{mainPrepareDrag.f90}): linear interpolation between reference and deformed configurations at a reaction coordinate $\zeta$, for use as the input to an external constrained-minimisation calculation; AtomForge does not itself run that minimisation.
+\item \textbf{Dislocation fit}: a non-iterative weighted centroid/integral estimate of dislocation line position and Burgers vector from the Nye tensor field (Nye, 1953, above), serving the same purpose as BABEL's \ui{displacementFit}/\ui{vitekFit} without their nonlinear least-squares fit against a fixed elastic solution.
+\end{itemize}
+The anisotropic-elasticity option in Insert Dislocation (previous section) uses the Stroh sextic formalism: A. N. Stroh, \textit{Philos. Mag.} \textbf{3}, 625 (1958); \textit{J. Math. Phys.} \textbf{41}, 77 (1962); D. M. Barnett and J. Lothe, \textit{Phys. Norv.} \textbf{7}, 13 (1973); J. P. Hirth and J. Lothe, \textit{Theory of Dislocations}, 2nd ed. (1982), ch.\ 13 --- the same model BABEL's own anisotropic-dislocation code uses.
+
 \section{Features that are not current analysis-menu commands}
 Common-neighbour analysis (CNA) and angular-distribution analysis have source implementations but their menu entries are disabled in the documented baseline. They cannot be reached as ordinary Analysis commands in this executable. Their presence in source or earlier broad feature lists should not be interpreted as a tested desktop workflow. Use RDF, SRO, measurements, and the electronic tools described here for the exposed analysis features.

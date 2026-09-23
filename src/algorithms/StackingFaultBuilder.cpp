@@ -83,10 +83,17 @@ uint64_t edgeKey(int a, int b)
 int longestChainLength(const std::vector<int>& commonNodes,
                        const std::unordered_set<uint64_t>& edgeSet)
 {
-    if (commonNodes.empty())
+    // Number of BONDS (edges), not atoms, in the longest continuous chain
+    // among the common-neighbor atoms -- the standard Honeycutt-Andersen /
+    // common-neighbor-analysis convention (e.g. FCC's signature is the
+    // well-known "4-2-1": 4 common neighbors, 2 bonds among them, forming
+    // two disjoint single-bond pairs, i.e. a longest chain of 1 bond).
+    // A previous version returned node count (edges + 1) here, which
+    // shifted every signature's third digit by one and caused ordinary FCC
+    // atoms to be misclassified as HCP (verified by hand against the ideal
+    // FCC nearest-neighbor lattice) and vice versa.
+    if (commonNodes.size() < 2)
         return 0;
-    if (commonNodes.size() == 1)
-        return 1;
 
     std::vector<std::vector<int>> adjacency(commonNodes.size());
     for (int i = 0; i < (int)commonNodes.size(); ++i)
@@ -101,7 +108,7 @@ int longestChainLength(const std::vector<int>& commonNodes,
         }
     }
 
-    int best = 1;
+    int best = 0;
     for (int src = 0; src < (int)commonNodes.size(); ++src)
     {
         std::vector<int> dist(commonNodes.size(), -1);
@@ -118,7 +125,7 @@ int longestChainLength(const std::vector<int>& commonNodes,
                 if (dist[v] >= 0)
                     continue;
                 dist[v] = dist[u] + 1;
-                best = std::max(best, dist[v] + 1);
+                best = std::max(best, dist[v]);
                 q.push(v);
             }
         }
@@ -209,14 +216,28 @@ DetectionSummary detectFamily(const Structure& structure, bool usePbcRequest)
     for (std::vector<int>& nbrs : neighbors)
         std::sort(nbrs.begin(), nbrs.end());
 
+    // Reference common-neighbor-analysis (Honeycutt-Andersen) pair signatures,
+    // hand-verified against the ideal lattices' nearest-neighbor geometry:
+    //   FCC: all 12 first-neighbor bonds are 4-2-1.
+    //   HCP: 6 of the 12 first-neighbor bonds are 4-2-1, 6 are 4-2-2 (the
+    //        basal vs. non-basal bond directions are inequivalent, unlike FCC).
+    //   BCC: the 8 first-shell bonds are 6-6-3, the 6 second-shell bonds
+    //        (included by the same covalent-radius cutoff used here) are 4-4-2.
     const Signature fcc = {4, 2, 1};
     const Signature hcp = {4, 2, 2};
-    const Signature bccA = {4, 4, 1};
-    const Signature bccB = {6, 6, 1};
+    const Signature bccA = {6, 6, 3};
+    const Signature bccB = {4, 4, 2};
 
-    for (int i = 0; i < (int)structure.atoms.size(); ++i)
+    // Per-atom histograms of how many of ITS OWN bonds match each reference
+    // signature. Built from every bond exactly once (j > i) but credited to
+    // BOTH endpoints, so each atom's classification sees its full bond list
+    // rather than only the half of its bonds where it happens to have the
+    // lower atom index.
+    const std::size_t atomCount = structure.atoms.size();
+    std::vector<int> n421(atomCount, 0), n422(atomCount, 0), n663(atomCount, 0), n442(atomCount, 0);
+
+    for (int i = 0; i < (int)atomCount; ++i)
     {
-        std::map<Signature, int> counts;
         for (int neighbor : neighbors[i])
         {
             if (neighbor <= i)
@@ -238,29 +259,28 @@ DetectionSummary detectFamily(const Structure& structure, bool usePbcRequest)
                 }
             }
             sig.chain = longestChainLength(common, edgeSet);
-            counts[sig]++;
+
+            if (sig == fcc) { n421[i]++; n421[neighbor]++; }
+            else if (sig == hcp) { n422[i]++; n422[neighbor]++; }
+            else if (sig == bccA) { n663[i]++; n663[neighbor]++; }
+            else if (sig == bccB) { n442[i]++; n442[neighbor]++; }
         }
+    }
 
-        Signature dominant;
-        int dominantCount = 0;
-        for (const auto& entry : counts)
-        {
-            if (entry.second > dominantCount)
-            {
-                dominant = entry.first;
-                dominantCount = entry.second;
-            }
-        }
+    for (int i = 0; i < (int)atomCount; ++i)
+    {
+        const int closePacked = n421[i] + n422[i];
+        const int bcc = n663[i] + n442[i];
 
-        if (dominantCount <= 0)
-            continue;
-
-        if (dominant == fcc)
-            summary.fccCount++;
-        else if (dominant == hcp)
-            summary.hcpCount++;
-        else if (dominant == bccA || dominant == bccB)
+        // FCC has zero 4-2-2 bonds by construction and HCP has a roughly even
+        // 4-2-1/4-2-2 split, so any 4-2-2 evidence at all (with enough data
+        // to trust it) means HCP rather than a boundary-truncated FCC atom.
+        if (bcc > closePacked && bcc >= 4)
             summary.bccCount++;
+        else if (closePacked >= 4 && n422[i] > 0)
+            summary.hcpCount++;
+        else if (closePacked >= 4)
+            summary.fccCount++;
     }
 
     summary.recognizedCount = summary.fccCount + summary.hcpCount + summary.bccCount;

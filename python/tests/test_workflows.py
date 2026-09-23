@@ -222,6 +222,80 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             af.render(structure, self.root / "bad.png", colors={"Xx": (0.5, 0.5, 0.5)})
 
+    def test_nye_tensor(self):
+        reference = af.build('bulk', ['--a', '3.61', '--atom', 'Cu 0 0 0']).structure.repeat(10, 10, 10)
+        dislo = af.build('dislocation', ['--character', 'edge', '--shape', 'cylinder', '--cyl-radius', '15'],
+                          source=reference).structure
+
+        rows = af.nye_tensor(dislo, reference, cutoff=3.0, no_pbc=True)
+        self.assertEqual(len(rows), len(reference))
+        norms = [row["norm"] for row in rows]
+        # Localized around the dislocation core: most atoms are essentially
+        # undisturbed, but the field must be clearly non-zero somewhere.
+        self.assertGreater(max(norms), 1.0)
+        self.assertLess(sorted(norms)[len(norms) // 2], 0.05)  # median stays small
+
+        # Atom count/order mismatch must be rejected, not silently misread.
+        with self.assertRaises(subprocess.CalledProcessError):
+            af.nye_tensor(dislo, af.Structure())
+
+    def test_vitek_map(self):
+        bcc_reference = af.build('bulk', ['--system', 'cubic', '--spacegroup', '229', '--a', '2.87',
+                                          '--atom', 'Fe 0 0 0']).structure.repeat(10, 10, 10)
+        screw = af.build('dislocation', ['--character', 'screw', '--shape', 'cylinder', '--cyl-radius', '15',
+                                         '--manual-vectors', '--line', '1 1 1', '--burgers', '1 1 1',
+                                         '--line-frac', '0.51 0.53 0.47'],
+                          source=bcc_reference).structure
+
+        pairs = af.vitek_map(screw, bcc_reference, (1, 1, 1), burgers=2.48, no_pbc=True)
+        self.assertGreater(len(pairs), 100)
+        screws = sorted(abs(p["screw_A"]) for p in pairs)
+        # Most pairs are far from the core (near-zero differential
+        # displacement); the largest handful are the actual core signature.
+        self.assertLess(screws[len(screws) // 2], 0.3)
+        self.assertGreater(screws[-1], 0.3)
+
+    def test_pattern_matching(self):
+        # no_pbc avoids periodic-image ambiguity in this test's own "far
+        # from the disturbance" distance check (a small demo cell can wrap
+        # a "far" atom back close to the disturbance via its periodic
+        # image); detect_pattern itself works equally well with PBC on.
+        reference = af.build('bulk', ['--a', '3.61', '--atom', 'Cu 0 0 0']).structure.repeat(8, 8, 8)
+        pattern = af.build_pattern(reference, cutoff=3.2, no_pbc=True)
+        self.assertGreater(len(pattern["directions"]), 0)
+
+        deformed = reference.copy()
+        moved_pos = (deformed.atoms[0].x, deformed.atoms[0].y, deformed.atoms[0].z)
+        deformed.atoms[0].x += 5.0  # push one atom far from its lattice site
+        rows = af.detect_pattern(deformed, pattern, cutoff=3.2, angle_threshold=10.0, no_pbc=True)
+        self.assertEqual(len(rows), len(deformed))
+        self.assertFalse(rows[0]["matched"])
+
+        def distance_to_moved(atom):
+            return ((atom.x - moved_pos[0]) ** 2 + (atom.y - moved_pos[1]) ** 2 + (atom.z - moved_pos[2]) ** 2) ** 0.5
+
+        box_size = 8 * 3.61
+        margin = 6.0
+
+        def is_interior(atom):
+            # With no_pbc, atoms near any of the 6 box faces have a
+            # truncated neighbor count regardless of the disturbance; only
+            # atoms well inside every face are a fair "should it match"
+            # check purely about distance to the disturbance.
+            return all(margin < c < box_size - margin for c in (atom.x, atom.y, atom.z))
+
+        # Atoms far from the disturbance (and away from the box boundary)
+        # must still match; some near it (its former first-neighbors, whose
+        # own neighbor set changed) are expected to no longer match --
+        # that's the detector working.
+        far_rows = [row for row, atom in zip(rows, deformed.atoms)
+                    if is_interior(atom) and distance_to_moved(atom) > 3 * 3.2]
+        near_rows = [row for row, atom in zip(rows[1:], deformed.atoms[1:]) if distance_to_moved(atom) < 3.2]
+        self.assertGreater(len(far_rows), 0)
+        self.assertTrue(all(row["matched"] for row in far_rows))
+        self.assertGreater(len(near_rows), 0)
+        self.assertTrue(any(not row["matched"] for row in near_rows))
+
 
 if __name__ == "__main__":
     unittest.main()

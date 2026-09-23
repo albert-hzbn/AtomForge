@@ -24,6 +24,7 @@
 #include "ui/ElectronicPostProcessing.h"
 #include "ui/WannierAnalysisDialog.h"
 #include "ui/LobsterAnalysisDialog.h"
+#include "ui/DislocationAnalysisDialog.h"
 #include "ui/TrajectoryDialog.h"
 #include "ui/ScientificToolsDialog.h"
 
@@ -543,6 +544,7 @@ private:
     ElectronicPostProcessingDialog electronicDialog;
     WannierAnalysisDialog wannierDialog;
     LobsterAnalysisDialog lobsterDialog;
+    DislocationAnalysisDialog dislocationAnalysisDialog;
     TrajectoryDialog trajectoryDialog;
     ScientificToolsDialog scientificToolsDialog;
     ShortRangeOrderDialogState shortRangeOrderDialog;

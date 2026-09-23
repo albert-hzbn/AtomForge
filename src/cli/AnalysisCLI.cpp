@@ -5,6 +5,11 @@
 #include "algorithms/ShortRangeOrderAnalysis.h"
 #include "algorithms/InterstitialVoidAnalysis.h"
 #include "algorithms/CellSculptorAlgo.h"
+#include "algorithms/DislocationFit.h"
+#include "algorithms/DragPrep.h"
+#include "algorithms/NyeTensor.h"
+#include "algorithms/PatternMatch.h"
+#include "algorithms/VitekMap.h"
 #include "io/StructureLoader.h"
 
 #include <cmath>
@@ -27,6 +32,32 @@ int runAnalysisCLI(int argc, char* argv[])
             "adf: --cutoff 3.5 --bins 180 --smooth 0 --centre SYMBOL --neighbor-a SYMBOL --neighbor-b SYMBOL --raw --no-pbc\n"
             "sro: --shells 3 --tolerance 0.1\n"
             "interstitial: --resolution 14 --limit 0 --clearance 0.6 --separation 0.8\n"
+            "nye: --reference FILE --cutoff 3.0 --no-pbc  (dislocation density tensor;\n"
+            "     --input is the deformed structure, --reference the perfect one, same\n"
+            "     atom count/order in both; see algorithms/NyeTensor.h)\n"
+            "vitek: --reference FILE --line \"u v w\" --burgers M --cutoff 0 --no-pbc\n"
+            "     (differential-displacement map; --line is the dislocation line/Burgers\n"
+            "     direction, --burgers its magnitude in Angstrom -- 0 disables screw-\n"
+            "     component wrapping; --cutoff 0 auto-detects the neighbor shell;\n"
+            "     see algorithms/VitekMap.h)\n"
+            "pattern-init: --cutoff C --no-pbc  (--input is the perfect reference\n"
+            "     structure; writes a dx,dy,dz pattern file to --output; see\n"
+            "     algorithms/PatternMatch.h)\n"
+            "pattern-detect: --pattern FILE --cutoff C --angle-threshold 10 --no-pbc\n"
+            "     (--input is the possibly-defective structure, --pattern a file\n"
+            "     written by pattern-init)\n"
+            "drag: --final FILE --zeta Z --clip-displacement --no-pbc  (prepares a\n"
+            "     constrained-minimization/migration-barrier calculation; --input is\n"
+            "     the initial configuration, --final the final one, same atom count/\n"
+            "     order; writes the interpolated structure to --output and the\n"
+            "     per-atom reaction-coordinate direction to --output + '.constraint.csv';\n"
+            "     see algorithms/DragPrep.h)\n"
+            "fit-dislocation: --reference FILE --line \"u v w\" --cutoff 3.0 --area 1.0\n"
+            "     --no-pbc  (recovers a dislocation's position/Burgers vector from a\n"
+            "     measured field, by Nye-tensor centroid/integral; --input is the\n"
+            "     deformed structure, --reference the perfect one; --area is the\n"
+            "     cross-sectional area per atom (A^2) used to scale the Burgers vector\n"
+            "     estimate; see algorithms/DislocationFit.h)\n"
             "sculpt: --slabs \"h k l lower upper periodic;...\" --nx 1 --ny 1 --nz 1\n"
             "Lengths are Angstrom. Periodic sculpt uses integer start/count bounds.\n"
             "Conversion: --convert --input FILE --output FILE [--format FORMAT]\n"
@@ -37,7 +68,7 @@ int runAnalysisCLI(int argc, char* argv[])
         std::map<std::string,std::string> args;
         for (int i=1;i<argc;++i) {
             const std::string key=argv[i];
-            if (key=="--convert" || key=="--no-pbc" || key=="--raw") {
+            if (key=="--convert" || key=="--no-pbc" || key=="--raw" || key=="--clip-displacement") {
                 if (!args.emplace(key,"1").second) throw std::invalid_argument("Repeated option "+key);
             }
             else {
@@ -66,6 +97,12 @@ int runAnalysisCLI(int argc, char* argv[])
             {"adf",{"--cutoff","--bins","--smooth","--centre","--neighbor-a","--neighbor-b","--raw","--no-pbc"}},
             {"sro",{"--shells","--tolerance"}},
             {"interstitial",{"--resolution","--limit","--clearance","--separation"}},
+            {"nye",{"--reference","--cutoff","--no-pbc"}},
+            {"vitek",{"--reference","--line","--burgers","--cutoff","--no-pbc"}},
+            {"pattern-init",{"--cutoff","--no-pbc"}},
+            {"pattern-detect",{"--pattern","--cutoff","--angle-threshold","--no-pbc"}},
+            {"drag",{"--final","--zeta","--clip-displacement","--no-pbc"}},
+            {"fit-dislocation",{"--reference","--line","--cutoff","--area","--no-pbc"}},
             {"sculpt",{"--slabs","--nx","--ny","--nz"}}};
         const auto selected=args.count("--convert") ? "convert" : args.at("--analyze");
         if (!options.count(selected)) throw std::invalid_argument("Unknown analysis: "+selected);
@@ -132,6 +169,26 @@ int runAnalysisCLI(int argc, char* argv[])
             return 0;
         }
         const bool periodic=!args.count("--no-pbc");
+        if (mode=="drag") {
+            if (!args.count("--final")) throw std::invalid_argument("drag requires --final FILE (the final configuration)");
+            Structure finalStructure; std::string finalError;
+            if (!loadStructureFromFile(args.at("--final"),finalStructure,finalError)) throw std::runtime_error(finalError);
+            const double zeta=number("--zeta",0.5);
+            const auto result=atomforge::prepareDrag(structure,finalStructure,zeta,args.count("--clip-displacement")>0,periodic);
+            if (!result.success) throw std::runtime_error(result.message);
+            std::string fmt=std::filesystem::path(args.at("--output")).extension().string();
+            if (!fmt.empty() && fmt[0]=='.') fmt=fmt.substr(1);
+            if (fmt.empty()) fmt="vasp";
+            if (!saveStructure(result.interpolated,args.at("--output"),fmt)) throw std::runtime_error("Cannot save interpolated structure");
+            std::ofstream constraintFile(args.at("--output")+".constraint.csv");
+            constraintFile << std::setprecision(17) << "index,dx,dy,dz\n";
+            for (std::size_t i=0;i<result.constraintDirection.size();++i)
+                constraintFile << i << ',' << result.constraintDirection[i].x << ',' << result.constraintDirection[i].y << ',' << result.constraintDirection[i].z << '\n';
+            constraintFile.close();
+            if (!constraintFile) throw std::runtime_error("Cannot write constraint file");
+            std::cout << result.message << "\n";
+            return 0;
+        }
         if (mode=="cna") {
             atomforge::analysis::CnaParams p;
             p.usePbc=periodic; p.cutoffRadius=number("--cutoff",0); p.cutoffScale=number("--scale",1.18);
@@ -189,7 +246,91 @@ int runAnalysisCLI(int argc, char* argv[])
             out << "x_A,y_A,z_A,clearance_A,coordination,volume_A3,kind\n";
             for (const auto& row:result.regions)
                 out << row.position.x << ',' << row.position.y << ',' << row.position.z << ',' << row.clearance << ',' << row.coordination << ',' << row.volume << ',' << static_cast<int>(row.kind) << '\n';
-        } else throw std::invalid_argument("Analysis must be cna, rdf, adf, sro or interstitial");
+        } else if (mode=="nye") {
+            if (!args.count("--reference")) throw std::invalid_argument("nye requires --reference FILE (the undeformed structure)");
+            Structure reference; std::string refError;
+            if (!loadStructureFromFile(args.at("--reference"),reference,refError)) throw std::runtime_error(refError);
+            const float cutoff=static_cast<float>(number("--cutoff",3.0));
+            if (!(cutoff>0)) throw std::invalid_argument("--cutoff must be positive");
+            const auto result=atomforge::computeNyeTensor(reference,structure,cutoff,periodic);
+            if (!result.success) throw std::runtime_error(result.message);
+            out << "index,symbol,alpha_xx,alpha_xy,alpha_xz,alpha_yx,alpha_yy,alpha_yz,alpha_zx,alpha_zy,alpha_zz,norm\n";
+            for (std::size_t i=0;i<result.alpha.size();++i) {
+                out << i << ',' << (i<structure.atoms.size() ? structure.atoms[i].symbol : std::string());
+                for (int a=0;a<3;++a) for (int b=0;b<3;++b) out << ',' << result.alpha[i][a][b];
+                out << ',' << result.alphaNorm[i] << '\n';
+            }
+        } else if (mode=="fit-dislocation") {
+            if (!args.count("--reference")) throw std::invalid_argument("fit-dislocation requires --reference FILE (the undeformed structure)");
+            if (!args.count("--line")) throw std::invalid_argument("fit-dislocation requires --line \"u v w\" (Cartesian assumed line direction)");
+            Structure reference; std::string refError;
+            if (!loadStructureFromFile(args.at("--reference"),reference,refError)) throw std::runtime_error(refError);
+            std::istringstream lineStream(args.at("--line"));
+            double lx=0,ly=0,lz=0;
+            if (!(lineStream>>lx>>ly>>lz)) throw std::invalid_argument("Cannot parse --line \"u v w\"");
+            const float cutoff=static_cast<float>(number("--cutoff",3.0));
+            if (!(cutoff>0)) throw std::invalid_argument("--cutoff must be positive");
+            const double area=number("--area",1.0);
+            const auto nyeResult=atomforge::computeNyeTensor(reference,structure,cutoff,periodic);
+            if (!nyeResult.success) throw std::runtime_error(nyeResult.message);
+            std::vector<glm::dvec3> positions(reference.atoms.size());
+            for (std::size_t i=0;i<positions.size();++i)
+                positions[i]=glm::dvec3(reference.atoms[i].x,reference.atoms[i].y,reference.atoms[i].z);
+            const auto fit=atomforge::fitDislocationFromNye(positions,nyeResult,glm::dvec3(lx,ly,lz),area);
+            if (!fit.success) throw std::runtime_error(fit.message);
+            out << "quantity,x,y,z\n";
+            out << "line_position," << fit.linePosition.x << ',' << fit.linePosition.y << ',' << fit.linePosition.z << '\n';
+            out << "burgers_vector," << fit.burgersVector.x << ',' << fit.burgersVector.y << ',' << fit.burgersVector.z << '\n';
+        } else if (mode=="vitek") {
+            if (!args.count("--reference")) throw std::invalid_argument("vitek requires --reference FILE (the undeformed structure)");
+            if (!args.count("--line")) throw std::invalid_argument("vitek requires --line \"u v w\" (Cartesian dislocation line/Burgers direction)");
+            Structure reference; std::string refError;
+            if (!loadStructureFromFile(args.at("--reference"),reference,refError)) throw std::runtime_error(refError);
+            std::istringstream lineStream(args.at("--line"));
+            double lx=0,ly=0,lz=0;
+            if (!(lineStream>>lx>>ly>>lz)) throw std::invalid_argument("Cannot parse --line \"u v w\"");
+            const double burgers=number("--burgers",0);
+            const float cutoff=static_cast<float>(number("--cutoff",0));
+            const auto result=atomforge::computeVitekMap(reference,structure,glm::dvec3(lx,ly,lz),burgers,cutoff,periodic);
+            if (!result.success) throw std::runtime_error(result.message);
+            out << "index_i,index_j,xi_A,yi_A,zi_A,xj_A,yj_A,zj_A,screw_A,edge_1_A,edge_2_A\n";
+            for (const auto& p:result.pairs)
+                out << p.indexI << ',' << p.indexJ << ','
+                    << p.positionI.x << ',' << p.positionI.y << ',' << p.positionI.z << ','
+                    << p.positionJ.x << ',' << p.positionJ.y << ',' << p.positionJ.z << ','
+                    << p.screwComponent << ',' << p.edgeComponent.x << ',' << p.edgeComponent.y << '\n';
+        } else if (mode=="pattern-init") {
+            const float cutoff=static_cast<float>(number("--cutoff",0));
+            if (!(cutoff>0)) throw std::invalid_argument("--cutoff must be positive");
+            const auto result=atomforge::buildPattern(structure,cutoff,periodic);
+            if (!result.success) throw std::runtime_error(result.message);
+            out << "dx,dy,dz\n";
+            for (const auto& d:result.directions) out << d.x << ',' << d.y << ',' << d.z << '\n';
+        } else if (mode=="pattern-detect") {
+            if (!args.count("--pattern")) throw std::invalid_argument("pattern-detect requires --pattern FILE (written by pattern-init)");
+            const float cutoff=static_cast<float>(number("--cutoff",0));
+            if (!(cutoff>0)) throw std::invalid_argument("--cutoff must be positive");
+            const double angleThreshold=number("--angle-threshold",10.0);
+            atomforge::CrystalPattern pattern;
+            std::ifstream patternFile(args.at("--pattern"));
+            if (!patternFile) throw std::runtime_error("Cannot read pattern file '"+args.at("--pattern")+"'");
+            std::string header; std::getline(patternFile,header);
+            std::string row;
+            while (std::getline(patternFile,row)) {
+                if (row.empty()) continue;
+                std::istringstream rs(row);
+                double dx,dy,dz; char comma;
+                if (!(rs>>dx>>comma>>dy>>comma>>dz)) throw std::runtime_error("Malformed pattern file row: "+row);
+                pattern.directions.push_back(glm::dvec3(dx,dy,dz));
+            }
+            pattern.success=!pattern.directions.empty();
+            if (!pattern.success) throw std::runtime_error("Pattern file contains no directions");
+            const auto result=atomforge::detectPattern(structure,pattern,cutoff,angleThreshold,periodic);
+            if (!result.success) throw std::runtime_error(result.message);
+            out << "index,matched,neighbor_count,max_angle_deviation_deg\n";
+            for (const auto& matchRow:result.rows)
+                out << matchRow.index << ',' << (matchRow.matched?1:0) << ',' << matchRow.neighborCount << ',' << matchRow.maxAngleDeviationDeg << '\n';
+        } else throw std::invalid_argument("Analysis must be cna, rdf, adf, sro, interstitial, nye, vitek, pattern-init or pattern-detect");
         std::ofstream file(args.at("--output"));
         file << out.str(); file.close();
         if (!file) throw std::runtime_error("Cannot write analysis output");

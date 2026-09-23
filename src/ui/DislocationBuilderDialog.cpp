@@ -658,7 +658,8 @@ void DislocationBuilderDialog::drawDialog(
         ImGui::Text("Dislocation Options");
         ImGui::Separator();
 
-        const bool canGenerate = (activeSource != nullptr) && !m_generationRunning;
+        const bool canGenerate = (activeSource != nullptr) && !m_generationRunning
+            && (!m_params.anisotropicElasticity || (m_params.elasticC11 > 0.0 && m_params.elasticC44 > 0.0));
         if (m_generationRunning)
             ImGui::TextDisabled("Generation running in background...");
 
@@ -741,13 +742,62 @@ void DislocationBuilderDialog::drawDialog(
         ImGui::Separator();
         ImGui::TextDisabled("Elastic Parameters");
         ImGui::DragFloat("Burgers scale", &m_params.burgersScale, 0.02f, 0.05f, 3.0f, "%.3f");
+        if (m_params.anisotropicElasticity)
+            ImGui::BeginDisabled();
         ImGui::DragFloat("Poisson ratio", &m_params.poissonRatio, 0.005f, 0.05f, 0.49f, "%.3f");
+        if (m_params.anisotropicElasticity)
+            ImGui::EndDisabled();
         ImGui::DragFloat("Core radius (A)", &m_params.coreRadius, 0.05f, 0.05f, 20.0f, "%.3f");
         ImGui::DragFloat("Cutoff radius (A)", &m_params.cutoffRadius, 0.2f, 0.0f, 100.0f, "%.2f");
         ImGui::DragFloat("Line half length (A)", &m_params.lineHalfLength, 0.5f, 0.1f, 1000000.0f, "%.1f");
 
         if (m_params.character == DislocationCharacter::Mixed)
             ImGui::SliderFloat("Mixed angle (deg)", &m_params.mixedCharacterAngleDeg, 0.0f, 90.0f, "%.1f");
+
+        ImGui::Separator();
+        ImGui::TextDisabled("Anisotropic Elasticity (Stroh formalism)");
+        ImGui::Checkbox("Use anisotropic elasticity", &m_params.anisotropicElasticity);
+        if (m_params.anisotropicElasticity)
+        {
+            static const char* kSymmetryLabels[] = {"Cubic", "Hexagonal"};
+            int symmetryIndex = (m_params.elasticSymmetry == DislocationParams::ElasticSymmetry::Hexagonal) ? 1 : 0;
+            if (ImGui::Combo("Elastic symmetry", &symmetryIndex, kSymmetryLabels, 2))
+                m_params.elasticSymmetry = (symmetryIndex == 1)
+                    ? DislocationParams::ElasticSymmetry::Hexagonal
+                    : DislocationParams::ElasticSymmetry::Cubic;
+
+            float c11 = (float)m_params.elasticC11;
+            float c12 = (float)m_params.elasticC12;
+            float c44 = (float)m_params.elasticC44;
+            if (ImGui::DragFloat("C11 (GPa)", &c11, 1.0f, 0.0f, 2000.0f, "%.1f")) m_params.elasticC11 = c11;
+            if (ImGui::DragFloat("C12 (GPa)", &c12, 1.0f, 0.0f, 2000.0f, "%.1f")) m_params.elasticC12 = c12;
+            if (ImGui::DragFloat("C44 (GPa)", &c44, 1.0f, 0.0f, 2000.0f, "%.1f")) m_params.elasticC44 = c44;
+
+            if (m_params.elasticSymmetry == DislocationParams::ElasticSymmetry::Hexagonal)
+            {
+                float c13 = (float)m_params.elasticC13;
+                float c33 = (float)m_params.elasticC33;
+                if (ImGui::DragFloat("C13 (GPa)", &c13, 1.0f, 0.0f, 2000.0f, "%.1f")) m_params.elasticC13 = c13;
+                if (ImGui::DragFloat("C33 (GPa)", &c33, 1.0f, 0.0f, 2000.0f, "%.1f")) m_params.elasticC33 = c33;
+                ImGui::TextWrapped("The structure's THIRD cell vector must be the c-axis.");
+            }
+
+            float noise = (float)m_params.elasticNoiseAmplitude;
+            if (ImGui::DragFloat("Noise amplitude", &noise, 0.0001f, 0.0f, 0.1f, "%.4f")) m_params.elasticNoiseAmplitude = noise;
+            ImGui::TextWrapped("Breaks the sextic formalism's degeneracy at isotropic or high-symmetry orientations (e.g. line = plane normal).");
+
+            if (m_params.elasticC11 <= 0.0 || m_params.elasticC44 <= 0.0)
+                ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "C11 and C44 must be positive to generate.");
+        }
+
+        ImGui::Separator();
+        ImGui::TextDisabled("Dipole");
+        ImGui::Checkbox("Insert as dipole (adds an opposite-Burgers-vector partner)", &m_params.dipole);
+        if (m_params.dipole)
+        {
+            ImGui::DragFloat2("Dipole offset (A)", &m_params.dipoleOffset.x, 0.2f, -500.0f, 500.0f, "%.2f");
+            ImGui::TextWrapped("Offset of the second (opposite-sign) dislocation, in the local slip-plane axes. A dipole's net Burgers vector is zero, so it is periodicity-compatible unlike a single dislocation.");
+        }
 
         ImGui::Separator();
         ImGui::TextDisabled("Shape Parameters");
