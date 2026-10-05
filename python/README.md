@@ -185,12 +185,16 @@ Wigner-Seitz defects, static structure factors, band gaps, effective masses,
 work functions, equation-of-state fitting, elastic tensors, phonon DOS, harmonic
 thermodynamics, NEB, NVT, NPT and symmetry-based reciprocal paths.
 
-Install the matching source with its `science` extra into Python 3.12. The
-desktop lets you browse for that interpreter. These tools require NumPy >=2,
-SciPy >=1.15, ASE >=3.26 and SeeK-path >=2.1 in addition to the existing science
-dependencies. Simulation tools require an explicitly chosen ASE calculator.
+The AtomForge desktop and `AtomForge --science` compute these tools natively and
+need no Python. Request files and parameter names are the same for both. In
+Python, install the matching source with its `science` extra into Python 3.12.
+The Python functions require NumPy >=2, SciPy >=1.15, ASE >=3.26 and SeeK-path
+>=2.1 in addition to the existing science dependencies. Python simulation
+functions require an explicitly chosen ASE calculator. The native executable
+provides EMT and Lennard-Jones potentials instead.
 
 ```sh
+AtomForge --science band-gap --input request.json --output gap.json
 python -m atomforge.science --catalog
 python -m atomforge.science band-gap --input request.json --output gap.json
 ```

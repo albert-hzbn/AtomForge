@@ -62,7 +62,6 @@ jobs:
           python python/tests/test_condensed_matter.py
           python python/tests/test_science_workflows.py
           python python/tests/test_science_online.py
-          python python/tools/generate_science_catalog.py --check
 
   # --------------------------------------------------------------------------
   # Windows – MinGW-w64 (MSYS2 UCRT64), mirrors the documented quick-start

@@ -114,10 +114,11 @@ The current source includes common-neighbour and angular-distribution analysis, 
 The **Analysis** menu groups tools by scientific task, with twenty new tools for
 diffusion and trajectory statistics, local strain and defects, band edges and
 effective masses, work functions, elasticity, harmonic thermodynamics, migration
-paths, controlled molecular dynamics and reciprocal-space paths. Desktop forms,
-Python and command-line workflows use the same calculations. These tools need a
-Python environment with the optional scientific dependencies; the dialog lets
-you select it. Simulation tools additionally require a suitable calculator.
+paths, controlled molecular dynamics and reciprocal-space paths. AtomForge
+computes them natively, with no Python installation. The desktop forms and
+`AtomForge --science <tool>` share one implementation, and `atomforge.science`
+offers the same analyses to Python scripts. Simulation tools use the built-in
+EMT or Lennard-Jones potentials.
 
 Optional scientific Python integrations cover bands and projected DOS, diffraction, reciprocal-space surfaces, phonons, relaxation, molecular dynamics and charge partitioning. ASE and pymatgen provide the underlying integrations. Bader and DDEC calculations require their external solvers; DFT workflows require a configured calculator. See the manual for setup, examples and physical conventions.
 

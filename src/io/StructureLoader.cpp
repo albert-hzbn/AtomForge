@@ -6,6 +6,7 @@
 #include <openbabel3/openbabel/elements.h>
 #include <openbabel3/openbabel/generic.h>
 #include <openbabel3/openbabel/math/vector3.h>
+#include <openbabel3/openbabel/math/spacegroup.h>
 #include <openbabel3/openbabel/plugin.h>
 #include <openbabel3/openbabel/oberror.h>
 
@@ -1311,7 +1312,12 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
     {
         if (auto *cell = dynamic_cast<OpenBabel::OBUnitCell*>(data))
         {
-            cell->FillUnitCell(&mol);
+            // FillUnitCell also deletes atoms it judges duplicates, which
+            // corrupts P1 data such as dislocation cores (Open Babel versions
+            // differ in tolerance). Only expand a declared nontrivial group.
+            const OpenBabel::SpaceGroup* group = cell->GetSpaceGroup();
+            if (group && group->GetId() > 1)
+                cell->FillUnitCell(&mol);
             structure.hasUnitCell = true;
 
             auto vecs = cell->GetCellVectors();

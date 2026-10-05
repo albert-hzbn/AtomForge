@@ -9,10 +9,13 @@
 #include <string>
 #include <vector>
 
+// Scientific analyses and simulations computed natively by AtomForge (src/science).
 class ScientificToolsDialog
 {
 public:
     void drawMenuItems(const char* category);
+    // Opens the dialog on a catalog tool id (for example "msd"); false if unknown.
+    bool open(const std::string& toolId);
     void draw(const Structure& structure, const std::function<void(Structure&)>& loadResult);
 private:
     struct Field {
@@ -23,6 +26,11 @@ private:
         bool selectColumn = false;
         int column = 0;
         std::array<char, 256> field{};
+        // Interatomic potential choice for simulation tools.
+        int potential = 0;
+        double epsilon = 0.0104;
+        double sigma = 3.40;
+        double cutoff = 8.5;
     };
     struct Result { std::filesystem::path output; std::string report; std::filesystem::path structures; };
     void selectTool(int index);
@@ -31,7 +39,6 @@ private:
     bool m_showInputs = false;
     int m_tool = -1;
     int m_pickerTarget = -1;
-    std::array<char, 2048> m_python{};
     std::vector<Field> m_fields;
     PathPicker m_picker;
     atomforge::BackgroundTask<Result> m_task;

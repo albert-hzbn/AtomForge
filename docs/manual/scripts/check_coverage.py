@@ -101,6 +101,7 @@ def tex(value):
 def source_files():
     paths = set((ROOT / "src/ui").glob("*.*"))
     paths.update((ROOT / "src/algorithms").glob("*.h"))
+    paths.update((ROOT / "src/science").glob("*.h"))
     paths.update((ROOT / "src/cli").glob("*.*"))
     paths.update((ROOT / "python/atomforge").rglob("*.py"))
     paths.update(ROOT / p for p in ("src/app/EditorApplication.cpp", "src/app/EditorOps.cpp", "CMakeLists.txt"))

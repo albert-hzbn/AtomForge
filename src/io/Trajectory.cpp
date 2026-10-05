@@ -2,6 +2,7 @@
 #include "util/ElementData.h"
 #include "util/TaskControl.h"
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -32,16 +33,41 @@ std::vector<Structure> loadXyzTrajectory(const std::string& path)
                 if (!(cell>>value) || !std::isfinite(value)) throw std::runtime_error("Invalid XYZ lattice");
             frame.hasUnitCell=true;
         }
+        // extXYZ Properties=name:type:count... ; locate the species and position columns.
+        std::size_t speciesColumn=0, positionColumn=1, columnCount=4;
         const auto properties=line.find("Properties=");
-        const std::string expected="Properties=species:S:1:pos:R:3";
-        if (properties!=std::string::npos && line.compare(properties,expected.size(),expected)!=0)
-            throw std::runtime_error("Desktop trajectory expects species:S:1:pos:R:3 first; convert other layouts using Python");
+        if (properties!=std::string::npos) {
+            std::string spec=line.substr(properties+11);
+            spec=spec.substr(0,spec.find_first_of(" \t\r"));
+            std::istringstream fields(spec);
+            std::vector<std::string> parts;
+            for (std::string part; std::getline(fields,part,':');) parts.push_back(part);
+            if (parts.size()%3) throw std::runtime_error("Invalid extXYZ Properties");
+            bool hasSpecies=false, hasPositions=false;
+            columnCount=0;
+            for (std::size_t p=0;p<parts.size();p+=3) {
+                const int width=std::atoi(parts[p+2].c_str());
+                if (width<1) throw std::runtime_error("Invalid extXYZ Properties");
+                if (parts[p]=="species" && width==1) { speciesColumn=columnCount; hasSpecies=true; }
+                if ((parts[p]=="pos" || parts[p]=="positions") && width==3) { positionColumn=columnCount; hasPositions=true; }
+                columnCount+=static_cast<std::size_t>(width);
+            }
+            if (!hasSpecies || !hasPositions) throw std::runtime_error("extXYZ frames need species and pos columns");
+        }
         for (int i=0;i<count;++i) {
             atomforge::taskCheckpoint();
             if (!std::getline(input,line)) throw std::runtime_error("Truncated XYZ trajectory");
             std::istringstream row(line); AtomSite atom;
-            if (!(row>>atom.symbol>>atom.x>>atom.y>>atom.z) || !std::isfinite(atom.x) ||
-                !std::isfinite(atom.y) || !std::isfinite(atom.z)) throw std::runtime_error("Invalid XYZ atom row");
+            std::vector<std::string> tokens;
+            for (std::string token; row>>token;) tokens.push_back(token);
+            if (tokens.size()<columnCount) throw std::runtime_error("Invalid XYZ atom row");
+            atom.symbol=tokens[speciesColumn];
+            try {
+                atom.x=std::stod(tokens[positionColumn]);
+                atom.y=std::stod(tokens[positionColumn+1]);
+                atom.z=std::stod(tokens[positionColumn+2]);
+            } catch (const std::exception&) { throw std::runtime_error("Invalid XYZ atom row"); }
+            if (!std::isfinite(atom.x) || !std::isfinite(atom.y) || !std::isfinite(atom.z)) throw std::runtime_error("Invalid XYZ atom row");
             for (int z=1;z<=118;++z)
                 if (atom.symbol==elementSymbol(z)) { atom.atomicNumber=z; break; }
             if (!atom.atomicNumber) throw std::runtime_error("Unknown XYZ element: "+atom.symbol);

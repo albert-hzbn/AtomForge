@@ -115,6 +115,14 @@ if(TARGET PkgConfig::SPGLIB)
 endif()
 add_test(NAME dislocation_fit_regressions COMMAND atomforge_dislocation_fit_tests)
 
+add_executable(atomforge_science_tests ${PROJECT_SOURCE_DIR}/tests/science_tools_regressions.cpp)
+target_link_libraries(atomforge_science_tests PRIVATE atomforge_science)
+if(TARGET PkgConfig::ATOMFORGE_SCIENCE_SPGLIB)
+    target_compile_definitions(atomforge_science_tests PRIVATE ATOMS_ENABLE_SPGLIB)
+endif()
+add_test(NAME science_tools_regressions COMMAND atomforge_science_tests)
+set_tests_properties(science_tools_regressions PROPERTIES TIMEOUT 300)
+
 if(TARGET AtomForge)
     add_executable(atomforge_nanocrystal_metadata_tests
         ${PROJECT_SOURCE_DIR}/tests/nanocrystal_metadata.cpp
@@ -143,6 +151,25 @@ if(TARGET AtomForge)
         target_link_libraries(atomforge_lattice_family_tests PRIVATE PkgConfig::SPGLIB)
     endif()
     add_test(NAME lattice_family_regressions COMMAND atomforge_lattice_family_tests)
+
+    # Renders every scientific tool dialog headlessly; ImGui assertions throw.
+    add_executable(atomforge_science_dialog_tests
+        ${PROJECT_SOURCE_DIR}/tests/science_dialog.cpp
+        ${PROJECT_SOURCE_DIR}/src/ui/ScientificToolsDialog.cpp
+        ${PROJECT_SOURCE_DIR}/src/ui/PathPicker.cpp
+        ${PROJECT_SOURCE_DIR}/src/ui/ResponsiveLayout.cpp
+        ${PROJECT_SOURCE_DIR}/src/util/PathUtils.cpp
+        ${PROJECT_SOURCE_DIR}/src/io/StructureLoader.cpp
+        ${PROJECT_SOURCE_DIR}/imgui/imgui.cpp
+        ${PROJECT_SOURCE_DIR}/imgui/imgui_draw.cpp
+        ${PROJECT_SOURCE_DIR}/imgui/imgui_tables.cpp
+        ${PROJECT_SOURCE_DIR}/imgui/imgui_widgets.cpp)
+    target_include_directories(atomforge_science_dialog_tests PRIVATE
+        ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/src/util ${PROJECT_SOURCE_DIR}/src/io
+        ${PROJECT_SOURCE_DIR}/imgui ${PROJECT_SOURCE_DIR}/tests)
+    target_compile_definitions(atomforge_science_dialog_tests PRIVATE IMGUI_USER_CONFIG="science_dialog_imconfig.h")
+    target_link_libraries(atomforge_science_dialog_tests PRIVATE atomforge_science PkgConfig::OPENBABEL)
+    add_test(NAME science_dialog COMMAND atomforge_science_dialog_tests)
 
     add_executable(atomforge_application_paths_tests
         ${PROJECT_SOURCE_DIR}/tests/application_paths.cpp
@@ -182,14 +209,6 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME build_resources
         COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/build_resources.py ${CMAKE_COMMAND})
     set_tests_properties(build_resources PROPERTIES TIMEOUT 60)
-    add_executable(atomforge_scientific_process_tests
-        ${PROJECT_SOURCE_DIR}/tests/scientific_process.cpp
-        ${PROJECT_SOURCE_DIR}/src/util/ScientificProcess.cpp)
-    target_include_directories(atomforge_scientific_process_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
-    target_link_libraries(atomforge_scientific_process_tests PRIVATE Threads::Threads)
-    add_test(NAME scientific_process COMMAND atomforge_scientific_process_tests ${Python3_EXECUTABLE})
-    set_tests_properties(scientific_process PROPERTIES TIMEOUT 15)
-    add_test(NAME scientific_catalog COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tools/generate_science_catalog.py --check)
     add_test(NAME python_electronic
         COMMAND ${CMAKE_COMMAND} -E env
             "ATOMFORGE_ELECTRONIC_LIBRARY=$<TARGET_FILE:atomforge_electronic>"

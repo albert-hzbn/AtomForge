@@ -48,6 +48,7 @@ endif()
 
 include(CTest)
 include(cmake/AtomForgeCore.cmake)
+include(cmake/AtomForgeScience.cmake)
 
 # Core algorithms and their tests can be built without desktop dependencies.
 if(NOT ATOMFORGE_BUILD_APP)
@@ -77,7 +78,7 @@ set(ATOMFORGE_SOURCES
     src/cli/RenderCLI.cpp
     src/ui/TrajectoryDialog.cpp
     src/ui/ScientificToolsDialog.cpp
-    src/util/ScientificProcess.cpp
+    src/cli/ScienceCLI.cpp
     src/app/EditorApplication.cpp
     src/app/FileDropHandler.cpp
     src/app/ImageExport.cpp
@@ -212,6 +213,7 @@ target_compile_options(AtomForge PRIVATE
 
 target_link_libraries(AtomForge PRIVATE
     atomforge_core
+    atomforge_science
     PkgConfig::GLFW3
     PkgConfig::GLEW
     PkgConfig::OPENBABEL
@@ -298,7 +300,6 @@ if(NOT EXISTS "${ATOMFORGE_MANUAL_PDF}")
     message(FATAL_ERROR "The published AtomForge manual PDF is missing: ${ATOMFORGE_MANUAL_PDF}")
 endif()
 target_compile_definitions(AtomForge PRIVATE ATOMFORGE_SOURCE_MANUAL="${ATOMFORGE_MANUAL_PDF}")
-target_compile_definitions(AtomForge PRIVATE ATOMFORGE_SOURCE_PYTHON="${PROJECT_SOURCE_DIR}/python")
 if(BUILD_PORTABLE)
     install(TARGETS AtomForge DESTINATION "${ATOMFORGE_PORTABLE_BIN_DIR}")
     install(TARGETS atomforge_electronic
