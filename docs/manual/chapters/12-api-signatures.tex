@@ -267,7 +267,8 @@ build(mode, options=(), *, source=None, output=None, executable=None, timeout=30
 
 Run a native builder and return BuildResult without opening the GUI.
 
-mode is bulk, gb, poly, nano, amorphous, sss, dislocation, or custom.
+mode is bulk, gb, poly, nano, amorphous, sss, dislocation, custom, interface,
+stacking-fault, vacancy, strain, primitive, surface, sqs, nanowire, or core-shell.
 options is an argument sequence, e.g. ['--a', '3.61', '--atom', 'Cu 0 0 0'].
 Repeated flags are retained; multi-component values occupy one argument.
 source accepts a Structure or an input path. output optionally retains a
@@ -2529,4 +2530,93 @@ STACKING FAULT (--build stacking-fault)
 [--maximum 2] [--frame 0] [--orthogonal] [--sequence DIRECTORY]
 Planes: 0 auto, 1 FCC111, 2 HCP basal, 3 HCP prismatic,
 4 HCP pyramidal, 5 BCC110, 6 BCC112. Sequence writes numbered VASP files.
+\end{lstlisting}
+
+\clearpage
+
+\subsection{vacancy}
+
+\begin{lstlisting}
+VACANCY (--build vacancy)
+--input FILE --output FILE [--element SYMBOL] [--percent P | --count N]
+[--min-separation D] [--seed S]
+Randomly removes atoms (optionally restricted to one element) to create
+point-defect vacancies at a target percentage or exact count.
+\end{lstlisting}
+
+\clearpage
+
+\subsection{strain}
+
+\begin{lstlisting}
+STRAIN (--build strain)
+--input FILE --output FILE
+[--exx V] [--eyy V] [--ezz V] [--exy V] [--exz V] [--eyz V]
+[--matrix "f11 f12 f13 f21 f22 f23 f31 f32 f33"]
+Applies a homogeneous deformation to the cell, holding fractional
+coordinates fixed. --matrix (a full deformation gradient) overrides the
+engineering-strain flags when both are given.
+\end{lstlisting}
+
+\clearpage
+
+\subsection{primitive}
+
+\begin{lstlisting}
+PRIMITIVE (--build primitive)
+--input FILE --output FILE [--symprec 1e-3]
+Reduces a structure to its symmetry-standardized primitive cell via
+spglib (requires spglib support at build time).
+\end{lstlisting}
+
+\clearpage
+
+\subsection{surface}
+
+\begin{lstlisting}
+SURFACE (--build surface)
+--input FILE --output FILE [--h 1] [--k 1] [--l 1]
+[--layers 4] [--vacuum 15] [--nmax 8] [--no-primitive] [--symprec 1e-3]
+Cleaves a bulk crystal along Miller plane (h k l) into a 2D-periodic,
+vacuum-padded slab.
+\end{lstlisting}
+
+\clearpage
+
+\subsection{sqs}
+
+\begin{lstlisting}
+SQS (--build sqs)
+--input FILE --output FILE --element "SYMBOL FRACTION" (repeatable, >=2)
+[--shells 2] [--shell-tolerance 0.2] [--steps 3000]
+[--start-temp 1.0] [--end-temp 0.02] [--seed 1]
+Simulated-annealing species optimizer: reassigns elements on the input's
+fixed lattice to a target composition while minimizing Warren-Cowley
+short-range order toward zero across the first N shells.
+\end{lstlisting}
+
+\clearpage
+
+\subsection{nanowire}
+
+\begin{lstlisting}
+NANOWIRE (--build nanowire)
+--input FILE --output FILE [--axis 2] [--radius 10]
+[--sides 0] [--vacuum 10] [--axis-repeats 1]
+Cuts a 1D-periodic wire from a bulk crystal: periodic along cell vector
+`axis` (0=a, 1=b, 2=c), bounded by a circular (sides<3) or regular-polygon
+(sides>=3, radius = apothem) cross-section elsewhere.
+\end{lstlisting}
+
+\clearpage
+
+\subsection{core-shell}
+
+\begin{lstlisting}
+CORE-SHELL (--build core-shell)
+--input FILE --output FILE --core-radius R --core-element SYMBOL
+--shell-element SYMBOL [--center "x y z"]
+Relabels a finite structure's atoms (e.g. a Nanocrystal Builder output)
+into a core/shell composition split by radius from its centroid, or from
+an explicit center.
 \end{lstlisting}

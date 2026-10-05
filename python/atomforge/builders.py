@@ -11,7 +11,10 @@ from ._structure import Structure
 from ._viewer import _find_atomforge
 
 
-_MODES = ("bulk", "gb", "poly", "nano", "amorphous", "sss", "dislocation", "custom", "interface", "stacking-fault")
+_MODES = (
+    "bulk", "gb", "poly", "nano", "amorphous", "sss", "dislocation", "custom", "interface", "stacking-fault",
+    "vacancy", "strain", "primitive", "surface", "sqs", "nanowire", "core-shell",
+)
 _RESERVED = {"--build", "--help", "--output", "--input"}
 
 
@@ -51,7 +54,8 @@ def builder_help(mode, *, executable=None):
 def build(mode, options=(), *, source=None, output=None, executable=None, timeout=300):
     """Run a native builder and return BuildResult without opening the GUI.
 
-    mode is bulk, gb, poly, nano, amorphous, sss, dislocation, or custom.
+    mode is bulk, gb, poly, nano, amorphous, sss, dislocation, custom, interface,
+    stacking-fault, vacancy, strain, primitive, surface, sqs, nanowire, or core-shell.
     options is an argument sequence, e.g. ['--a', '3.61', '--atom', 'Cu 0 0 0'].
     Repeated flags are retained; multi-component values occupy one argument.
     source accepts a Structure or an input path. output optionally retains a

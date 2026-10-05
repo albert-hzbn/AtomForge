@@ -1,16 +1,20 @@
 // Analytical and independent-reference checks for the native scientific tools
 // (src/science). The cases mirror python/tests/test_condensed_matter.py so the
 // desktop/CLI implementation is held to the same contracts as the Python API.
+#include "science/AtomProperties.h"
 #include "science/Potentials.h"
+#include "science/ResultPlots.h"
 #include "science/ScienceCatalog.h"
 #include "science/ScienceTools.h"
 #include "science/Simulation.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iomanip>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -724,8 +728,338 @@ int main()
         check(report.find("gap_eV: 2.2") != std::string::npos, "report summary");
     });
 
+    test("relaxation: cell, pressure, shape, positions and clusters", [] {
+        const auto emt = makeEmt();
+        // Reference lattice constant from a fine energy scan of the perfect crystal.
+        double reference = 0, lowest = HUGE_VAL;
+        for (int i = 0; i <= 2000; ++i) {
+            const double a = 3.55 + 0.00005 * i;
+            const double e = emt->compute(configuration(fccCubic(a, 2)), false).energy;
+            if (e < lowest) { lowest = e; reference = a; }
+        }
+        RelaxOptions options;
+        options.fmax = 1e-4; options.steps = 3000; options.relaxCell = true;
+        const auto relaxed = relaxConfiguration(configuration(fccCubic(3.70, 2)), *emt, options);
+        check(relaxed.converged, "cell relaxation converged");
+        const double a = std::cbrt(cellVolume(relaxed.configuration.cell) / 8);
+        close(a, reference, 2e-4, "relaxed lattice constant matches the energy scan");
+        close(relaxed.forces.energy, lowest, 1e-6, "relaxed energy matches the scan minimum");
+        const auto& s = relaxed.forces.stress;
+        close(-(s[0][0] + s[1][1] + s[2][2]) / 3 * 160.2176634, 0, 0.02, "zero residual pressure");
+
+        options.pressureGPa = 5;
+        const auto compressed = relaxConfiguration(configuration(fccCubic(3.60, 2)), *emt, options);
+        check(compressed.converged, "pressurised relaxation converged");
+        const auto& sp = compressed.forces.stress;
+        close(-(sp[0][0] + sp[1][1] + sp[2][2]) / 3 * 160.2176634, 5, 0.02, "target pressure reached");
+        check(cellVolume(compressed.configuration.cell) < cellVolume(relaxed.configuration.cell), "compression reduces volume");
+
+        options.pressureGPa = 0;
+        Crystal distorted = fccCubic(3.6, 2);
+        const Mat3 shear = {{{1.03, .02, 0}, {0, .97, .01}, {0, 0, 1.01}}};
+        for (auto& p : distorted.positions) p = transformVector(shear, p);
+        for (auto& r : distorted.cell) r = transformVector(shear, r);
+        const auto shaped = relaxConfiguration(configuration(distorted), *emt, options);
+        check(shaped.converged, "shape relaxation converged");
+        const Mat3& c = shaped.configuration.cell;
+        close(norm(c[0]), norm(c[1]), 1e-3, "|a| = |b|");
+        close(norm(c[1]), norm(c[2]), 1e-3, "|b| = |c|");
+        close(dot(c[0], c[1]) / norm(c[0]) / norm(c[1]), 0, 1e-4, "gamma = 90");
+        close(dot(c[0], c[2]) / norm(c[0]) / norm(c[2]), 0, 1e-4, "beta = 90");
+        close(shaped.forces.energy, lowest, 1e-5, "recovers the cubic minimum");
+
+        Crystal rattled = fccCubic(reference, 2);
+        Normal normal(3);
+        for (auto& p : rattled.positions) p = add(p, {normal() * .08, normal() * .08, normal() * .08});
+        RelaxOptions positions;
+        positions.fmax = 1e-4; positions.steps = 3000;
+        const auto settled = relaxConfiguration(configuration(rattled), *emt, positions);
+        check(settled.converged, "position relaxation converged");
+        check(settled.enthalpies.back() < settled.enthalpies.front(), "energy decreases");
+        close(settled.forces.energy, lowest, 1e-6, "rattled crystal returns to the perfect energy");
+
+        Configuration trimer;
+        trimer.symbols = {"Ar", "Ar", "Ar"}; trimer.numbers = {18, 18, 18}; trimer.masses = {39.948, 39.948, 39.948};
+        trimer.positions = {{0, 0, 0}, {3.6, 0.2, 0}, {1.5, 3.3, 0.3}};
+        const auto lj = makeLennardJones(.0104, 3.4, 20);
+        RelaxOptions tight = positions;
+        tight.fmax = 1e-8; tight.steps = 20000;
+        const auto cluster = relaxConfiguration(trimer, *lj, tight);
+        check(cluster.converged, "trimer converged");
+        const double r0 = std::pow(2.0, 1.0 / 6) * 3.4;
+        for (int i = 0; i < 3; ++i)
+            close(norm(sub(cluster.configuration.positions[i], cluster.configuration.positions[(i + 1) % 3])), r0, 1e-4, "equilateral LJ trimer");
+        RelaxOptions bad = positions;
+        bad.relaxCell = true;
+        expectError([&] { relaxConfiguration(trimer, *lj, bad); }, "cell relaxation needs a cell");
+
+        const Json request = runTool("relax", object({{"structure", structureJsonOf(fccCubic(3.7, 2))}, {"calculator", object({{"potential", "EMT"}})},
+            {"relax_cell", true}, {"fmax", 1e-3}})).result;
+        check(request.at("converged").boolean() && std::abs(request.at("pressure_GPa").number()) < .2, "relax request");
+        check(request.at("energy_change_eV").number() < 0, "relax lowers the energy");
+    });
+
+    test("result plots", [] {
+        NdArray positions({6, 2, 3});
+        for (std::size_t f = 0; f < 6; ++f) positions(f, 0, 0) = positions(f, 1, 1) = 0.5 * f;
+        const auto msd = resultPlots("msd", run("msd", object({{"positions", toJson(positions)}, {"timestep_fs", 2.0}})));
+        check(msd.size() == 1 && msd[0].series.size() == 4 && msd[0].series[0].x.size() == 6, "MSD plot with total and components");
+        close(msd[0].series[0].x[5], 10, 0, "MSD x axis is lag time");
+
+        std::vector<double> volume, energy;
+        for (int i = 0; i < 9; ++i) { volume.push_back(14 + .5 * i); energy.push_back(.02 * std::pow(volume.back() - 16.1, 2) - 3); }
+        const auto eos = resultPlots("equation-of-state", run("equation-of-state", object({{"volumes_A3", toJson(volume)}, {"energies_eV", toJson(energy)}})));
+        check(eos.size() == 1 && eos[0].series.size() == 2 && eos[0].series[0].points && eos[0].series[0].x.size() == 9, "EOS data and fit");
+        const auto& fit = eos[0].series[1];
+        const std::size_t best = static_cast<std::size_t>(std::min_element(fit.y.begin(), fit.y.end()) - fit.y.begin());
+        close(fit.x[best], 16.1, .03, "fit curve minimum at V0");
+
+        std::vector<double> lag, line;
+        for (int i = 0; i <= 50; ++i) { lag.push_back(i); line.push_back(.6 * i + 2); }
+        const auto diffusion = resultPlots("diffusion", run("diffusion", object({{"lag_fs", toJson(lag)}, {"msd_A2", toJson(line)}, {"fit_range_fs", Json::array({10.0, 40.0})}})));
+        check(diffusion.size() == 1 && diffusion[0].series[1].x.size() == 2, "diffusion fit line");
+        close(diffusion[0].series[1].y[1], .6 * 40 + 2, 1e-9, "fit line endpoint");
+
+        RelaxOptions options;
+        options.fmax = 1e-3;
+        Crystal rattled = fccCubic(3.6, 2);
+        rattled.positions[0][0] += .1;
+        const auto emt = makeEmt();
+        const auto relax = resultPlots("relax", relaxStructure(configuration(rattled), *emt, options).result);
+        check(relax.size() == 2 && relax[1].logY, "relaxation energy and log force plots");
+
+        Configuration initial;
+        initial.symbols = {"H"}; initial.numbers = {1}; initial.masses = {1.008};
+        initial.positions = {{-1, 0, 0}};
+        Configuration final = initial;
+        final.positions = {{1, 0, 0}};
+        NebOptions neb;
+        neb.images = 5; neb.fmax = .01;
+        const auto path = resultPlots("neb", migrationPath(initial, final, [] { return std::make_unique<CurvedDoubleWell>(); }, neb).result);
+        check(path.size() == 1, "NEB plot");
+        close(path[0].series[0].y.front(), 0, 0, "energies relative to the initial image");
+        for (std::size_t i = 1; i < path[0].series[0].x.size(); ++i) check(path[0].series[0].x[i] > path[0].series[0].x[i - 1], "increasing reaction coordinate");
+        check(path[0].series[0].x.back() > 2.0, "path length exceeds the straight-line distance on a curved path");
+
+        DynamicsOptions dynamics;
+        dynamics.steps = 20; dynamics.sampleInterval = 5;
+        check(resultPlots("nvt", nvtDynamics(configuration(fccCubic(3.6, 2)), *emt, dynamics).result).size() == 2, "NVT plots");
+        check(resultPlots("npt", nptDynamics(configuration(fccCubic(3.6, 2)), *emt, dynamics).result).size() == 4, "NPT plots");
+        check(resultPlots("band-gap", run("band-gap", object({{"energies_eV", Json::parse("[[-1, 2]]")}, {"fermi_eV", 0.0}}))).empty(), "no curve for scalar results");
+
+        const auto h = histogram("values", {1, 2, 2, 3, std::nan(""), 3, 3}, 3);
+        double total = 0;
+        for (double c : h.y) total += c;
+        close(total, 6, 0, "histogram counts every finite value once");
+        close(h.y[2], 3, 0, "upper bin includes the maximum");
+        const std::string csv = plotCsv(msd[0]);
+        check(std::count(csv.begin(), csv.end(), '\n') == 7, "CSV header plus one row per sample");
+    });
+
+    test("per-atom properties and viewport colouring", [] {
+        const auto low = viridis(0), high = viridis(1);
+        // Polynomial fit to matplotlib viridis: anchors within its ~0.015 fit error.
+        close(low[0], .267, .015, "viridis(0) r"); close(low[2], .329, .015, "viridis(0) b");
+        close(high[0], .993, .015, "viridis(1) r"); close(high[1], .906, .015, "viridis(1) g");
+        double previous = -1;
+        for (int i = 0; i <= 20; ++i) {
+            const auto c = viridis(i / 20.0);
+            const double luminance = .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
+            check(luminance > previous, "viridis luminance increases monotonically");
+            previous = luminance;
+        }
+        // Simple shear gamma: E = (F^T F - I)/2 gives a known von Mises invariant.
+        const Crystal atoms = fccCubic(3.6, 2);
+        const double gamma = .04;
+        const Mat3 shear = {{{1, gamma, 0}, {0, 1, 0}, {0, 0, 1}}};
+        std::vector<Vec3> sheared;
+        for (const auto& p : atoms.positions) sheared.push_back(transformVector(shear, p));
+        Mat3 shearedCell{};
+        for (int r = 0; r < 3; ++r) shearedCell[r] = transformVector(shear, atoms.cell[r]);
+        const Json strain = run("local-strain", object({{"reference", rows(atoms.positions)}, {"current", rows(sheared)}, {"cutoff_A", 2.8},
+            {"reference_cell", matrixJson(atoms.cell)}, {"current_cell", matrixJson(shearedCell)}, {"pbc", Json::array({true, true, true})}}));
+        const auto properties = perAtomProperties("local-strain", strain);
+        check(properties.size() == 4 && properties[1].name == "Von Mises shear strain", "local-strain properties");
+        const double exy = gamma / 2, eyy = gamma * gamma / 2;
+        const double expected = std::sqrt(exy * exy + (eyy * eyy + eyy * eyy) / 6);
+        for (double v : properties[1].values) close(v, expected, 1e-12, "von Mises shear strain");
+        check(properties[0].values.size() == atoms.positions.size(), "aligned with atoms");
+        const Json csp = run("centrosymmetry", object({{"positions", rows(atoms.positions)}, {"cutoff_A", 2.8}, {"cell", matrixJson(atoms.cell)}, {"pbc", Json::array({true, true, true})}}));
+        check(perAtomProperties("centrosymmetry", csp).size() == 1, "CSP property");
+        check(perAtomProperties("band-gap", Json::object()).empty(), "no per-atom data for scalar tools");
+
+        const std::vector<double> values = {0, 1, 2, 3, std::nan("")};
+        std::vector<std::array<float, 3>> colours;
+        std::vector<bool> visible;
+        PropertyDisplay display;
+        colourByProperty(values, display, colours, visible);
+        check(colours[0] == viridis(0) && colours[3] == viridis(1), "automatic range spans the data");
+        check(colours[4][0] == colours[4][1] && visible[4], "invalid atoms grey and shown by default");
+        display.autoRange = false;
+        display.range = {1, 2};
+        display.hideOutside = true;
+        display.hideInvalid = true;
+        colourByProperty(values, display, colours, visible);
+        check(!visible[0] && visible[1] && visible[2] && !visible[3] && !visible[4], "range and invalid filtering");
+        check(colours[2] == viridis(1), "manual range");
+
+        Structure structure;
+        for (int i = 0; i < 3; ++i) structure.atoms.push_back({"Cu", 29, double(i), 0, 0});
+        structure.atomProperty = {10, 20, 30};
+        structure.eraseAtom(1);
+        check(structure.atomProperty == std::vector<double>({10, 30}), "property stays aligned after deleting an atom");
+    });
+
+    test("VASP and structure-file inputs", [] {
+        const auto xdatcar = scratch("XDATCAR");
+        { std::ofstream out(xdatcar); out << "Cu\n1.0\n4 0 0\n0 4 0\n0 0 4\nCu\n2\nDirect configuration= 1\n0 0 0\n0.5 0.5 0.5\n"
+                                           "Direct configuration= 2\n0.1 0 0\n0.5 0.5 0.6\n"; }
+        auto frames = readFrames(xdatcar);
+        check(frames.size() == 2 && frames[1].structure.atoms.size() == 2, "constant-cell XDATCAR frames");
+        close(frames[1].structure.atoms[1].z, 2.4, 1e-12, "direct to Cartesian");
+        const auto variable = scratch("XDATCAR_variable");
+        { std::ofstream out(variable); out << "Cu\n1.0\n4 0 0\n0 4 0\n0 0 4\nCu\n1\nDirect configuration= 1\n0.5 0 0\n"
+                                            "Cu\n1.0\n5 0 0\n0 5 0\n0 0 5\nCu\n1\nDirect configuration= 2\n0.5 0 0\n"; }
+        frames = readFrames(variable);
+        check(frames.size() == 2, "variable-cell XDATCAR frames");
+        close(frames[1].structure.atoms[0].x, 2.5, 1e-12, "repeated header updates the cell");
+        expectError([&] { run("msd", object({{"positions", object({{"file", variable.u8string()}})}, {"timestep_fs", 1.0},
+            {"wrapped", true}, {"cell", object({{"file", variable.u8string()}})}})); }, "variable cell rejected for fixed-cell input");
+
+        const auto poscar = scratch("POSCAR");
+        { std::ofstream out(poscar); out << "NaCl\n-179.406144\n1 0 0\n0 1 0\n0 0 1\nNa Cl\n1 1\nSelective dynamics\nCartesian\n0 0 0 T T T\n2.82 2.82 2.82 F F F\n"; }
+        frames = readFrames(poscar);
+        check(frames.size() == 1 && frames[0].structure.atoms[1].symbol == "Cl", "POSCAR species");
+        close(frames[0].structure.cellVectors[0][0], std::cbrt(179.406144), 1e-9, "negative scale is the cell volume");
+        close(frames[0].structure.atoms[1].x, 2.82, 1e-12, "Cartesian coordinates are not rescaled");
+
+        // An active structure saved as JSON supplies its positions to array inputs.
+        const Crystal copper = fccCubic(3.6, 2);
+        const auto active = scratch("active.json");
+        { std::ofstream out(active); out << structureJsonOf(copper).dump(); }
+        const Json fromFile = run("centrosymmetry", object({{"positions", object({{"file", active.u8string()}})}, {"cutoff_A", 2.8},
+            {"cell", matrixJson(copper.cell)}, {"pbc", Json::array({true, true, true})}}));
+        check(fromFile.at("valid").size() == copper.positions.size(), "active-structure JSON positions");
+        for (double v : values(fromFile.at("centrosymmetry_A2"))) close(v, 0, 1e-20, "perfect crystal from active JSON");
+    });
+
+    test("EAM setfl, Finnis-Sinclair and funcfl tables", [] {
+        // Analytic two-element model; the tables must reproduce it exactly up to interpolation error.
+        const double rc = 5.5;
+        auto cutoff = [&](double r) { return r < rc ? std::pow((rc - r) / rc, 3) : 0.0; };
+        auto embed = [](int e, double rho) { return e == 0 ? 0.08 * rho * rho - 1.1 * rho : 0.05 * rho * rho - 1.4 * rho; };
+        auto dens = [&](int from, int at, double r) {  // FS: density at an `at` atom from a `from` atom
+            const double base = (from == 0 ? 1.0 : 1.3) * std::exp(-1.2 * (r - 2.5)) * cutoff(r);
+            return base * (from == at ? 1.0 : 0.8);
+        };
+        auto pair = [&](int a, int b, double r) {
+            const double d = a + b == 0 ? .30 : (a + b == 1 ? .35 : .40);
+            const double x = std::exp(-1.5 * (r - 2.55));
+            return d * (x * x - 2 * x) * cutoff(r);
+        };
+        const int nrho = 4001, nr = 6001;
+        const double drho = 40.0 / (nrho - 1), dr = rc / (nr - 1);
+        auto writeTable = [](std::ofstream& out, const std::function<double(int)>& f, int n) {
+            out << std::setprecision(16);
+            for (int k = 0; k < n; ++k) out << f(k) << ((k % 5 == 4) ? '\n' : ' ');
+            out << '\n';
+        };
+        auto writeAlloy = [&](const std::filesystem::path& path, bool fs) {
+            std::ofstream out(path);
+            out << std::setprecision(16) << "analytic test potential\nline 2\nline 3\n2 Cu Ni\n" << nrho << ' ' << drho << ' ' << nr << ' ' << dr << ' ' << rc << '\n';
+            for (int e = 0; e < 2; ++e) {
+                out << (e == 0 ? "29 63.546 3.6 fcc\n" : "28 58.693 3.52 fcc\n");
+                writeTable(out, [&](int k) { return embed(e, k * drho); }, nrho);
+                for (int at = 0; at < (fs ? 2 : 1); ++at)
+                    writeTable(out, [&](int k) { return fs ? dens(e, at, k * dr) : dens(e, e, k * dr); }, nr);
+            }
+            for (int a = 0; a < 2; ++a)
+                for (int b = 0; b <= a; ++b) writeTable(out, [&](int k) { return k * dr * pair(a, b, k * dr); }, nr);
+        };
+        const auto setfl = scratch("analytic.eam.alloy"), fs = scratch("analytic.eam.fs");
+        writeAlloy(setfl, false);
+        writeAlloy(fs, true);
+
+        Crystal alloy = fccCubic(3.58, 3);
+        Normal normal(12);
+        std::vector<int> type;
+        for (std::size_t i = 0; i < alloy.positions.size(); ++i) {
+            const bool nickel = normal() > 0;
+            alloy.symbols[i] = nickel ? "Ni" : "Cu";
+            type.push_back(nickel ? 1 : 0);
+            alloy.positions[i] = add(alloy.positions[i], {normal() * .05, normal() * .05, normal() * .05});
+        }
+        const auto c = configuration(alloy);
+        auto analytic = [&](bool finnisSinclair) {
+            std::vector<double> rho(c.size(), 0.0);
+            double energy = 0;
+            for (const auto& nb : neighborList(c.positions, c.cell, c.pbc, rc)) {
+                const double r = norm(nb.vector);
+                const int i = type[static_cast<std::size_t>(nb.i)], j = type[static_cast<std::size_t>(nb.j)];
+                rho[static_cast<std::size_t>(nb.i)] += finnisSinclair ? dens(j, i, r) : dens(j, j, r);
+                energy += 0.5 * pair(i, j, r);
+            }
+            for (std::size_t i = 0; i < c.size(); ++i) energy += embed(type[i], rho[i]);
+            return energy;
+        };
+        for (const bool finnisSinclair : {false, true}) {
+            const auto eam = makeEam(finnisSinclair ? fs : setfl);
+            const auto result = eam->compute(c, true);
+            close(result.energy, analytic(finnisSinclair), 1e-6, std::string(finnisSinclair ? "FS" : "setfl") + " energy matches the analytic model");
+            const double h = 1e-5;
+            for (int atom : {0, 7, 50})
+                for (int k = 0; k < 3; ++k) {
+                    auto plus = c, minus = c;
+                    plus.positions[atom][k] += h; minus.positions[atom][k] -= h;
+                    close(result.forces[atom][k], -(eam->compute(plus, false).energy - eam->compute(minus, false).energy) / (2 * h), 2e-6, "EAM force");
+                }
+            for (int a = 0; a < 3; ++a)
+                for (int b = a; b < 3; ++b) {
+                    auto strained = [&](double e) {
+                        Mat3 f = identity();
+                        f[a][b] += e / 2; f[b][a] += e / 2;
+                        auto s = c;
+                        for (auto& p : s.positions) p = transformVector(f, p);
+                        for (auto& row : s.cell) row = transformVector(f, row);
+                        return eam->compute(s, false).energy;
+                    };
+                    close(result.stress[a][b], (strained(h) - strained(-h)) / (2 * h) / cellVolume(c.cell), 1e-7, "EAM stress");
+                }
+        }
+
+        // funcfl: single element with a repulsive pair from the effective charge Z(r).
+        const auto funcfl = scratch("analytic.eam");
+        auto repulsive = [&](double r) { return 3.0 * std::exp(-1.1 * r) * cutoff(r); };
+        {
+            std::ofstream out(funcfl);
+            out << std::setprecision(16) << "single element analytic\n29 63.546 3.6 fcc\n" << nrho << ' ' << drho << ' ' << nr << ' ' << dr << ' ' << rc << '\n';
+            writeTable(out, [&](int k) { return embed(0, k * drho); }, nrho);
+            writeTable(out, [&](int k) { return std::sqrt(k * dr * repulsive(k * dr) / (27.2 * 0.529)); }, nr);
+            writeTable(out, [&](int k) { return dens(0, 0, k * dr); }, nr);
+        }
+        const auto copper = configuration(fccCubic(3.6, 3));
+        double expected = 0;
+        std::vector<double> rho(copper.size(), 0.0);
+        for (const auto& nb : neighborList(copper.positions, copper.cell, copper.pbc, rc)) {
+            const double r = norm(nb.vector);
+            rho[static_cast<std::size_t>(nb.i)] += dens(0, 0, r);
+            expected += 0.5 * repulsive(r);
+        }
+        for (double value : rho) expected += embed(0, value);
+        close(makeEam(funcfl)->compute(copper, false).energy, expected, 1e-6, "funcfl energy");
+
+        // Request interface: relative file resolved against the request directory.
+        const Json relaxed = runTool("relax", object({{"structure", structureJsonOf(fccCubic(3.58, 2))},
+            {"calculator", object({{"potential", "EAM"}, {"file", setfl.filename().u8string()}})}, {"relax_cell", true}, {"fmax", 1e-3}}),
+            setfl.parent_path()).result;
+        check(relaxed.at("converged").boolean() && relaxed.at("potential").string().find("EAM") == 0, "EAM relaxation through a request");
+        Crystal gold = fccCubic(4.08, 1, "Au");
+        expectError([&] { makeEam(setfl)->compute(configuration(gold), false); }, "element missing from the EAM file");
+        expectError([&] { potentialFactory(object({{"potential", "EAM"}}))(); }, "EAM needs a file");
+    });
+
     test("catalog defaults are valid requests", [] {
-        check(scienceToolCatalog().size() == 20, "twenty tools");
+        check(scienceToolCatalog().size() >= 20, "catalog tools");
         for (const auto& tool : scienceToolCatalog())
             for (const auto& parameter : tool.parameters) {
                 if (!parameter.value[0]) continue;

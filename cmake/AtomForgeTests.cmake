@@ -152,6 +152,22 @@ if(TARGET AtomForge)
     endif()
     add_test(NAME lattice_family_regressions COMMAND atomforge_lattice_family_tests)
 
+    add_executable(atomforge_builder_tools_tests
+        ${PROJECT_SOURCE_DIR}/tests/builder_tools_regressions.cpp
+        ${PROJECT_SOURCE_DIR}/src/algorithms/VacancyBuilder.cpp
+        ${PROJECT_SOURCE_DIR}/src/algorithms/StrainTool.cpp
+        ${PROJECT_SOURCE_DIR}/src/algorithms/SurfaceBuilder.cpp
+        ${PROJECT_SOURCE_DIR}/src/algorithms/CSLComputation.cpp
+        ${PROJECT_SOURCE_DIR}/src/algorithms/SQSBuilder.cpp
+        ${PROJECT_SOURCE_DIR}/src/algorithms/NanostructureTools.cpp)
+    target_include_directories(atomforge_builder_tools_tests PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/src/util)
+    target_link_libraries(atomforge_builder_tools_tests PRIVATE atomforge_science)
+    if(TARGET PkgConfig::SPGLIB)
+        target_compile_definitions(atomforge_builder_tools_tests PRIVATE ATOMS_ENABLE_SPGLIB)
+        target_link_libraries(atomforge_builder_tools_tests PRIVATE PkgConfig::SPGLIB)
+    endif()
+    add_test(NAME builder_tools_regressions COMMAND atomforge_builder_tools_tests)
+
     # Renders every scientific tool dialog headlessly; ImGui assertions throw.
     add_executable(atomforge_science_dialog_tests
         ${PROJECT_SOURCE_DIR}/tests/science_dialog.cpp

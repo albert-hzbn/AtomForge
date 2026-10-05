@@ -27,6 +27,7 @@
 #include "ui/DislocationAnalysisDialog.h"
 #include "ui/TrajectoryDialog.h"
 #include "ui/ScientificToolsDialog.h"
+#include "science/AtomProperties.h"
 
 #include <array>
 #include <functional>
@@ -57,6 +58,7 @@ enum class AtomColorMode
     ElementType = 0,
     CrystalOrientation,
     GrainBoundary,
+    AtomProperty,
 };
 
 enum class AtomDisplayMode
@@ -154,6 +156,7 @@ struct FileBrowser
     bool atomColorModeChanged();
     void setAtomColorMode(AtomColorMode mode) { atomColorMode = mode; atomColorModeJustChanged = true; }
     AtomDisplayMode getAtomDisplayMode() const { return atomDisplayMode; }
+    const atomforge::science::PropertyDisplay& getPropertyDisplay() const { return propertyDisplay; }
     float getAtomRadiusScale() const
     {
         switch (atomDisplayMode)
@@ -313,6 +316,7 @@ struct FileBrowser
 
     // Apply persistent user element color overrides to a loaded structure.
     void applyElementColorOverrides(Structure& structure) const;
+    void drawAtomPropertySettings(Structure& structure, const std::function<void(Structure&)>& updateBuffers);
 
     // Initialise the nanocrystal dialog's own GL preview resources.
     void initNanoCrystalRenderResources(Renderer& renderer);
@@ -437,6 +441,7 @@ private:
     ViewMode viewMode;
     AtomColorMode atomColorMode;
     bool atomColorModeJustChanged;
+    atomforge::science::PropertyDisplay propertyDisplay;
     AtomDisplayMode atomDisplayMode;
     bool boxSelectMode;
     bool lassoSelectMode;

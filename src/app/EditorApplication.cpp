@@ -1199,6 +1199,14 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
 
         if (activeState.fileBrowser.getAtomColorMode() == AtomColorMode::CrystalOrientation)
             drawIPFTriangleLegend(drawList, frame.framebufferWidth, frame.framebufferHeight);
+        else if (activeState.fileBrowser.getAtomColorMode() == AtomColorMode::AtomProperty &&
+                 activeState.structure.atomProperty.size() == activeState.structure.atoms.size())
+        {
+            const auto& display = activeState.fileBrowser.getPropertyDisplay();
+            const auto range = display.autoRange ? atomforge::science::finiteRange(activeState.structure.atomProperty) : display.range;
+            drawAtomPropertyLegend(drawList, frame.framebufferWidth, frame.framebufferHeight,
+                                   activeState.structure.atomPropertyName, range.low, range.high);
+        }
 
         drawGrabOverlay(activeState, drawList, frame.projection, frame.view,
                         frame.windowWidth, frame.windowHeight);

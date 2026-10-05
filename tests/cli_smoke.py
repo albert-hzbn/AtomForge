@@ -31,10 +31,29 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
         output = root / f"{mode}.cif"
         run("--build", mode, "--input", source, *options, "--output", output)
         assert output.stat().st_size > 0
+    # Defect, lattice and nanostructure builders on a conventional fcc cell.
+    conventional = root / "cu_conv.vasp"
+    run("--build", "bulk", "--a", "3.61", "--atom", "Cu 0 0 0", "--output", conventional)
+    for mode in ("vacancy", "strain", "primitive", "surface", "sqs", "nanowire", "core-shell"):
+        assert mode.upper().replace("-", "") in run("--help", mode).stdout.upper().replace("-", "")
+    for mode, options in (
+        ("vacancy", ["--count", "1"]),
+        ("strain", ["--exx", "0.01"]),
+        ("primitive", []),
+        ("surface", ["--h", "1", "--k", "1", "--l", "1", "--layers", "3"]),
+        ("sqs", ["--element", "Cu 0.5", "--element", "Ni 0.5", "--steps", "200"]),
+        ("nanowire", ["--radius", "6"]),
+        ("core-shell", ["--core-radius", "2", "--core-element", "Au", "--shell-element", "Ag"]),
+    ):
+        output = root / f"{mode}.xyz"
+        run("--build", mode, "--input", conventional, *options, "--output", output)
+        lines = output.read_text().splitlines()
+        assert int(lines[0]) > 0 and len(lines) >= int(lines[0]) + 2, mode
+    run("--build", "vacancy", "--input", conventional, "--count", "99", "--output", root / "too_many.xyz", success=False)
     for fraction in ("Cu=nan", "Cu=inf", "Cu=0.5garbage"):
         output = root / "invalid.cif"
         run("--build", "sss", "--input", source, "--frac", fraction, "--output", output, success=False)
         assert not output.exists()
     run("--build", "bulk", "--a", "nan", "--output", root / "invalid.cif", success=False)
     run("--build", "unknown", success=False)
-print("CLI smoke tests passed (version, 8 help modes, 5 builders, 5 invalid inputs)")
+print("CLI smoke tests passed (version, 15 help modes, 12 builders, 6 invalid inputs)")

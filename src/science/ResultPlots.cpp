@@ -1,0 +1,247 @@
+#include "science/ResultPlots.h"
+
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <limits>
+#include <numeric>
+
+namespace atomforge::science
+{
+namespace
+{
+const double kNaN = std::numeric_limits<double>::quiet_NaN();
+
+std::vector<double> numbers(const Json* value)
+{
+    std::vector<double> result;
+    if (!value || !value->isArray()) return result;
+    for (const auto& item : value->items())
+        result.push_back(item.isNumber() ? item.number() : kNaN);
+    return result;
+}
+
+std::vector<double> column(const Json* rows, std::size_t k)
+{
+    std::vector<double> result;
+    if (!rows || !rows->isArray()) return result;
+    for (const auto& row : rows->items())
+        result.push_back(row.isArray() && row.size() > k && row.items()[k].isNumber() ? row.items()[k].number() : kNaN);
+    return result;
+}
+
+std::vector<double> indices(std::size_t count)
+{
+    std::vector<double> result(count);
+    std::iota(result.begin(), result.end(), 0.0);
+    return result;
+}
+
+PlotSeries line(const std::string& name, std::vector<double> x, std::vector<double> y, bool points = false)
+{
+    PlotSeries series;
+    series.name = name;
+    series.x = std::move(x);
+    series.y = std::move(y);
+    series.points = points;
+    return series;
+}
+
+PlotSpec plot(const std::string& title, const std::string& xLabel, const std::string& yLabel, std::vector<PlotSeries> series)
+{
+    PlotSpec spec;
+    spec.title = title;
+    spec.xLabel = xLabel;
+    spec.yLabel = yLabel;
+    spec.series = std::move(series);
+    return spec;
+}
+
+double number(const Json& result, const char* key, double fallback = kNaN)
+{
+    const Json* value = result.find(key);
+    return value && value->isNumber() ? value->number() : fallback;
+}
+
+void addHistogram(std::vector<PlotSpec>& plots, const std::string& title, const std::string& xLabel, const std::vector<double>& values)
+{
+    bool any = false;
+    for (double v : values) any = any || std::isfinite(v);
+    if (any) plots.push_back(plot(title, xLabel, "Atoms", {histogram(xLabel, values, 40)}));
+}
+}
+
+PlotSeries histogram(const std::string& name, const std::vector<double>& values, int bins)
+{
+    PlotSeries series;
+    series.name = name;
+    double low = HUGE_VAL, high = -HUGE_VAL;
+    for (double v : values)
+        if (std::isfinite(v)) { low = std::min(low, v); high = std::max(high, v); }
+    if (!(low <= high) || bins < 1) return series;
+    if (high == low) { high = low + 1e-12 + std::abs(low) * 1e-9; }
+    const double width = (high - low) / bins;
+    std::vector<double> counts(static_cast<std::size_t>(bins), 0.0);
+    for (double v : values) {
+        if (!std::isfinite(v)) continue;
+        const int b = std::min(bins - 1, static_cast<int>((v - low) / width));
+        counts[static_cast<std::size_t>(b)] += 1;
+    }
+    for (int b = 0; b < bins; ++b) {
+        series.x.push_back(low + (b + 0.5) * width);
+        series.y.push_back(counts[static_cast<std::size_t>(b)]);
+    }
+    return series;
+}
+
+std::vector<PlotSpec> resultPlots(const std::string& tool, const Json& result)
+{
+    std::vector<PlotSpec> plots;
+    if (!result.isObject()) return plots;
+    if (tool == "msd") {
+        const auto lag = numbers(result.find("lag_fs"));
+        const Json* components = result.find("components_A2");
+        plots.push_back(plot("Mean-square displacement", "Lag time (fs)", "MSD (A^2)",
+            {line("total", lag, numbers(result.find("msd_A2"))), line("x", lag, column(components, 0)),
+             line("y", lag, column(components, 1)), line("z", lag, column(components, 2))}));
+    } else if (tool == "diffusion") {
+        const auto lag = numbers(result.find("lag_fs"));
+        const auto range = numbers(result.find("fit_range_fs"));
+        if (!lag.empty() && range.size() == 2) {
+            const double slope = number(result, "slope_A2_per_fs"), intercept = number(result, "intercept_A2");
+            plots.push_back(plot("Einstein diffusion fit", "Lag time (fs)", "MSD (A^2)",
+                {line("MSD", lag, numbers(result.find("msd_A2"))),
+                 line("linear fit", range, {intercept + slope * range[0], intercept + slope * range[1]})}));
+        }
+    } else if (tool == "vacf") {
+        auto spec = plot("Velocity autocorrelation", "Lag time (fs)", "VACF",
+            {line("VACF", numbers(result.find("lag_fs")), numbers(result.find("vacf")))});
+        spec.horizontal = {0.0};
+        plots.push_back(spec);
+    } else if (tool == "vibrational-spectrum") {
+        plots.push_back(plot("Vibrational spectrum", "Frequency (THz)", "Spectral density (1/THz)",
+            {line("density", numbers(result.find("frequency_THz")), numbers(result.find("density_per_THz")))}));
+    } else if (tool == "structure-factor") {
+        const Json* q = result.find("q_vectors_rad_per_A");
+        const auto s = numbers(result.find("S_q"));
+        std::vector<std::pair<double, double>> pairs;
+        for (std::size_t i = 0; i < s.size(); ++i) {
+            const double qx = column(q, 0)[i], qy = column(q, 1)[i], qz = column(q, 2)[i];
+            pairs.push_back({std::sqrt(qx * qx + qy * qy + qz * qz), s[i]});
+        }
+        std::sort(pairs.begin(), pairs.end());
+        std::vector<double> x, y;
+        for (const auto& [qq, ss] : pairs) { x.push_back(qq); y.push_back(ss); }
+        plots.push_back(plot("Static structure factor", "|q| (rad/A)", "S(q)", {line("S(q)", x, y, true)}));
+    } else if (tool == "local-strain") {
+        addHistogram(plots, "Non-affine displacement", "D2min (A^2)", numbers(result.find("d2min_A2")));
+        std::vector<double> volumetric;
+        if (const Json* strain = result.find("green_lagrange_strain"); strain && strain->isArray())
+            for (const auto& tensor : strain->items()) {
+                double trace = 0;
+                for (int k = 0; k < 3; ++k) {
+                    const auto row = tensor.isArray() && tensor.size() == 3 ? tensor.items()[static_cast<std::size_t>(k)] : Json();
+                    trace += row.isArray() && row.items()[static_cast<std::size_t>(k)].isNumber() ? row.items()[static_cast<std::size_t>(k)].number() : kNaN;
+                }
+                volumetric.push_back(trace);
+            }
+        addHistogram(plots, "Volumetric strain", "trace(E)", volumetric);
+    } else if (tool == "centrosymmetry") {
+        addHistogram(plots, "Centrosymmetry distribution", "CSP (A^2)", numbers(result.find("centrosymmetry_A2")));
+    } else if (tool == "bond-order") {
+        std::vector<PlotSeries> series;
+        if (const Json* order = result.find("order"); order && order->isObject())
+            for (const auto& [name, values] : order->members()) {
+                auto h = histogram(name, numbers(&values), 40);
+                if (!h.x.empty()) series.push_back(h);
+            }
+        if (!series.empty()) plots.push_back(plot("Steinhardt order distribution", "q_l", "Atoms", series));
+    } else if (tool == "wigner-seitz") {
+        addHistogram(plots, "Distance to assigned site", "Distance (A)", numbers(result.find("distance_A")));
+    } else if (tool == "work-function") {
+        const auto distance = numbers(result.find("distance_A"));
+        if (!distance.empty()) {
+            auto spec = plot("Planar potential", "Distance (A)", "Potential energy (eV)",
+                {line("potential", distance, numbers(result.find("potential_eV")))});
+            spec.horizontal = {number(result, "vacuum_level_eV"), number(result, "fermi_eV")};
+            plots.push_back(spec);
+        }
+    } else if (tool == "equation-of-state") {
+        plots.push_back(plot("Birch-Murnaghan equation of state", "Volume (A^3)", "Energy (eV)",
+            {line("data", numbers(result.find("volumes_A3")), numbers(result.find("energies_eV")), true),
+             line("fit", numbers(result.find("fit_volumes_A3")), numbers(result.find("fit_energies_eV")))}));
+    } else if (tool == "phonon-dos") {
+        plots.push_back(plot("Phonon density of states", "Energy (eV)", "DOS (1/eV)",
+            {line("DOS", numbers(result.find("energy_eV")), numbers(result.find("dos_per_eV")))}));
+    } else if (tool == "harmonic-thermodynamics") {
+        const auto t = numbers(result.find("temperature_K"));
+        plots.push_back(plot("Harmonic free and internal energy", "Temperature (K)", "Energy (eV/cell)",
+            {line("F", t, numbers(result.find("free_energy_eV"))), line("U", t, numbers(result.find("internal_energy_eV")))}));
+        plots.push_back(plot("Entropy and heat capacity", "Temperature (K)", "eV/(cell K)",
+            {line("S", t, numbers(result.find("entropy_eV_per_K"))), line("Cv", t, numbers(result.find("heat_capacity_eV_per_K")))}));
+    } else if (tool == "relax") {
+        const auto enthalpy = numbers(result.find("enthalpy_history_eV"));
+        const auto force = numbers(result.find("max_force_history"));
+        plots.push_back(plot("Relaxation energy", "Step", "E (+PV) (eV)", {line("energy", indices(enthalpy.size()), enthalpy)}));
+        auto spec = plot("Convergence", "Step", "Max force (eV/A)", {line("max force", indices(force.size()), force)});
+        spec.logY = true;
+        plots.push_back(spec);
+    } else if (tool == "neb") {
+        auto energies = numbers(result.find("energies_eV"));
+        if (!energies.empty()) {
+            const double start = energies.front();
+            for (double& e : energies) e -= start;
+            auto x = numbers(result.find("reaction_coordinate_A"));
+            if (x.size() != energies.size()) x = indices(energies.size());
+            auto spec = plot("Minimum-energy path", "Reaction coordinate (A)", "E - E(initial) (eV)",
+                {line("path", x, energies), line("images", x, energies, true)});
+            spec.horizontal = {0.0};
+            plots.push_back(spec);
+        }
+    } else if (tool == "nvt" || tool == "npt") {
+        const auto time = numbers(result.find("time_fs"));
+        auto temperature = plot("Temperature", "Time (fs)", "T (K)", {line("T", time, numbers(result.find("temperature_K")))});
+        temperature.horizontal = {number(result, "target_temperature_K")};
+        plots.push_back(temperature);
+        plots.push_back(plot("Total energy", "Time (fs)", "E (eV)", {line("E", time, numbers(result.find("total_energy_eV")))}));
+        if (tool == "npt") {
+            plots.push_back(plot("Volume", "Time (fs)", "V (A^3)", {line("V", time, numbers(result.find("volume_A3")))}));
+            plots.push_back(plot("Pressure", "Time (fs)", "P (GPa)", {line("P", time, numbers(result.find("pressure_GPa")))}));
+        }
+    }
+    // Drop plots without at least two finite points.
+    plots.erase(std::remove_if(plots.begin(), plots.end(), [](const PlotSpec& spec) {
+        std::size_t finite = 0;
+        for (const auto& series : spec.series)
+            for (std::size_t i = 0; i < std::min(series.x.size(), series.y.size()); ++i)
+                finite += std::isfinite(series.x[i]) && std::isfinite(series.y[i]);
+        return finite < 2;
+    }), plots.end());
+    return plots;
+}
+
+std::string plotCsv(const PlotSpec& plot)
+{
+    std::string text;
+    std::size_t rows = 0;
+    for (std::size_t s = 0; s < plot.series.size(); ++s) {
+        const std::string name = plot.series[s].name;
+        text += (s ? "," : "") + plot.xLabel + " [" + name + "]," + plot.yLabel + " [" + name + "]";
+        rows = std::max(rows, plot.series[s].x.size());
+    }
+    text += "\n";
+    char buffer[64];
+    for (std::size_t r = 0; r < rows; ++r) {
+        for (std::size_t s = 0; s < plot.series.size(); ++s) {
+            const auto& series = plot.series[s];
+            if (s) text += ",";
+            if (r < series.x.size() && r < series.y.size()) {
+                std::snprintf(buffer, sizeof(buffer), "%.10g,%.10g", series.x[r], series.y[r]);
+                text += buffer;
+            } else text += ",";
+        }
+        text += "\n";
+    }
+    return text;
+}
+}

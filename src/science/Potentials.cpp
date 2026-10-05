@@ -5,7 +5,11 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <array>
+#include <fstream>
 #include <map>
+#include <memory>
+#include <sstream>
 #include <stdexcept>
 
 namespace atomforge::science
@@ -235,6 +239,218 @@ private:
     double m_epsilon, m_sigma, m_cutoff, m_shift = 0;
 };
 
+// LAMMPS pair_eam cubic interpolation of a uniformly tabulated function
+// (PairEAM::interpolate), here with zero-based indices.
+class Spline
+{
+public:
+    void build(const std::vector<double>& values, double delta)
+    {
+        const int n = static_cast<int>(values.size());
+        if (n < 5 || !(delta > 0)) throw std::runtime_error("EAM tables need at least five samples and a positive spacing");
+        m_delta = delta;
+        m_c.assign(static_cast<std::size_t>(n), {});
+        auto c = [&](int m) -> std::array<double, 7>& { return m_c[static_cast<std::size_t>(m)]; };
+        for (int m = 0; m < n; ++m) c(m)[6] = values[static_cast<std::size_t>(m)];
+        c(0)[5] = c(1)[6] - c(0)[6];
+        c(1)[5] = 0.5 * (c(2)[6] - c(0)[6]);
+        c(n - 2)[5] = 0.5 * (c(n - 1)[6] - c(n - 3)[6]);
+        c(n - 1)[5] = c(n - 1)[6] - c(n - 2)[6];
+        for (int m = 2; m < n - 2; ++m)
+            c(m)[5] = ((c(m - 2)[6] - c(m + 2)[6]) + 8.0 * (c(m + 1)[6] - c(m - 1)[6])) / 12.0;
+        for (int m = 0; m < n - 1; ++m) {
+            c(m)[4] = 3.0 * (c(m + 1)[6] - c(m)[6]) - 2.0 * c(m)[5] - c(m + 1)[5];
+            c(m)[3] = c(m)[5] + c(m + 1)[5] - 2.0 * (c(m + 1)[6] - c(m)[6]);
+        }
+        c(n - 1)[4] = 0.0;
+        c(n - 1)[3] = 0.0;
+        for (int m = 0; m < n; ++m) {
+            c(m)[2] = c(m)[5] / delta;
+            c(m)[1] = 2.0 * c(m)[4] / delta;
+            c(m)[0] = 3.0 * c(m)[3] / delta;
+        }
+    }
+
+    void evaluate(double x, double& value, double& derivative) const
+    {
+        double p = std::max(0.0, x) / m_delta;
+        int m = static_cast<int>(p);
+        m = std::min(m, static_cast<int>(m_c.size()) - 2);
+        p -= m;
+        p = std::min(p, 1.0);
+        const auto& k = m_c[static_cast<std::size_t>(m)];
+        value = ((k[3] * p + k[4]) * p + k[5]) * p + k[6];
+        derivative = (k[0] * p + k[1]) * p + k[2];
+    }
+
+    double maximum() const { return m_delta * static_cast<double>(m_c.size() - 1); }
+
+private:
+    double m_delta = 1.0;
+    std::vector<std::array<double, 7>> m_c;
+};
+
+class Eam final : public Potential
+{
+public:
+    Eam(const std::filesystem::path& file, std::string format)
+    {
+        std::ifstream input(file);
+        if (!input) throw std::runtime_error("Cannot open EAM potential file " + file.u8string());
+        if (format == "auto") {
+            const std::string name = file.filename().u8string();
+            auto ends = [&](const std::string& suffix) {
+                std::string lowerName = name;
+                for (char& ch : lowerName) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+                return lowerName.size() >= suffix.size() && lowerName.compare(lowerName.size() - suffix.size(), suffix.size(), suffix) == 0;
+            };
+            format = ends(".fs") || ends(".eam.fs") ? "fs" : (ends(".alloy") || ends(".setfl") ? "setfl" : "funcfl");
+        }
+        if (format != "setfl" && format != "fs" && format != "funcfl")
+            throw std::runtime_error("EAM format must be setfl, fs or funcfl");
+        std::string line;
+        std::vector<std::string> tokens;
+        auto readTokens = [&](std::istream& stream) {
+            for (std::string token; stream >> token;) tokens.push_back(token);
+        };
+        std::size_t cursor = 0;
+        auto number = [&]() {
+            if (cursor >= tokens.size()) throw std::runtime_error("Truncated EAM potential file " + file.u8string());
+            return std::stod(tokens[cursor++]);
+        };
+        auto table = [&](int count) {
+            std::vector<double> values(static_cast<std::size_t>(count));
+            for (double& v : values) v = number();
+            return values;
+        };
+        if (format == "funcfl") {
+            std::getline(input, line);  // comment
+            readTokens(input);
+            const int z = static_cast<int>(number());
+            const double mass = number();
+            number();          // lattice constant
+            ++cursor;          // lattice name
+            const int nrho = static_cast<int>(number());
+            const double drho = number();
+            const int nr = static_cast<int>(number());
+            const double dr = number();
+            m_cutoff = number();
+            m_elements = {elementSymbol(z)};
+            m_masses = {mass};
+            m_embedding.resize(1);
+            m_embedding[0].build(table(nrho), drho);
+            m_rhoMax = (nrho - 1) * drho;
+            const auto charge = table(nr);
+            // funcfl Z(r) in e: r*phi = 27.2 * 0.529 * Z(r)^2 (Hartree-Bohr in eV-Angstrom), as LAMMPS.
+            std::vector<double> rphi(charge.size());
+            for (std::size_t i = 0; i < charge.size(); ++i) rphi[i] = 27.2 * 0.529 * charge[i] * charge[i];
+            m_density.assign(1, std::vector<Spline>(1));
+            m_density[0][0].build(table(nr), dr);
+            m_pair.resize(1);
+            m_pair[0].build(rphi, dr);
+        } else {
+            for (int k = 0; k < 3; ++k) std::getline(input, line);
+            std::getline(input, line);
+            std::istringstream header(line);
+            int count = 0;
+            header >> count;
+            if (count < 1 || count > 20) throw std::runtime_error("Invalid element count in EAM file " + file.u8string());
+            m_elements.resize(static_cast<std::size_t>(count));
+            for (auto& element : m_elements) header >> element;
+            readTokens(input);
+            const int nrho = static_cast<int>(number());
+            const double drho = number();
+            const int nr = static_cast<int>(number());
+            const double dr = number();
+            m_cutoff = number();
+            m_rhoMax = (nrho - 1) * drho;
+            m_embedding.resize(static_cast<std::size_t>(count));
+            m_density.assign(static_cast<std::size_t>(count), std::vector<Spline>(static_cast<std::size_t>(format == "fs" ? count : 1)));
+            for (int e = 0; e < count; ++e) {
+                number();                 // atomic number
+                m_masses.push_back(number());
+                number();                 // lattice constant
+                ++cursor;                 // lattice name
+                m_embedding[static_cast<std::size_t>(e)].build(table(nrho), drho);
+                for (auto& density : m_density[static_cast<std::size_t>(e)]) density.build(table(nr), dr);
+            }
+            m_pair.resize(static_cast<std::size_t>(count * (count + 1) / 2));
+            for (int i = 0; i < count; ++i)
+                for (int j = 0; j <= i; ++j) m_pair[static_cast<std::size_t>(i * (i + 1) / 2 + j)].build(table(nr), dr);
+        }
+        m_finnisSinclair = format == "fs";
+        if (!(m_cutoff > 0)) throw std::runtime_error("EAM cutoff must be positive");
+        m_description = "EAM (" + format + ", " + file.filename().u8string() + ")";
+    }
+
+    std::string description() const override { return m_description; }
+
+    PotentialResult compute(const Configuration& c, bool stress) const override
+    {
+        const std::size_t n = c.size();
+        std::vector<std::size_t> type(n);
+        for (std::size_t i = 0; i < n; ++i) {
+            const auto found = std::find(m_elements.begin(), m_elements.end(), c.symbols[i]);
+            if (found == m_elements.end()) throw std::runtime_error("The EAM potential has no parameters for " + c.symbols[i]);
+            type[i] = static_cast<std::size_t>(found - m_elements.begin());
+        }
+        const auto pairs = halfList(c, m_cutoff);
+        std::vector<double> rho(n, 0.0), embeddingSlope(n, 0.0);
+        double value = 0, slope = 0;
+        // Density at i contributed by a neighbour of type t: rho_t (setfl) or rho_{t,type(i)} (fs).
+        auto density = [&](std::size_t from, std::size_t at) -> const Spline& {
+            return m_finnisSinclair ? m_density[from][at] : m_density[from][0];
+        };
+        for (const auto& pair : pairs) {
+            const double r = norm(pair.vector);
+            const auto i = static_cast<std::size_t>(pair.i), j = static_cast<std::size_t>(pair.j);
+            density(type[j], type[i]).evaluate(r, value, slope);
+            rho[i] += value;
+            density(type[i], type[j]).evaluate(r, value, slope);
+            rho[j] += value;
+        }
+        PotentialResult result;
+        result.forces.assign(n, {0, 0, 0});
+        for (std::size_t i = 0; i < n; ++i) {
+            m_embedding[type[i]].evaluate(rho[i], value, slope);
+            result.energy += value;
+            // Linear continuation beyond the tabulated density, as LAMMPS.
+            if (rho[i] > m_rhoMax) result.energy += slope * (rho[i] - m_rhoMax);
+            embeddingSlope[i] = slope;
+        }
+        Mat3 virial{};
+        for (const auto& pair : pairs) {
+            const double r = norm(pair.vector);
+            const auto i = static_cast<std::size_t>(pair.i), j = static_cast<std::size_t>(pair.j);
+            double rhoJI = 0, dRhoJI = 0, rhoIJ = 0, dRhoIJ = 0, rphi = 0, dRphi = 0;
+            density(type[j], type[i]).evaluate(r, rhoJI, dRhoJI);
+            density(type[i], type[j]).evaluate(r, rhoIJ, dRhoIJ);
+            const std::size_t a = std::max(type[i], type[j]), b = std::min(type[i], type[j]);
+            m_pair[a * (a + 1) / 2 + b].evaluate(r, rphi, dRphi);
+            const double phi = rphi / r;
+            const double dPhi = (dRphi - phi) / r;
+            result.energy += phi;
+            const double dEdr = embeddingSlope[i] * dRhoJI + embeddingSlope[j] * dRhoIJ + dPhi;
+            const Vec3 onI = scale(pair.vector, dEdr / r);
+            result.forces[i] = add(result.forces[i], onI);
+            result.forces[j] = sub(result.forces[j], onI);
+            addVirial(virial, onI, pair.vector);
+        }
+        finishStress(result, c, virial, stress);
+        return result;
+    }
+
+private:
+    std::vector<std::string> m_elements;
+    std::vector<double> m_masses;
+    std::vector<Spline> m_embedding;
+    std::vector<std::vector<Spline>> m_density;
+    std::vector<Spline> m_pair;
+    double m_cutoff = 0.0, m_rhoMax = 0.0;
+    bool m_finnisSinclair = false;
+    std::string m_description;
+};
+
 double kwarg(const Json& object, const std::string& name, double fallback)
 {
     const Json* value = object.find(name);
@@ -248,6 +464,11 @@ std::unique_ptr<Potential> makeEmt()
     return std::make_unique<Emt>();
 }
 
+std::unique_ptr<Potential> makeEam(const std::filesystem::path& file, const std::string& format)
+{
+    return std::make_unique<Eam>(file, format);
+}
+
 std::unique_ptr<Potential> makeLennardJones(double epsilon, double sigma, double cutoff)
 {
     positive(epsilon, "epsilon");
@@ -256,7 +477,7 @@ std::unique_ptr<Potential> makeLennardJones(double epsilon, double sigma, double
     return std::make_unique<LennardJones>(epsilon, sigma, cutoff);
 }
 
-PotentialFactory potentialFactory(const Json& specification)
+PotentialFactory potentialFactory(const Json& specification, const std::filesystem::path& base)
 {
     if (!specification.isObject()) throw std::runtime_error("The interatomic potential must be an object such as {\"potential\": \"EMT\"}");
     std::string name;
@@ -280,6 +501,21 @@ PotentialFactory potentialFactory(const Json& specification)
         makeLennardJones(epsilon, sigma, cutoff);
         return [=] { return makeLennardJones(epsilon, sigma, cutoff); };
     }
-    throw std::runtime_error("Unsupported interatomic potential '" + name + "'; AtomForge provides EMT and LennardJones natively");
+    if (key == "eam" || key == "eamalloy" || key == "eamfs" || key == "finnissinclair") {
+        const Json* file = options.find("file");
+        if (!file || !file->isString() || file->string().empty()) throw std::runtime_error("The EAM potential needs a \"file\"");
+        const auto path = (base / std::filesystem::u8path(file->string())).lexically_normal();
+        std::string format = options.contains("format") ? options.at("format").string() : (key == "eamfs" || key == "finnissinclair" ? "fs" : "auto");
+        // Parse once up front so a bad file fails before a calculation starts;
+        // each image or run then shares the parsed tables.
+        std::shared_ptr<const Potential> parsed(makeEam(path, format).release());
+        struct Shared final : Potential {
+            std::shared_ptr<const Potential> inner;
+            PotentialResult compute(const Configuration& c, bool stress) const override { return inner->compute(c, stress); }
+            std::string description() const override { return inner->description(); }
+        };
+        return [parsed] { auto copy = std::make_unique<Shared>(); copy->inner = parsed; return std::unique_ptr<Potential>(std::move(copy)); };
+    }
+    throw std::runtime_error("Unsupported interatomic potential '" + name + "'; AtomForge provides EMT, LennardJones and EAM natively");
 }
 }

@@ -3,6 +3,7 @@
 #include "model/Structure.h"
 #include "science/ScienceCore.h"
 
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <string>
@@ -52,7 +53,14 @@ std::unique_ptr<Potential> makeEmt();
 // 12-6 Lennard-Jones, energy shifted to zero at the cutoff like ASE's LennardJones.
 std::unique_ptr<Potential> makeLennardJones(double epsilon, double sigma, double cutoff);
 
-// Parses {"potential": "EMT"} or {"potential": "LennardJones", "epsilon", "sigma", "cutoff"};
-// ASE-style {"module", "attribute", "kwargs"} descriptions of EMT/LennardJones are accepted.
-PotentialFactory potentialFactory(const Json& specification);
+// Embedded-atom method from LAMMPS-format tables: "setfl" (eam/alloy), "fs"
+// (eam/fs, Finnis-Sinclair) or "funcfl" (single-element eam). Tables are
+// interpolated with LAMMPS's cubic scheme; pair terms are stored as r*phi.
+std::unique_ptr<Potential> makeEam(const std::filesystem::path& file, const std::string& format = "auto");
+
+// Parses {"potential": "EMT"}, {"potential": "LennardJones", "epsilon", "sigma", "cutoff"} or
+// {"potential": "EAM", "file": PATH, "format": "auto|setfl|fs|funcfl"}; relative files are
+// resolved against base. ASE-style {"module", "attribute", "kwargs"} descriptions of
+// EMT/LennardJones are accepted.
+PotentialFactory potentialFactory(const Json& specification, const std::filesystem::path& base = ".");
 }

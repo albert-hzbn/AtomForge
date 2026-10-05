@@ -4,6 +4,7 @@
 #include "ElementData.h"
 #include "graphics/StructureInstanceBuilder.h"
 #include "math/StructureMath.h"
+#include "science/AtomProperties.h"
 
 #include <algorithm>
 #include <cmath>
@@ -481,6 +482,32 @@ void applyPendingStructureMutations(EditorState& state)
     state.fileBrowser.clearTransformMatrix();
 }
 
+static void filterInstances(StructureInstanceData& data, const std::vector<bool>& visibleAtoms)
+{
+    size_t kept = 0;
+    for (size_t i = 0; i < data.atomIndices.size(); ++i)
+    {
+        const int atom = data.atomIndices[i];
+        if (atom >= 0 && static_cast<size_t>(atom) < visibleAtoms.size() && !visibleAtoms[static_cast<size_t>(atom)])
+            continue;
+        data.positions[kept] = data.positions[i];
+        data.colors[kept] = data.colors[i];
+        data.scales[kept] = data.scales[i];
+        data.bondRadii[kept] = data.bondRadii[i];
+        data.shininess[kept] = data.shininess[i];
+        data.atomicNumbers[kept] = data.atomicNumbers[i];
+        data.atomIndices[kept] = data.atomIndices[i];
+        ++kept;
+    }
+    data.positions.resize(kept);
+    data.colors.resize(kept);
+    data.scales.resize(kept);
+    data.bondRadii.resize(kept);
+    data.shininess.resize(kept);
+    data.atomicNumbers.resize(kept);
+    data.atomIndices.resize(kept);
+}
+
 void applyDisplayColors(EditorState& state)
 {
     for (auto& atom : state.structure.atoms)
@@ -510,6 +537,19 @@ void applyDisplayColors(EditorState& state)
     {
         applyGrainBoundaryColors(state.structure);
     }
+    else if (state.fileBrowser.getAtomColorMode() == AtomColorMode::AtomProperty &&
+             state.structure.atomProperty.size() == state.structure.atoms.size())
+    {
+        std::vector<std::array<float, 3>> colours;
+        std::vector<bool> visible;
+        atomforge::science::colourByProperty(state.structure.atomProperty, state.fileBrowser.getPropertyDisplay(), colours, visible);
+        for (size_t i = 0; i < state.structure.atoms.size(); ++i)
+        {
+            state.structure.atoms[i].r = colours[i][0];
+            state.structure.atoms[i].g = colours[i][1];
+            state.structure.atoms[i].b = colours[i][2];
+        }
+    }
 }
 
 StructureInstanceData buildRenderData(const EditorState& state)
@@ -520,6 +560,17 @@ StructureInstanceData buildRenderData(const EditorState& state)
         state.fileBrowser.getTransformMatrix(),
         state.editMenuDialogs.elementRadii,
         state.editMenuDialogs.elementShininess);
+
+    // Atom-property filtering hides instances (and periodic images) of atoms
+    // outside the selected range; atomIndices keep picking aligned.
+    if (state.fileBrowser.getAtomColorMode() == AtomColorMode::AtomProperty &&
+        state.structure.atomProperty.size() == state.structure.atoms.size())
+    {
+        std::vector<std::array<float, 3>> colours;
+        std::vector<bool> visible;
+        atomforge::science::colourByProperty(state.structure.atomProperty, state.fileBrowser.getPropertyDisplay(), colours, visible);
+        filterInstances(data, visible);
+    }
 
     const float radiusScale = state.fileBrowser.getAtomRadiusScale();
     if (std::abs(radiusScale - 1.0f) > 1e-4f)

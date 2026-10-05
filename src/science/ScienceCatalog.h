@@ -107,7 +107,15 @@ inline const std::vector<ScienceToolDef>& scienceToolCatalog()
             {"weights", "Weights", "", "data", false},
             {"zero_tolerance_eV", "Zero-mode tolerance (eV)", "1e-08", "float", false},
         }},
-        {"neb", "NEB migration path", "Optimize a fixed-cell climbing-image NEB with the improved tangent and FIRE.\n\nEndpoints must already be relaxed, have identical cell/species/order, and\ndescribe the intended atom mapping. Every image uses its own instance of the\nselected native potential (EMT or Lennard-Jones). Barriers are sampled image\nenergies; convergence and endpoint forces are reported rather than assumed.\nShortest periodic interpolation chooses minimum-image paths.", "Simulation", {
+        {"relax", "Structure relaxation", "Minimise energy (or enthalpy E+PV with a relaxed cell) with FIRE.\n\nAtomic positions always relax; enable cell relaxation to also optimise the\nfull 3x3 cell at the target pressure (positive in compression). Cell forces\nare scaled by the atom count, as in ASE's UnitCellFilter. Convergence is the\nlargest generalised force; reaching the step limit is reported, not hidden.\nA local minimum is not necessarily the ground state.", "Simulation", {
+            {"structure", "Structure", "", "structure", true},
+            {"calculator", "Interatomic potential", "{\"potential\": \"EMT\"}", "calculator", true},
+            {"fmax", "Force tolerance (eV/Angstrom)", "0.01", "float", false},
+            {"steps", "Maximum optimization steps", "500", "int", false},
+            {"relax_cell", "Relax the cell shape and volume", "false", "bool", false},
+            {"pressure_GPa", "Target pressure (GPa)", "0.0", "float", false},
+        }},
+        {"neb", "NEB migration path", "Optimize a fixed-cell climbing-image NEB with the improved tangent and FIRE.\n\nEndpoints must already be relaxed, have identical cell/species/order, and\ndescribe the intended atom mapping. Every image uses its own instance of the\nselected native potential (EMT, Lennard-Jones or EAM). Barriers are sampled image\nenergies; convergence and endpoint forces are reported rather than assumed.\nShortest periodic interpolation chooses minimum-image paths.", "Simulation", {
             {"initial", "Initial relaxed structure", "", "structure", true},
             {"final", "Final relaxed structure", "", "structure", true},
             {"calculator_factory", "Interatomic potential", "{\"potential\": \"EMT\"}", "calculator", true},
@@ -118,7 +126,7 @@ inline const std::vector<ScienceToolDef>& scienceToolCatalog()
             {"climb", "Use climbing image", "true", "bool", false},
             {"mic", "Use shortest periodic interpolation", "false", "bool", false},
         }},
-        {"nvt", "NVT dynamics", "Langevin NVT (BAOAB) with a thermostat relaxation time in fs and reproducible seed.\n\nReturns temperatures, physical energies, frames and velocities. Physical\nenergy is not conserved under a thermostat. COM is not constrained; remove\nany unwanted drift explicitly during analysis. Equilibration is not inferred.\nForces come from the selected native potential (EMT or Lennard-Jones).", "Simulation", {
+        {"nvt", "NVT dynamics", "Langevin NVT (BAOAB) with a thermostat relaxation time in fs and reproducible seed.\n\nReturns temperatures, physical energies, frames and velocities. Physical\nenergy is not conserved under a thermostat. COM is not constrained; remove\nany unwanted drift explicitly during analysis. Equilibration is not inferred.\nForces come from the selected native potential (EMT, Lennard-Jones or EAM).", "Simulation", {
             {"structure", "Structure", "", "structure", true},
             {"calculator", "Interatomic potential", "{\"potential\": \"EMT\"}", "calculator", true},
             {"steps", "Integration steps", "1000", "int", false},
@@ -128,7 +136,7 @@ inline const std::vector<ScienceToolDef>& scienceToolCatalog()
             {"seed", "Random seed", "0", "int", false},
             {"sample_interval", "Save a frame every N steps", "10", "int", false},
         }},
-        {"npt", "NPT dynamics", "Isotropic Martyna-Tobias-Klein NPT with Nose-Hoover chains, pressure positive in compression.\n\nCell volume changes while shape remains fixed. The native EMT and\nLennard-Jones potentials provide the required stress. Finite runs must be checked for equilibration, fluctuations and\nintegration convergence; instantaneous T and P need not equal targets.", "Simulation", {
+        {"npt", "NPT dynamics", "Isotropic Martyna-Tobias-Klein NPT with Nose-Hoover chains, pressure positive in compression.\n\nCell volume changes while shape remains fixed. The native EMT,\nLennard-Jones and EAM potentials provide the required stress. Finite runs must be checked for equilibration, fluctuations and\nintegration convergence; instantaneous T and P need not equal targets.", "Simulation", {
             {"structure", "Structure", "", "structure", true},
             {"calculator", "Interatomic potential", "{\"potential\": \"EMT\"}", "calculator", true},
             {"steps", "Integration steps", "1000", "int", false},

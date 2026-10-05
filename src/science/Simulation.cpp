@@ -30,6 +30,46 @@ bool sameCell(const Configuration& a, const Configuration& b)
     return true;
 }
 
+// FIRE minimiser (Bitzek et al. 2006) with ASE's default parameters; returns
+// the displacement for the supplied generalised forces.
+class Fire
+{
+public:
+    std::vector<Vec3> step(const std::vector<Vec3>& forces)
+    {
+        if (m_velocity.size() != forces.size()) m_velocity.assign(forces.size(), {0, 0, 0});
+        else {
+            double vf = 0, ff = 0, vv = 0;
+            for (std::size_t k = 0; k < forces.size(); ++k) {
+                vf += dot(forces[k], m_velocity[k]); ff += dot(forces[k], forces[k]); vv += dot(m_velocity[k], m_velocity[k]);
+            }
+            if (vf > 0) {
+                for (std::size_t k = 0; k < forces.size(); ++k)
+                    m_velocity[k] = add(scale(m_velocity[k], 1 - m_alpha), scale(forces[k], m_alpha / std::sqrt(ff) * std::sqrt(vv)));
+                if (m_positiveSteps > 5) { m_dt = std::min(m_dt * 1.1, 1.0); m_alpha *= 0.99; }
+                ++m_positiveSteps;
+            } else {
+                for (auto& v : m_velocity) v = {0, 0, 0};
+                m_alpha = 0.1; m_dt *= 0.5; m_positiveSteps = 0;
+            }
+        }
+        std::vector<Vec3> displacement(forces.size());
+        double length = 0;
+        for (std::size_t k = 0; k < forces.size(); ++k) {
+            m_velocity[k] = add(m_velocity[k], scale(forces[k], m_dt));
+            displacement[k] = scale(m_velocity[k], m_dt);
+            length += dot(displacement[k], displacement[k]);
+        }
+        length = std::sqrt(length);
+        if (length > m_maxStep) for (auto& d : displacement) d = scale(d, m_maxStep / length);
+        return displacement;
+    }
+private:
+    std::vector<Vec3> m_velocity;
+    double m_dt = 0.1, m_alpha = 0.1, m_maxStep = 0.2;
+    int m_positiveSteps = 0;
+};
+
 // Reproducible across platforms: SplitMix64 with Box-Muller normals.
 class Random
 {
@@ -226,44 +266,15 @@ ToolOutput migrationPath(const Configuration& initial, const Configuration& fina
         }
         return total;
     };
-    // FIRE with ASE defaults.
-    double dt = 0.1, alpha = 0.1;
-    const double maxStep = 0.2, dtMax = 1.0, fInc = 1.1, fDec = 0.5, aStart = 0.1, fAlpha = 0.99;
-    const int nMin = 5;
-    int positiveSteps = 0;
-    std::vector<Vec3> velocity;
+    Fire fire;
     long long steps = 0;
     auto forces = nebForces();
     bool converged = maxAtomForce(forces) < options.fmax;
     while (!converged && steps < options.steps) {
         taskProgress(static_cast<double>(steps) / static_cast<double>(options.steps));
-        if (velocity.empty()) velocity.assign(forces.size(), {0, 0, 0});
-        else {
-            double vf = 0, ff = 0, vv = 0;
-            for (std::size_t k = 0; k < forces.size(); ++k) {
-                vf += dot(forces[k], velocity[k]); ff += dot(forces[k], forces[k]); vv += dot(velocity[k], velocity[k]);
-            }
-            if (vf > 0) {
-                for (std::size_t k = 0; k < forces.size(); ++k)
-                    velocity[k] = add(scale(velocity[k], 1 - alpha), scale(forces[k], alpha / std::sqrt(ff) * std::sqrt(vv)));
-                if (positiveSteps > nMin) { dt = std::min(dt * fInc, dtMax); alpha *= fAlpha; }
-                ++positiveSteps;
-            } else {
-                for (auto& v : velocity) v = {0, 0, 0};
-                alpha = aStart; dt *= fDec; positiveSteps = 0;
-            }
-        }
-        std::vector<Vec3> step(forces.size());
-        double length = 0;
-        for (std::size_t k = 0; k < forces.size(); ++k) {
-            velocity[k] = add(velocity[k], scale(forces[k], dt));
-            step[k] = scale(velocity[k], dt);
-            length += dot(step[k], step[k]);
-        }
-        length = std::sqrt(length);
-        const double factor = length > maxStep ? maxStep / length : 1.0;
+        const auto step = fire.step(forces);
         for (std::size_t i = 1, k = 0; i + 1 < count; ++i)
-            for (std::size_t a = 0; a < atoms; ++a, ++k) chain[i].positions[a] = add(chain[i].positions[a], scale(step[k], factor));
+            for (std::size_t a = 0; a < atoms; ++a, ++k) chain[i].positions[a] = add(chain[i].positions[a], step[k]);
         ++steps;
         forces = nebForces();
         converged = maxAtomForce(forces) < options.fmax;
@@ -280,6 +291,9 @@ ToolOutput migrationPath(const Configuration& initial, const Configuration& fina
     Json result = Json::object();
     result["images"] = images;
     result["energies_eV"] = toJson(energies);
+    std::vector<double> coordinate = {0.0};
+    for (std::size_t i = 1; i < count; ++i) coordinate.push_back(coordinate.back() + vectorNorm(tangentVector(i - 1, i)));
+    result["reaction_coordinate_A"] = toJson(coordinate);
     result["forward_barrier_eV"] = peak - energies.front();
     result["reverse_barrier_eV"] = peak - energies.back();
     result["reaction_energy_eV"] = energies.back() - energies.front();
@@ -402,6 +416,97 @@ ToolOutput nptDynamics(const Configuration& start, const Potential& potential, c
     if (options.steps % options.sampleInterval) recorder.record(state, static_cast<double>(options.steps) * dt, true);
     ToolOutput output = recorder.finish("npt", options.temperatureK);
     output.result["potential"] = potential.description();
+    return output;
+}
+}
+
+namespace atomforge::science
+{
+RelaxResult relaxConfiguration(const Configuration& start, const Potential& potential, const RelaxOptions& options)
+{
+    positive(options.fmax, "fmax");
+    integer(static_cast<double>(options.steps), "steps", 0);
+    if (!std::isfinite(options.pressureGPa)) throw std::runtime_error("pressure_GPa must be finite");
+    if (start.size() == 0) throw std::runtime_error("The structure has no atoms");
+    const bool periodic = start.fullyPeriodic() && std::abs(determinant(start.cell)) > 1e-12;
+    if (options.relaxCell && !periodic) throw std::runtime_error("Cell relaxation requires a full periodic cell");
+    const std::size_t n = start.size();
+    const double pressure = options.pressureGPa / kEvPerA3ToGPa;
+    const double cellFactor = static_cast<double>(n);
+    // Generalised coordinates: undeformed positions x = r F^-T and cellFactor * F.
+    std::vector<Vec3> undeformed = start.positions;
+    Mat3 deformation = identity();
+    RelaxResult result;
+    result.configuration = start;
+    auto evaluate = [&]() {
+        const Mat3 ft = transpose(deformation);
+        for (std::size_t i = 0; i < n; ++i) result.configuration.positions[i] = rowTimes(undeformed[i], ft);
+        for (int r = 0; r < 3; ++r) result.configuration.cell[r] = rowTimes(start.cell[r], ft);
+        result.forces = potential.compute(result.configuration, periodic);
+        std::vector<Vec3> generalised(n);
+        for (std::size_t i = 0; i < n; ++i) generalised[i] = rowTimes(result.forces.forces[i], deformation);
+        double enthalpy = result.forces.energy;
+        if (options.relaxCell) {
+            const double volume = cellVolume(result.configuration.cell);
+            enthalpy += pressure * volume;
+            Mat3 virial{};
+            for (int a = 0; a < 3; ++a)
+                for (int b = 0; b < 3; ++b) virial[a][b] = -volume * (result.forces.stress[a][b] + (a == b ? pressure : 0.0));
+            // Pull the virial back to the reference frame: virial F^-T.
+            const Mat3 pulled = multiply(virial, transpose(inverse(deformation)));
+            for (int r = 0; r < 3; ++r) generalised.push_back(scale(pulled[r], 1.0 / cellFactor));
+        }
+        result.enthalpies.push_back(enthalpy);
+        result.maxForces.push_back(maxAtomForce(generalised));
+        return generalised;
+    };
+    Fire fire;
+    auto forces = evaluate();
+    result.converged = result.maxForces.back() < options.fmax;
+    while (!result.converged && result.steps < options.steps) {
+        taskProgress(static_cast<double>(result.steps) / static_cast<double>(std::max<long long>(1, options.steps)));
+        const auto step = fire.step(forces);
+        for (std::size_t i = 0; i < n; ++i) undeformed[i] = add(undeformed[i], step[i]);
+        if (options.relaxCell)
+            for (int r = 0; r < 3; ++r) deformation[r] = add(deformation[r], scale(step[n + r], 1.0 / cellFactor));
+        ++result.steps;
+        forces = evaluate();
+        if (!std::isfinite(result.enthalpies.back())) throw std::runtime_error("Relaxation became nonfinite; inspect the structure and potential");
+        result.converged = result.maxForces.back() < options.fmax;
+    }
+    return result;
+}
+
+ToolOutput relaxStructure(const Configuration& start, const Potential& potential, const RelaxOptions& options)
+{
+    const RelaxResult relaxed = relaxConfiguration(start, potential, options);
+    const PotentialResult initial = potential.compute(start, false);
+    ToolOutput output;
+    output.frames = {structureFrom(start), structureFrom(relaxed.configuration)};
+    Json result = Json::object();
+    result["converged"] = relaxed.converged;
+    result["steps"] = relaxed.steps;
+    result["initial_energy_eV"] = initial.energy;
+    result["energy_eV"] = relaxed.forces.energy;
+    result["energy_change_eV"] = relaxed.forces.energy - initial.energy;
+    result["max_force_eV_per_A"] = maxAtomForce(relaxed.forces.forces);
+    result["max_generalised_force"] = relaxed.maxForces.back();
+    if (relaxed.forces.hasStress) {
+        Mat3 stress{};
+        for (int a = 0; a < 3; ++a)
+            for (int b = 0; b < 3; ++b) stress[a][b] = relaxed.forces.stress[a][b] * kEvPerA3ToGPa;
+        result["stress_GPa"] = toJson(stress);
+        result["pressure_GPa"] = -(stress[0][0] + stress[1][1] + stress[2][2]) / 3;
+        result["volume_A3"] = cellVolume(relaxed.configuration.cell);
+        result["initial_volume_A3"] = cellVolume(start.cell);
+        result["enthalpy_eV"] = relaxed.enthalpies.back();
+        result["cell_A"] = toJson(relaxed.configuration.cell);
+    }
+    result["enthalpy_history_eV"] = toJson(relaxed.enthalpies);
+    result["max_force_history"] = toJson(relaxed.maxForces);
+    result["relaxed_structure"] = structureJson(output.frames.back());
+    result["potential"] = potential.description();
+    output.result = result;
     return output;
 }
 }

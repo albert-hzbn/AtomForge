@@ -189,11 +189,21 @@ ToolOutput runTool(const std::string& tool, const Json& request, const std::file
         options.climb = p.boolean("climb", true);
         options.mic = p.boolean("mic", false);
         return migrationPath(configurationFrom(initial.structure, initial.pbc), configurationFrom(final.structure, final.pbc),
-                             potentialFactory(p.json("calculator_factory")), options);
+                             potentialFactory(p.json("calculator_factory"), base), options);
+    }
+    if (tool == "relax") {
+        const auto& structure = p.structure("structure");
+        const auto potential = potentialFactory(p.json("calculator"), base)();
+        RelaxOptions options;
+        options.fmax = positive(p.number("fmax", 0.01), "fmax");
+        options.steps = integer(p.number("steps", 500), "steps", 0);
+        options.relaxCell = p.boolean("relax_cell", false);
+        options.pressureGPa = p.number("pressure_GPa", 0.0);
+        return relaxStructure(configurationFrom(structure.structure, structure.pbc), *potential, options);
     }
     if (tool == "nvt" || tool == "npt") {
         const auto& structure = p.structure("structure");
-        const auto potential = potentialFactory(p.json("calculator"))();
+        const auto potential = potentialFactory(p.json("calculator"), base)();
         const auto configuration = configurationFrom(structure.structure, structure.pbc);
         return tool == "nvt" ? nvtDynamics(configuration, *potential, dynamicsOptions(p, false))
                              : nptDynamics(configuration, *potential, dynamicsOptions(p, true));

@@ -10,6 +10,8 @@ struct TrajectoryDialog
     void drawMenuItem();
     void draw(Structure& structure,const std::function<void(Structure&)>& update);
     bool isPlaying() const { return playback.playing; }
+    // File of the currently loaded trajectory (empty when none).
+    const std::string& loadedPath() const { return loaded; }
 private:
     bool open=false;
     TrajectoryPlayback playback;
@@ -17,5 +19,7 @@ private:
     std::vector<Structure> frames;
     PathPicker picker;
     atomforge::BackgroundTask<std::vector<Structure>> task;
+    std::string pending;
+    std::string loaded;
     std::string error;
 };

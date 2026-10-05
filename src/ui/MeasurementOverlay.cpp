@@ -1,5 +1,6 @@
 #include "ui/ResponsiveLayout.h"
 #include "ui/MeasurementOverlay.h"
+#include "science/AtomProperties.h"
 
 #include "ElementData.h"
 #include "math/StructureMath.h"
@@ -984,4 +985,37 @@ void drawIPFTriangleLegend(ImDrawList* drawList,
         ImVec2(pos111.x + sz111.x + boxPadX, pos111.y + sz111.y + boxPadY),
         labelBg, 2.0f);
     drawList->AddText(pos111, IM_COL32(100, 100, 255, 255), lbl111);
+}
+
+void drawAtomPropertyLegend(ImDrawList* drawList,
+                            int viewportWidth,
+                            int viewportHeight,
+                            const std::string& name,
+                            double low,
+                            double high)
+{
+    if (!drawList || viewportWidth < 200 || viewportHeight < 200)
+        return;
+    const float margin = 20.0f, barWidth = 18.0f, barHeight = 160.0f;
+    const float fontSize = ImGui::GetFontSize();
+    const float x1 = static_cast<float>(viewportWidth) - margin - 70.0f;
+    const float y1 = static_cast<float>(viewportHeight) - margin - barHeight;
+    const float x0 = x1 - barWidth;
+    const int steps = 48;
+    for (int i = 0; i < steps; ++i) {
+        const auto top = atomforge::science::viridis(1.0 - static_cast<double>(i) / steps);
+        const auto bottom = atomforge::science::viridis(1.0 - static_cast<double>(i + 1) / steps);
+        const float ya = y1 + barHeight * i / steps, yb = y1 + barHeight * (i + 1) / steps;
+        const ImU32 ct = ImGui::ColorConvertFloat4ToU32(ImVec4(top[0], top[1], top[2], 1.0f));
+        const ImU32 cb = ImGui::ColorConvertFloat4ToU32(ImVec4(bottom[0], bottom[1], bottom[2], 1.0f));
+        drawList->AddRectFilledMultiColor(ImVec2(x0, ya), ImVec2(x1, yb), ct, ct, cb, cb);
+    }
+    drawList->AddRect(ImVec2(x0, y1), ImVec2(x1, y1 + barHeight), IM_COL32(230, 230, 230, 220));
+    char label[32];
+    std::snprintf(label, sizeof(label), "%.4g", high);
+    drawList->AddText(ImVec2(x1 + 6, y1 - fontSize / 2), IM_COL32(240, 240, 240, 255), label);
+    std::snprintf(label, sizeof(label), "%.4g", low);
+    drawList->AddText(ImVec2(x1 + 6, y1 + barHeight - fontSize / 2), IM_COL32(240, 240, 240, 255), label);
+    const float titleWidth = ImGui::CalcTextSize(name.c_str()).x;
+    drawList->AddText(ImVec2(std::max(4.0f, x1 + 40.0f - titleWidth), y1 - fontSize * 2.0f), IM_COL32(240, 240, 240, 255), name.c_str());
 }

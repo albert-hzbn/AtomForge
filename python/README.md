@@ -191,7 +191,7 @@ Python, install the matching source with its `science` extra into Python 3.12.
 The Python functions require NumPy >=2, SciPy >=1.15, ASE >=3.26 and SeeK-path
 >=2.1 in addition to the existing science dependencies. Python simulation
 functions require an explicitly chosen ASE calculator. The native executable
-provides EMT and Lennard-Jones potentials instead.
+provides EMT, Lennard-Jones and EAM (LAMMPS table) potentials instead.
 
 ```sh
 AtomForge --science band-gap --input request.json --output gap.json
@@ -212,4 +212,5 @@ primitive cell. The desktop provides the same export and can open the final
 structure in a new tab. The manual lists the priority order, input shapes,
 units, examples and physical limits for every tool. Numerical regression tests
 are in `tests/test_condensed_matter.py`; `tests/test_science_workflows.py` runs
-all twenty through the entry point shared with the desktop.
+all twenty through the Python command-line entry point. The desktop uses the
+native implementation, tested in `tests/science_tools_regressions.cpp`.

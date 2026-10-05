@@ -20,6 +20,29 @@ struct NebOptions
 ToolOutput migrationPath(const Configuration& initial, const Configuration& final,
                          const PotentialFactory& factory, const NebOptions& options);
 
+struct RelaxOptions
+{
+    double fmax = 0.01;        // eV/Angstrom, also applied to the scaled cell forces
+    long long steps = 500;
+    bool relaxCell = false;    // full 3x3 cell (shape and volume)
+    double pressureGPa = 0.0;  // target hydrostatic pressure for cell relaxation
+};
+
+struct RelaxResult
+{
+    Configuration configuration;
+    PotentialResult forces;        // at the final configuration (stress when periodic)
+    bool converged = false;
+    long long steps = 0;
+    std::vector<double> enthalpies;   // E + P V per evaluated step (eV)
+    std::vector<double> maxForces;    // largest generalised force per step
+};
+
+// FIRE minimisation of atomic positions and, optionally, the cell through a
+// deformation gradient with ASE UnitCellFilter scaling (cell factor = atom count).
+RelaxResult relaxConfiguration(const Configuration& start, const Potential& potential, const RelaxOptions& options);
+ToolOutput relaxStructure(const Configuration& start, const Potential& potential, const RelaxOptions& options);
+
 struct DynamicsOptions
 {
     long long steps = 1000;

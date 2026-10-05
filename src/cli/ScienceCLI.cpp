@@ -32,7 +32,8 @@ void printScienceHelp()
 "NPY, CSV/TXT/DAT, EIGENVAL, XYZ/extXYZ, POSCAR/XDATCAR, LAMMPS dump or other\n"
 "structure files; paths are relative to REQUEST.json.\n"
 "Simulation tools take an interatomic potential such as {\"potential\": \"EMT\"}\n"
-"or {\"potential\": \"LennardJones\", \"epsilon\": 0.0104, \"sigma\": 3.4, \"cutoff\": 8.5}.\n"
+"or {\"potential\": \"LennardJones\", \"epsilon\": 0.0104, \"sigma\": 3.4, \"cutoff\": 8.5}\n"
+"or {\"potential\": \"EAM\", \"file\": \"Cu.eam.alloy\"} (setfl, eam/fs or funcfl tables).\n"
 "\n"
 "Tools:\n";
     for (const auto& tool : scienceToolCatalog())

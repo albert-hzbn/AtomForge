@@ -8,7 +8,9 @@ add_library(atomforge_science STATIC
     ${PROJECT_SOURCE_DIR}/src/science/Potentials.cpp
     ${PROJECT_SOURCE_DIR}/src/science/Simulation.cpp
     ${PROJECT_SOURCE_DIR}/src/science/ReciprocalPath.cpp
-    ${PROJECT_SOURCE_DIR}/src/science/ScienceTools.cpp)
+    ${PROJECT_SOURCE_DIR}/src/science/ScienceTools.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/ResultPlots.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/AtomProperties.cpp)
 target_link_libraries(atomforge_science PUBLIC AtomForge::Core)
 target_compile_options(atomforge_science PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall;-Wextra;-Wpedantic;-Wshadow>)

@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 
 #include <vector>
 
@@ -68,3 +69,12 @@ void drawOrientationAxesOverlay(ImDrawList* drawList,
 void drawIPFTriangleLegend(ImDrawList* drawList,
                            int viewportWidth,
                            int viewportHeight);
+
+// Vertical viridis colour bar for the "Atom Property" colour mode, with the
+// property name and range; placed in the bottom-right corner.
+void drawAtomPropertyLegend(ImDrawList* drawList,
+                            int viewportWidth,
+                            int viewportHeight,
+                            const std::string& name,
+                            double low,
+                            double high);

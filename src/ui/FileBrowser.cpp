@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -636,6 +637,16 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
                 if (atomColorMode != AtomColorMode::GrainBoundary)
                 {
                     atomColorMode = AtomColorMode::GrainBoundary;
+                    atomColorModeJustChanged = true;
+                    updateBuffers(structure);
+                }
+            }
+            if (ImGui::MenuItem("Atom Property", nullptr, atomColorMode == AtomColorMode::AtomProperty,
+                                !structure.atomProperty.empty() && structure.atomProperty.size() == structure.atoms.size()))
+            {
+                if (atomColorMode != AtomColorMode::AtomProperty)
+                {
+                    atomColorMode = AtomColorMode::AtomProperty;
                     atomColorModeJustChanged = true;
                     updateBuffers(structure);
                 }
@@ -1633,7 +1644,17 @@ void FileBrowser::draw(Structure& structure,
     lobsterDialog.drawDialog();
     dislocationAnalysisDialog.drawDialog();
     trajectoryDialog.draw(structure,updateBuffers);
-    scientificToolsDialog.draw(structure, updateFromBuilderToNewTab);
+    scientificToolsDialog.setTrajectorySource(trajectoryDialog.loadedPath());
+    scientificToolsDialog.draw(structure, updateFromBuilderToNewTab,
+        [&](const std::string& name, const std::vector<double>& values) {
+            structure.atomProperty = values;
+            structure.atomPropertyName = name;
+            propertyDisplay.autoRange = true;
+            atomColorMode = AtomColorMode::AtomProperty;
+            atomColorModeJustChanged = true;
+            updateBuffers(structure);
+        });
+    drawAtomPropertySettings(structure, updateBuffers);
     drawShortRangeOrderDialog(shortRangeOrderDialog, structure);
     angularDistributionDialog.drawDialog(structure);
     cellSculptorDialog.drawDialog(structure, updateBuffers);
@@ -2222,6 +2243,40 @@ void FileBrowser::draw(Structure& structure,
         ImGui::CloseCurrentPopup();
 
     drawNotifications();
+}
+
+void FileBrowser::drawAtomPropertySettings(Structure& structure, const std::function<void(Structure&)>& updateBuffers)
+{
+    if (atomColorMode != AtomColorMode::AtomProperty) return;
+    if (structure.atomProperty.size() != structure.atoms.size() || structure.atoms.empty()) {
+        // The property no longer matches the atoms (edited or replaced structure).
+        atomColorMode = AtomColorMode::ElementType;
+        atomColorModeJustChanged = true;
+        updateBuffers(structure);
+        return;
+    }
+    responsive::windowSize(ImVec2(360, 250), ImGuiCond_FirstUseEver);
+    if (!responsive::begin("Atom property colouring", nullptr, ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
+    ImGui::TextWrapped("%s", structure.atomPropertyName.empty() ? "Per-atom property" : structure.atomPropertyName.c_str());
+    const auto range = atomforge::science::finiteRange(structure.atomProperty);
+    std::size_t valid = 0;
+    for (double v : structure.atomProperty) valid += std::isfinite(v);
+    ImGui::TextDisabled("%zu valid of %zu atoms; data range %.4g to %.4g", valid, structure.atomProperty.size(), range.low, range.high);
+    bool changed = ImGui::Checkbox("Automatic colour range", &propertyDisplay.autoRange);
+    if (propertyDisplay.autoRange) propertyDisplay.range = range;
+    ImGui::BeginDisabled(propertyDisplay.autoRange);
+    changed |= ImGui::InputDouble("Minimum", &propertyDisplay.range.low, 0, 0, "%.6g");
+    changed |= ImGui::InputDouble("Maximum", &propertyDisplay.range.high, 0, 0, "%.6g");
+    ImGui::EndDisabled();
+    changed |= ImGui::Checkbox("Hide atoms outside the range", &propertyDisplay.hideOutside);
+    changed |= ImGui::Checkbox("Hide atoms without a value", &propertyDisplay.hideInvalid);
+    if (responsive::button("Show element colours")) {
+        atomColorMode = AtomColorMode::ElementType;
+        atomColorModeJustChanged = true;
+        changed = true;
+    }
+    ImGui::End();
+    if (changed) updateBuffers(structure);
 }
 
 void FileBrowser::applyElementColorOverrides(Structure& structure) const

@@ -27,6 +27,8 @@ HELP_NAMES = {
     "amorphous": "Amorphous", "sss": "SSS", "dislocation": "Dislocation",
     "custom": "Custom",
     "interface": "Interface", "stacking-fault": "StackingFault",
+    "vacancy": "Vacancy", "strain": "Strain", "primitive": "Primitive", "surface": "Surface",
+    "sqs": "SQS", "nanowire": "Nanowire", "core-shell": "CoreShell",
 }
 PUBLIC_FILES = {
     "python/atomforge/_structure.py": "Atom and Structure",

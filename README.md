@@ -111,14 +111,16 @@ Normal source builds automatically limit concurrent compilation and linking to r
 
 The current source includes common-neighbour and angular-distribution analysis, interface matching and stacking-fault generation. It also adds saved projects, autosave recovery, trajectory playback, electronic history and image export. Rebuild from source to use these additions; existing release downloads are unchanged.
 
-The **Analysis** menu groups tools by scientific task, with twenty new tools for
+The **Analysis** menu groups tools by scientific task, with tools for
 diffusion and trajectory statistics, local strain and defects, band edges and
-effective masses, work functions, elasticity, harmonic thermodynamics, migration
-paths, controlled molecular dynamics and reciprocal-space paths. AtomForge
+effective masses, work functions, elasticity, harmonic thermodynamics, structure
+relaxation, migration paths, controlled molecular dynamics and reciprocal-space
+paths. Results are plotted in the dialog, and per-atom results can colour the
+structure in the 3D view. AtomForge
 computes them natively, with no Python installation. The desktop forms and
 `AtomForge --science <tool>` share one implementation, and `atomforge.science`
 offers the same analyses to Python scripts. Simulation tools use the built-in
-EMT or Lennard-Jones potentials.
+EMT or Lennard-Jones potentials or LAMMPS-format EAM/Finnis-Sinclair files.
 
 Optional scientific Python integrations cover bands and projected DOS, diffraction, reciprocal-space surfaces, phonons, relaxation, molecular dynamics and charge partitioning. ASE and pymatgen provide the underlying integrations. Bader and DDEC calculations require their external solvers; DFT workflows require a configured calculator. See the manual for setup, examples and physical conventions.
 

@@ -12,8 +12,13 @@
 #include <filesystem>
 #include "algorithms/MeshLoader.h"
 #include "algorithms/NanoCrystalBuilder.h"
+#include "algorithms/NanostructureTools.h"
 #include "algorithms/PolyCrystalBuilder.h"
+#include "algorithms/SQSBuilder.h"
+#include "algorithms/StrainTool.h"
 #include "algorithms/SubstitutionalSolidSolutionBuilder.h"
+#include "algorithms/SurfaceBuilder.h"
+#include "algorithms/VacancyBuilder.h"
 #include "io/StructureLoader.h"
 #include "util/ElementData.h"
 #include "util/PathUtils.h"
@@ -419,6 +424,13 @@ static void printHelp()
 "  interface   Match and assemble two periodic layers\n"
 "  stacking-fault Generate a sliding stacking-fault sequence\n"
 "  custom      Fill a 3D mesh model (OBJ/STL) with atoms from a reference crystal\n"
+"  vacancy     Remove atoms to create vacancies at a percentage or count\n"
+"  strain      Apply a homogeneous deformation to the cell\n"
+"  primitive   Reduce a structure to its standardized primitive cell\n"
+"  surface     Cleave a vacuum-padded slab along a Miller plane\n"
+"  sqs         Build a special quasirandom alloy on a fixed lattice\n"
+"  nanowire    Cut a 1D-periodic wire with a circular or polygonal section\n"
+"  core-shell  Relabel a finite particle into core and shell compositions\n"
 "\n"
 "For detailed options per mode run:\n"
 "  AtomForge --help bulk\n"
@@ -431,6 +443,7 @@ static void printHelp()
 "  AtomForge --help custom\n"
 "  AtomForge --help interface\n"
 "  AtomForge --help stacking-fault\n"
+"  AtomForge --help vacancy | strain | primitive | surface | sqs | nanowire | core-shell\n"
 "  AtomForge --analyze cna --help\n"
 "  AtomForge --render --help\n"
 "  AtomForge --science --help\n"
@@ -1786,6 +1799,252 @@ static int runStackingFault(int argc, char* argv[])
     return 0;
 }
 
+// -- Point defects: vacancy generator ----------------------------------------
+
+static void printHelpVacancy()
+{
+    std::cout << "VACANCY (--build vacancy)\n"
+        "--input FILE --output FILE [--element SYMBOL] [--percent P | --count N]\n"
+        "[--min-separation D] [--seed S]\n"
+        "Randomly removes atoms (optionally restricted to one element) to create\n"
+        "point-defect vacancies at a target percentage or exact count.\n";
+}
+
+static int runVacancy(int argc, char* argv[])
+{
+    const auto input = findArg(argc, argv, "--input");
+    const auto output = findArg(argc, argv, "--output");
+    if (!input || !output) throw std::invalid_argument("--input and --output are required");
+    Structure source; std::string error;
+    if (!loadStructureFromFile(input, source, error)) throw std::runtime_error(error);
+    atomforge::VacancyParams params;
+    if (const auto element = findArg(argc, argv, "--element")) params.element = element;
+    params.targetPercentage = argDouble(argc, argv, "--percent", 0.0);
+    params.targetCount = argInt(argc, argv, "--count", 0);
+    params.minSeparation = argDouble(argc, argv, "--min-separation", 0.0);
+    params.seed = (unsigned)argInt(argc, argv, "--seed", 1);
+    const auto result = atomforge::buildVacancies(source, params);
+    if (!result.success) throw std::runtime_error(result.message);
+    if (!saveStructure(result.structure, output, detectFormat(output)))
+        throw std::runtime_error("Failed to save vacancy structure");
+    std::cout << result.message << '\n';
+    return 0;
+}
+
+// -- Lattice: homogeneous strain ---------------------------------------------
+
+static void printHelpStrain()
+{
+    std::cout << "STRAIN (--build strain)\n"
+        "--input FILE --output FILE\n"
+        "[--exx V] [--eyy V] [--ezz V] [--exy V] [--exz V] [--eyz V]\n"
+        "[--matrix \"f11 f12 f13 f21 f22 f23 f31 f32 f33\"]\n"
+        "Applies a homogeneous deformation to the cell, holding fractional\n"
+        "coordinates fixed. --matrix (a full deformation gradient) overrides the\n"
+        "engineering-strain flags when both are given.\n";
+}
+
+static int runStrain(int argc, char* argv[])
+{
+    const auto input = findArg(argc, argv, "--input");
+    const auto output = findArg(argc, argv, "--output");
+    if (!input || !output) throw std::invalid_argument("--input and --output are required");
+    Structure source; std::string error;
+    if (!loadStructureFromFile(input, source, error)) throw std::runtime_error(error);
+    atomforge::StrainParams params = atomforge::engineeringStrain(
+        argDouble(argc, argv, "--exx", 0.0), argDouble(argc, argv, "--eyy", 0.0), argDouble(argc, argv, "--ezz", 0.0),
+        argDouble(argc, argv, "--exy", 0.0), argDouble(argc, argv, "--exz", 0.0), argDouble(argc, argv, "--eyz", 0.0));
+    if (const auto matrix = findArg(argc, argv, "--matrix"))
+    {
+        std::istringstream stream(matrix);
+        double f[9];
+        for (double& value : f) if (!(stream >> value)) throw std::invalid_argument("--matrix needs 9 numbers");
+        for (int i = 0; i < 3; ++i) for (int j = 0; j < 3; ++j) params.f[i][j] = f[i * 3 + j];
+    }
+    const auto result = atomforge::applyStrain(source, params);
+    if (!result.success) throw std::runtime_error(result.message);
+    if (!saveStructure(result.structure, output, detectFormat(output)))
+        throw std::runtime_error("Failed to save strained structure");
+    std::cout << result.message << '\n';
+    return 0;
+}
+
+// -- Lattice: primitive-cell reduction / symmetrization ----------------------
+
+static void printHelpPrimitive()
+{
+    std::cout << "PRIMITIVE (--build primitive)\n"
+        "--input FILE --output FILE [--symprec 1e-3]\n"
+        "Reduces a structure to its symmetry-standardized primitive cell via\n"
+        "spglib (requires spglib support at build time).\n";
+}
+
+static int runPrimitive(int argc, char* argv[])
+{
+    const auto input = findArg(argc, argv, "--input");
+    const auto output = findArg(argc, argv, "--output");
+    if (!input || !output) throw std::invalid_argument("--input and --output are required");
+    Structure structure; std::string error;
+    if (!loadStructureFromFile(input, structure, error)) throw std::runtime_error(error);
+    const double symprec = argDouble(argc, argv, "--symprec", 1e-3);
+    const int before = (int)structure.atoms.size();
+    if (!reduceToPrimitive(structure, symprec))
+        throw std::runtime_error("Could not reduce to a primitive cell (needs spglib support and a valid unit cell).");
+    if (!saveStructure(structure, output, detectFormat(output)))
+        throw std::runtime_error("Failed to save primitive structure");
+    std::cout << "Reduced from " << before << " to " << structure.atoms.size() << " atoms.\n";
+    return 0;
+}
+
+// -- Surfaces: Miller-plane slab builder --------------------------------------
+
+static void printHelpSurface()
+{
+    std::cout << "SURFACE (--build surface)\n"
+        "--input FILE --output FILE [--h 1] [--k 1] [--l 1]\n"
+        "[--layers 4] [--vacuum 15] [--nmax 8] [--no-primitive] [--symprec 1e-3]\n"
+        "Cleaves a bulk crystal along Miller plane (h k l) into a 2D-periodic,\n"
+        "vacuum-padded slab.\n";
+}
+
+static int runSurface(int argc, char* argv[])
+{
+    const auto input = findArg(argc, argv, "--input");
+    const auto output = findArg(argc, argv, "--output");
+    if (!input || !output) throw std::invalid_argument("--input and --output are required");
+    Structure source; std::string error;
+    if (!loadStructureFromFile(input, source, error)) throw std::runtime_error(error);
+    atomforge::SurfaceParams params;
+    params.h = argInt(argc, argv, "--h", 1);
+    params.k = argInt(argc, argv, "--k", 1);
+    params.l = argInt(argc, argv, "--l", 1);
+    params.layers = argInt(argc, argv, "--layers", 4);
+    params.vacuum = argDouble(argc, argv, "--vacuum", 15.0);
+    params.nmax = argInt(argc, argv, "--nmax", 8);
+    params.primitiveInput = !hasFlag(argc, argv, "--no-primitive");
+    params.primitiveSymprec = argDouble(argc, argv, "--symprec", 1e-3);
+    const auto result = atomforge::buildSurface(source, params);
+    if (!result.success) throw std::runtime_error(result.message);
+    if (!saveStructure(result.structure, output, detectFormat(output)))
+        throw std::runtime_error("Failed to save surface");
+    std::cout << result.message << '\n';
+    return 0;
+}
+
+// -- Alloys: SQS-style species optimizer --------------------------------------
+
+static void printHelpSQS()
+{
+    std::cout << "SQS (--build sqs)\n"
+        "--input FILE --output FILE --element \"SYMBOL FRACTION\" (repeatable, >=2)\n"
+        "[--shells 2] [--shell-tolerance 0.2] [--steps 3000]\n"
+        "[--start-temp 1.0] [--end-temp 0.02] [--seed 1]\n"
+        "Simulated-annealing species optimizer: reassigns elements on the input's\n"
+        "fixed lattice to a target composition while minimizing Warren-Cowley\n"
+        "short-range order toward zero across the first N shells.\n";
+}
+
+static int runSQS(int argc, char* argv[])
+{
+    const auto input = findArg(argc, argv, "--input");
+    const auto output = findArg(argc, argv, "--output");
+    if (!input || !output) throw std::invalid_argument("--input and --output are required");
+    Structure source; std::string error;
+    if (!loadStructureFromFile(input, source, error)) throw std::runtime_error(error);
+    atomforge::SQSParams params;
+    for (const auto& spec : findAllArgs(argc, argv, "--element"))
+    {
+        std::istringstream stream(spec);
+        std::string symbol; double fraction;
+        if (!(stream >> symbol >> fraction))
+            throw std::invalid_argument("Cannot parse --element value '" + spec + "'. Expected: \"SYMBOL FRACTION\"");
+        params.composition[symbol] = fraction;
+    }
+    params.shells = argInt(argc, argv, "--shells", 2);
+    params.shellTolerance = argDouble(argc, argv, "--shell-tolerance", 0.2);
+    params.steps = argInt(argc, argv, "--steps", 3000);
+    params.startTemperature = argDouble(argc, argv, "--start-temp", 1.0);
+    params.endTemperature = argDouble(argc, argv, "--end-temp", 0.02);
+    params.seed = (unsigned)argInt(argc, argv, "--seed", 1);
+    const auto result = atomforge::buildSQS(source, params);
+    if (!result.success) throw std::runtime_error(result.message);
+    if (!saveStructure(result.structure, output, detectFormat(output)))
+        throw std::runtime_error("Failed to save SQS structure");
+    std::cout << result.message << '\n';
+    return 0;
+}
+
+// -- Nanostructures: nanowire builder -----------------------------------------
+
+static void printHelpNanowire()
+{
+    std::cout << "NANOWIRE (--build nanowire)\n"
+        "--input FILE --output FILE [--axis 2] [--radius 10]\n"
+        "[--sides 0] [--vacuum 10] [--axis-repeats 1]\n"
+        "Cuts a 1D-periodic wire from a bulk crystal: periodic along cell vector\n"
+        "`axis` (0=a, 1=b, 2=c), bounded by a circular (sides<3) or regular-polygon\n"
+        "(sides>=3, radius = apothem) cross-section elsewhere.\n";
+}
+
+static int runNanowire(int argc, char* argv[])
+{
+    const auto input = findArg(argc, argv, "--input");
+    const auto output = findArg(argc, argv, "--output");
+    if (!input || !output) throw std::invalid_argument("--input and --output are required");
+    Structure source; std::string error;
+    if (!loadStructureFromFile(input, source, error)) throw std::runtime_error(error);
+    atomforge::NanowireParams params;
+    params.axis = argInt(argc, argv, "--axis", 2);
+    params.radius = argDouble(argc, argv, "--radius", 10.0);
+    params.sides = argInt(argc, argv, "--sides", 0);
+    params.vacuum = argDouble(argc, argv, "--vacuum", 10.0);
+    params.axisRepeats = argInt(argc, argv, "--axis-repeats", 1);
+    const auto result = atomforge::buildNanowire(source, params);
+    if (!result.success) throw std::runtime_error(result.message);
+    if (!saveStructure(result.structure, output, detectFormat(output)))
+        throw std::runtime_error("Failed to save nanowire");
+    std::cout << result.message << '\n';
+    return 0;
+}
+
+// -- Nanostructures: core-shell relabeling ------------------------------------
+
+static void printHelpCoreShell()
+{
+    std::cout << "CORE-SHELL (--build core-shell)\n"
+        "--input FILE --output FILE --core-radius R --core-element SYMBOL\n"
+        "--shell-element SYMBOL [--center \"x y z\"]\n"
+        "Relabels a finite structure's atoms (e.g. a Nanocrystal Builder output)\n"
+        "into a core/shell composition split by radius from its centroid, or from\n"
+        "an explicit center.\n";
+}
+
+static int runCoreShell(int argc, char* argv[])
+{
+    const auto input = findArg(argc, argv, "--input");
+    const auto output = findArg(argc, argv, "--output");
+    if (!input || !output) throw std::invalid_argument("--input and --output are required");
+    Structure source; std::string error;
+    if (!loadStructureFromFile(input, source, error)) throw std::runtime_error(error);
+    atomforge::CoreShellParams params;
+    params.coreRadius = argDouble(argc, argv, "--core-radius", 5.0);
+    if (const auto e = findArg(argc, argv, "--core-element")) params.coreElement = e;
+    if (const auto e = findArg(argc, argv, "--shell-element")) params.shellElement = e;
+    if (const auto c = findArg(argc, argv, "--center"))
+    {
+        std::istringstream stream(c);
+        if (!(stream >> params.center[0] >> params.center[1] >> params.center[2]))
+            throw std::invalid_argument("Cannot parse --center \"x y z\"");
+        params.useCentroid = false;
+    }
+    const auto result = atomforge::applyCoreShell(source, params);
+    if (!result.success) throw std::runtime_error(result.message);
+    if (!saveStructure(result.structure, output, detectFormat(output)))
+        throw std::runtime_error("Failed to save core-shell structure");
+    std::cout << result.message << '\n';
+    return 0;
+}
+
 namespace
 {
 struct BuildMode
@@ -1796,7 +2055,7 @@ struct BuildMode
 };
 
 // Register a mode once for both execution and topic-specific help.
-constexpr std::array<BuildMode, 10> kBuildModes{{
+constexpr std::array<BuildMode, 17> kBuildModes{{
     {"bulk", runBulk, printHelpBulk},
     {"gb", runGB, printHelpGB},
     {"poly", runPoly, printHelpPoly},
@@ -1807,6 +2066,13 @@ constexpr std::array<BuildMode, 10> kBuildModes{{
     {"custom", runCustom, printHelpCustom},
     {"interface", runInterface, printHelpInterface},
     {"stacking-fault", runStackingFault, printHelpStackingFault},
+    {"vacancy", runVacancy, printHelpVacancy},
+    {"strain", runStrain, printHelpStrain},
+    {"primitive", runPrimitive, printHelpPrimitive},
+    {"surface", runSurface, printHelpSurface},
+    {"sqs", runSQS, printHelpSQS},
+    {"nanowire", runNanowire, printHelpNanowire},
+    {"core-shell", runCoreShell, printHelpCoreShell},
 }};
 
 const BuildMode* findBuildMode(std::string_view name)

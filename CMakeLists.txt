@@ -152,6 +152,11 @@ set(ATOMFORGE_SOURCES
     src/algorithms/DragPrep.cpp
     src/algorithms/DislocationFit.cpp
     src/algorithms/StackingFaultBuilder.cpp
+    src/algorithms/VacancyBuilder.cpp
+    src/algorithms/StrainTool.cpp
+    src/algorithms/SurfaceBuilder.cpp
+    src/algorithms/SQSBuilder.cpp
+    src/algorithms/NanostructureTools.cpp
     src/cli/CLIMode.cpp
     src/io/StructureLoader.cpp
     imgui/imgui.cpp

@@ -2,6 +2,7 @@
 #include "science/ScienceCatalog.h"
 #include "science/ScienceTools.h"
 #include "ui/ResponsiveLayout.h"
+#include "ui/SciencePlot.h"
 #include "io/StructureLoader.h"
 #include "io/Trajectory.h"
 #include "imgui.h"
@@ -25,11 +26,38 @@ void writeText(const std::filesystem::path& path, const std::string& text)
     if (!output) throw std::runtime_error("Cannot save " + path.u8string());
 }
 
-Json potentialJson(int potential, double epsilon, double sigma, double cutoff)
+// Large structures go through a file, avoiding a fixed-size text buffer.
+std::string saveActiveStructure(const Structure& structure)
+{
+    const auto root = std::filesystem::temp_directory_path() / "AtomForge-science";
+    std::filesystem::create_directories(root);
+    const auto file = root / ("structure-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".json");
+    std::ofstream output(file);
+    output << atomforge::science::structureJson(structure).dump();
+    if (!output) throw std::runtime_error("Cannot save active structure for analysis");
+    return file.u8string();
+}
+
+std::string cellJson(const Structure& structure)
+{
+    Json cell = Json::array();
+    for (const auto& row : structure.cellVectors) cell.push(Json::array({row[0], row[1], row[2]}));
+    return cell.dump();
+}
+
+Json potentialJson(int potential, double epsilon, double sigma, double cutoff, const std::string& file, int format)
 {
     Json result = Json::object();
     if (potential == 0) {
         result["potential"] = "EMT";
+        return result;
+    }
+    if (potential == 2) {
+        static const char* formats[] = {"auto", "setfl", "fs", "funcfl"};
+        if (file.empty()) throw std::runtime_error("Choose an EAM potential file");
+        result["potential"] = "EAM";
+        result["file"] = file;
+        result["format"] = formats[std::clamp(format, 0, 3)];
         return result;
     }
     result["potential"] = "LennardJones";
@@ -69,6 +97,21 @@ void ScientificToolsDialog::drawMenuItems(const char* category)
         }
 }
 
+const char* ScientificToolsDialog::companionCell(const std::string& parameter)
+{
+    if (parameter == "positions" || parameter == "reference_sites") return "cell";
+    if (parameter == "reference") return "reference_cell";
+    if (parameter == "current") return "current_cell";
+    return nullptr;
+}
+
+bool ScientificToolsDialog::acceptsTrajectory(const std::string& tool, const std::string& parameter)
+{
+    if (tool == "msd" || tool == "structure-factor") return parameter == "positions";
+    if (tool == "vacf" || tool == "vibrational-spectrum") return parameter == "velocities";
+    return false;
+}
+
 bool ScientificToolsDialog::open(const std::string& toolId)
 {
     const auto& catalog = scienceToolCatalog();
@@ -81,7 +124,8 @@ bool ScientificToolsDialog::open(const std::string& toolId)
     return false;
 }
 
-void ScientificToolsDialog::draw(const Structure& structure, const std::function<void(Structure&)>& loadResult)
+void ScientificToolsDialog::draw(const Structure& structure, const std::function<void(Structure&)>& loadResult,
+                                 const ColourAtoms& colourAtoms)
 {
     if (m_task.poll()) {
         m_error = m_task.error();
@@ -215,22 +259,53 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
                             ImGui::TreePop();
                         }
                     }
-                    if (kind == "structure" && !structure.atoms.empty() && responsive::button("Use active structure")) {
+                    const std::string name = parameter.name;
+                    const bool cellInput = name == "cell" || name == "reference_cell" || name == "current_cell";
+                    if (kind == "data" && cellInput && structure.hasUnitCell && responsive::button("Use active cell")) {
+                        std::snprintf(field.value.data(), field.value.size(), "%s", cellJson(structure).c_str());
+                        field.useFile = false;
+                    }
+                    if (!structure.atoms.empty() && (kind == "structure" || companionCell(name)) && responsive::button("Use active structure")) {
                         try {
-                        // Large structures go through a file, avoiding a fixed-size text buffer.
-                        const auto root = std::filesystem::temp_directory_path() / "AtomForge-science";
-                        std::filesystem::create_directories(root);
-                        const auto file = root / ("structure-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".json");
-                        std::ofstream output(file); output << atomforge::science::structureJson(structure).dump();
-                        if (!output) throw std::runtime_error("Cannot save active structure for analysis");
-                        field.path = file.u8string(); field.useFile = true;
+                            field.path = saveActiveStructure(structure);
+                            field.useFile = true;
+                            field.field[0] = '\0';
+                            field.selectColumn = false;
+                            // Periodic local analyses also need the matching cell and axes.
+                            const char* companion = kind == "data" ? companionCell(name) : nullptr;
+                            for (std::size_t j = 0; companion && structure.hasUnitCell && j < tool.parameters.size(); ++j) {
+                                auto& other = m_fields[j];
+                                if (std::string(tool.parameters[j].name) == companion) {
+                                    std::snprintf(other.value.data(), other.value.size(), "%s", cellJson(structure).c_str());
+                                    other.useFile = false;
+                                    other.enabled = true;
+                                } else if (std::string(tool.parameters[j].name) == "pbc") {
+                                    std::snprintf(other.value.data(), other.value.size(), "%s", "[true,true,true]");
+                                    other.enabled = true;
+                                }
+                            }
                         } catch (const std::exception& error) { m_error = error.what(); }
+                    }
+                    if (kind == "data" && !m_trajectory.empty() && acceptsTrajectory(tool.id, name)) {
+                        if (responsive::button("Use loaded trajectory")) {
+                            field.path = m_trajectory;
+                            field.useFile = true;
+                            field.field[0] = '\0';
+                            field.selectColumn = false;
+                        }
+                        ImGui::TextDisabled("Loaded: %s", std::filesystem::u8path(m_trajectory).filename().u8string().c_str());
                     }
                 }
                 if (kind == "calculator") {
                     ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(340)));
-                    ImGui::Combo("##potential", &field.potential, "EMT (effective-medium theory)\0Lennard-Jones 12-6\0");
-                    if (field.potential == 0) {
+                    ImGui::Combo("##potential", &field.potential, "EMT (effective-medium theory)\0Lennard-Jones 12-6\0EAM / Finnis-Sinclair file\0");
+                    if (field.potential == 2) {
+                        if (responsive::button("Browse potential...")) { m_pickerTarget = -100 - static_cast<int>(i); m_picker.open("EAM potential file", false, field.potentialFile); }
+                        ImGui::TextWrapped("%s", field.potentialFile.empty() ? "Choose a LAMMPS-format .eam.alloy, .eam.fs or .eam file" : field.potentialFile.c_str());
+                        ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(340)));
+                        ImGui::Combo("Table format", &field.eamFormat, "Detect from file name\0setfl (eam/alloy)\0Finnis-Sinclair (eam/fs)\0funcfl (single element eam)\0");
+                        ImGui::TextDisabled("Elements are matched by symbol; the file's cutoff is used.");
+                    } else if (field.potential == 0) {
                         ImGui::TextWrapped("Built-in EMT for Al, Cu, Ag, Au, Ni, Pd and Pt (H, C, N and O are illustrative only).");
                     } else {
                         const float width = std::min(ImGui::GetContentRegionAvail().x, responsive::dp(340));
@@ -260,7 +335,7 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
                     const auto& parameter = tool.parameters[i];
                     const std::string kind = parameter.kind;
                     if (kind == "calculator") {
-                        request[parameter.name] = potentialJson(field.potential, field.epsilon, field.sigma, field.cutoff);
+                        request[parameter.name] = potentialJson(field.potential, field.epsilon, field.sigma, field.cutoff, field.potentialFile, field.eamFormat);
                     } else if (field.useFile) {
                         if (field.path.empty()) throw std::runtime_error("Choose a file for " + std::string(parameter.label));
                         Json reference = Json::object();
@@ -293,7 +368,9 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
                     writeText(resultPath, atomforge::science::resultDocument(id, request, output).dump(2) + "\n");
                     if (!output.frames.empty()) atomforge::science::writeExtxyz(structures, output.frames, output.velocities, output.times);
                     return Result{resultPath, atomforge::science::resultReport(id, output.result),
-                                  output.frames.empty() ? std::filesystem::path{} : structures};
+                                  output.frames.empty() ? std::filesystem::path{} : structures,
+                                  atomforge::science::resultPlots(id, output.result),
+                                  atomforge::science::perAtomProperties(id, output.result)};
                 });
             } catch (const std::exception& error) { m_error = error.what(); }
         }
@@ -314,7 +391,34 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
                     } catch (const std::exception& error) { m_error = error.what(); }
                 }
             }
+            if (!m_result.properties.empty() && colourAtoms) {
+                m_property = std::clamp(m_property, 0, static_cast<int>(m_result.properties.size()) - 1);
+                const auto& property = m_result.properties[static_cast<std::size_t>(m_property)];
+                ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(300)));
+                if (ImGui::BeginCombo("##property", property.name.c_str())) {
+                    for (std::size_t p = 0; p < m_result.properties.size(); ++p)
+                        if (ImGui::Selectable(m_result.properties[p].name.c_str(), static_cast<int>(p) == m_property)) m_property = static_cast<int>(p);
+                    ImGui::EndCombo();
+                }
+                const bool matches = property.values.size() == structure.atoms.size();
+                if (ImGui::GetContentRegionAvail().x > responsive::dp(520)) ImGui::SameLine();
+                ImGui::BeginDisabled(!matches);
+                if (responsive::button("Colour atoms in the view")) colourAtoms(property.name, property.values);
+                ImGui::EndDisabled();
+                if (!matches)
+                    ImGui::TextDisabled("The active structure has %zu atoms; this result has %zu.", structure.atoms.size(), property.values.size());
+            }
             responsive::beginChild("Scientific results", ImVec2(0, 0), true);
+            for (std::size_t i = 0; i < m_result.plots.size(); ++i) {
+                ImGui::PushID(static_cast<int>(i));
+                uiPlot::drawSciencePlot("##plot", m_result.plots[i]);
+                if (responsive::button("Export plot data...")) {
+                    m_pickerTarget = -10 - static_cast<int>(i);
+                    m_picker.open("Save plot data", true, "plot.csv");
+                }
+                ImGui::PopID();
+                ImGui::Spacing();
+            }
             ImGui::TextWrapped("%s", m_result.report.c_str());
             ImGui::EndChild();
         } else {
@@ -334,7 +438,11 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
         if (auto path = m_picker.draw()) {
             try {
                 if (m_pickerTarget == -3) std::filesystem::copy_file(m_result.output, std::filesystem::u8path(*path), std::filesystem::copy_options::overwrite_existing);
+                else if (m_pickerTarget <= -10 && m_pickerTarget > -100 && static_cast<std::size_t>(-10 - m_pickerTarget) < m_result.plots.size())
+                    writeText(std::filesystem::u8path(*path), atomforge::science::plotCsv(m_result.plots[static_cast<std::size_t>(-10 - m_pickerTarget)]));
                 else if (m_pickerTarget == -4) std::filesystem::copy_file(m_result.structures, std::filesystem::u8path(*path), std::filesystem::copy_options::overwrite_existing);
+                else if (m_pickerTarget <= -100 && static_cast<std::size_t>(-100 - m_pickerTarget) < m_fields.size())
+                    m_fields[static_cast<std::size_t>(-100 - m_pickerTarget)].potentialFile = *path;
                 else if (m_pickerTarget >= 0 && static_cast<std::size_t>(m_pickerTarget) < m_fields.size()) {
                     auto& field = m_fields[static_cast<std::size_t>(m_pickerTarget)]; field.path = *path; field.useFile = true;
                 }

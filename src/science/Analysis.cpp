@@ -248,6 +248,8 @@ Json diffusionCoefficient(const Parameters& p)
     result["ols_slope_stderr"] = fit.standardError;
     result["fit_points"] = x.size();
     result["fit_range_fs"] = toJson(interval);
+    result["lag_fs"] = toJson(times);
+    result["msd_A2"] = toJson(values);
     return result;
 }
 
@@ -719,6 +721,9 @@ Json workFunction(const Parameters& p)
     result["slope_eV_per_A"] = slope;
     result["flat_vacuum"] = std::abs(slope) <= limit;
     result["samples"] = x.size();
+    result["fermi_eV"] = fermi;
+    result["distance_A"] = toJson(position);
+    result["potential_eV"] = toJson(potential);
     return result;
 }
 
@@ -823,6 +828,16 @@ Json equationOfState(const Parameters& p)
     result["residuals_eV"] = toJson(residuals);
     result["rms_error_eV"] = std::sqrt(squared / static_cast<double>(residuals.size()));
     result["parameter_covariance"] = matrixJson(covariance);
+    std::vector<double> fitVolumes, fitEnergies;
+    for (int i = 0; i <= 200; ++i) {
+        const double v = vmin + (vmax - vmin) * i / 200.0;
+        fitVolumes.push_back(v);
+        fitEnergies.push_back(birchMurnaghan(v, q));
+    }
+    result["volumes_A3"] = toJson(volumes);
+    result["energies_eV"] = toJson(energies);
+    result["fit_volumes_A3"] = toJson(fitVolumes);
+    result["fit_energies_eV"] = toJson(fitEnergies);
     return result;
 }
 

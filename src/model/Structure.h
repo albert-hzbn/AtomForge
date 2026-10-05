@@ -45,6 +45,11 @@ struct Structure
     // cross-region neighbors instead of inferring boundaries from local order.
     std::vector<int> grainRegionIds;
 
+    // Optional per-atom scalar from a scientific analysis (NaN = invalid),
+    // shown by the "Atom Property" colour mode. Same size as atoms or empty.
+    std::vector<double> atomProperty;
+    std::string atomPropertyName;
+
     // User-visible note set on load to indicate how IPF was obtained
     // (metadata sidecar, geometry fallback, or unavailable).
     std::string ipfLoadStatus;
@@ -72,6 +77,10 @@ struct Structure
             grainRegionIds.erase(grainRegionIds.begin() + index);
         else
             grainRegionIds.clear();
+        if (atomProperty.size() == atoms.size())
+            atomProperty.erase(atomProperty.begin() + static_cast<std::ptrdiff_t>(index));
+        else
+            atomProperty.clear();
         atoms.erase(atoms.begin() + index);
         dislocationLoopPoints.clear();
         dislocationDetectionDone = false;
