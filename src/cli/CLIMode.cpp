@@ -412,6 +412,7 @@ static void printHelp()
 "  AtomForge --convert --input FILE --output FILE [--format FORMAT]\n"
 "  AtomForge --render --input FILE --output FILE.png [options]\n"
 "  AtomForge --science <tool> --input REQUEST.json --output RESULT.json\n"
+"  AtomForge --science-batch BATCH.json --output RESULTS.json [--csv TABLE.csv]\n"
 "\n"
 "Modes:\n"
 "  bulk        Build a bulk crystal from a space group and lattice parameters\n"
@@ -2105,6 +2106,7 @@ bool isCLIMode(int argc, char* argv[])
         if (std::strcmp(argv[i], "--convert") == 0) return true;
         if (std::strcmp(argv[i], "--render")  == 0) return true;
         if (std::strcmp(argv[i], "--science") == 0) return true;
+        if (std::strcmp(argv[i], "--science-batch") == 0) return true;
         if (std::strcmp(argv[i], "--help")    == 0) return true;
         if (std::strcmp(argv[i], "-h")        == 0) return true;
         if (std::strcmp(argv[i], "--version") == 0) return true;
@@ -2119,7 +2121,7 @@ int runCLI(int argc, char* argv[])
         return runAnalysisCLI(argc,argv);
     if (hasFlag(argc, argv, "--render"))
         return runRenderCLI(argc, argv);
-    if (hasFlag(argc, argv, "--science"))
+    if (hasFlag(argc, argv, "--science") || hasFlag(argc, argv, "--science-batch"))
         return runScienceCLI(argc, argv);
     if (hasFlag(argc, argv, "--version") || hasFlag(argc, argv, "-v"))
     {

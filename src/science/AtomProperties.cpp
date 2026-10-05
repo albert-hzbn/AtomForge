@@ -38,7 +38,16 @@ std::vector<AtomProperty> perAtomProperties(const std::string& tool, const Json&
 {
     std::vector<AtomProperty> properties;
     if (!result.isObject()) return properties;
-    if (tool == "centrosymmetry") {
+    if (tool == "cluster-analysis") {
+        add(properties, "Cluster id (-1 unselected)", numbers(result.find("cluster_id")));
+    } else if (tool == "void-analysis") {
+        add(properties, "Lining void id (-1 none)", numbers(result.find("lining_void_id")));
+    } else if (tool == "dislocation-lines") {
+        add(properties, "Dislocation line id (-1 none)", numbers(result.find("line_id")));
+        add(properties, "Structure type (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)", numbers(result.find("structure_type")));
+    } else if (tool == "structure-type") {
+        add(properties, "Structure type (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)", numbers(result.find("structure_type")));
+    } else if (tool == "centrosymmetry") {
         add(properties, "Centrosymmetry (A^2)", numbers(result.find("centrosymmetry_A2")));
     } else if (tool == "local-strain") {
         add(properties, "D2min (A^2)", numbers(result.find("d2min_A2")));

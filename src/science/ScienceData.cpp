@@ -383,7 +383,7 @@ NdArray loadTable(const std::filesystem::path& path, bool comma)
 }
 
 // Reads a text file, decompressing .gz, .bz2 and .xz files when the build has the codec.
-std::string readMaybeCompressed(const std::filesystem::path& path)
+std::string readMaybeCompressedImpl(const std::filesystem::path& path)
 {
     const std::string extension = lower(path.extension().u8string());
     if (extension != ".gz" && extension != ".bz2" && extension != ".xz") return readFile(path);
@@ -450,7 +450,7 @@ std::string readMaybeCompressed(const std::filesystem::path& path)
 // VASP EIGENVAL -> (spin, k, band) energies.
 NdArray loadEigenval(const std::filesystem::path& path)
 {
-    std::istringstream input(readMaybeCompressed(path));
+    std::istringstream input(readMaybeCompressedImpl(path));
     std::string line;
     std::getline(input, line);
     const auto first = split(line);
@@ -503,7 +503,9 @@ bool isVaspStructure(const std::filesystem::path& path)
 {
     const std::string name = upper(path.filename().u8string());
     const std::string extension = lower(path.extension().u8string());
-    return name.rfind("POSCAR", 0) == 0 || name.rfind("CONTCAR", 0) == 0 || extension == ".vasp" || extension == ".poscar";
+    // Common names: POSCAR, CONTCAR, POSCAR.relax, Si_POSCAR, *.vasp.
+    return name.find("POSCAR") != std::string::npos || name.find("CONTCAR") != std::string::npos ||
+           extension == ".vasp" || extension == ".poscar";
 }
 
 bool isLammpsDump(const std::filesystem::path& path)
@@ -516,6 +518,11 @@ bool isLammpsDump(const std::filesystem::path& path)
         if (line.find_first_not_of(" \t\r") != std::string::npos) return line.rfind("ITEM:", 0) == 0;
     return false;
 }
+}
+
+std::string readTextFile(const std::filesystem::path& path)
+{
+    return readMaybeCompressedImpl(path);
 }
 
 int atomicNumber(const std::string& symbol)
@@ -656,8 +663,18 @@ Parameters::Parameters(const std::string& tool, const Json& request, const std::
         if (const Json* value = request.find("timestep_fs"); value && value->isNumber()) timestep = value->number();
     for (const auto& [name, value] : request.members()) {
         taskCheckpoint();
-        if (name == "structure" || name == "initial" || name == "final") {
+        if (name == "structure" || name == "initial" || name == "final" || (name == "reference" && tool == "dislocation-lines")) {
             m_structures[name] = resolveStructure(value, base, reader);
+            continue;
+        }
+        if (name == "restart_images") {
+            if (!value.isObject() || !value.contains("file")) throw std::runtime_error("restart_images must reference a structure/trajectory file");
+            m_frames[name] = readFrames((base / std::filesystem::u8path(value.at("file").string())).lexically_normal(), reader);
+            continue;
+        }
+        if (name.size() > 5 && name.compare(name.size() - 5, 5, "_file") == 0) {
+            const std::string path = value.isString() ? value.string() : value.at("file").string();
+            m_json[name] = (base / std::filesystem::u8path(path)).lexically_normal().u8string();
             continue;
         }
         if (!value.isObject() || !value.contains("file") || name == "calculator" || name == "calculator_factory") {
@@ -714,7 +731,7 @@ bool Parameters::has(const std::string& name) const
 {
     // An explicit null selects the documented default, as None does in Python.
     if (const auto found = m_json.find(name); found != m_json.end()) return !found->second.isNull();
-    return m_arrays.count(name) || m_structures.count(name);
+    return m_arrays.count(name) || m_structures.count(name) || m_frames.count(name);
 }
 
 const Json& Parameters::json(const std::string& name) const
@@ -759,6 +776,13 @@ Pbc Parameters::pbc(const std::string& name, Pbc fallback) const
 {
     if (!has(name)) return fallback;
     return parsePbc(json(name));
+}
+
+const std::vector<FrameData>& Parameters::frames(const std::string& name) const
+{
+    const auto found = m_frames.find(name);
+    if (found == m_frames.end()) throw std::runtime_error("Provide " + name);
+    return found->second;
 }
 
 const StructureInput& Parameters::structure(const std::string& name) const

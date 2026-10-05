@@ -1,7 +1,9 @@
 #include "algorithms/NyeTensor.h"
+#include "science/ScienceCore.h"
 
 #include <Eigen/Dense>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -85,21 +87,26 @@ NyeTensorResult computeNyeTensor(const Structure& reference,
         u[i] = glm::dvec3(deformed.atoms[i].x, deformed.atoms[i].y, deformed.atoms[i].z) - pos0[i];
     }
 
-    // O(n^2) neighbor search: simple and always correct; fine for the
-    // few-thousand-atom scale this analysis (and BABEL's own reference
-    // examples) is used at. A grid-accelerated search would only matter for
-    // much larger systems than this feature is intended for.
+    // Binned neighbour search; each neighbour counts once through its
+    // minimum image, as in BABEL's all-pairs loop.
     const double cutoff2 = (double)cutoffRadius * (double)cutoffRadius;
     std::vector<std::vector<int>> neighbors(n);
-    for (size_t i = 0; i < n; ++i)
     {
-        for (size_t j = 0; j < n; ++j)
+        std::vector<science::Vec3> points(n);
+        for (size_t i = 0; i < n; ++i) points[i] = {pos0[i].x, pos0[i].y, pos0[i].z};
+        science::Mat3 cell = science::identity();
+        if (usePbc)
+            for (int i = 0; i < 3; ++i) cell[i] = reference.cellVectors[i];
+        const science::Pbc pbc = {usePbc, usePbc, usePbc};
+        for (const auto& pair : science::neighborList(points, cell, pbc, std::nextafter((double)cutoffRadius, HUGE_VAL)))
         {
-            if (i == j) continue;
-            const glm::dvec3 delta = minimumImage(pos0[j] - pos0[i], usePbc, cell0, invCell0);
-            if (glm::dot(delta, delta) <= cutoff2)
-                neighbors[i].push_back((int)j);
+            if (pair.i == pair.j) continue;
+            const glm::dvec3 delta = minimumImage(pos0[pair.j] - pos0[pair.i], usePbc, cell0, invCell0);
+            if (glm::dot(delta, delta) > cutoff2) continue;
+            auto& list = neighbors[(size_t)pair.i];
+            if (std::find(list.begin(), list.end(), pair.j) == list.end()) list.push_back(pair.j);
         }
+        for (auto& list : neighbors) std::sort(list.begin(), list.end());
     }
 
     // Step 1: per-atom displacement gradient du[i][a][b] = d U_a / d X_b,

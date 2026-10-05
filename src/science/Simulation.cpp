@@ -150,6 +150,8 @@ struct Recorder
     ToolOutput output;
     std::vector<double> temperatures, energies, pressures;
     Json volumes = Json::array();
+    double productionStart = -1;
+    std::size_t productionIndex = 0;
 
     void record(const Dynamics& state, double time, bool npt)
     {
@@ -193,7 +195,7 @@ struct Recorder
         result["ensemble"] = ensemble;
         result["target_temperature_K"] = target;
         output.result = result;
-        return std::move(output);
+        return output;
     }
 };
 }
@@ -201,28 +203,72 @@ struct Recorder
 ToolOutput migrationPath(const Configuration& initial, const Configuration& final,
                          const PotentialFactory& factory, const NebOptions& options)
 {
-    integer(static_cast<double>(options.images), "images", 3);
+    integer(static_cast<double>(options.images), "images", 0);
     integer(static_cast<double>(options.steps), "steps");
     positive(options.fmax, "fmax");
     positive(options.spring, "spring_eV_per_A2");
-    if (!initial.size() || initial.symbols != final.symbols)
+    const bool restarting = !options.restart.empty();
+    Configuration first = restarting ? options.restart.front() : initial;
+    Configuration last = restarting ? options.restart.back() : final;
+    if (!first.size() || first.symbols != last.symbols)
         throw std::runtime_error("NEB requires identical ordered species at both endpoints");
-    if (initial.pbc != final.pbc || !sameCell(initial, final))
+    if (first.pbc != last.pbc || !sameCell(first, last))
         throw std::runtime_error("Variable-cell NEB is not supported; endpoint cells must match");
-    const std::size_t count = static_cast<std::size_t>(options.images), atoms = initial.size();
-    std::vector<Configuration> chain(count, initial);
-    chain.back() = final;
+    for (const auto& image : options.restart)
+        if (image.symbols != first.symbols || !sameCell(image, first))
+            throw std::runtime_error("Restart images must share the endpoints' species, order and cell");
+    if (restarting && options.restart.size() < 3) throw std::runtime_error("A restart needs at least three images");
     std::vector<std::unique_ptr<Potential>> potentials;
-    for (std::size_t i = 0; i < count; ++i) {
-        potentials.push_back(factory());
-        if (!potentials.back()) throw std::runtime_error("The potential factory must return a potential for each image");
+    auto potentialFor = [&](std::size_t index) -> const Potential& {
+        while (potentials.size() <= index) {
+            potentials.push_back(factory());
+            if (!potentials.back()) throw std::runtime_error("The potential factory must return a potential for each image");
+        }
+        return *potentials[index];
+    };
+    Json endpointRelaxation = Json();
+    if (options.relaxEndpoints) {
+        RelaxOptions relax;
+        relax.fmax = options.endpointFmax;
+        relax.steps = 2000;
+        const auto a = relaxConfiguration(first, potentialFor(0), relax);
+        const auto b = relaxConfiguration(last, potentialFor(0), relax);
+        first = a.configuration;
+        last = b.configuration;
+        endpointRelaxation = Json::object();
+        endpointRelaxation["initial_converged"] = a.converged;
+        endpointRelaxation["final_converged"] = b.converged;
+        endpointRelaxation["initial_steps"] = a.steps;
+        endpointRelaxation["final_steps"] = b.steps;
     }
-    const MinimumImage mic = options.mic ? MinimumImage(initial.cell, initial.pbc) : MinimumImage();
-    for (std::size_t a = 0; a < atoms; ++a) {
-        const Vec3 delta = scale(mic(sub(final.positions[a], initial.positions[a])), 1.0 / static_cast<double>(count - 1));
-        for (std::size_t i = 1; i + 1 < count; ++i)
-            chain[i].positions[a] = add(initial.positions[a], scale(delta, static_cast<double>(i)));
+    const MinimumImage mic = options.mic ? MinimumImage(first.cell, first.pbc) : MinimumImage();
+    const std::size_t atoms = first.size();
+    std::size_t count = restarting ? options.restart.size() : static_cast<std::size_t>(options.images);
+    if (!restarting && count == 0) {
+        positive(options.imageSpacing, "image_spacing_A");
+        double squared = 0;
+        for (std::size_t a = 0; a < atoms; ++a) {
+            const Vec3 d = mic(sub(last.positions[a], first.positions[a]));
+            squared += dot(d, d);
+        }
+        count = static_cast<std::size_t>(std::clamp<long long>(static_cast<long long>(std::ceil(std::sqrt(squared) / options.imageSpacing)) + 1, 5, 31));
     }
+    if (count < 3) throw std::runtime_error("images must be an integer >= 3 (or 0 for automatic)");
+    std::vector<Configuration> chain;
+    if (restarting) {
+        chain = options.restart;
+        chain.front() = first;
+        chain.back() = last;
+    } else {
+        chain.assign(count, first);
+        chain.back() = last;
+        for (std::size_t a = 0; a < atoms; ++a) {
+            const Vec3 delta = scale(mic(sub(last.positions[a], first.positions[a])), 1.0 / static_cast<double>(count - 1));
+            for (std::size_t i = 1; i + 1 < count; ++i)
+                chain[i].positions[a] = add(first.positions[a], scale(delta, static_cast<double>(i)));
+        }
+    }
+    for (std::size_t i = 0; i < count; ++i) potentialFor(i);
     std::vector<PotentialResult> results(count);
     results.front() = potentials.front()->compute(chain.front(), false);
     results.back() = potentials.back()->compute(chain.back(), false);
@@ -301,8 +347,115 @@ ToolOutput migrationPath(const Configuration& initial, const Configuration& fina
     result["steps"] = steps;
     result["endpoint_max_forces_eV_per_A"] = Json::array({maxAtomForce(results.front().forces), maxAtomForce(results.back().forces)});
     result["potential"] = potentials.front()->description();
+    result["image_count"] = count;
+    result["restarted"] = restarting;
+    if (!endpointRelaxation.isNull()) result["endpoint_relaxation"] = endpointRelaxation;
     output.result = result;
     return output;
+}
+
+BlockStatistics blockStatistics(const std::vector<double>& values, std::size_t blocks)
+{
+    BlockStatistics result;
+    std::vector<double> finite;
+    for (double v : values) if (std::isfinite(v)) finite.push_back(v);
+    result.samples = finite.size();
+    if (finite.empty()) { result.mean = result.standardDeviation = result.standardError = NAN; return result; }
+    double sum = 0;
+    for (double v : finite) sum += v;
+    result.mean = sum / static_cast<double>(finite.size());
+    double variance = 0;
+    for (double v : finite) variance += (v - result.mean) * (v - result.mean);
+    result.standardDeviation = finite.size() > 1 ? std::sqrt(variance / static_cast<double>(finite.size() - 1)) : 0.0;
+    if (blocks < 2 || finite.size() < 2 * blocks) { result.standardError = NAN; return result; }
+    const std::size_t size = finite.size() / blocks;
+    std::vector<double> means;
+    for (std::size_t b = 0; b < blocks; ++b) {
+        double total = 0;
+        for (std::size_t i = b * size; i < (b + 1) * size; ++i) total += finite[i];
+        means.push_back(total / static_cast<double>(size));
+    }
+    double meanOfMeans = 0;
+    for (double m : means) meanOfMeans += m;
+    meanOfMeans /= static_cast<double>(blocks);
+    double spread = 0;
+    for (double m : means) spread += (m - meanOfMeans) * (m - meanOfMeans);
+    result.standardError = std::sqrt(spread / static_cast<double>(blocks - 1) / static_cast<double>(blocks));
+    result.blocks = blocks;
+    return result;
+}
+
+namespace
+{
+// Continues with energy-conserving velocity Verlet at fixed cell.
+void runProduction(Dynamics& state, const Potential& potential, const DynamicsOptions& options, Recorder& recorder, bool npt)
+{
+    if (options.productionSteps <= 0) return;
+    integer(static_cast<double>(options.productionSteps), "production_steps");
+    const double dt = options.timestepFs;
+    const double start = static_cast<double>(options.steps) * dt;
+    recorder.productionStart = start;
+    recorder.productionIndex = recorder.output.times.size() - 1;
+    const std::size_t n = state.atoms.size();
+    for (long long step = 1; step <= options.productionSteps; ++step) {
+        if (step % 16 == 0) taskProgress(static_cast<double>(step) / static_cast<double>(options.productionSteps));
+        for (std::size_t i = 0; i < n; ++i) {
+            state.velocity[i] = add(state.velocity[i], scale(state.forces.forces[i], 0.5 * dt / state.mass[i]));
+            state.atoms.positions[i] = add(state.atoms.positions[i], scale(state.velocity[i], dt));
+        }
+        state.forces = potential.compute(state.atoms, npt);
+        for (std::size_t i = 0; i < n; ++i)
+            state.velocity[i] = add(state.velocity[i], scale(state.forces.forces[i], 0.5 * dt / state.mass[i]));
+        if (step % options.sampleInterval == 0 || step == options.productionSteps)
+            recorder.record(state, start + static_cast<double>(step) * dt, npt);
+    }
+}
+
+Json statisticsJson(const BlockStatistics& s)
+{
+    Json result = Json::object();
+    result["mean"] = s.mean;
+    result["standard_deviation"] = s.standardDeviation;
+    result["standard_error"] = std::isfinite(s.standardError) ? Json(s.standardError) : Json();
+    result["samples"] = s.samples;
+    result["blocks"] = s.blocks;
+    return result;
+}
+
+void addStatistics(ToolOutput& output, const Recorder& recorder, const DynamicsOptions& options, bool npt)
+{
+    // Statistics use production samples when present, else samples after equilibration.
+    std::vector<std::size_t> selected;
+    for (std::size_t i = 0; i < recorder.output.times.size(); ++i) {
+        const bool production = recorder.productionStart >= 0;
+        if (production ? i >= recorder.productionIndex : recorder.output.times[i] >= options.equilibrationFs) selected.push_back(i);
+    }
+    auto pick = [&](const std::vector<double>& values) {
+        std::vector<double> chosen;
+        for (std::size_t i : selected) if (i < values.size()) chosen.push_back(values[i]);
+        return chosen;
+    };
+    Json statistics = Json::object();
+    statistics["temperature_K"] = statisticsJson(blockStatistics(pick(recorder.temperatures)));
+    statistics["total_energy_eV"] = statisticsJson(blockStatistics(pick(recorder.energies)));
+    if (npt) {
+        std::vector<double> volumes;
+        for (const auto& v : recorder.volumes.items()) volumes.push_back(v.isNumber() ? v.number() : NAN);
+        statistics["volume_A3"] = statisticsJson(blockStatistics(pick(volumes)));
+        // Pressure is recorded only for the thermostatted/barostatted part and production alike.
+        statistics["pressure_GPa"] = statisticsJson(blockStatistics(pick(recorder.pressures)));
+    }
+    output.result["statistics"] = statistics;
+    output.result["equilibration_fs"] = options.equilibrationFs;
+    if (recorder.productionStart >= 0) {
+        output.result["production_start_fs"] = recorder.productionStart;
+        const auto energies = pick(recorder.energies);
+        const double span = recorder.output.times.back() - recorder.productionStart;
+        const double atoms = static_cast<double>(recorder.output.frames.back().atoms.size());
+        if (energies.size() > 1 && span > 0)
+            output.result["nve_energy_drift_eV_per_atom_per_ps"] = (energies.back() - energies.front()) / atoms / (span / 1000.0);
+    }
+}
 }
 
 ToolOutput nvtDynamics(const Configuration& start, const Potential& potential, const DynamicsOptions& options)
@@ -332,7 +485,9 @@ ToolOutput nvtDynamics(const Configuration& start, const Potential& potential, c
         if (step % options.sampleInterval == 0) recorder.record(state, static_cast<double>(step) * dt, false);
     }
     if (options.steps % options.sampleInterval) recorder.record(state, static_cast<double>(options.steps) * dt, false);
+    runProduction(state, potential, options, recorder, false);
     ToolOutput output = recorder.finish("nvt", options.temperatureK);
+    addStatistics(output, recorder, options, false);
     output.result["potential"] = potential.description();
     return output;
 }
@@ -414,7 +569,9 @@ ToolOutput nptDynamics(const Configuration& start, const Potential& potential, c
         if (step % options.sampleInterval == 0) recorder.record(state, static_cast<double>(step) * dt, true);
     }
     if (options.steps % options.sampleInterval) recorder.record(state, static_cast<double>(options.steps) * dt, true);
+    runProduction(state, potential, options, recorder, true);
     ToolOutput output = recorder.finish("npt", options.temperatureK);
+    addStatistics(output, recorder, options, true);
     output.result["potential"] = potential.description();
     return output;
 }

@@ -112,6 +112,35 @@ int main()
         check(restored[0].volume.fields[0].values==grid.values && restored[0].reference.fields[0].values==grid.values,"Density fields changed");
         check(restored[0].table==source.table && restored[0].camera==source.camera && restored[0].settings==source.settings,"Workspace settings changed");
         check(restored[0].history==source.history && restored[0].surface.colors==source.surface.colors,"History or surface changed");
+        check(restored[0].science.empty() && restored[0].structure.atomProperty.empty(),"Empty project extras changed");
+
+        // Format 2: per-atom property (NaN marks undefined atoms) and scientific tool state.
+        {
+            atomforge::Workspace extra=source;
+            AtomSite second=atom; second.x=1.5;
+            extra.structure.atoms={atom,second};
+            extra.structure.grainColors.clear(); extra.structure.grainRegionIds.clear();
+            extra.structure.atomProperty={-0.25,std::numeric_limits<double>::quiet_NaN()};
+            extra.structure.atomPropertyName="Displacement (A)";
+            extra.science="{\"tool\":\"msd\",\"frames\":\""+std::string(3u<<20,'x')+"\"}";
+            const auto extraPath=(root/"extras.afproject").string();
+            atomforge::saveWorkspace({extra},extraPath);
+            const auto back=atomforge::loadWorkspace(extraPath);
+            check(back[0].science==extra.science,"Scientific tool state (larger than 1 MiB) changed");
+            check(back[0].structure.atomProperty.size()==2 && back[0].structure.atomProperty[0]==-0.25 &&
+                  std::isnan(back[0].structure.atomProperty[1]),"Per-atom property or NaN markers changed");
+            check(back[0].structure.atomPropertyName==extra.structure.atomPropertyName,"Per-atom property name changed");
+            // Format 1 files (earlier releases) still load, without the new data.
+            atomforge::saveWorkspace({extra},extraPath,1);
+            { std::ifstream file(extraPath,std::ios::binary); std::string head(27,'\0'); file.read(head.data(),27);
+              check(head.find("ATOMFORGE_PROJECT_1")!=std::string::npos,"Format 1 magic not written"); }
+            const auto old=atomforge::loadWorkspace(extraPath);
+            check(old[0].science.empty() && old[0].structure.atomProperty.empty() && old[0].structure.atoms.size()==2,"Format 1 project did not load");
+            extra.structure.atomProperty={1.0};
+            bool misaligned=false;
+            try { atomforge::saveWorkspace({extra},extraPath); } catch (const std::exception&) { misaligned=true; }
+            check(misaligned,"Project must reject a per-atom property of the wrong length");
+        }
         source.volume.fields[0].values[0]=std::numeric_limits<double>::quiet_NaN();
         bool failed=false;
         try { atomforge::saveWorkspace({source},path); } catch (const std::exception&) { failed=true; }

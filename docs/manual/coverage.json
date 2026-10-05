@@ -3,7 +3,7 @@
   "files": [
     {
       "source": "CMakeLists.txt",
-      "sha256": "fbaa504d0426fb999f7f2314c3fa1036ef37f35a2a06a872abff0430203d29e8",
+      "sha256": "170a3cd5e5a0cb312c261893655189f77c091efe4f50b79cdc98e63d8fcac359",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -702,7 +702,7 @@
     },
     {
       "source": "src/app/EditorApplication.cpp",
-      "sha256": "eafd27756417e7739836301bc851859899877b685b672094b150a4158fccbb57",
+      "sha256": "14e47543538c3dfe3427a53f66b4a49c8adf44af4d91961c512b6dbadd1854ab",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -742,7 +742,7 @@
     },
     {
       "source": "src/cli/CLIMode.cpp",
-      "sha256": "d06ebf2e15294764c76e9edacdd96ff3a3c920c801d834f13f562c446c148f8a",
+      "sha256": "1926f091dfd694bb783e99d23ec8cecb3170ffd99cef72dc45a2b448990fcdc5",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -760,7 +760,7 @@
     },
     {
       "source": "src/cli/RenderCLI.cpp",
-      "sha256": "ba0e7285894873ad19bf684e32e0b372f074fe41809aab959421db02cda2584f",
+      "sha256": "fddbc1eb586f04e194b29e74c377b9ded451a2c710575b030363138f9136d71d",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -778,7 +778,7 @@
     },
     {
       "source": "src/cli/ScienceCLI.cpp",
-      "sha256": "06c644e5e03bca748d8ce3c12709279dc2bbd9418718fe703391591801b73eb0",
+      "sha256": "0e9880ff8dce0c0142a58131cca91172e075bf4ce6f01d431f2a03a923255a97",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -796,7 +796,7 @@
     },
     {
       "source": "src/science/Analysis.h",
-      "sha256": "fa6ae4f7d75eb2271dc831d011c8702427177eb37fc2c26a1d8dd31034b303a5",
+      "sha256": "409fad7beade44bb9ab28d53013a794eb5b1c59c5016163814d60f46c2eaa8ba",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -806,6 +806,51 @@
     {
       "source": "src/science/AtomProperties.h",
       "sha256": "c0bf0f43efd72c069925a06226003ce7972951280517d554e19d1ee089282e0d",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/science/Batch.h",
+      "sha256": "14726fb11ea1c51ed00958bab5ab13953638e06d4006cd6d9bcee21ab625b910",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/science/Clusters.h",
+      "sha256": "9e3cf926e16e8dc14de6709d43a267524f218d7f68542f9063764ca1aa3077e1",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/science/Diffraction.h",
+      "sha256": "c21b36b49a02ea340b6e2474f6e071684fed1b545e856766326467482c0cb9af",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/science/DislocationLines.h",
+      "sha256": "01e4584be98fe63679a9c5f2f0c3f8c8a0ab1f65502abfa1086068a04a478b4d",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/science/GifWriter.h",
+      "sha256": "f541a3821686a3e355fabaa99ba9fcc9ad7ead926f56ee80d5e76f8b603cfcf4",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -831,6 +876,24 @@
       "literal_controls": []
     },
     {
+      "source": "src/science/LammpsExport.h",
+      "sha256": "6f4a887ce6c01596aac9344faae30d35f62ba2068c62c86caa1aa99cb16cd8a4",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/science/Phonons.h",
+      "sha256": "b65ad63ac4ad8abc0e6670bc0588f38a5e216816dd5f589990bc37dd30fd8008",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
       "source": "src/science/Potentials.h",
       "sha256": "01f7e2b3aa475698fa6ab3447ce56a3606bba790950cf1234da654061faf396b",
       "documentation": [
@@ -841,7 +904,7 @@
     },
     {
       "source": "src/science/ReciprocalPath.h",
-      "sha256": "0d037b504559a9c8ae01e2cdad39b7fb181c6787a4953f2940e1770579e18986",
+      "sha256": "817e0d9d5de87b8783759eb4abd41d8e28e5623f0b41c1c498d5649051739249",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -858,8 +921,17 @@
       "literal_controls": []
     },
     {
+      "source": "src/science/ScatteringFactors.h",
+      "sha256": "381db26522f001d9353f70e3040362a254bb48590c6b393862096125d2f4ddea",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
       "source": "src/science/ScienceCatalog.h",
-      "sha256": "ea23eb429514ad8f54607601c865b0c2eb1b725ba022344acdc5801709df97c2",
+      "sha256": "9370c2f75aa865ba30c368af14fed6f217e2e9b21182437c90a600c5efb904ee",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -877,7 +949,7 @@
     },
     {
       "source": "src/science/ScienceData.h",
-      "sha256": "ce2c594034f1adeb30e3dd36ac84c3ea4a845e8fe39fe4845bb00683df0c6114",
+      "sha256": "af9596420b103687818dc9d4285542ddeb7034c2c657df2ba43c0a6e8843ef70",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -895,7 +967,16 @@
     },
     {
       "source": "src/science/Simulation.h",
-      "sha256": "e85b3c6997ddefd491a94d6b5d097d03015406bc9a15bdd3873858f14a4346bb",
+      "sha256": "42b4c69fe8fd4f1db07e8a878173a340c37e3c46ace449d2a73dd60b16a2c282",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/science/VaspElectronic.h",
+      "sha256": "33acf3ccae6937b1cd7a9ba5c79c7633793e2e7aa905a84861dbbefc76016d8c",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -2454,7 +2535,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "939f035b4678407b4a7420db7994c260266079e0a31ac063f8afb5daf4324153",
+      "sha256": "1877db43c19f54da5ea1671f83b4cd9031b8a029a1b8b62709e97f7fbe6f7722",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3046,7 +3127,7 @@
     },
     {
       "source": "src/ui/FileBrowser.h",
-      "sha256": "d1c1c019c16885d5913b527936d457cfe01b6254c9b63a9fb6166c181ae21727",
+      "sha256": "a8bd9fabae3bda66d8edc373da3e4c0f28b22f1880ceef4ef35804c9d71c33c4",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4024,133 +4105,137 @@
     },
     {
       "source": "src/ui/ScientificToolsDialog.cpp",
-      "sha256": "94e850808b864c9cb53d4edd352621c8eb1491960b530ce3c93e92f8d792c69d",
+      "sha256": "e09a841b8a7b307cb38b2a223bf1c44f17da3c9dfc3de9940997d3e2bdea4f3c",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": [
         {
-          "line": 157,
+          "line": 297,
           "declaration_label": "Cancel"
         },
         {
-          "line": 167,
+          "line": 307,
           "declaration_label": "Inputs"
         },
         {
-          "line": 226,
+          "line": 366,
           "declaration_label": "##components"
         },
         {
-          "line": 240,
+          "line": 380,
           "declaration_label": "##window"
         },
         {
-          "line": 244,
+          "line": 384,
           "declaration_label": "##number"
         },
         {
-          "line": 249,
+          "line": 390,
           "declaration_label": "##source"
         },
         {
-          "line": 252,
+          "line": 394,
           "declaration_label": "Browse..."
         },
         {
-          "line": 256,
+          "line": 398,
           "declaration_label": "##field"
         },
         {
-          "line": 257,
+          "line": 399,
           "declaration_label": "Select numeric column"
         },
         {
-          "line": 258,
+          "line": 400,
           "declaration_label": "##column"
         },
         {
-          "line": 264,
+          "line": 406,
           "declaration_label": "Use active cell"
         },
         {
-          "line": 268,
+          "line": 410,
           "declaration_label": "Use active structure"
         },
         {
-          "line": 290,
+          "line": 432,
           "declaration_label": "Use loaded trajectory"
         },
         {
-          "line": 301,
+          "line": 443,
           "declaration_label": "##potential"
         },
         {
-          "line": 303,
+          "line": 445,
           "declaration_label": "Browse potential..."
         },
         {
-          "line": 306,
+          "line": 448,
           "declaration_label": "Table format"
         },
         {
-          "line": 312,
+          "line": 454,
           "declaration_label": "Well depth epsilon (eV)"
         },
         {
-          "line": 313,
+          "line": 455,
           "declaration_label": "Zero-crossing sigma (Angstrom)"
         },
         {
-          "line": 314,
+          "line": 456,
           "declaration_label": "Cutoff (Angstrom)"
         },
         {
-          "line": 319,
+          "line": 461,
           "declaration_label": "##value"
         },
         {
-          "line": 329,
+          "line": 471,
           "declaration_label": "Run calculation"
         },
         {
-          "line": 380,
+          "line": 524,
           "declaration_label": "Results"
         },
         {
-          "line": 383,
+          "line": 527,
           "declaration_label": "Save results..."
         },
         {
-          "line": 386,
+          "line": 531,
+          "declaration_label": "Save generated files..."
+        },
+        {
+          "line": 535,
           "declaration_label": "Save structures..."
         },
         {
-          "line": 387,
+          "line": 536,
           "declaration_label": "Open final structure in a new tab"
         },
         {
-          "line": 398,
+          "line": 547,
           "declaration_label": "##property"
         },
         {
-          "line": 406,
+          "line": 555,
           "declaration_label": "Colour atoms in the view"
         },
         {
-          "line": 415,
+          "line": 564,
           "declaration_label": "Export plot data..."
         },
         {
-          "line": 430,
+          "line": 579,
           "declaration_label": "Method"
         }
       ]
     },
     {
       "source": "src/ui/ScientificToolsDialog.h",
-      "sha256": "705ccbf2e37a8b242ef22101de3d502d9e4fdd03137fc77544934294af70d777",
+      "sha256": "dbb4b60f808f9a419234d41cd23edbe049bab0ed200fc841db3614d175620e21",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -4377,41 +4462,53 @@
     },
     {
       "source": "src/ui/TrajectoryDialog.cpp",
-      "sha256": "e1d28a723e172c7ca2a50db12fbb9b145df0822513e9cc4dab0e9b5d0a707956",
+      "sha256": "74e2663ac15321b63bd4aaac7b9f2cf3097379ecfb5ec81d0a447d20b3c9272e",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": [
         {
-          "line": 11,
+          "line": 12,
           "declaration_label": "Trajectory playback"
         },
         {
-          "line": 30,
+          "line": 83,
           "declaration_label": "Open trajectory..."
         },
         {
-          "line": 32,
+          "line": 85,
           "declaration_label": "Cancel"
         },
         {
-          "line": 36,
+          "line": 90,
           "declaration_label": "First frame"
         },
         {
-          "line": 38,
+          "line": 92,
           "declaration_label": "##frame"
         },
         {
-          "line": 40,
+          "line": 94,
           "declaration_label": "##fps"
+        },
+        {
+          "line": 98,
+          "declaration_label": "##gifstride"
+        },
+        {
+          "line": 100,
+          "declaration_label": "Export GIF..."
+        },
+        {
+          "line": 104,
+          "declaration_label": "Stop export"
         }
       ]
     },
     {
       "source": "src/ui/TrajectoryDialog.h",
-      "sha256": "ec0edb067db2a1925ddfd9f1471eb508802db57f39e1139c233b7967b78ce8bf",
+      "sha256": "f07577260998ac5471b08d604a1ad2b7ebbd07a29d6d67775316ea16e88d3e64",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"

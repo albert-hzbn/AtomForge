@@ -28,6 +28,10 @@ public:
     using ColourAtoms = std::function<void(const std::string&, const std::vector<double>&)>;
     void draw(const Structure& structure, const std::function<void(Structure&)>& loadResult,
               const ColourAtoms& colourAtoms = {});
+    // Selected tool, inputs and last result as JSON text, for project files.
+    std::string snapshot() const;
+    // Restores a snapshot(); empty text keeps the current state.
+    void restore(const std::string& state);
 private:
     struct Field {
         std::array<char, 8192> value{};
@@ -47,7 +51,8 @@ private:
     };
     struct Result { std::filesystem::path output; std::string report; std::filesystem::path structures;
                     std::vector<atomforge::science::PlotSpec> plots;
-                    std::vector<atomforge::science::AtomProperty> properties; };
+                    std::vector<atomforge::science::AtomProperty> properties;
+                    std::vector<std::pair<std::string, std::string>> files; };
     void selectTool(int index);
     bool m_open = false;
     bool m_showResults = false;

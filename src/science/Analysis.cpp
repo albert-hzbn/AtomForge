@@ -422,6 +422,89 @@ Json localStrain(const Parameters& p)
     return result;
 }
 
+int acklandJonesType(std::vector<Vec3> bonds)
+{
+    // Ackland and Jones, Phys. Rev. B 73, 054104 (2006); types 0 other,
+    // 1 fcc, 2 hcp, 3 bcc, 4 icosahedral.
+    if (bonds.size() < 6) return 0;
+    std::sort(bonds.begin(), bonds.end(), [](const Vec3& a, const Vec3& b) { return dot(a, a) < dot(b, b); });
+    double r0 = 0;
+    for (std::size_t k = 0; k < 6; ++k) r0 += dot(bonds[k], bonds[k]);
+    r0 /= 6;
+    std::vector<Vec3> shell;
+    int n1 = 0;
+    for (const auto& b : bonds) {
+        const double r2 = dot(b, b);
+        if (r2 < 1.45 * r0) shell.push_back(b);
+        if (r2 < 1.55 * r0) ++n1;
+    }
+    int chi[8] = {};
+    for (std::size_t j = 0; j < shell.size(); ++j)
+        for (std::size_t k = j + 1; k < shell.size(); ++k) {
+            const double c = dot(shell[j], shell[k]) / (norm(shell[j]) * norm(shell[k]));
+            int bin = 7;
+            if (c < -0.945) bin = 0;
+            else if (c < -0.915) bin = 1;
+            else if (c < -0.755) bin = 2;
+            else if (c < -0.195) bin = 3;
+            else if (c < 0.195) bin = 4;
+            else if (c < 0.245) bin = 5;
+            else if (c < 0.795) bin = 6;
+            ++chi[bin];
+        }
+    const double cp = std::abs(1.0 - chi[6] / 24.0);
+    const double bcc = chi[5] + chi[6] - chi[4] != 0 ? 0.35 * chi[4] / (chi[5] + chi[6] - chi[4]) : HUGE_VAL;
+    const double fcc = 0.61 * (std::abs(chi[0] + chi[1] - 6.0) + chi[2]) / 6.0;
+    const double hcp = (std::abs(chi[0] - 3.0) + std::abs(chi[0] + chi[1] + chi[2] + chi[3] - 9.0)) / 12.0;
+    double deltaBcc = bcc, deltaFcc = fcc, deltaHcp = hcp;
+    if (chi[0] == 7) deltaBcc = 0;
+    else if (chi[0] == 6) deltaFcc = 0;
+    else if (chi[0] <= 3) deltaHcp = 0;
+    if (chi[7] > 0) return 0;
+    if (chi[4] < 3) return (n1 > 13 || n1 < 11) ? 0 : 4;
+    if (deltaBcc <= cp) return n1 < 11 ? 0 : 3;
+    if (n1 > 12 || n1 < 11) return 0;
+    return deltaFcc < deltaHcp ? 1 : 2;
+}
+
+Json structureType(const Parameters& p)
+{
+    const auto positions = points(p.array("positions"), "positions");
+    const Pbc pbc = p.pbc("pbc", {false, false, false});
+    double cutoff = p.number("cutoff_A", 0.0);
+    if (cutoff <= 0) {
+        // Automatic: three Wigner-Seitz radii covers the second bcc shell.
+        if (!p.has("cell")) throw std::runtime_error("Set cutoff_A for structures without a cell");
+        const double volume = cellVolume(cellMatrix(p.array("cell"))) / static_cast<double>(positions.size());
+        cutoff = 3.0 * std::cbrt(3 * volume / (4 * kPi));
+    }
+    Mat3 cell{};
+    const auto neighbors = localNeighbors(positions, cutoff, p, "cell", pbc, cell);
+    const auto groups = byCenter(neighbors, positions.size());
+    static const char* names[] = {"other", "fcc", "hcp", "bcc", "icosahedral"};
+    std::vector<int> types(positions.size(), 0);
+    int counts[5] = {};
+    for (std::size_t i = 0; i < positions.size(); ++i) {
+        if (i % 256 == 0) taskProgress(static_cast<double>(i) / static_cast<double>(positions.size()));
+        std::vector<Vec3> bonds;
+        for (std::size_t g : groups[i]) bonds.push_back(neighbors[g].vector);
+        types[i] = acklandJonesType(bonds);
+        ++counts[types[i]];
+    }
+    Json result = Json::object();
+    result["structure_type"] = toJson(types);
+    result["type_names"] = Json::array({"other", "fcc", "hcp", "bcc", "icosahedral"});
+    Json countJson = Json::object(), fractions = Json::object();
+    for (int t = 0; t < 5; ++t) {
+        countJson[names[t]] = counts[t];
+        fractions[names[t]] = positions.empty() ? 0.0 : static_cast<double>(counts[t]) / static_cast<double>(positions.size());
+    }
+    result["counts"] = countJson;
+    result["fractions"] = fractions;
+    result["cutoff_A"] = cutoff;
+    return result;
+}
+
 Json centrosymmetry(const Parameters& p)
 {
     const long long neighborCount = integer(p.number("neighbors", 12), "neighbors", 2);

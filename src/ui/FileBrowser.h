@@ -116,6 +116,8 @@ struct FileBrowser
     ProjectRequest drawProjectPicker();
     bool workspaceBusy() const { return electronicDialog.busy(); }
     bool trajectoryPlaying() const { return trajectoryDialog.isPlaying(); }
+    bool trajectoryGifCapturePending() const { return trajectoryDialog.gifCapturePending(); }
+    void addTrajectoryGifFrame(const std::vector<unsigned char>& rgba, int width, int height) { trajectoryDialog.addGifFrame(rgba, width, height); }
     bool autosaveEnabled=true;
 
     // Initialize browser state from a starting path.

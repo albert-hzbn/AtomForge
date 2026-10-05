@@ -6,7 +6,9 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
+#include <iomanip>
 #include <map>
+#include <sstream>
 #include <stdexcept>
 
 #ifdef ATOMS_ENABLE_SPGLIB
@@ -380,5 +382,82 @@ ToolOutput reciprocalPath(const StructureInput& input, double spacing, double sy
     output.result = result;
     return output;
 #endif
+}
+
+ToolOutput dftInputs(const StructureInput& structure, int pointsPerSegment, double symprecA, bool timeReversal)
+{
+    if (pointsPerSegment < 2 || pointsPerSegment > 1000) throw std::runtime_error("points_per_segment must be between 2 and 1000");
+    ToolOutput path = reciprocalPath(structure, 0.05, symprecA, timeReversal);
+    const Structure& primitive = path.frames.front();
+    const Json& special = path.result.at("special_points_fractional");
+    std::vector<std::pair<std::string, std::string>> segments;
+    for (const auto& segment : path.result.at("path").items())
+        segments.push_back({segment.items()[0].string(), segment.items()[1].string()});
+    auto coordinate = [&](const std::string& label) -> const Json& { return special.at(label); };
+    auto qeLabel = [](std::string label) { return label == "GAMMA" ? std::string("G") : label; };
+    std::ostringstream kpoints, poscar, qe;
+    kpoints << std::setprecision(10) << std::fixed;
+    poscar << std::setprecision(12) << std::fixed;
+    qe << std::setprecision(10) << std::fixed;
+    const std::string title = "HPKOT path, space group " + path.result.at("spacegroup_symbol").string() + " (" +
+                              std::to_string(static_cast<int>(path.result.at("spacegroup_number").number())) + ")";
+    kpoints << title << "\n" << pointsPerSegment << "\nLine-mode\nReciprocal\n";
+    for (std::size_t s = 0; s < segments.size(); ++s) {
+        if (s) kpoints << "\n";
+        for (const auto& label : {segments[s].first, segments[s].second}) {
+            const auto& k = coordinate(label).items();
+            kpoints << k[0].number() << ' ' << k[1].number() << ' ' << k[2].number() << " ! " << (label == "GAMMA" ? std::string("\\Gamma") : label) << "\n";
+        }
+    }
+    // POSCAR (VASP 5), species grouped in order of first appearance.
+    std::vector<std::string> species;
+    for (const auto& atom : primitive.atoms)
+        if (std::find(species.begin(), species.end(), atom.symbol) == species.end()) species.push_back(atom.symbol);
+    poscar << title << "\n1.0\n";
+    for (const auto& row : primitive.cellVectors) poscar << "  " << row[0] << ' ' << row[1] << ' ' << row[2] << "\n";
+    for (const auto& s : species) poscar << ' ' << s;
+    poscar << "\n";
+    for (const auto& s : species) poscar << ' ' << std::count_if(primitive.atoms.begin(), primitive.atoms.end(), [&](const AtomSite& a) { return a.symbol == s; });
+    poscar << "\nDirect\n";
+    Mat3 cell{};
+    for (int r = 0; r < 3; ++r) cell[r] = primitive.cellVectors[r];
+    for (const auto& s : species)
+        for (const auto& atom : primitive.atoms)
+            if (atom.symbol == s) {
+                const Vec3 f = fractional({atom.x, atom.y, atom.z}, cell);
+                poscar << "  " << f[0] << ' ' << f[1] << ' ' << f[2] << "\n";
+            }
+    // Quantum ESPRESSO: a point weight is the number of steps to the next point; 1 jumps.
+    std::vector<std::pair<std::string, int>> sequence;
+    for (std::size_t s = 0; s < segments.size(); ++s) {
+        if (sequence.empty() || sequence.back().first != segments[s].first) {
+            if (!sequence.empty()) sequence.back().second = 1;
+            sequence.push_back({segments[s].first, pointsPerSegment});
+        } else sequence.back().second = pointsPerSegment;
+        sequence.push_back({segments[s].second, 1});
+    }
+    qe << "CELL_PARAMETERS angstrom\n";
+    for (const auto& row : primitive.cellVectors) qe << "  " << row[0] << ' ' << row[1] << ' ' << row[2] << "\n";
+    qe << "ATOMIC_SPECIES\n";
+    for (const auto& s : species) qe << "  " << s << ' ' << atomicMass(s) << ' ' << s << ".UPF\n";
+    qe << "ATOMIC_POSITIONS crystal\n";
+    for (const auto& atom : primitive.atoms) {
+        const Vec3 f = fractional({atom.x, atom.y, atom.z}, cell);
+        qe << "  " << atom.symbol << ' ' << f[0] << ' ' << f[1] << ' ' << f[2] << "\n";
+    }
+    qe << "K_POINTS crystal_b\n" << sequence.size() << "\n";
+    for (const auto& [label, weight] : sequence) {
+        const auto& k = coordinate(label).items();
+        qe << "  " << k[0].number() << ' ' << k[1].number() << ' ' << k[2].number() << ' ' << weight << " ! " << qeLabel(label) << "\n";
+    }
+    Json files = Json::object();
+    files["KPOINTS"] = kpoints.str();
+    files["POSCAR"] = poscar.str();
+    files["qe_band_cards.in"] = qe.str();
+    Json result = path.result;
+    result["points_per_segment"] = pointsPerSegment;
+    result["files"] = files;
+    path.result = result;
+    return path;
 }
 }

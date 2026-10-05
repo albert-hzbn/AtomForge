@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 
 #include <string>
+#include <vector>
 
 struct Renderer;
 struct ShadowMap;
@@ -21,6 +22,19 @@ struct ImageExportView
     glm::vec3 lightPosition = glm::vec3(0.0f);
     glm::vec3 cameraPosition = glm::vec3(0.0f);
 };
+
+// Renders the scene off-screen into RGBA pixels (rows top to bottom), as used
+// for raster image export; GIF animation frames are captured this way.
+bool renderSceneToRgba(const ImageExportView& view,
+                       const glm::vec4& backgroundColor,
+                       bool showBonds,
+                       bool showAtoms,
+                       bool showBoundingBox,
+                       const SceneBuffers& sceneBuffers,
+                       Renderer& renderer,
+                       const ShadowMap& shadow,
+                       std::vector<unsigned char>& rgbaPixels,
+                       std::string& errorMessage);
 
 bool exportStructureImage(const ImageExportRequest& request,
                           const ImageExportView& view,

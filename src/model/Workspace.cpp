@@ -26,6 +26,7 @@ class Archive
 public:
     explicit Archive(std::istream& input, std::uint64_t bytes) : in(&input), remaining(bytes) {}
     explicit Archive(std::ostream& output) : out(&output) {}
+    int version = 2;
     bool reading() const { return in != nullptr; }
     void bytes(char* data, std::size_t count)
     {
@@ -56,10 +57,10 @@ public:
     void value(float& number) { double copy=number; value(copy); if (in) number=static_cast<float>(copy); if (!std::isfinite(number)) throw std::runtime_error("Float out of range"); }
     void value(int& number) { double copy=number; value(copy); if (copy!=std::floor(copy) || copy<std::numeric_limits<int>::min() || copy>std::numeric_limits<int>::max()) throw std::runtime_error("Invalid project integer"); if (in) number=static_cast<int>(copy); }
     void value(bool& number) { int copy=number; value(copy); if (copy!=0 && copy!=1) throw std::runtime_error("Invalid project boolean"); if (in) number=copy!=0; }
-    void value(std::string& text)
+    void value(std::string& text, std::uint64_t limit=1048576)
     {
         std::uint64_t count=text.size(); value(count);
-        if (count>1048576 || (in && count>remaining)) throw std::runtime_error("Project string too large");
+        if (count>limit || (in && count>remaining)) throw std::runtime_error("Project string too large");
         if (in) text.resize(static_cast<std::size_t>(count));
         bytes(text.data(),text.size());
     }
@@ -108,6 +109,17 @@ public:
         value(w.structure); value(w.volume); value(w.reference); value(w.surface);
         value(w.table); value(w.columns); value(w.heading); value(w.settings); value(w.sliceSettings); value(w.camera);
         value(w.sourcePath); value(w.referencePath); value(w.title); value(w.history);
+        if (version>=2) {
+            value(w.science,1ull<<30);
+            // Per-atom values may be NaN where a property is undefined, so they are stored bit-exact.
+            std::uint64_t count=w.structure.atomProperty.size(); value(count);
+            if (count!=0 && count!=w.structure.atoms.size()) throw std::runtime_error("Misaligned project atom property");
+            if (in) w.structure.atomProperty.resize(static_cast<std::size_t>(count));
+            for (double& number:w.structure.atomProperty) {
+                std::uint64_t bits=0; std::memcpy(&bits,&number,8); value(bits); if (in) std::memcpy(&number,&bits,8);
+            }
+            value(w.structure.atomPropertyName);
+        }
         if (!w.camera.empty() && w.camera.size()!=7) throw std::runtime_error("Invalid project camera");
         for (double coordinate:w.camera)
             if (std::abs(coordinate)>1e9) throw std::runtime_error("Project camera outside supported range");
@@ -121,16 +133,18 @@ private:
 };
 }
 
-void saveWorkspace(const std::vector<Workspace>& tabs,const std::string& filename)
+void saveWorkspace(const std::vector<Workspace>& tabs,const std::string& filename,int formatVersion)
 {
     if (tabs.empty() || tabs.size()>1000) throw std::runtime_error("A project requires 1-1000 tabs");
+    if (formatVersion!=1 && formatVersion!=2) throw std::runtime_error("Unsupported project format");
     const auto path=std::filesystem::u8path(filename);
     auto temporary=path;
     temporary += ".tmp-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
     try {
         std::ofstream stream(temporary,std::ios::binary);
         Archive archive(static_cast<std::ostream&>(stream));
-        std::string magic="ATOMFORGE_PROJECT_1"; archive.value(magic);
+        archive.version=formatVersion;
+        std::string magic="ATOMFORGE_PROJECT_"+std::to_string(formatVersion); archive.value(magic);
         // The serializer does not mutate values while writing.
         auto& data=const_cast<std::vector<Workspace>&>(tabs);
         archive.value(data);
@@ -155,7 +169,8 @@ std::vector<Workspace> loadWorkspace(const std::string& filename)
     std::ifstream stream(path,std::ios::binary);
     Archive archive(stream,size);
     std::string magic; archive.value(magic);
-    if (magic!="ATOMFORGE_PROJECT_1") throw std::runtime_error("Unsupported project version");
+    if (magic=="ATOMFORGE_PROJECT_1") archive.version=1;
+    else if (magic!="ATOMFORGE_PROJECT_2") throw std::runtime_error("Unsupported project version (saved by a newer AtomForge?)");
     std::uint64_t count=0; archive.value(count);
     if (count==0 || count>1000) throw std::runtime_error("Invalid project tab count");
     std::vector<Workspace> result(static_cast<std::size_t>(count));

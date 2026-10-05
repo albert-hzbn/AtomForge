@@ -51,7 +51,6 @@ add_test(NAME babel_reference_regressions COMMAND atomforge_babel_reference_test
 
 add_executable(atomforge_nye_tensor_tests
     ${PROJECT_SOURCE_DIR}/tests/nye_tensor_regressions.cpp
-    ${PROJECT_SOURCE_DIR}/src/algorithms/NyeTensor.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/DislocationBuilder.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/StackingFaultBuilder.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/AnisotropicDislocation.cpp
@@ -59,7 +58,7 @@ add_executable(atomforge_nye_tensor_tests
     ${PROJECT_SOURCE_DIR}/src/graphics/StructureInstanceBuilder.cpp
     ${PROJECT_SOURCE_DIR}/src/util/ElementData.cpp)
 target_include_directories(atomforge_nye_tensor_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
-target_link_libraries(atomforge_nye_tensor_tests PRIVATE AtomForge::Core)
+target_link_libraries(atomforge_nye_tensor_tests PRIVATE atomforge_science)
 if(TARGET PkgConfig::SPGLIB)
     target_compile_definitions(atomforge_nye_tensor_tests PRIVATE ATOMS_ENABLE_SPGLIB)
     target_link_libraries(atomforge_nye_tensor_tests PRIVATE PkgConfig::SPGLIB)
@@ -99,8 +98,6 @@ add_test(NAME drag_prep_regressions COMMAND atomforge_drag_prep_tests)
 
 add_executable(atomforge_dislocation_fit_tests
     ${PROJECT_SOURCE_DIR}/tests/dislocation_fit_regressions.cpp
-    ${PROJECT_SOURCE_DIR}/src/algorithms/DislocationFit.cpp
-    ${PROJECT_SOURCE_DIR}/src/algorithms/NyeTensor.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/DislocationBuilder.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/StackingFaultBuilder.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/AnisotropicDislocation.cpp
@@ -108,7 +105,7 @@ add_executable(atomforge_dislocation_fit_tests
     ${PROJECT_SOURCE_DIR}/src/graphics/StructureInstanceBuilder.cpp
     ${PROJECT_SOURCE_DIR}/src/util/ElementData.cpp)
 target_include_directories(atomforge_dislocation_fit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
-target_link_libraries(atomforge_dislocation_fit_tests PRIVATE AtomForge::Core)
+target_link_libraries(atomforge_dislocation_fit_tests PRIVATE atomforge_science)
 if(TARGET PkgConfig::SPGLIB)
     target_compile_definitions(atomforge_dislocation_fit_tests PRIVATE ATOMS_ENABLE_SPGLIB)
     target_link_libraries(atomforge_dislocation_fit_tests PRIVATE PkgConfig::SPGLIB)
@@ -151,6 +148,22 @@ if(TARGET AtomForge)
         target_link_libraries(atomforge_lattice_family_tests PRIVATE PkgConfig::SPGLIB)
     endif()
     add_test(NAME lattice_family_regressions COMMAND atomforge_lattice_family_tests)
+
+    add_executable(atomforge_dislocation_lines_tests
+        ${PROJECT_SOURCE_DIR}/tests/dislocation_lines_regressions.cpp
+        ${PROJECT_SOURCE_DIR}/src/algorithms/DislocationBuilder.cpp
+        ${PROJECT_SOURCE_DIR}/src/algorithms/StackingFaultBuilder.cpp
+        ${PROJECT_SOURCE_DIR}/src/algorithms/AnisotropicDislocation.cpp
+        ${PROJECT_SOURCE_DIR}/src/algorithms/ElasticConstants.cpp
+        ${PROJECT_SOURCE_DIR}/src/graphics/StructureInstanceBuilder.cpp)
+    target_include_directories(atomforge_dislocation_lines_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    target_link_libraries(atomforge_dislocation_lines_tests PRIVATE atomforge_science)
+    if(TARGET PkgConfig::SPGLIB)
+        target_compile_definitions(atomforge_dislocation_lines_tests PRIVATE ATOMS_ENABLE_SPGLIB)
+        target_link_libraries(atomforge_dislocation_lines_tests PRIVATE PkgConfig::SPGLIB)
+    endif()
+    add_test(NAME dislocation_lines_regressions COMMAND atomforge_dislocation_lines_tests)
+    set_tests_properties(dislocation_lines_regressions PROPERTIES TIMEOUT 300)
 
     add_executable(atomforge_builder_tools_tests
         ${PROJECT_SOURCE_DIR}/tests/builder_tools_regressions.cpp

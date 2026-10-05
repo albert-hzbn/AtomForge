@@ -10,7 +10,18 @@ add_library(atomforge_science STATIC
     ${PROJECT_SOURCE_DIR}/src/science/ReciprocalPath.cpp
     ${PROJECT_SOURCE_DIR}/src/science/ScienceTools.cpp
     ${PROJECT_SOURCE_DIR}/src/science/ResultPlots.cpp
-    ${PROJECT_SOURCE_DIR}/src/science/AtomProperties.cpp)
+    ${PROJECT_SOURCE_DIR}/src/science/AtomProperties.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/Phonons.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/DislocationLines.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/Clusters.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/Diffraction.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/VaspElectronic.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/Batch.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/LammpsExport.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/GifWriter.cpp
+    # Nye-tensor algorithms shared with the desktop dislocation tools.
+    ${PROJECT_SOURCE_DIR}/src/algorithms/NyeTensor.cpp
+    ${PROJECT_SOURCE_DIR}/src/algorithms/DislocationFit.cpp)
 target_link_libraries(atomforge_science PUBLIC AtomForge::Core)
 target_compile_options(atomforge_science PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall;-Wextra;-Wpedantic;-Wshadow>)

@@ -26,6 +26,31 @@ void writeText(const std::filesystem::path& path, const std::string& text)
     if (!output) throw std::runtime_error("Cannot save " + path.u8string());
 }
 
+std::string readText(const std::filesystem::path& path)
+{
+    std::ifstream input(path, std::ios::binary);
+    if (!input) throw std::runtime_error("Cannot read " + path.u8string());
+    std::ostringstream text;
+    text << input.rdbuf();
+    return text.str();
+}
+
+std::filesystem::path newRunDirectory()
+{
+    const auto directory = std::filesystem::temp_directory_path() / "AtomForge-science" /
+        ("run-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(directory);
+    return directory;
+}
+
+std::vector<std::pair<std::string, std::string>> generatedFiles(const Json& result)
+{
+    std::vector<std::pair<std::string, std::string>> files;
+    if (const Json* generated = result.find("files"); generated && generated->isObject())
+        for (const auto& [name, text] : generated->members()) files.push_back({name, text.string()});
+    return files;
+}
+
 // Large structures go through a file, avoiding a fixed-size text buffer.
 std::string saveActiveStructure(const Structure& structure)
 {
@@ -76,14 +101,129 @@ void ScientificToolsDialog::selectTool(int index)
         Field field;
         std::snprintf(field.value.data(), field.value.size(), "%s", parameter.value);
         field.enabled = parameter.required || parameter.value[0] != '\0';
-        field.useFile = (std::strcmp(parameter.kind, "data") == 0 ||
-                         std::strcmp(parameter.kind, "structure") == 0) && parameter.value[0] == '\0';
+        field.useFile = ((std::strcmp(parameter.kind, "data") == 0 ||
+                          std::strcmp(parameter.kind, "structure") == 0) && parameter.value[0] == '\0') ||
+                        std::strcmp(parameter.kind, "file") == 0;
         m_fields.push_back(field);
     }
     m_error.clear();
     m_result = {};
     m_showInputs = true;
     m_showResults = false;
+}
+
+std::string ScientificToolsDialog::snapshot() const
+{
+    Json state = Json::object();
+    state["open"] = m_open;
+    if (m_tool < 0) return state.dump();
+    state["tool"] = scienceToolCatalog()[static_cast<std::size_t>(m_tool)].id;
+    Json fields = Json::array();
+    for (const auto& field : m_fields) {
+        Json item = Json::object();
+        item["value"] = std::string(field.value.data());
+        item["enabled"] = field.enabled;
+        item["path"] = field.path;
+        item["use_file"] = field.useFile;
+        item["select_column"] = field.selectColumn;
+        item["column"] = field.column;
+        item["field"] = std::string(field.field.data());
+        item["potential"] = field.potential;
+        item["epsilon"] = field.epsilon;
+        item["sigma"] = field.sigma;
+        item["cutoff"] = field.cutoff;
+        item["potential_file"] = field.potentialFile;
+        item["eam_format"] = field.eamFormat;
+        fields.push(item);
+    }
+    state["fields"] = fields;
+    // Results live in temporary files; they are embedded so the project is self-contained.
+    try {
+        if (!m_result.output.empty()) {
+            Json document = Json::parse(readText(m_result.output));
+            Json frames;
+            if (!m_result.structures.empty()) frames = readText(m_result.structures);
+            state["result"] = document;
+            state["frames"] = frames;
+            state["property"] = m_property;
+        }
+    } catch (const std::exception&) {
+        // Temporary result files removed outside AtomForge: save the inputs only.
+    }
+    return state.dump();
+}
+
+void ScientificToolsDialog::restore(const std::string& text)
+{
+    if (text.empty() || m_task.running()) return;
+    try {
+        const Json state = Json::parse(text);
+        const Json* tool = state.find("tool");
+        const auto& catalog = scienceToolCatalog();
+        int index = -1;
+        for (std::size_t i = 0; tool && tool->isString() && i < catalog.size(); ++i)
+            if (tool->string() == catalog[i].id) index = static_cast<int>(i);
+        if (index < 0) { m_open = false; m_tool = -1; m_result = {}; return; }
+        selectTool(index);
+        const auto copyText = [](auto& buffer, const Json* value) {
+            if (value && value->isString()) std::snprintf(buffer.data(), buffer.size(), "%s", value->string().c_str());
+        };
+        const auto number = [](const Json& item, const char* key, double fallback) {
+            const Json* value = item.find(key);
+            return value && value->isNumber() ? value->number() : fallback;
+        };
+        const auto flag = [](const Json& item, const char* key, bool fallback) {
+            const Json* value = item.find(key);
+            return value && value->isBool() ? value->boolean() : fallback;
+        };
+        const auto string = [](const Json& item, const char* key) {
+            const Json* value = item.find(key);
+            return value && value->isString() ? value->string() : std::string();
+        };
+        // Inputs are restored only when the tool still has the same parameters.
+        if (const Json* fields = state.find("fields"); fields && fields->isArray() && fields->size() == m_fields.size()) {
+            for (std::size_t i = 0; i < m_fields.size(); ++i) {
+                const Json& item = fields->items()[i];
+                if (!item.isObject()) continue;
+                auto& field = m_fields[i];
+                copyText(field.value, item.find("value"));
+                field.enabled = flag(item, "enabled", field.enabled);
+                field.path = string(item, "path");
+                field.useFile = flag(item, "use_file", field.useFile);
+                field.selectColumn = flag(item, "select_column", false);
+                field.column = static_cast<int>(number(item, "column", 0));
+                copyText(field.field, item.find("field"));
+                field.potential = static_cast<int>(number(item, "potential", 0));
+                field.epsilon = number(item, "epsilon", field.epsilon);
+                field.sigma = number(item, "sigma", field.sigma);
+                field.cutoff = number(item, "cutoff", field.cutoff);
+                field.potentialFile = string(item, "potential_file");
+                field.eamFormat = static_cast<int>(number(item, "eam_format", 0));
+            }
+        }
+        if (const Json* document = state.find("result"); document && document->isObject() && document->contains("result")) {
+            const auto directory = newRunDirectory();
+            const auto resultPath = directory / "result.json";
+            writeText(resultPath, document->dump(2) + "\n");
+            std::filesystem::path structures;
+            if (const Json* frames = state.find("frames"); frames && frames->isString() && !frames->string().empty()) {
+                structures = directory / "frames.extxyz";
+                writeText(structures, frames->string());
+            }
+            const std::string id = catalog[static_cast<std::size_t>(index)].id;
+            const Json& result = document->at("result");
+            m_result = Result{resultPath, atomforge::science::resultReport(id, result), structures,
+                              atomforge::science::resultPlots(id, result),
+                              atomforge::science::perAtomProperties(id, result),
+                              generatedFiles(result)};
+            m_property = static_cast<int>(number(state, "property", 0));
+        }
+        m_open = flag(state, "open", false);
+        m_showInputs = false;
+        m_showResults = !m_result.output.empty();
+    } catch (const std::exception& error) {
+        m_error = std::string("Saved scientific tool state could not be restored: ") + error.what();
+    }
 }
 
 void ScientificToolsDialog::drawMenuItems(const char* category)
@@ -179,7 +319,7 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
             const std::string kind = parameter.kind;
             const bool optional = !parameter.required && parameter.value[0] == '\0';
             const int fieldSection = optional ? 2 :
-                ((kind == "data" || kind == "structure" || kind == "calculator") ? 0 : 1);
+                ((kind == "data" || kind == "structure" || kind == "calculator" || kind == "file") ? 0 : 1);
             if (fieldSection != section) continue;
             if (!headingShown) {
                 ImGui::SeparatorText(sections[section]);
@@ -243,10 +383,12 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
                 ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(340)));
                 ImGui::InputText("##number", field.value.data(), field.value.size(), ImGuiInputTextFlags_CharsScientific);
             } else {
-                if (kind == "data" || kind == "structure") {
+                if (kind == "data" || kind == "structure" || kind == "file") {
                     int source = field.useFile ? 0 : 1;
-                    ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(170)));
-                    if (ImGui::Combo("##source", &source, "Load from file\0Enter values\0")) field.useFile = source == 0;
+                    if (kind != "file") {
+                        ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(170)));
+                        if (ImGui::Combo("##source", &source, "Load from file\0Enter values\0")) field.useFile = source == 0;
+                    }
                     if (field.useFile) {
                         if (ImGui::GetContentRegionAvail().x > responsive::dp(320)) ImGui::SameLine();
                         if (responsive::button("Browse...")) { m_pickerTarget = static_cast<int>(i); m_picker.open(parameter.label, false, field.path); }
@@ -346,13 +488,14 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
                     } else {
                         const std::string value = field.value.data();
                         if (value.find_first_not_of(" \t\r\n") == std::string::npos) throw std::runtime_error("Provide " + std::string(parameter.label));
-                        try { request[parameter.name] = Json::parse(value); }
+                        // Plain text (e.g. an element symbol) is accepted without JSON quotes.
+                        if (kind == "string" && value.find_first_not_of(" \t") != std::string::npos && value[value.find_first_not_of(" \t")] != '"')
+                            request[parameter.name] = value.substr(value.find_first_not_of(" \t"), value.find_last_not_of(" \t\r\n") - value.find_first_not_of(" \t") + 1);
+                        else try { request[parameter.name] = Json::parse(value); }
                         catch (const std::exception& error) { throw std::runtime_error(std::string(parameter.label) + ": " + error.what()); }
                     }
                 }
-                const auto directory = std::filesystem::temp_directory_path() / "AtomForge-science" /
-                    ("run-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-                std::filesystem::create_directories(directory);
+                const auto directory = newRunDirectory();
                 const std::string id = tool.id;
                 m_error.clear();
                 m_result = {};
@@ -370,7 +513,8 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
                     return Result{resultPath, atomforge::science::resultReport(id, output.result),
                                   output.frames.empty() ? std::filesystem::path{} : structures,
                                   atomforge::science::resultPlots(id, output.result),
-                                  atomforge::science::perAtomProperties(id, output.result)};
+                                  atomforge::science::perAtomProperties(id, output.result),
+                                  generatedFiles(output.result)};
                 });
             } catch (const std::exception& error) { m_error = error.what(); }
         }
@@ -381,6 +525,11 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
         m_showResults = false;
         if (!m_result.output.empty()) {
             if (responsive::button("Save results...")) { m_pickerTarget = -3; m_picker.open("Save scientific results", true, "analysis.json"); }
+            if (!m_result.files.empty()) {
+                if (ImGui::GetContentRegionAvail().x > responsive::dp(520)) ImGui::SameLine();
+                // The chosen file's folder receives every generated file.
+                if (responsive::button("Save generated files...")) { m_pickerTarget = -5; m_picker.open("Choose the folder (save as the first file)", true, m_result.files.front().first); }
+            }
             if (!m_result.structures.empty()) {
                 if (ImGui::GetContentRegionAvail().x > responsive::dp(520)) ImGui::SameLine();
                 if (responsive::button("Save structures...")) { m_pickerTarget = -4; m_picker.open("Save result structures or trajectory", true, "frames.extxyz"); }
@@ -437,7 +586,10 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
         }
         if (auto path = m_picker.draw()) {
             try {
-                if (m_pickerTarget == -3) std::filesystem::copy_file(m_result.output, std::filesystem::u8path(*path), std::filesystem::copy_options::overwrite_existing);
+                if (m_pickerTarget == -5) {
+                    const auto folder = std::filesystem::u8path(*path).parent_path();
+                    for (const auto& [name, text] : m_result.files) writeText(folder / std::filesystem::u8path(name), text);
+                } else if (m_pickerTarget == -3) std::filesystem::copy_file(m_result.output, std::filesystem::u8path(*path), std::filesystem::copy_options::overwrite_existing);
                 else if (m_pickerTarget <= -10 && m_pickerTarget > -100 && static_cast<std::size_t>(-10 - m_pickerTarget) < m_result.plots.size())
                     writeText(std::filesystem::u8path(*path), atomforge::science::plotCsv(m_result.plots[static_cast<std::size_t>(-10 - m_pickerTarget)]));
                 else if (m_pickerTarget == -4) std::filesystem::copy_file(m_result.structures, std::filesystem::u8path(*path), std::filesystem::copy_options::overwrite_existing);

@@ -146,11 +146,9 @@ set(ATOMFORGE_SOURCES
     src/algorithms/DislocationBuilder.cpp
     src/algorithms/ElasticConstants.cpp
     src/algorithms/AnisotropicDislocation.cpp
-    src/algorithms/NyeTensor.cpp
     src/algorithms/VitekMap.cpp
     src/algorithms/PatternMatch.cpp
     src/algorithms/DragPrep.cpp
-    src/algorithms/DislocationFit.cpp
     src/algorithms/StackingFaultBuilder.cpp
     src/algorithms/VacancyBuilder.cpp
     src/algorithms/StrainTool.cpp

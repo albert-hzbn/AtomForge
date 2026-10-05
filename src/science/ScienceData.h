@@ -28,6 +28,9 @@ struct FrameData
 
 std::vector<FrameData> readFrames(const std::filesystem::path& path, const StructureReader& reader = {});
 
+// Whole text file, decompressing .gz, .bz2 and .xz when the build supports it.
+std::string readTextFile(const std::filesystem::path& path);
+
 // Standard atomic masses (amu) for chemical symbols.
 double atomicMass(const std::string& symbol);
 int atomicNumber(const std::string& symbol);
@@ -56,11 +59,14 @@ public:
     bool boolean(const std::string& name, bool fallback) const;
     Pbc pbc(const std::string& name, Pbc fallback) const;
     const StructureInput& structure(const std::string& name) const;
+    // All frames of a multi-frame structure input (e.g. NEB restart images).
+    const std::vector<FrameData>& frames(const std::string& name) const;
 
 private:
     std::map<std::string, Json> m_json;
     std::map<std::string, NdArray> m_arrays;
     std::map<std::string, StructureInput> m_structures;
+    std::map<std::string, std::vector<FrameData>> m_frames;
 };
 
 // A tool's numerical result plus any structural frames it produced.

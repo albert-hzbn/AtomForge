@@ -13,6 +13,12 @@ struct NebOptions
     double spring = 0.1;       // eV/Angstrom^2
     bool climb = true;
     bool mic = false;
+    // images == 0 chooses the count from the endpoint separation at this spacing.
+    double imageSpacing = 0.5;     // Angstrom of total displacement per image
+    bool relaxEndpoints = false;   // fixed-cell FIRE relaxation of both endpoints first
+    double endpointFmax = 0.01;
+    // Optional restart chain (all images, endpoints included); replaces interpolation.
+    std::vector<Configuration> restart;
 };
 
 // Fixed-cell climbing-image NEB with the improved tangent (Henkelman and
@@ -53,7 +59,20 @@ struct DynamicsOptions
     double barostatFs = 1000.0;
     unsigned long long seed = 0;
     long long sampleInterval = 10;
+    // NVE (velocity Verlet) steps after the thermostatted run, at the final cell.
+    long long productionSteps = 0;
+    // Samples before this time are excluded from the statistics.
+    double equilibrationFs = 0.0;
 };
+
+// Mean, standard deviation and the standard error of the mean from block
+// averages (5 contiguous blocks), which accounts for correlated samples.
+struct BlockStatistics
+{
+    double mean = 0, standardDeviation = 0, standardError = 0;
+    std::size_t samples = 0, blocks = 0;
+};
+BlockStatistics blockStatistics(const std::vector<double>& values, std::size_t blocks = 5);
 
 // Langevin NVT (BAOAB splitting) with Maxwell-Boltzmann initial velocities.
 ToolOutput nvtDynamics(const Configuration& start, const Potential& potential, const DynamicsOptions& options);

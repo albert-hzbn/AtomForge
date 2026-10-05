@@ -1,5 +1,11 @@
 #include "science/ScienceTools.h"
 #include "science/Analysis.h"
+#include "science/LammpsExport.h"
+#include "science/VaspElectronic.h"
+#include "science/Diffraction.h"
+#include "science/Clusters.h"
+#include "science/DislocationLines.h"
+#include "science/Phonons.h"
 #include "science/ReciprocalPath.h"
 #include "science/ScienceCatalog.h"
 #include "science/Simulation.h"
@@ -44,6 +50,9 @@ DynamicsOptions dynamicsOptions(const Parameters& p, bool npt)
     options.thermostatFs = positive(p.number("thermostat_fs", 100.0), "thermostat_fs");
     options.seed = static_cast<unsigned long long>(integer(p.number("seed", 0), "seed", 0));
     options.sampleInterval = integer(p.number("sample_interval", 10), "sample_interval");
+    options.productionSteps = integer(p.number("production_steps", 0), "production_steps", 0);
+    options.equilibrationFs = p.number("equilibration_fs", 0.0);
+    if (options.equilibrationFs < 0) throw std::runtime_error("equilibration_fs must be nonnegative");
     if (npt) {
         options.pressureGPa = p.number("pressure_GPa", 0.0);
         options.barostatFs = positive(p.number("barostat_fs", 1000.0), "barostat_fs");
@@ -144,7 +153,8 @@ void describe(const std::string& key, const Json& value, std::vector<std::string
         if (text.size() > 1000) text = text.substr(0, 1000);
         lines.push_back(key + ": " + text);
     } else if (value.isString()) {
-        lines.push_back(key + ": " + value.string());
+        const std::string text = value.string();
+        lines.push_back(key + ": " + (text.find('\n') != std::string::npos ? "(" + std::to_string(std::count(text.begin(), text.end(), '\n')) + "-line file; use Save generated files)" : text));
     } else if (value.isBool()) {
         lines.push_back(key + ": " + std::string(value.boolean() ? "True" : "False"));
     } else if (value.isNumber()) {
@@ -168,6 +178,10 @@ ToolOutput runTool(const std::string& tool, const Json& request, const std::file
     if (tool == "vibrational-spectrum") return numeric(vibrationalSpectrum(p));
     if (tool == "local-strain") return numeric(localStrain(p));
     if (tool == "centrosymmetry") return numeric(centrosymmetry(p));
+    if (tool == "structure-type") return numeric(structureType(p));
+    if (tool == "cluster-analysis") return numeric(clusterAnalysis(p));
+    if (tool == "void-analysis") return numeric(voidAnalysis(p));
+    if (tool == "dislocation-lines") return dislocationLines(p.structure("reference"), p.structure("structure"), p);
     if (tool == "bond-order") return numeric(bondOrder(p));
     if (tool == "wigner-seitz") return numeric(wignerSeitz(p));
     if (tool == "structure-factor") return numeric(staticStructureFactor(p));
@@ -179,17 +193,23 @@ ToolOutput runTool(const std::string& tool, const Json& request, const std::file
     if (tool == "phonon-dos") return numeric(phononDos(p));
     if (tool == "harmonic-thermodynamics") return numeric(harmonicThermodynamics(p));
     if (tool == "neb") {
-        const auto& initial = p.structure("initial");
-        const auto& final = p.structure("final");
         NebOptions options;
-        options.images = integer(p.number("images", 7), "images", 3);
+        if (p.has("restart_images"))
+            for (const auto& frame : p.frames("restart_images")) options.restart.push_back(configurationFrom(frame.structure, frame.pbc));
+        else if (!p.has("initial") || !p.has("final"))
+            throw std::runtime_error("NEB needs initial and final structures, or restart_images");
+        const Configuration initial = options.restart.empty() ? configurationFrom(p.structure("initial").structure, p.structure("initial").pbc) : options.restart.front();
+        const Configuration final = options.restart.empty() ? configurationFrom(p.structure("final").structure, p.structure("final").pbc) : options.restart.back();
+        options.images = integer(p.number("images", 7), "images", 0);
+        options.imageSpacing = p.number("image_spacing_A", 0.5);
+        options.relaxEndpoints = p.boolean("relax_endpoints", false);
+        options.endpointFmax = positive(p.number("endpoint_fmax", 0.01), "endpoint_fmax");
         options.fmax = positive(p.number("fmax", 0.03), "fmax");
         options.steps = integer(p.number("steps", 300), "steps");
         options.spring = positive(p.number("spring_eV_per_A2", 0.1), "spring_eV_per_A2");
         options.climb = p.boolean("climb", true);
         options.mic = p.boolean("mic", false);
-        return migrationPath(configurationFrom(initial.structure, initial.pbc), configurationFrom(final.structure, final.pbc),
-                             potentialFactory(p.json("calculator_factory"), base), options);
+        return migrationPath(initial, final, potentialFactory(p.json("calculator_factory"), base), options);
     }
     if (tool == "relax") {
         const auto& structure = p.structure("structure");
@@ -201,6 +221,10 @@ ToolOutput runTool(const std::string& tool, const Json& request, const std::file
         options.pressureGPa = p.number("pressure_GPa", 0.0);
         return relaxStructure(configurationFrom(structure.structure, structure.pbc), *potential, options);
     }
+    if (tool == "phonons") {
+        const auto potential = potentialFactory(p.json("calculator"), base)();
+        return phononCalculation(p.structure("structure"), *potential, p);
+    }
     if (tool == "nvt" || tool == "npt") {
         const auto& structure = p.structure("structure");
         const auto potential = potentialFactory(p.json("calculator"), base)();
@@ -208,6 +232,13 @@ ToolOutput runTool(const std::string& tool, const Json& request, const std::file
         return tool == "nvt" ? nvtDynamics(configuration, *potential, dynamicsOptions(p, false))
                              : nptDynamics(configuration, *potential, dynamicsOptions(p, true));
     }
+    if (tool == "vasp-electronic") return vaspElectronic(p);
+    if (tool == "lammps-export") return lammpsExport(p);
+    if (tool == "powder-xrd") return powderXrd(p.structure("structure"), p);
+    if (tool == "electron-diffraction") return electronDiffraction(p.structure("structure"), p);
+    if (tool == "dft-inputs")
+        return dftInputs(p.structure("structure"), static_cast<int>(integer(p.number("points_per_segment", 40), "points_per_segment", 2)),
+                         p.number("symprec_A", 1e-5), p.boolean("time_reversal", true));
     if (tool == "reciprocal-path")
         return reciprocalPath(p.structure("structure"), p.number("spacing_inv_A", 0.025), p.number("symprec_A", 1e-5),
                               p.boolean("time_reversal", true));

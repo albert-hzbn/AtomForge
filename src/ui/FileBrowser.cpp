@@ -2658,6 +2658,12 @@ atomforge::Workspace FileBrowser::workspace(const Structure& structure) const
     saved.settings["desktop.viewMode"]=static_cast<int>(viewMode);
     saved.settings["desktop.atomColorMode"]=static_cast<int>(atomColorMode);
     saved.settings["desktop.atomDisplayMode"]=static_cast<int>(atomDisplayMode);
+    saved.settings["desktop.property.autoRange"]=propertyDisplay.autoRange;
+    saved.settings["desktop.property.low"]=propertyDisplay.range.low;
+    saved.settings["desktop.property.high"]=propertyDisplay.range.high;
+    saved.settings["desktop.property.hideOutside"]=propertyDisplay.hideOutside;
+    saved.settings["desktop.property.hideInvalid"]=propertyDisplay.hideInvalid;
+    saved.science=scientificToolsDialog.snapshot();
     return saved;
 }
 
@@ -2679,7 +2685,15 @@ void FileBrowser::restoreWorkspace(const atomforge::Workspace& saved, Structure&
     showPolyhedralViewer=read("desktop.showPolyhedralViewer",showPolyhedralViewer)!=0;
     bondElementFilterEnabled=read("desktop.bondElementFilterEnabled",bondElementFilterEnabled)!=0;
     viewMode=static_cast<ViewMode>(static_cast<int>(std::clamp(read("desktop.viewMode",0),0.0,1.0)));
-    atomColorMode=static_cast<AtomColorMode>(static_cast<int>(std::clamp(read("desktop.atomColorMode",0),0.0,2.0)));
+    atomColorMode=static_cast<AtomColorMode>(static_cast<int>(std::clamp(read("desktop.atomColorMode",0),0.0,3.0)));
+    if (atomColorMode==AtomColorMode::AtomProperty && structure.atomProperty.size()!=structure.atoms.size())
+        atomColorMode=AtomColorMode::ElementType;
+    propertyDisplay.autoRange=read("desktop.property.autoRange",propertyDisplay.autoRange)!=0;
+    propertyDisplay.range.low=read("desktop.property.low",propertyDisplay.range.low);
+    propertyDisplay.range.high=read("desktop.property.high",propertyDisplay.range.high);
+    propertyDisplay.hideOutside=read("desktop.property.hideOutside",propertyDisplay.hideOutside)!=0;
+    propertyDisplay.hideInvalid=read("desktop.property.hideInvalid",propertyDisplay.hideInvalid)!=0;
+    scientificToolsDialog.restore(saved.science);
     atomDisplayMode=static_cast<AtomDisplayMode>(static_cast<int>(std::clamp(read("desktop.atomDisplayMode",0),0.0,3.0)));
 }
 

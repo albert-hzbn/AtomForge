@@ -14,6 +14,8 @@
 #include "graphics/StructureInstanceBuilder.h"
 #include "io/StructureLoader.h"
 #include "model/Structure.h"
+#include "science/GifWriter.h"
+#include "science/ScienceData.h"
 #include "ui/FileBrowser.h"
 #include "util/ElementData.h"
 #include "util/PathUtils.h"
@@ -25,7 +27,10 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cctype>
 #include <cstring>
+#include <filesystem>
+#include <memory>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -215,6 +220,12 @@ void printHelp()
 "                         (default: none written, matching plain stb PNGs)\n"
 "  --frames N             Turntable: render N frames (writes output-000.png, ...)\n"
 "  --yaw-step D           Turntable: yaw increment per frame, degrees\n"
+"  --fps N                Animated GIF frame rate          (default: 12)\n"
+"\n"
+"Animated GIF: with --output FILE.gif a trajectory input (XYZ/extXYZ, XDATCAR,\n"
+"LAMMPS dump) becomes one frame per trajectory frame, using every Nth frame with\n"
+"--every N. A single structure becomes a looping turntable of --frames frames\n"
+"(default 36) turning by --yaw-step degrees (default 360/frames).\n"
 "\n"
 "Example:\n"
 "  AtomForge --render --input cu_fcc.cif --output cu.png ^\n"
@@ -290,16 +301,53 @@ int runRenderCLI(int argc, char* argv[])
             background = glm::vec4(r, g, b, 1.0f);
         }
 
-        const int frameCount = argInt(argc, argv, "--frames", 1);
-        const float yawStep = static_cast<float>(argDouble(argc, argv, "--yaw-step", 0.0));
-        if (frameCount <= 0)
-            throw std::invalid_argument("--frames must be positive");
+        std::string outputLower(outputPath);
+        std::transform(outputLower.begin(), outputLower.end(), outputLower.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        const bool gifOutput = outputLower.size() > 4 && outputLower.compare(outputLower.size() - 4, 4, ".gif") == 0;
+        const double fps = argDouble(argc, argv, "--fps", 12.0);
+        if (!(fps > 0.0) || fps > 100.0)
+            throw std::invalid_argument("--fps must be between 0 and 100");
+        const int every = argInt(argc, argv, "--every", 1);
+        if (every <= 0)
+            throw std::invalid_argument("--every must be positive");
 
-        // ---- Load structure and resolve per-element appearance ----
-        Structure structure;
-        std::string loadError;
-        if (!loadStructureFromFile(inputPath, structure, loadError))
-            throw std::runtime_error("Error loading input structure: " + loadError);
+        // ---- Load structure (or trajectory frames for a GIF) ----
+        std::vector<Structure> structures;
+        if (gifOutput)
+        {
+            // Trajectory formats first; anything else is read as one structure.
+            try
+            {
+                const auto frames = atomforge::science::readFrames(std::filesystem::u8path(inputPath));
+                for (std::size_t i = 0; i < frames.size(); i += static_cast<std::size_t>(every))
+                    structures.push_back(frames[i].structure);
+            }
+            catch (const std::exception&)
+            {
+                structures.clear();
+            }
+        }
+        if (structures.empty())
+        {
+            Structure loaded;
+            std::string loadError;
+            if (!loadStructureFromFile(inputPath, loaded, loadError))
+                throw std::runtime_error("Error loading input structure: " + loadError);
+            structures.push_back(std::move(loaded));
+        }
+        if (structures.empty() || structures.front().atoms.empty())
+            throw std::runtime_error("Error loading input structure: no atoms found");
+        const bool trajectoryGif = gifOutput && structures.size() > 1;
+
+        const bool hasFrames = findArg(argc, argv, "--frames") != nullptr;
+        const int frameCount = trajectoryGif ? static_cast<int>(structures.size())
+                                             : argInt(argc, argv, "--frames", gifOutput ? 36 : 1);
+        if (frameCount <= 0 || (trajectoryGif && hasFrames))
+            throw std::invalid_argument(trajectoryGif ? "--frames does not apply to trajectory GIFs; use --every"
+                                                      : "--frames must be positive");
+        const float yawStep = static_cast<float>(argDouble(argc, argv, "--yaw-step",
+            gifOutput && !trajectoryGif ? 360.0 / frameCount : 0.0));
 
         std::vector<glm::vec3> elementColors = makeDefaultElementColors();
         std::vector<float> elementRadii = makeLiteratureCovalentRadii();
@@ -308,14 +356,16 @@ int runRenderCLI(int argc, char* argv[])
         for (float& radius : elementRadii)
             radius *= radiusScale;
 
-        for (auto& atom : structure.atoms)
-        {
-            if (atom.atomicNumber >= 0 && atom.atomicNumber < (int)elementColors.size())
+        for (auto& structure : structures)
+            for (auto& atom : structure.atoms)
             {
-                const glm::vec3& color = elementColors[static_cast<std::size_t>(atom.atomicNumber)];
-                atom.r = color.r; atom.g = color.g; atom.b = color.b;
+                if (atom.atomicNumber >= 0 && atom.atomicNumber < (int)elementColors.size())
+                {
+                    const glm::vec3& color = elementColors[static_cast<std::size_t>(atom.atomicNumber)];
+                    atom.r = color.r; atom.g = color.g; atom.b = color.b;
+                }
             }
-        }
+        const Structure& structure = structures.front();
 
         // ---- Headless OpenGL bootstrap ----
         GLFWwindow* window = createHeadlessContext();
@@ -374,8 +424,20 @@ int runRenderCLI(int argc, char* argv[])
             request.resolutionScale = 1;
             request.includeGizmo = false;
 
+            std::unique_ptr<atomforge::science::GifWriter> gif;
+            if (gifOutput)
+                gif = std::make_unique<atomforge::science::GifWriter>(
+                    std::filesystem::u8path(outputPath), width, height,
+                    std::max(2, static_cast<int>(std::lround(100.0 / fps))));
+
             for (int frame = 0; frame < frameCount; ++frame)
             {
+                if (trajectoryGif && frame > 0)
+                {
+                    const StructureInstanceData frameData = buildStructureInstanceData(
+                        structures[static_cast<std::size_t>(frame)], false, identity, elementRadii, elementShininess);
+                    sceneBuffers.upload(frameData, false, {});
+                }
                 FrameView frameView;
                 frameView.framebufferWidth = width;
                 frameView.framebufferHeight = height;
@@ -389,6 +451,18 @@ int runRenderCLI(int argc, char* argv[])
                 view.lightMVP = frameView.lightMVP;
                 view.lightPosition = frameView.lightPosition;
                 view.cameraPosition = frameView.cameraPosition;
+
+                if (gif)
+                {
+                    std::vector<unsigned char> pixels;
+                    std::string renderError;
+                    if (!renderSceneToRgba(view, background, showBonds, true, showBox,
+                                           sceneBuffers, renderer, shadow, pixels, renderError))
+                        throw std::runtime_error("Error rendering frame: " + renderError);
+                    gif->addFrame(pixels);
+                    camera.yaw += yawStep;
+                    continue;
+                }
 
                 if (frameCount > 1)
                 {
@@ -422,6 +496,11 @@ int runRenderCLI(int argc, char* argv[])
                 camera.yaw += yawStep;
             }
 
+            if (gif)
+            {
+                gif->close();
+                std::cout << "Saved " << gif->frames() << " frames to: " << outputPath << "\n";
+            }
             sceneBuffers.destroy();
         }
 

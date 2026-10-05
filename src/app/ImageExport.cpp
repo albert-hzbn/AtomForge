@@ -841,6 +841,21 @@ bool writeSvgImage(const ImageExportRequest& request,
 
 } // namespace
 
+bool renderSceneToRgba(const ImageExportView& view,
+                       const glm::vec4& backgroundColor,
+                       bool showBonds,
+                       bool showAtoms,
+                       bool showBoundingBox,
+                       const SceneBuffers& sceneBuffers,
+                       Renderer& renderer,
+                       const ShadowMap& shadow,
+                       std::vector<unsigned char>& rgbaPixels,
+                       std::string& errorMessage)
+{
+    return captureSceneToRgba(view, backgroundColor, showBonds, showAtoms, showBoundingBox,
+                              sceneBuffers, renderer, shadow, rgbaPixels, errorMessage);
+}
+
 bool exportStructureImage(const ImageExportRequest& request,
                           const ImageExportView& view,
                           const glm::vec4& backgroundColor,

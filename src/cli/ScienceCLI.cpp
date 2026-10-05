@@ -1,6 +1,7 @@
 #include "cli/ScienceCLI.h"
 #include "io/StructureLoader.h"
 #include "science/ScienceCatalog.h"
+#include "science/Batch.h"
 #include "science/ScienceTools.h"
 
 #include <algorithm>
@@ -24,8 +25,12 @@ void printScienceHelp()
 "\n"
 "Usage:\n"
 "  AtomForge --science <tool> --input REQUEST.json --output RESULT.json\n"
-"            [--report REPORT.txt] [--structures FRAMES.extxyz] [--overwrite]\n"
+"            [--report REPORT.txt] [--structures FRAMES.extxyz] [--files DIR] [--overwrite]\n"
 "  AtomForge --science --catalog      Print tools, parameters and defaults as JSON\n"
+"  AtomForge --science-batch BATCH.json --output RESULTS.json [--csv TABLE.csv]\n"
+"            BATCH.json: {\"tool\": ..., \"base\": {...}, \"sweep\": {\"param\": [values]},\n"
+"                         \"files\": {\"param\": \"data/*.xyz\"}, \"collect\": [\"result.key\"]}\n"
+"            Runs the Cartesian product of sweeps and file matches; exit 2 if a run failed.\n"
 "\n"
 "REQUEST.json is an object of tool parameters. Data values are inline JSON\n"
 "arrays or {\"file\": PATH, \"field\": NAME, \"column\": N} references to JSON,\n"
@@ -87,19 +92,46 @@ void writeText(const std::filesystem::path& path, const std::string& text)
 int runScienceCLI(int argc, char* argv[])
 {
     std::map<std::string, std::string> args;
-    std::string tool;
+    std::string tool, batchFile;
     for (int i = 1; i < argc; ++i) {
         const std::string key = argv[i];
         if (key == "--science") {
             if (i + 1 < argc && argv[i + 1][0] != '-') tool = argv[++i];
+        } else if (key == "--science-batch") {
+            if (i + 1 >= argc) { std::cerr << "Error: --science-batch requires a batch file\n"; return 1; }
+            batchFile = argv[++i];
+        } else if (key == "--csv") {
+            if (i + 1 >= argc) { std::cerr << "Error: --csv requires a value\n"; return 1; }
+            args[key] = argv[++i];
         } else if (key == "--catalog" || key == "--overwrite" || key == "--help" || key == "-h") args[key] = "";
-        else if (key == "--input" || key == "--output" || key == "--report" || key == "--structures") {
+        else if (key == "--input" || key == "--output" || key == "--report" || key == "--structures" || key == "--files") {
             if (i + 1 >= argc) { std::cerr << "Error: " << key << " requires a value\n"; return 1; }
             args[key] = argv[++i];
         } else { std::cerr << "Error: unknown science option " << key << "\n"; return 1; }
     }
     try {
         if (args.count("--catalog")) { std::cout << catalogJson().dump(2) << std::endl; return 0; }
+        if (!batchFile.empty()) {
+            if (!args.count("--output")) throw std::invalid_argument("--output is required for a batch");
+            const auto input = std::filesystem::u8path(batchFile);
+            std::ifstream stream(input, std::ios::binary);
+            if (!stream) throw std::runtime_error("Cannot open " + input.u8string());
+            std::ostringstream text;
+            text << stream.rdbuf();
+            const auto reader = [](const std::filesystem::path& path) {
+                Structure structure;
+                std::string error;
+                if (!loadStructureFromFile(path.u8string(), structure, error)) throw std::runtime_error(error);
+                return structure;
+            };
+            const auto output = std::filesystem::u8path(args.at("--output"));
+            if (std::filesystem::exists(output) && !args.count("--overwrite")) throw std::runtime_error(output.u8string() + " exists; use --overwrite");
+            const Json result = atomforge::science::runBatch(Json::parse(text.str()), std::filesystem::absolute(input).parent_path(), reader);
+            writeText(output, result.dump(2) + "\n");
+            if (args.count("--csv")) writeText(std::filesystem::u8path(args.at("--csv")), atomforge::science::batchCsv(result));
+            std::cout << "Batch: " << result.at("run_count").number() << " runs, " << result.at("failures").number() << " failed; saved " << output.u8string() << std::endl;
+            return result.at("failures").number() > 0 ? 2 : 0;
+        }
         if (args.count("--help") || args.count("-h") || tool.empty()) { printScienceHelp(); return tool.empty() && !args.count("--help") && !args.count("-h") ? 1 : 0; }
         if (!args.count("--input") || !args.count("--output")) throw std::invalid_argument("--input and --output are required");
         const auto input = std::filesystem::u8path(args.at("--input"));
@@ -133,6 +165,16 @@ int runScienceCLI(int argc, char* argv[])
             atomforge::science::writeExtxyz(std::filesystem::u8path(args.at("--structures")), result.frames, result.velocities, result.times);
         writeText(output, atomforge::science::resultDocument(tool, request, result).dump(2) + "\n");
         if (args.count("--report")) writeText(std::filesystem::u8path(args.at("--report")), atomforge::science::resultReport(tool, result.result));
+        // Generated input files (e.g. KPOINTS, POSCAR) go to the --files directory.
+        if (args.count("--files"))
+            if (const Json* files = result.result.find("files"); files && files->isObject()) {
+                const auto directory = std::filesystem::u8path(args.at("--files"));
+                for (const auto& [name, text] : files->members()) {
+                    const auto target = directory / std::filesystem::u8path(name);
+                    if (std::filesystem::exists(target) && !overwrite) throw std::runtime_error(target.u8string() + " exists; use --overwrite");
+                    writeText(target, text.string());
+                }
+            }
         std::cout << "Saved " << output.u8string() << std::endl;
         return 0;
     } catch (const std::exception& error) {

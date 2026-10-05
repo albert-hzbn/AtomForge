@@ -13,6 +13,10 @@ Json vibrationalSpectrum(const Parameters& p);
 // Local environment and defect analyses with explicit periodic geometry.
 Json localStrain(const Parameters& p);
 Json centrosymmetry(const Parameters& p);
+// Ackland-Jones bond-angle structure type (other, fcc, hcp, bcc, icosahedral).
+Json structureType(const Parameters& p);
+// Classification of one environment from its neighbour vectors (any order).
+int acklandJonesType(std::vector<Vec3> bonds);
 Json bondOrder(const Parameters& p);
 Json wignerSeitz(const Parameters& p);
 Json staticStructureFactor(const Parameters& p);

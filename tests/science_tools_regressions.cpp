@@ -2,11 +2,18 @@
 // (src/science). The cases mirror python/tests/test_condensed_matter.py so the
 // desktop/CLI implementation is held to the same contracts as the Python API.
 #include "science/AtomProperties.h"
+#include "science/LammpsExport.h"
+#include "science/Batch.h"
+#include "science/GifWriter.h"
+#include "science/Phonons.h"
 #include "science/Potentials.h"
 #include "science/ResultPlots.h"
 #include "science/ScienceCatalog.h"
 #include "science/ScienceTools.h"
 #include "science/Simulation.h"
+#include "science/VaspElectronic.h"
+
+#include <Eigen/Dense>
 
 #include <algorithm>
 #include <cmath>
@@ -16,6 +23,7 @@
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -1056,6 +1064,670 @@ int main()
         Crystal gold = fccCubic(4.08, 1, "Au");
         expectError([&] { makeEam(setfl)->compute(configuration(gold), false); }, "element missing from the EAM file");
         expectError([&] { potentialFactory(object({{"potential", "EAM"}}))(); }, "EAM needs a file");
+    });
+
+    test("phonons: analytic Lennard-Jones dispersion and EMT copper", [] {
+        // Primitive fcc argon with Lennard-Jones; cutoff between the 2nd and 3rd shells.
+        const double a = 5.26, epsilon = .0104, sigma = 3.4, rc = 6.0, mass = 39.948;
+        Configuration unit;
+        unit.symbols = {"Ar"}; unit.numbers = {18}; unit.masses = {mass}; unit.pbc = {true, true, true};
+        unit.positions = {{0, 0, 0}};
+        unit.cell = {{{0, a / 2, a / 2}, {a / 2, 0, a / 2}, {a / 2, a / 2, 0}}};
+        const auto lj = makeLennardJones(epsilon, sigma, rc);
+        const auto constants = forceConstants(unit, *lj, supercellFor(unit, 13.0), 0.002);
+        // Independent lattice sum: D(q) = (1/m) sum_R k(R) (1 - cos q.R).
+        auto analytic = [&](const Vec3& q) {
+            Mat3 d{};
+            for (int i = -4; i <= 4; ++i)
+                for (int j = -4; j <= 4; ++j)
+                    for (int k = -4; k <= 4; ++k) {
+                        const Vec3 r = rowTimes({double(i), double(j), double(k)}, unit.cell);
+                        const double length = norm(r);
+                        if (length < 1e-9 || length >= rc) continue;
+                        const double s6 = std::pow(sigma / length, 6);
+                        const double d1 = 4 * epsilon * (-12 * s6 * s6 + 6 * s6) / length;
+                        const double d2 = 4 * epsilon * (156 * s6 * s6 - 42 * s6) / (length * length);
+                        const double factor = 1 - std::cos(dot(q, r));
+                        for (int x = 0; x < 3; ++x)
+                            for (int y = 0; y < 3; ++y)
+                                d[x][y] += factor * ((d2 - d1 / length) * r[x] * r[y] / (length * length) + (x == y ? d1 / length : 0)) / mass;
+                    }
+            Eigen::Matrix3d m;
+            for (int x = 0; x < 3; ++x) for (int y = 0; y < 3; ++y) m(x, y) = d[x][y];
+            const Eigen::Vector3d lambda = Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(m).eigenvalues();
+            std::vector<double> f;
+            const double acceleration = 1.602176634e-19 / (1e-10 * 1.66053906660e-27) * 1e10 * 1e-30;
+            for (int x = 0; x < 3; ++x) f.push_back(std::sqrt(std::max(0.0, lambda(x)) * acceleration) / (2 * kPi) * 1000);
+            return f;
+        };
+        const double g = 2 * kPi / a;
+        for (const Vec3& q : {Vec3{g, 0, 0}, Vec3{g / 2, g / 2, g / 2}, Vec3{.37 * g, .21 * g, .05 * g}, Vec3{.8 * g, .4 * g, 0}}) {
+            const auto numeric = phononFrequencies(constants, q);
+            const auto exact = analytic(q);
+            for (int m = 0; m < 3; ++m) close(numeric[static_cast<std::size_t>(m)], exact[static_cast<std::size_t>(m)], 2e-3, "LJ phonon frequency");
+        }
+        for (double f : phononFrequencies(constants, {0, 0, 0})) close(f, 0, 1e-6, "acoustic sum rule at Gamma");
+
+        const Json copper = runTool("phonons", object({{"structure", structureJsonOf(fccCubic(3.59, 1))}, {"calculator", object({{"potential", "EMT"}})},
+            {"mesh", Json::array({6, 6, 6})}})).result;
+        check(copper.at("unit_cell_atoms").number() == 1, "primitive cell used for the symmetry path");
+        check(copper.at("imaginary_mesh_modes").number() == 0, "stable fcc copper");
+        const double top = copper.at("max_frequency_THz").number();
+        check(top > 6 && top < 9.5, "EMT Cu maximum frequency near the measured 7.2 THz (got " + std::to_string(top) + ")");
+        close(copper.at("dos").at("enclosed_modes").number(), 3, 0.02, "DOS holds three modes per atom");
+        const auto cv = values(copper.at("thermodynamics").at("heat_capacity_eV_per_K"));
+        close(cv.back() / (3 * 8.617333262145e-5), 1, 0.02, "Dulong-Petit limit at 1000 K");
+        const auto plots = resultPlots("phonons", copper);
+        check(plots.size() == 4 && plots[0].series.size() == 3 && !plots[0].markers.empty(), "dispersion with labelled points, DOS and thermodynamics plots");
+    });
+
+    test("NEB: automatic images, endpoint relaxation and restart", [] {
+        auto well = [] { return std::make_unique<CurvedDoubleWell>(); };
+        Configuration initial;
+        initial.symbols = {"H"}; initial.numbers = {1}; initial.masses = {1.008};
+        initial.positions = {{-1, 0, 0}};
+        Configuration final = initial;
+        final.positions = {{1, 0, 0}};
+        NebOptions automatic;
+        automatic.images = 0; automatic.imageSpacing = 0.1; automatic.steps = 1;
+        check(migrationPath(initial, final, well, automatic).result.at("image_count").number() == 21, "ceil(2/0.1)+1 images");
+        automatic.imageSpacing = 1.0;
+        check(migrationPath(initial, final, well, automatic).result.at("image_count").number() == 5, "at least five images");
+
+        // Endpoints displaced from the minima are relaxed back before the band forms.
+        Configuration rough = initial, roughFinal = final;
+        rough.positions = {{-0.85, 0.1, 0.05}};
+        roughFinal.positions = {{1.1, -0.08, 0}};
+        NebOptions relaxed;
+        relaxed.fmax = .002; relaxed.relaxEndpoints = true; relaxed.endpointFmax = 1e-5;
+        const auto withRelax = migrationPath(rough, roughFinal, well, relaxed);
+        check(withRelax.result.at("endpoint_relaxation").at("initial_converged").boolean(), "endpoint relaxed");
+        close(withRelax.frames.front().atoms[0].x, -1, 1e-4, "initial endpoint at its minimum");
+        close(number(withRelax.result.at("forward_barrier_eV")), 1, 1e-4, "barrier from relaxed endpoints");
+
+        // A short unconverged run, saved and restarted, continues to the same answer.
+        NebOptions partial;
+        partial.fmax = .002; partial.steps = 8;
+        const auto first = migrationPath(initial, final, well, partial);
+        check(!first.result.at("converged").boolean(), "first segment unconverged");
+        const auto saved = scratch("neb_images.extxyz");
+        writeExtxyz(saved, first.frames, {}, {});
+        NebOptions restart;
+        restart.fmax = .002; restart.steps = 300;
+        for (const auto& frame : readFrames(saved)) restart.restart.push_back(configurationFrom(frame.structure, frame.pbc));
+        const auto resumed = migrationPath(initial, final, well, restart);
+        check(resumed.result.at("restarted").boolean() && resumed.result.at("converged").boolean(), "restart converged");
+        close(number(resumed.result.at("forward_barrier_eV")), 1, 1e-5, "restart barrier");
+        close(resumed.frames[3].atoms[0].y, .2, 1e-3, "restart saddle on the curved path");
+
+        // Request-level restart of a copper vacancy hop without endpoint structures.
+        Crystal copper = fccCubic(3.61, 2);
+        copper.positions.erase(copper.positions.begin());
+        copper.symbols.erase(copper.symbols.begin());
+        Crystal hopped = copper;
+        hopped.positions[0] = {0, 0, 0};  // a neighbour moves into the vacancy
+        const Json firstRun = runTool("neb", object({{"initial", structureJsonOf(copper)}, {"final", structureJsonOf(hopped)},
+            {"calculator_factory", object({{"potential", "EMT"}})}, {"images", 5}, {"steps", 3}})).result;
+        std::vector<Structure> images;
+        for (const auto& image : firstRun.at("images").items()) {
+            const auto path = scratch("image.json");
+            { std::ofstream out(path); out << image.dump(); }
+            images.push_back(readFrames(path).front().structure);
+        }
+        const auto restartFile = scratch("cu_hop_images.extxyz");
+        writeExtxyz(restartFile, images, {}, {});
+        const Json resumedRun = runTool("neb", object({{"restart_images", object({{"file", restartFile.u8string()}})},
+            {"calculator_factory", object({{"potential", "EMT"}})}, {"steps", 2}})).result;
+        check(resumedRun.at("restarted").boolean() && resumedRun.at("image_count").number() == 5, "request restart keeps the image count");
+        close(resumedRun.at("energies_eV").items()[2].number(), firstRun.at("energies_eV").items()[2].number(), 0.5, "restart starts from the saved band");
+        expectError([] { runTool("neb", object({{"calculator_factory", object({{"potential", "EMT"}})}})); }, "NEB needs endpoints or a restart");
+    });
+
+    test("MD: NVE production, energy conservation and block statistics", [] {
+        auto stats = blockStatistics(std::vector<double>(50, 2.5));
+        close(stats.mean, 2.5, 0, "constant mean");
+        close(stats.standardDeviation, 0, 0, "constant spread");
+        close(stats.standardError, 0, 0, "constant standard error");
+        std::vector<double> alternating;
+        for (int i = 0; i < 100; ++i) alternating.push_back(i % 2 ? 1.0 : -1.0);
+        alternating.push_back(std::nan(""));
+        stats = blockStatistics(alternating);
+        check(stats.samples == 100, "NaN samples ignored");
+        close(stats.mean, 0, 1e-15, "alternating mean");
+        close(stats.standardError, 0, 1e-15, "fast fluctuations average out within blocks");
+        std::vector<double> ramp;
+        for (int i = 0; i < 100; ++i) ramp.push_back(i);
+        stats = blockStatistics(ramp);
+        close(stats.standardError, 20 * std::sqrt(2.5) / std::sqrt(5.0), 1e-9, "block-mean standard error of a ramp");
+        check(std::isnan(blockStatistics({1, 2, 3}).standardError), "too few samples for blocks");
+
+        const auto emt = makeEmt();
+        DynamicsOptions options;
+        options.steps = 200; options.timestepFs = 1; options.temperatureK = 300; options.thermostatFs = 20;
+        options.sampleInterval = 5; options.productionSteps = 500; options.seed = 4;
+        const auto run = nvtDynamics(configuration(fccCubic(3.59, 3)), *emt, options);
+        const Json& result = run.result;
+        check(result.at("production_start_fs").number() == 200, "production follows the thermostatted run");
+        check(run.frames.size() == 41 + 100, "frames from both stages");
+        close(values(result.at("time_fs")).back(), 700, 0, "production time");
+        const double drift = result.at("nve_energy_drift_eV_per_atom_per_ps").number();
+        check(std::abs(drift) < 2e-3, "NVE energy conserved (drift " + std::to_string(drift) + " eV/atom/ps)");
+        const auto& energy = result.at("statistics").at("total_energy_eV");
+        check(energy.at("samples").number() == 101, "statistics use the production samples");
+        check(energy.at("standard_deviation").number() / 108 < 1e-3, "NVE total energy fluctuations are small");
+        const auto& temperature = result.at("statistics").at("temperature_K");
+        check(temperature.at("mean").number() > 100 && temperature.at("mean").number() < 400, "production temperature near the thermostat target");
+        check(temperature.at("standard_error").isNumber(), "temperature standard error");
+        const auto plots = resultPlots("nvt", result);
+        check(!plots[0].markers.empty() && plots[0].markers[0].label == "NVE", "production start marked on plots");
+
+        options.productionSteps = 0;
+        options.steps = 100;
+        options.equilibrationFs = 50;
+        const auto windowed = nvtDynamics(configuration(fccCubic(3.59, 2)), *emt, options);
+        check(windowed.result.at("statistics").at("temperature_K").at("samples").number() == 11, "equilibration window excludes early samples");
+        check(!windowed.result.contains("production_start_fs"), "no production stage when not requested");
+
+        DynamicsOptions npt;
+        npt.steps = 60; npt.timestepFs = 1; npt.temperatureK = 300; npt.pressureGPa = 0; npt.thermostatFs = 20;
+        npt.barostatFs = 200; npt.sampleInterval = 5; npt.productionSteps = 40;
+        const auto pressured = nptDynamics(configuration(fccCubic(3.59, 2)), *emt, npt);
+        check(pressured.result.at("statistics").contains("volume_A3") && pressured.result.at("statistics").contains("pressure_GPa"), "NPT statistics");
+        const auto volumes = values(pressured.result.at("volume_A3"));
+        close(volumes.back(), volumes[12], 1e-9, "production keeps the final cell fixed");
+    });
+
+    test("Ackland-Jones structure types", [] {
+        auto classify = [](const Crystal& crystal, bool periodic, double cutoff) {
+            Json request = object({{"positions", rows(crystal.positions)}, {"cutoff_A", cutoff}});
+            if (periodic) { request["cell"] = matrixJson(crystal.cell); request["pbc"] = Json::array({true, true, true}); }
+            return run("structure-type", request);
+        };
+        auto fraction = [](const Json& result, const char* type) { return result.at("fractions").at(type).number(); };
+        close(fraction(classify(fccCubic(3.61, 3), true, 0.0), "fcc"), 1, 0, "perfect fcc");
+        Crystal bcc;
+        const double a = 2.87;
+        for (int i = 0; i < 4; ++i) for (int j = 0; j < 4; ++j) for (int k = 0; k < 4; ++k)
+            for (const Vec3& b : {Vec3{0, 0, 0}, Vec3{.5, .5, .5}}) { bcc.symbols.push_back("Fe"); bcc.positions.push_back({(i + b[0]) * a, (j + b[1]) * a, (k + b[2]) * a}); }
+        bcc.cell = {{{4 * a, 0, 0}, {0, 4 * a, 0}, {0, 0, 4 * a}}};
+        close(fraction(classify(bcc, true, 0.0), "bcc"), 1, 0, "perfect bcc");
+        Crystal hcp;
+        const double ah = 3.21, ch = ah * std::sqrt(8.0 / 3);
+        const Mat3 hcell = {{{ah, 0, 0}, {-ah / 2, ah * std::sqrt(3.0) / 2, 0}, {0, 0, ch}}};
+        for (int i = 0; i < 4; ++i) for (int j = 0; j < 4; ++j) for (int k = 0; k < 3; ++k)
+            for (const Vec3& b : {Vec3{1.0 / 3, 2.0 / 3, .25}, Vec3{2.0 / 3, 1.0 / 3, .75}}) {
+                hcp.symbols.push_back("Mg");
+                hcp.positions.push_back(rowTimes({i + b[0], j + b[1], k + b[2]}, hcell));
+            }
+        hcp.cell = {{scale(hcell[0], 4), scale(hcell[1], 4), scale(hcell[2], 3)}};
+        close(fraction(classify(hcp, true, 0.0), "hcp"), 1, 0, "ideal hcp");
+        // Icosahedral 13-atom cluster: the centre is icosahedral, surface atoms are not.
+        Crystal ico;
+        const double phi = (1 + std::sqrt(5.0)) / 2, radius = 2.5;
+        ico.symbols.push_back("Cu");
+        ico.positions.push_back({0, 0, 0});
+        for (int s1 : {-1, 1}) for (int s2 : {-1, 1})
+            for (const Vec3& v : {Vec3{0, double(s1), s2 * phi}, Vec3{double(s1), s2 * phi, 0}, Vec3{s2 * phi, 0, double(s1)}}) {
+                ico.symbols.push_back("Cu");
+                ico.positions.push_back(scale(v, radius / std::sqrt(1 + phi * phi)));
+            }
+        const Json icoResult = classify(ico, false, 3.5);
+        check(icoResult.at("structure_type").items()[0].number() == 4, "icosahedral centre");
+        check(icoResult.at("counts").at("icosahedral").number() == 1, "only the centre is icosahedral");
+        // Thermal noise (sigma 0.07 A, ~2.7% of the bond) keeps fcc identifiable.
+        Crystal noisy = fccCubic(3.61, 3);
+        Normal normal(31);
+        for (auto& p : noisy.positions) p = add(p, {normal() * .07, normal() * .07, normal() * .07});
+        check(fraction(classify(noisy, true, 0.0), "fcc") > 0.95, "noisy fcc stays fcc");
+        Crystal gas;
+        for (int i = 0; i < 200; ++i) {
+            gas.symbols.push_back("Ar");
+            gas.positions.push_back({std::abs(normal()) * 8, std::abs(normal()) * 8, std::abs(normal()) * 8});
+        }
+        check(fraction(classify(gas, false, 4.0), "other") > 0.9, "random gas is unclassified");
+        check(perAtomProperties("structure-type", icoResult).size() == 1, "per-atom structure type");
+        expectError([&] { classify(ico, false, 0.0); }, "automatic cutoff needs a cell");
+    });
+
+    test("cluster analysis: separation, periodic wrap, mask and percolation", [] {
+        // Two dimers and a trimer; the trimer straddles the periodic x boundary.
+        const std::vector<Vec3> atoms = {{1, 1, 1}, {2, 1, 1}, {5, 5, 5}, {5, 6, 5}, {9.6, 3, 3}, {0.4, 3, 3}, {1.4, 3, 3}};
+        const Mat3 box = {{{10, 0, 0}, {0, 10, 0}, {0, 0, 10}}};
+        const Json periodic = run("cluster-analysis", object({{"positions", rows(atoms)}, {"cutoff_A", 1.5}, {"cell", matrixJson(box)}, {"pbc", Json::array({true, true, true})}}));
+        check(periodic.at("cluster_count").number() == 3, "three clusters with periodic bonds");
+        const Json& trimer = periodic.at("clusters").items()[0];
+        check(trimer.at("size").number() == 3, "largest is the wrapped trimer");
+        const double cx = trimer.at("centroid_A").items()[0].number();
+        const double wrapped = std::fmod(cx + 100.0, 10.0);
+        close(wrapped, (9.6 + 10.4 + 11.4) / 3 - 10, 1e-9, "unwrapped centroid across the boundary");
+        const double mean = (9.6 + 10.4 + 11.4) / 3;
+        const double gyration = std::sqrt((std::pow(9.6 - mean, 2) + std::pow(10.4 - mean, 2) + std::pow(11.4 - mean, 2)) / 3);
+        close(trimer.at("radius_of_gyration_A").number(), gyration, 1e-9, "trimer radius of gyration");
+        check(run("cluster-analysis", object({{"positions", rows(atoms)}, {"cutoff_A", 1.5}})).at("cluster_count").number() == 4, "open boundaries split the trimer");
+        const Json masked = run("cluster-analysis", object({{"positions", rows(atoms)}, {"cutoff_A", 1.5}, {"mask", Json::array({1, 1, 0, 0, 0, 0, 0})}}));
+        check(masked.at("cluster_count").number() == 1 && masked.at("cluster_id").items()[2].number() == -1, "mask selects atoms");
+        const Crystal copper = fccCubic(3.61, 2);
+        const Json bulk = run("cluster-analysis", object({{"positions", rows(copper.positions)}, {"cutoff_A", 2.8}, {"cell", matrixJson(copper.cell)}, {"pbc", Json::array({true, true, true})}}));
+        check(bulk.at("cluster_count").number() == 1 && bulk.at("clusters").items()[0].at("percolating").boolean(), "bulk crystal percolates");
+    });
+
+    test("void analysis: vacancies, divacancy merge and spherical cavity", [] {
+        const Crystal perfect = fccCubic(3.61, 3);
+        auto voids = [](const Crystal& c, double grid = 0.25) {
+            return run("void-analysis", object({{"positions", rows(c.positions)}, {"cell", matrixJson(c.cell)}, {"pbc", Json::array({true, true, true})},
+                                               {"grid_spacing_A", grid}}));
+        };
+        check(voids(perfect).at("void_count").number() == 0, "no voids in a perfect crystal with a 1 A probe");
+        Crystal vacancy = perfect;
+        const Vec3 site = vacancy.positions[13];
+        vacancy.positions.erase(vacancy.positions.begin() + 13);
+        vacancy.symbols.pop_back();
+        const Json one = voids(vacancy);
+        check(one.at("void_count").number() == 1, "one vacancy void");
+        const Vec3 centre = {one.at("voids").items()[0].at("centroid_A").items()[0].number(), one.at("voids").items()[0].at("centroid_A").items()[1].number(),
+                             one.at("voids").items()[0].at("centroid_A").items()[2].number()};
+        check(norm(sub(centre, site)) < 0.2, "void centred on the vacant site");
+        int lining = 0;
+        for (const auto& v : one.at("lining_void_id").items()) lining += v.number() == 0;
+        check(lining == 12, "twelve atoms line an fcc vacancy (got " + std::to_string(lining) + ")");
+        // Neighbouring vacancies merge into one void; distant ones stay separate.
+        Crystal pair = perfect, apart = perfect;
+        std::size_t neighbour = 0, far = 0;
+        for (std::size_t i = 0; i < perfect.positions.size(); ++i) {
+            const double d = norm(sub(perfect.positions[i], site));
+            if (std::abs(d - 3.61 / std::sqrt(2.0)) < 1e-6 && !neighbour) neighbour = i;
+            if (d > 7.0 && !far) far = i;
+        }
+        for (Crystal* c : {&pair, &apart}) {
+            const std::size_t other = c == &pair ? neighbour : far;
+            std::vector<Vec3> kept;
+            for (std::size_t i = 0; i < c->positions.size(); ++i) if (i != 13 && i != other) kept.push_back(c->positions[i]);
+            c->positions = kept;
+            c->symbols.resize(kept.size());
+        }
+        // The channel between adjacent fcc vacancies has a free radius of
+        // a/2 - r (as narrow as an octahedral hole), so a 1 A probe sees two
+        // regions whose total equals two isolated vacancies.
+        const Json divacancy = voids(pair);
+        check(divacancy.at("void_count").number() == 2, "adjacent vacancies: two probe-accessible regions");
+        close(divacancy.at("accessible_volume_A3").number(), 2 * one.at("accessible_volume_A3").number(), 0.2 * one.at("accessible_volume_A3").number(), "divacancy volume");
+        const Json smallProbe = run("void-analysis", object({{"positions", rows(pair.positions)}, {"cell", matrixJson(pair.cell)},
+            {"pbc", Json::array({true, true, true})}, {"probe_radius_A", 0.0}, {"grid_spacing_A", 0.2}}));
+        check(smallProbe.at("void_count").number() >= 1, "a point probe sees the connected empty space");
+        check(voids(apart).at("void_count").number() == 2, "distant vacancies are two voids");
+        // Spherical cavity of radius 5 A carved from a larger crystal.
+        Crystal cavity = fccCubic(3.61, 5);
+        const Vec3 middle = scale(add(add(cavity.cell[0], cavity.cell[1]), cavity.cell[2]), 0.5);
+        std::vector<Vec3> kept;
+        for (const auto& x : cavity.positions) if (norm(sub(x, middle)) > 5.0) kept.push_back(x);
+        cavity.positions = kept;
+        cavity.symbols.resize(kept.size());
+        const Json pore = voids(cavity, 0.3);
+        check(pore.at("void_count").number() == 1, "one cavity");
+        const double radius = pore.at("voids").items()[0].at("pore_radius_estimate_A").number();
+        check(radius > 4.5 && radius < 6.2, "pore radius near the carved 5 A (got " + std::to_string(radius) + ")");
+        close(pore.at("void_fraction").number(), pore.at("accessible_volume_A3").number() / cellVolume(cavity.cell), 1e-12, "void fraction");
+    });
+
+    test("powder XRD and electron diffraction", [] {
+        const double a = 3.615, lambda = 1.54184;
+        const Json window = Json::array({10.0, 100.0});  // Cu (311) lies at 90.02 and (222) at 95.2 degrees
+        const Json copper = run("powder-xrd", object({{"structure", structureJsonOf(fccCubic(a, 1))}, {"two_theta_range_deg", window}}));
+        const auto& peaks = copper.at("peaks").items();
+        const int expected[5][3] = {{1, 1, 1}, {2, 0, 0}, {2, 2, 0}, {3, 1, 1}, {2, 2, 2}};
+        const int multiplicity[5] = {8, 6, 12, 24, 8};
+        check(peaks.size() == 5, "five fcc reflections below 100 degrees (got " + std::to_string(peaks.size()) + ")");
+        for (int i = 0; i < 5; ++i) {
+            const double q = std::sqrt(double(expected[i][0] * expected[i][0] + expected[i][1] * expected[i][1] + expected[i][2] * expected[i][2]));
+            close(peaks[static_cast<std::size_t>(i)].at("two_theta_deg").number(), 2 * std::asin(lambda * q / (2 * a)) * 180 / kPi, 1e-6, "Bragg angle");
+            check(peaks[static_cast<std::size_t>(i)].at("multiplicity").number() == multiplicity[i], "multiplicity");
+            std::array<int, 3> indices{};
+            for (int k = 0; k < 3; ++k) indices[static_cast<std::size_t>(k)] = std::abs(static_cast<int>(peaks[static_cast<std::size_t>(i)].at("hkl").items()[static_cast<std::size_t>(k)].number()));
+            std::sort(indices.rbegin(), indices.rend());
+            check(indices[0] == expected[i][0] && indices[1] == expected[i][1] && indices[2] == expected[i][2], "reflection family");
+        }
+        close(peaks[0].at("intensity").number(), 100, 1e-9, "(111) strongest");
+        const double i200 = peaks[1].at("intensity").number(), i220 = peaks[2].at("intensity").number(), i311 = peaks[3].at("intensity").number();
+        check(i200 > 35 && i200 < 60 && i220 > 12 && i220 < 35 && i311 > 12 && i311 < 35, "Cu relative intensities (200 " + std::to_string(i200) + ")");
+        // Rock salt: (111) is the weak difference reflection, (200) the strongest.
+        Crystal salt;
+        salt.cell = {{{5.64, 0, 0}, {0, 5.64, 0}, {0, 0, 5.64}}};
+        const Vec3 fcc[4] = {{0, 0, 0}, {0, .5, .5}, {.5, 0, .5}, {.5, .5, 0}};
+        for (const auto& b : fcc) {
+            salt.symbols.push_back("Na"); salt.positions.push_back(rowTimes(b, salt.cell));
+            salt.symbols.push_back("Cl"); salt.positions.push_back(rowTimes(add(b, {.5, 0, 0}), salt.cell));
+        }
+        const Json saltResult = run("powder-xrd", object({{"structure", structureJsonOf(salt)}}));
+        const auto& saltPeaks = saltResult.at("peaks").items();
+        check(saltPeaks[0].at("intensity").number() < 20 && saltPeaks[1].at("intensity").number() == 100, "NaCl (111) weak, (200) strongest");
+        // bcc tungsten: (110) first and strongest, no (100).
+        Crystal tungsten;
+        tungsten.cell = {{{3.165, 0, 0}, {0, 3.165, 0}, {0, 0, 3.165}}};
+        tungsten.symbols = {"W", "W"};
+        tungsten.positions = {{0, 0, 0}, {1.5825, 1.5825, 1.5825}};
+        const Json wResult = run("powder-xrd", object({{"structure", structureJsonOf(tungsten)}}));
+        const auto& wPeaks = wResult.at("peaks").items();
+        close(wPeaks[0].at("two_theta_deg").number(), 2 * std::asin(lambda * std::sqrt(2.0) / (2 * 3.165)) * 180 / kPi, 1e-6, "bcc (110) first");
+        close(wPeaks[0].at("intensity").number(), 100, 1e-9, "bcc (110) strongest");
+        const Json warmResult = run("powder-xrd", object({{"structure", structureJsonOf(fccCubic(a, 1))}, {"two_theta_range_deg", window}, {"debye_waller_A2", 1.0}}));
+        const auto& warm = warmResult.at("peaks").items();
+        check(warm[4].at("intensity").number() < peaks[4].at("intensity").number(), "Debye-Waller damps high angles");
+
+        const Json zone = run("electron-diffraction", object({{"structure", structureJsonOf(fccCubic(a, 1))}, {"zone_axis", Json::array({0, 0, 1})}, {"g_max_inv_A", 0.8}}));
+        close(zone.at("wavelength_A").number(), 0.025079, 2e-6, "200 kV relativistic wavelength");
+        int first = 0;
+        for (const auto& spot : zone.at("spots").items()) {
+            const auto& h = spot.at("hkl").items();
+            check(h[2].number() == 0, "zero-order Laue zone");
+            const int hh = static_cast<int>(h[0].number()), kk = static_cast<int>(h[1].number());
+            check(hh % 2 == 0 && kk % 2 == 0, "fcc [001]: only all-even reflections");
+            if (std::abs(spot.at("g_inv_A").number() - 2 / a) < 1e-9) ++first;
+        }
+        check(first == 4, "four {200} spots around [001]");
+        const Json zone110 = run("electron-diffraction", object({{"structure", structureJsonOf(fccCubic(a, 1))}, {"zone_axis", Json::array({1, -1, 0})}, {"g_max_inv_A", 0.6}}));
+        int odd = 0;
+        for (const auto& spot : zone110.at("spots").items()) odd += std::abs(static_cast<int>(spot.at("hkl").items()[0].number())) % 2;
+        check(odd == 4, "four {111} spots in the [1-10] zone");
+        check(resultPlots("powder-xrd", copper).at(0).markers.size() == 5, "pattern plot labels the peaks");
+    });
+
+    test("VASP band structure, DOS and fat bands", [] {
+        const auto poscar = scratch("vasp_POSCAR"), kpoints = scratch("vasp_KPOINTS"), eigenval = scratch("vasp_EIGENVAL");
+        const auto doscar = scratch("vasp_DOSCAR"), procar = scratch("vasp_PROCAR");
+        { std::ofstream out(poscar); out << "CuO test\n1.0\n4 0 0\n0 4 0\n0 0 4\nCu O\n1 1\nDirect\n0 0 0\n0.5 0.5 0.5\n"; }
+        { std::ofstream out(kpoints); out << "path\n5\nLine-mode\nReciprocal\n0 0 0 ! \\Gamma\n0.5 0 0 ! X\n\n0.5 0 0 ! X\n0.5 0.5 0 ! M\n\n0.5 0.5 0.5 ! R\n0 0 0 ! \\Gamma\n"; }
+        // Segment end points (fractional); five points per segment.
+        const Vec3 ends[3][2] = {{{0, 0, 0}, {.5, 0, 0}}, {{.5, 0, 0}, {.5, .5, 0}}, {{.5, .5, .5}, {0, 0, 0}}};
+        std::vector<Vec3> ks;
+        for (const auto& seg : ends)
+            for (int i = 0; i < 5; ++i) ks.push_back(add(seg[0], scale(sub(seg[1], seg[0]), i / 4.0)));
+        {
+            std::ofstream out(eigenval);
+            out << "    2    2    1    1\n  0.1E+02\n  1E-4\n  CAR\n test\n     9    15     3\n";
+            for (const auto& k : ks)
+                out << "\n  " << k[0] << ' ' << k[1] << ' ' << k[2] << "  0.0666\n    1  " << -1 - k[0] << "  1.0\n    2  " << 1 + k[1] << "  0.0\n    3  2.0  0.0\n";
+        }
+        {
+            std::ofstream out(doscar);
+            out << "    2    2    1    0\n  x\n  x\n  CAR\n test\n  2.0 -2.0 5 0.5 1.0\n";
+            for (int i = 0; i < 5; ++i) out << -2 + i << ' ' << 1.0 + i << ' ' << i << '\n';
+            for (int a = 0; a < 2; ++a) {
+                out << "  2.0 -2.0 5 0.5 1.0\n";
+                for (int i = 0; i < 5; ++i) out << -2 + i << ' ' << 0.1 * (a + 1) << ' ' << 0.2 * (a + 1) << ' ' << 0.3 * (a + 1) << '\n';
+            }
+        }
+        {
+            std::ofstream out(procar);
+            out << "PROCAR lm decomposed\n# of k-points:   15         # of bands:    3         # of ions:     2\n";
+            for (std::size_t k = 0; k < ks.size(); ++k) {
+                out << "\n k-point    " << k + 1 << " :    " << ks[k][0] << ' ' << ks[k][1] << ' ' << ks[k][2] << "     weight = 0.0666\n";
+                for (int b = 0; b < 3; ++b) {
+                    out << "\nband     " << b + 1 << " # energy   0.0 # occ.  1.0\n\nion      s     py     pz     px    dxy    dyz    dz2    dxz  x2-y2    tot\n";
+                    out << "    1  0.000  0.000  0.000  0.000  0.600  0.000  0.000  0.000  0.000  0.600\n";
+                    out << "    2  0.000  0.200  0.000  0.000  0.000  0.000  0.000  0.000  0.000  0.200\n";
+                    out << "tot    0.000  0.200  0.000  0.000  0.600  0.000  0.000  0.000  0.000  0.800\n";
+                }
+            }
+        }
+        auto request = [&](const char* orbital) {
+            return object({{"eigenval_file", eigenval.u8string()}, {"kpoints_file", kpoints.u8string()}, {"structure", object({{"file", poscar.u8string()}})},
+                           {"doscar_file", doscar.u8string()}, {"procar_file", procar.u8string()}, {"projection_orbital", orbital}});
+        };
+        const Json r = run("vasp-electronic", request("all"));
+        check(r.at("fermi_source").string() == "DOSCAR", "Fermi level from DOSCAR");
+        const auto distance = values(r.at("distance"));
+        const double unit = 2 * kPi / 4;
+        close(distance[4], 0.5 * unit, 1e-9, "Gamma-X length");
+        close(distance[9], unit, 1e-9, "X-M length");
+        close(distance[10], distance[9], 1e-12, "path break M|R has no length");
+        close(distance.back(), unit + 0.5 * std::sqrt(3.0) * unit, 1e-9, "R-Gamma length");
+        const auto& labels = r.at("labels").items();
+        check(labels.size() == 4 && labels[0].at("label").string() == "G" && labels[2].at("label").string() == "M|R", "labels with merged break: " + r.at("labels").dump());
+        close(r.at("energies_minus_fermi_eV").items()[0].items()[0].items()[0].number(), -1.5, 1e-12, "energies relative to E_F");
+        close(r.at("gap").at("gap_eV").number(), 2.0, 1e-9, "band gap from the sampled bands");
+        const auto cu = values(r.at("dos").at("projected_by_element").at("Cu").items()[0]);
+        close(cu[0], 0.6, 1e-12, "Cu projected DOS sums its orbitals");
+        close(r.at("fat_band_weights").at("Cu").items()[0].items()[3].items()[1].number(), 0.75, 1e-12, "Cu fat-band weight");
+        close(run("vasp-electronic", request("d")).at("fat_band_weights").at("Cu").items()[0].items()[0].items()[0].number(), 0.75, 1e-12, "Cu d weight");
+        close(run("vasp-electronic", request("s")).at("fat_band_weights").at("Cu").items()[0].items()[0].items()[0].number(), 0, 1e-12, "Cu s weight");
+        const auto plots = resultPlots("vasp-electronic", r);
+        check(plots.size() == 3 && plots[0].markers.size() == 4 && plots[0].series.size() == 3, "band, fat-band and DOS plots");
+    });
+
+#ifdef ATOMS_ENABLE_SPGLIB
+    test("DFT band-structure inputs round trip", [] {
+        Crystal silicon;
+        silicon.cell = {{{5.43, 0, 0}, {0, 5.43, 0}, {0, 0, 5.43}}};
+        const Vec3 fcc[4] = {{0, 0, 0}, {0, .5, .5}, {.5, 0, .5}, {.5, .5, 0}};
+        for (const auto& b : fcc)
+            for (const Vec3& shift : {Vec3{0, 0, 0}, Vec3{.25, .25, .25}}) {
+                silicon.symbols.push_back("Si");
+                silicon.positions.push_back(rowTimes(add(b, shift), silicon.cell));
+            }
+        const Json result = run("dft-inputs", object({{"structure", structureJsonOf(silicon)}, {"points_per_segment", 40}}));
+        const auto& files = result.at("files");
+        const auto poscar = scratch("generated_POSCAR"), kpoints = scratch("generated_KPOINTS");
+        { std::ofstream out(poscar); out << files.at("POSCAR").string(); }
+        { std::ofstream out(kpoints); out << files.at("KPOINTS").string(); }
+        const auto frames = readFrames(poscar);
+        check(frames.size() == 1 && frames[0].structure.atoms.size() == 2, "primitive POSCAR with two atoms");
+        const auto& primitive = result.at("primitive_structure").at("cell").items();
+        for (int r = 0; r < 3; ++r)
+            for (int c = 0; c < 3; ++c)
+                close(frames[0].structure.cellVectors[r][c], primitive[static_cast<std::size_t>(r)].items()[static_cast<std::size_t>(c)].number(), 1e-9, "POSCAR cell");
+        int perSegment = 0;
+        const auto labels = readLineModeLabels(kpoints, perSegment);
+        const auto& path = result.at("path").items();
+        check(perSegment == 40 && labels.size() == 2 * path.size(), "KPOINTS segments");
+        for (std::size_t s = 0; s < path.size(); ++s) {
+            const std::string from = path[s].items()[0].string() == "GAMMA" ? "G" : path[s].items()[0].string();
+            const std::string to = path[s].items()[1].string() == "GAMMA" ? "G" : path[s].items()[1].string();
+            check(labels[2 * s] == from && labels[2 * s + 1] == to, "KPOINTS labels follow the path");
+        }
+        // QE crystal_b: 40 steps along joined segments, 1 for jumps and for the last point.
+        std::istringstream qe(files.at("qe_band_cards.in").string());
+        std::string line;
+        while (std::getline(qe, line) && line.rfind("K_POINTS crystal_b", 0) != 0) {}
+        std::getline(qe, line);
+        const int count = std::stoi(line);
+        std::vector<int> weights;
+        for (int i = 0; i < count; ++i) {
+            std::getline(qe, line);
+            std::istringstream row(line);
+            double x, y, z;
+            int w;
+            row >> x >> y >> z >> w;
+            weights.push_back(w);
+        }
+        int jumps = 0;
+        for (std::size_t s = 1; s < path.size(); ++s) jumps += path[s].items()[0].string() != path[s - 1].items()[1].string();
+        check(count == static_cast<int>(path.size()) + 1 + jumps, "one QE point per path vertex");
+        check(weights.back() == 1 && std::count(weights.begin(), weights.end(), 40) == static_cast<long>(path.size()), "40 steps per segment, 1 for jumps");
+        check(files.at("qe_band_cards.in").string().find("Si 28.") != std::string::npos, "QE species mass");
+    });
+#endif
+
+    test("batch runs: sweeps, file globs, grids, failures and CSV", [] {
+        const Json pressures = Json::parse(R"({"tool": "relax", "base": {"calculator": {"potential": "EMT"}, "relax_cell": true, "fmax": 0.001},
+            "sweep": {"pressure_GPa": [0, 5, 10]}, "collect": ["volume_A3", "pressure_GPa", "converged"]})");
+        Json batch = pressures;
+        batch["base"]["structure"] = structureJsonOf(fccCubic(3.6, 2));
+        const Json result = runBatch(batch, ".");
+        check(result.at("run_count").number() == 3 && result.at("failures").number() == 0, "three relaxations");
+        const auto& rows = result.at("table").at("rows").items();
+        for (std::size_t i = 0; i < 3; ++i) {
+            close(rows[i].items()[2].number(), 5.0 * i, 0.05, "reached each target pressure");
+            check(rows[i].items()[3].boolean(), "converged");
+            if (i) check(rows[i].items()[1].number() < rows[i - 1].items()[1].number(), "volume falls with pressure");
+        }
+        // One run per matching file, in sorted order.
+        const auto folder = scratch("batch_gaps");
+        std::filesystem::create_directories(folder);
+        const double gaps[3] = {1.0, 2.5, 0.4};
+        for (int i = 0; i < 3; ++i) {
+            std::ofstream out(folder / ("gap_" + std::to_string(i) + ".json"));
+            out << "[[-0.05, " << gaps[i] - 0.05 << "]]";  // edges straddle E_F = 0
+        }
+        { std::ofstream out(folder / "other.json"); out << "[[0]]"; }
+        const Json files = runBatch(Json::parse(R"({"tool": "band-gap", "base": {"fermi_eV": 0},
+            "files": {"energies_eV": "gap_*.json"}, "collect": ["gap_eV"]})"), folder);
+        check(files.at("run_count").number() == 3, "glob matches three files");
+        for (int i = 0; i < 3; ++i) {
+            check(files.at("table").at("rows").items()[static_cast<std::size_t>(i)].items()[0].string() == "gap_" + std::to_string(i) + ".json", "sorted file order");
+            close(files.at("table").at("rows").items()[static_cast<std::size_t>(i)].items()[1].number(), gaps[i], 1e-12, "collected gap");
+        }
+        // Cartesian product and recorded failures.
+        const Json grid = runBatch(Json::parse(R"({"tool": "harmonic-thermodynamics", "base": {"energies_eV": [[0.01, 0.02]]},
+            "sweep": {"temperatures_K": [[100], [300]], "zero_tolerance_eV": [1e-8, -1, 1e-6]}, "collect": ["heat_capacity_eV_per_K.0"]})"), ".");
+        check(grid.at("run_count").number() == 6 && grid.at("failures").number() == 2, "2 x 3 grid with two invalid tolerances");
+        check(!grid.at("table").at("rows").items()[1].items()[3].isNull(), "failure message recorded");
+        expectError([] { runBatch(Json::parse(R"({"tool": "band-gap", "base": {"fermi_eV": 0}, "sweep": {"energies_eV": [[[-1, 1]], [[0]]]},
+            "continue_on_error": false})"), "."); }, "stop on first failure when requested");
+        check(valueAt(Json::parse(R"({"a": {"b": [1, {"c": 7}]}})"), "a.b.1.c").number() == 7, "dotted result path");
+        check(valueAt(Json::parse(R"({"a": 1})"), "a.missing").isNull(), "missing path is null");
+        const std::string csv = batchCsv(files);
+        check(csv.rfind("energies_eV,gap_eV,error\n", 0) == 0 && std::count(csv.begin(), csv.end(), '\n') == 4, "CSV table");
+    });
+
+    test("LAMMPS export: triclinic box, coordinates, potentials and tasks", [] {
+        // Parse a data file back: box rows and atom positions.
+        auto parse = [](const std::string& text, Mat3& box, std::vector<Vec3>& positions, std::vector<int>& types) {
+            std::istringstream in(text);
+            std::string line;
+            box = Mat3{};
+            positions.clear();
+            types.clear();
+            bool atoms = false;
+            while (std::getline(in, line)) {
+                std::istringstream row(line);
+                double a = 0, b = 0, c = 0;
+                if (line.find("xlo xhi") != std::string::npos) { row >> a >> b; box[0][0] = b - a; }
+                else if (line.find("ylo yhi") != std::string::npos) { row >> a >> b; box[1][1] = b - a; }
+                else if (line.find("zlo zhi") != std::string::npos) { row >> a >> b; box[2][2] = b - a; }
+                else if (line.find("xy xz yz") != std::string::npos) { row >> a >> b >> c; box[1][0] = a; box[2][0] = b; box[2][1] = c; }
+                else if (line.rfind("Atoms", 0) == 0) atoms = true;
+                else if (atoms) {
+                    int id = 0, type = 0;
+                    if (row >> id >> type >> a >> b >> c) { positions.push_back({a, b, c}); types.push_back(type); }
+                }
+            }
+        };
+        Crystal hexagonal;
+        const double a = 3.21, c = 5.21;
+        hexagonal.cell = {{{a, 0, 0}, {-a / 2, a * std::sqrt(3.0) / 2, 0}, {0, 0, c}}};
+        hexagonal.symbols = {"Mg", "Mg", "Al"};
+        hexagonal.positions = {rowTimes({1.0 / 3, 2.0 / 3, .25}, hexagonal.cell), rowTimes({2.0 / 3, 1.0 / 3, .75}, hexagonal.cell), rowTimes({.1, .2, .5}, hexagonal.cell)};
+        const Json result = run("lammps-export", object({{"structure", structureJsonOf(hexagonal)}}));
+        check(result.at("triclinic").boolean(), "hexagonal cell is triclinic");
+        Mat3 box;
+        std::vector<Vec3> positions;
+        std::vector<int> types;
+        parse(result.at("files").at("data.lammps").string(), box, positions, types);
+        close(cellVolume(box), cellVolume(hexagonal.cell), 1e-6, "box volume");
+        check(std::abs(box[1][0]) <= box[0][0] / 2 + 1e-9, "reduced xy tilt");
+        check(types == std::vector<int>({1, 1, 2}), "atom types in order of first appearance");
+        for (std::size_t i = 0; i < positions.size(); ++i) {
+            Vec3 f0 = fractional(hexagonal.positions[i], hexagonal.cell), f1 = fractional(positions[i], box);
+            for (int k = 0; k < 3; ++k) {
+                const double d = f1[k] - f0[k];
+                close(d - std::round(d), 0, 1e-9, "fractional coordinates preserved");
+            }
+        }
+        // A strongly sheared cell is reduced to legal tilts without changing its lattice.
+        const Mat3 sheared = {{{4, 0, 0}, {9, 4, 0}, {7, -11, 4}}};
+        const Mat3 lmp = lammpsCell(sheared);
+        check(std::abs(lmp[1][0]) <= lmp[0][0] / 2 + 1e-9 && std::abs(lmp[2][0]) <= lmp[0][0] / 2 + 1e-9 && std::abs(lmp[2][1]) <= lmp[1][1] / 2 + 1e-9, "tilts reduced");
+        close(cellVolume(lmp), cellVolume(sheared), 1e-9, "reduction keeps the volume");
+        expectError([] { lammpsCell({{{1, 0, 0}, {0, 0, 1}, {0, 1, 0}}}); }, "left-handed cell rejected");
+
+        const Crystal copper = fccCubic(3.61, 2);
+        const Json eam = run("lammps-export", object({{"structure", structureJsonOf(copper)}, {"calculator", object({{"potential", "EAM"}, {"file", "Cu_u3.eam"}})},
+                                                      {"task", "npt"}, {"pressure_GPa", 2.0}}));
+        const std::string input = eam.at("files").at("in.lammps").string();
+        check(input.find("pair_style eam\npair_coeff 1 1 Cu_u3.eam") != std::string::npos, "funcfl EAM pair style");
+        check(input.find("iso 20000 20000") != std::string::npos, "2 GPa = 20000 bar");
+        check(input.find("dump_modify traj element Cu") != std::string::npos, "dump with element names");
+        const Json lj = run("lammps-export", object({{"structure", structureJsonOf(copper)}, {"task", "nvt"},
+            {"calculator", object({{"potential", "LennardJones"}, {"epsilon", 0.0104}, {"sigma", 3.4}, {"cutoff", 8.5}})}}));
+        check(lj.at("files").at("in.lammps").string().find("pair_style lj/cut 8.5\npair_coeff * * 0.0104 3.4\npair_modify shift yes") != std::string::npos, "LJ pair style");
+        check(run("lammps-export", object({{"structure", structureJsonOf(copper)}, {"calculator", object({{"potential", "EAM"}, {"file", "CuNi.eam.alloy"}})}}))
+                  .at("files").at("in.lammps").string().find("pair_style eam/alloy\npair_coeff * * CuNi.eam.alloy Cu") != std::string::npos, "setfl pair style");
+        Crystal moved = copper;
+        moved.positions[0] = add(moved.positions[0], {0.3, 0.1, 0});
+        const Json neb = run("lammps-export", object({{"structure", structureJsonOf(copper)}, {"final", structureJsonOf(moved)}, {"task", "neb"}}));
+        std::istringstream finalFile(neb.at("files").at("final.neb").string());
+        std::string header;
+        std::getline(finalFile, header);
+        check(std::stoi(header) == static_cast<int>(copper.positions.size()), "final.neb atom count");
+        int id;
+        Vec3 first;
+        finalFile >> id >> first[0] >> first[1] >> first[2];
+        Mat3 cubeBox;
+        std::vector<Vec3> cubePositions;
+        std::vector<int> cubeTypes;
+        parse(neb.at("files").at("data.lammps").string(), cubeBox, cubePositions, cubeTypes);
+        close(norm(sub(first, cubePositions[0])), norm(Vec3{0.3, 0.1, 0}), 1e-9, "final.neb carries the displacement");
+        expectError([&] { run("lammps-export", object({{"structure", structureJsonOf(copper)}, {"task", "neb"}})); }, "NEB needs a final structure");
+        const Json open = run("lammps-export", object({{"structure", Json::parse(R"({"symbols":["Ar","Ar"],"positions":[[0,0,0],[3.8,0,0]]})")}}));
+        check(open.at("files").at("in.lammps").string().find("boundary f f f") != std::string::npos, "open structure uses fixed boundaries");
+    });
+
+    test("animated GIF encoding round trip", [] {
+        const auto path = std::filesystem::temp_directory_path() / "atomforge_gif_test.gif";
+        const int w = 97, h = 61;
+        std::vector<std::vector<unsigned char>> frames;
+        for (int f = 0; f < 3; ++f) {
+            std::vector<unsigned char> rgba(static_cast<std::size_t>(w * h * 4));
+            for (int y = 0; y < h; ++y)
+                for (int x = 0; x < w; ++x) {
+                    unsigned char* p = &rgba[static_cast<std::size_t>((y * w + x) * 4)];
+                    // Few flat colours (exact after quantisation) plus a moving stripe.
+                    const bool stripe = (x + 7 * f) % 20 < 4;
+                    p[0] = stripe ? 200 : static_cast<unsigned char>(x < w / 2 ? 16 : 240);
+                    p[1] = stripe ? 40 : static_cast<unsigned char>(y < h / 2 ? 80 : 160);
+                    p[2] = static_cast<unsigned char>(8 * f);
+                    p[3] = 255;
+                }
+            frames.push_back(rgba);
+        }
+        {
+            GifWriter writer(path, w, h, 7);
+            for (const auto& frame : frames) writer.addFrame(frame);
+            check(writer.frames() == 3, "frame count while writing");
+        }
+        const GifImage image = readGif(path);
+        check(image.width == w && image.height == h && image.looping, "GIF header and loop extension");
+        check(image.frames.size() == 3 && image.delays == std::vector<int>({7, 7, 7}), "frames and delays decoded");
+        int mismatches = 0;
+        for (std::size_t f = 0; f < 3; ++f)
+            for (std::size_t i = 0; i < static_cast<std::size_t>(w * h); ++i)
+                for (std::size_t k = 0; k < 3; ++k)
+                    mismatches += image.frames[f][3 * i + k] != frames[f][4 * i + k];
+        check(mismatches == 0, "flat colours reproduced exactly");
+
+        // A smooth gradient with far more than 256 colours exercises the LZW table
+        // reset and nearest-colour mapping.
+        const int gw = 300, gh = 200;
+        std::vector<unsigned char> rgb(static_cast<std::size_t>(gw * gh * 3));
+        for (int y = 0; y < gh; ++y)
+            for (int x = 0; x < gw; ++x) {
+                unsigned char* p = &rgb[static_cast<std::size_t>((y * gw + x) * 3)];
+                p[0] = static_cast<unsigned char>(x * 255 / (gw - 1));
+                p[1] = static_cast<unsigned char>(y * 255 / (gh - 1));
+                p[2] = static_cast<unsigned char>((x * y) % 256);
+            }
+        {
+            GifWriter writer(path, gw, gh, 4);
+            writer.addFrame(rgb, 3);
+        }
+        const GifImage gradient = readGif(path);
+        check(gradient.frames.size() == 1, "gradient frame decoded");
+        double error = 0;
+        for (std::size_t i = 0; i < rgb.size(); ++i) error += std::abs(int(gradient.frames[0][i]) - int(rgb[i]));
+        error /= static_cast<double>(rgb.size());
+        check(error < 40, "gradient mean error " + std::to_string(error));
+        expectError([&] { GifWriter bad(path, 4, 4, 5); bad.addFrame(std::vector<unsigned char>(10)); }, "short frame rejected");
+        std::filesystem::remove(path);
     });
 
     test("catalog defaults are valid requests", [] {

@@ -617,6 +617,42 @@ void handleImageExportIfRequested(bool hasImageExportRequest,
               << " (" << (exportError.empty() ? "Unknown error" : exportError) << ")" << std::endl;
 }
 
+// Trajectory GIF export shows one frame per main-loop pass; capture it here
+// with the current camera after the scene buffers have been updated.
+void captureTrajectoryGifFrame(const FrameView& frame,
+                               EditorState& state,
+                               Renderer& renderer,
+                               ShadowMap& shadow)
+{
+    if (!state.fileBrowser.trajectoryGifCapturePending())
+        return;
+
+    ImageExportView exportView;
+    exportView.width = frame.framebufferWidth;
+    exportView.height = frame.framebufferHeight;
+    exportView.projection = frame.projection;
+    exportView.view = frame.view;
+    exportView.lightMVP = frame.lightMVP;
+    exportView.lightPosition = frame.lightPosition;
+    exportView.cameraPosition = frame.cameraPosition;
+
+    std::vector<unsigned char> pixels;
+    std::string error;
+    if (renderSceneToRgba(exportView,
+                          state.fileBrowser.isLightThemeEnabled() ? kLightBackground : kDarkBackground,
+                          state.fileBrowser.isShowBondsEnabled(),
+                          state.fileBrowser.isShowAtomsEnabled(),
+                          state.fileBrowser.isShowBoundingBoxEnabled(),
+                          state.sceneBuffers,
+                          renderer,
+                          shadow,
+                          pixels,
+                          error))
+        state.fileBrowser.addTrajectoryGifFrame(pixels, exportView.width, exportView.height);
+    else
+        state.fileBrowser.addTrajectoryGifFrame({}, 0, 0);  // stops the export
+}
+
 void loadStartupStructureIfRequested(StructureTab& tab, const std::string& startupStructurePath)
 {
     EditorState& state = tab.state;
@@ -1255,6 +1291,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
 
         handleImageExportIfRequested(hasImageExportRequest, imageExportRequest,
                                      frame, activeState, renderer, shadow);
+        captureTrajectoryGifFrame(frame, activeState, renderer, shadow);
 
         // Save active tab camera back
         saveCameraToTab(camera, *tabs[activeTabIdx]);

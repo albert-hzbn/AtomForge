@@ -146,6 +146,84 @@ std::vector<PlotSpec> resultPlots(const std::string& tool, const Json& result)
                 volumetric.push_back(trace);
             }
         addHistogram(plots, "Volumetric strain", "trace(E)", volumetric);
+    } else if (tool == "vasp-electronic") {
+        const auto distance = numbers(result.find("distance"));
+        const Json* energies = result.find("energies_minus_fermi_eV");
+        if (energies && energies->isArray() && distance.size() > 1) {
+            std::vector<PlotSeries> series;
+            for (std::size_t s = 0; s < energies->size(); ++s) {
+                const Json& spin = energies->items()[s];
+                const std::size_t count = spin.items()[0].size();
+                for (std::size_t b = 0; b < count; ++b)
+                    series.push_back(line((energies->size() > 1 ? (s == 0 ? "up " : "down ") : "band ") + std::to_string(b + 1), distance, column(&spin, b)));
+            }
+            auto spec = plot("Band structure", "Wavevector distance", "E - E_F (eV)", series);
+            if (const Json* labels = result.find("labels"); labels && labels->isArray())
+                for (const auto& marker : labels->items()) spec.markers.push_back({marker.at("distance").number(), marker.at("label").string()});
+            spec.horizontal = {0.0};
+            plots.push_back(spec);
+            if (const Json* fat = result.find("fat_band_weights"); fat && fat->isObject() && fat->size() > 0) {
+                const auto& [element, weights] = fat->members()[0];
+                std::vector<double> x, y;
+                const Json& spin = energies->items()[0];
+                for (std::size_t k = 0; k < distance.size(); ++k)
+                    for (std::size_t b = 0; b < spin.items()[k].size(); ++b)
+                        if (weights.items()[0].items()[k].items()[b].number() > 0.3) {
+                            x.push_back(distance[k]);
+                            y.push_back(spin.items()[k].items()[b].number());
+                        }
+                auto fatSpec = spec;
+                fatSpec.title = "Fat bands: states with >30% " + element + " character";
+                fatSpec.series.push_back(line(element + " > 30%", x, y, true));
+                plots.push_back(fatSpec);
+            }
+        }
+        if (const Json* dos = result.find("dos"); dos && dos->isObject()) {
+            const auto energy = numbers(dos->find("energy_minus_fermi_eV"));
+            std::vector<PlotSeries> series;
+            const Json* total = dos->find("total");
+            for (std::size_t s = 0; total && s < total->size(); ++s) series.push_back(line(s ? "total (down)" : "total", energy, numbers(&total->items()[s])));
+            if (const Json* projected = dos->find("projected_by_element"); projected && projected->isObject())
+                for (const auto& [element, data] : projected->members()) series.push_back(line(element, energy, numbers(&data.items()[0])));
+            auto spec = plot("Density of states", "E - E_F (eV)", "DOS (states/eV)", series);
+            spec.markers.push_back({0.0, "E_F"});
+            plots.push_back(spec);
+        }
+    } else if (tool == "powder-xrd") {
+        auto spec = plot("Powder diffraction pattern", "2-theta (degrees)", "Intensity", {line("profile", numbers(result.find("two_theta_deg")), numbers(result.find("profile")))});
+        if (const Json* peaks = result.find("peaks"); peaks && peaks->isArray())
+            for (const auto& peak : peaks->items())
+                if (peak.at("intensity").number() >= 5) {
+                    const auto& h = peak.at("hkl").items();
+                    spec.markers.push_back({peak.at("two_theta_deg").number(),
+                        std::to_string(static_cast<int>(h[0].number())) + std::to_string(static_cast<int>(h[1].number())) + std::to_string(static_cast<int>(h[2].number()))});
+                }
+        plots.push_back(spec);
+    } else if (tool == "electron-diffraction") {
+        plots.push_back(plot("Diffraction spots", "x (1/A)", "y (1/A)", {line("spots", numbers(result.find("spot_x_inv_A")), numbers(result.find("spot_y_inv_A")), true)}));
+    } else if (tool == "cluster-analysis") {
+        const Json* histogram = result.find("size_histogram");
+        if (histogram && histogram->isArray() && histogram->size() > 0) {
+            std::vector<double> x, y;
+            for (const auto& row : histogram->items()) { x.push_back(row.items()[0].number()); y.push_back(row.items()[1].number()); }
+            if (x.size() == 1) { x.push_back(x[0] + 1); y.push_back(0); }
+            plots.push_back(plot("Cluster size distribution", "Cluster size (atoms)", "Clusters", {line("clusters", x, y, true)}));
+        }
+    } else if (tool == "void-analysis") {
+        std::vector<double> rank, volume;
+        if (const Json* voids = result.find("voids"); voids && voids->isArray())
+            for (const auto& v : voids->items()) { rank.push_back(static_cast<double>(rank.size() + 1)); volume.push_back(v.at("accessible_volume_A3").number()); }
+        if (rank.size() >= 2) plots.push_back(plot("Void volumes", "Void (largest first)", "Accessible volume (A^3)", {line("voids", rank, volume, true)}));
+    } else if (tool == "structure-type") {
+        if (const Json* counts = result.find("counts"); counts && counts->isObject()) {
+            std::vector<double> x, y;
+            for (std::size_t t = 0; t < counts->size(); ++t) {
+                x.push_back(static_cast<double>(t));
+                y.push_back(counts->members()[t].second.number());
+            }
+            auto spec = plot("Structure types (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)", "Type", "Atoms", {line("atoms", x, y, true)});
+            plots.push_back(spec);
+        }
     } else if (tool == "centrosymmetry") {
         addHistogram(plots, "Centrosymmetry distribution", "CSP (A^2)", numbers(result.find("centrosymmetry_A2")));
     } else if (tool == "bond-order") {
@@ -179,6 +257,38 @@ std::vector<PlotSpec> resultPlots(const std::string& tool, const Json& result)
             {line("F", t, numbers(result.find("free_energy_eV"))), line("U", t, numbers(result.find("internal_energy_eV")))}));
         plots.push_back(plot("Entropy and heat capacity", "Temperature (K)", "eV/(cell K)",
             {line("S", t, numbers(result.find("entropy_eV_per_K"))), line("Cv", t, numbers(result.find("heat_capacity_eV_per_K")))}));
+    } else if (tool == "phonons") {
+        const Json* bands = result.find("frequencies_THz");
+        const auto distance = numbers(result.find("distance_inv_A"));
+        if (bands && bands->isArray() && bands->size() == distance.size() && bands->size() > 1) {
+            std::vector<PlotSeries> branches;
+            const std::size_t count = bands->items()[0].size();
+            for (std::size_t b = 0; b < count; ++b)
+                branches.push_back(line("branch " + std::to_string(b + 1), distance, column(bands, b)));
+            auto spec = plot("Phonon dispersion", "Wavevector distance (1/A)", "Frequency (THz)", branches);
+            const Json* labels = result.find("labels");
+            for (std::size_t i = 0; labels && labels->isArray() && i < labels->size() && i < distance.size(); ++i)
+                if (labels->items()[i].isString() && !labels->items()[i].string().empty()) {
+                    std::string label = labels->items()[i].string();
+                    if (label == "GAMMA") label = "G";
+                    spec.markers.push_back({distance[i], label});
+                }
+            spec.horizontal = {0.0};
+            plots.push_back(spec);
+        }
+        if (const Json* dos = result.find("dos"); dos && dos->isObject()) {
+            auto energy = numbers(dos->find("energy_eV"));
+            auto density = numbers(dos->find("dos_per_eV"));
+            for (double& e : energy) e /= 4.135667696e-3;
+            for (double& d : density) d *= 4.135667696e-3;
+            plots.push_back(plot("Phonon density of states", "Frequency (THz)", "DOS (states/THz)", {line("DOS", energy, density)}));
+        }
+        if (const Json* thermo = result.find("thermodynamics"); thermo && thermo->isObject()) {
+            const auto t = numbers(thermo->find("temperature_K"));
+            plots.push_back(plot("Harmonic free and internal energy", "Temperature (K)", "Energy (eV/cell)",
+                {line("F", t, numbers(thermo->find("free_energy_eV"))), line("U", t, numbers(thermo->find("internal_energy_eV")))}));
+            plots.push_back(plot("Heat capacity", "Temperature (K)", "Cv (eV/(cell K))", {line("Cv", t, numbers(thermo->find("heat_capacity_eV_per_K")))}));
+        }
     } else if (tool == "relax") {
         const auto enthalpy = numbers(result.find("enthalpy_history_eV"));
         const auto force = numbers(result.find("max_force_history"));
@@ -202,8 +312,13 @@ std::vector<PlotSpec> resultPlots(const std::string& tool, const Json& result)
         const auto time = numbers(result.find("time_fs"));
         auto temperature = plot("Temperature", "Time (fs)", "T (K)", {line("T", time, numbers(result.find("temperature_K")))});
         temperature.horizontal = {number(result, "target_temperature_K")};
+        auto energy = plot("Total energy", "Time (fs)", "E (eV)", {line("E", time, numbers(result.find("total_energy_eV")))});
+        if (const Json* start = result.find("production_start_fs"); start && start->isNumber()) {
+            temperature.markers.push_back({start->number(), "NVE"});
+            energy.markers.push_back({start->number(), "NVE"});
+        }
         plots.push_back(temperature);
-        plots.push_back(plot("Total energy", "Time (fs)", "E (eV)", {line("E", time, numbers(result.find("total_energy_eV")))}));
+        plots.push_back(energy);
         if (tool == "npt") {
             plots.push_back(plot("Volume", "Time (fs)", "V (A^3)", {line("V", time, numbers(result.find("volume_A3")))}));
             plots.push_back(plot("Pressure", "Time (fs)", "P (GPa)", {line("P", time, numbers(result.find("pressure_GPa")))}));
