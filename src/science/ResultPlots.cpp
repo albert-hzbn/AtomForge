@@ -367,6 +367,29 @@ void dynamicsPlots(const Json& result, std::vector<PlotSpec>& plots, bool npt)
     }
 }
 
+void trajectoryStructurePlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    const auto r = numbers(result.find("r_A"));
+    std::vector<PlotSeries> rdf = {line("total", r, numbers(result.find("g_total")))};
+    if (const Json* partial = result.find("g_partial"); partial && partial->isObject() && partial->size() > 1)
+        for (const auto& [pair, values] : partial->members()) rdf.push_back(line(pair, r, numbers(&values)));
+    auto spec = plot("Radial distribution function", "r (A)", "g(r)", rdf);
+    spec.horizontal = {1.0};
+    plots.push_back(spec);
+    if (const Json* distribution = result.find("coordination_distribution"); distribution && distribution->isObject()) {
+        std::vector<PlotSeries> series;
+        for (const auto& [element, rows] : distribution->members()) {
+            std::vector<double> x, y;
+            for (const auto& row : rows.items()) { x.push_back(row.items()[0].number()); y.push_back(row.items()[1].number()); }
+            if (x.size() == 1) { x.push_back(x[0] + 1); y.push_back(0); }
+            series.push_back(line(element, x, y, true));
+        }
+        plots.push_back(plot("Coordination distribution", "Neighbours within the cutoff", "Fraction of atoms", series));
+    }
+    plots.push_back(plot("Bond-angle distribution", "Angle (degrees)", "Density (1/degree)",
+        {line("angles", numbers(result.find("angle_deg")), numbers(result.find("angle_density_per_deg")))}));
+}
+
 const std::map<std::string, PlotBuilder>& plotBuilders()
 {
     static const std::map<std::string, PlotBuilder> builders = {
@@ -387,6 +410,8 @@ const std::map<std::string, PlotBuilder>& plotBuilders()
         {"wigner-seitz", wignerSeitzPlots},
         {"work-function", workFunctionPlots},
         {"equation-of-state", equationOfStatePlots},
+        {"eos-scan", equationOfStatePlots},
+        {"trajectory-structure", trajectoryStructurePlots},
         {"phonon-dos", phononDosPlots},
         {"harmonic-thermodynamics", harmonicThermodynamicsPlots},
         {"phonons", phononsPlots},
@@ -436,6 +461,24 @@ std::vector<PlotSpec> resultPlots(const std::string& tool, const Json& result)
         return finite < 2;
     }), plots.end());
     return plots;
+}
+
+PlotSpec overlayPlots(const PlotSpec& current, const std::string& currentLabel,
+                      const std::vector<std::pair<std::string, std::vector<PlotSpec>>>& others)
+{
+    PlotSpec combined = current;
+    combined.series.clear();
+    const auto addRun = [&](const std::string& label, const PlotSpec& spec) {
+        for (auto series : spec.series) {
+            series.name = label + ": " + series.name;
+            combined.series.push_back(std::move(series));
+        }
+    };
+    for (const auto& [label, plots] : others)
+        for (const auto& spec : plots)
+            if (spec.title == current.title) { addRun(label, spec); break; }
+    addRun(currentLabel, current);
+    return combined;
 }
 
 std::string plotCsv(const PlotSpec& plot)

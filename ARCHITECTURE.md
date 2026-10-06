@@ -74,6 +74,17 @@ the catalog drives request validation, the CLI catalog, the batch runner and
 the desktop window. The registry test in `tests/science_tools_regressions.cpp`
 fails if a catalog tool has no runner or a table names an unknown tool.
 
+Parameters of kind `structure` in the catalog are parsed as structures
+(`Parameters::structure(name)`), so a tool may name several structure inputs
+(for example `structure` and `bulk`). `TrajectoryStream` gives random access to
+trajectory frames without loading them all; tools that read whole trajectories
+(such as `trajectory-structure`) and Trajectory playback use it.
+
+`atomforge_science_native` is a shared library around the same registry
+(`src/science/NativeAPI.cpp`: `afs_catalog`, `afs_run`, `afs_free`) for the
+Python module `atomforge.native`, so every catalog tool is callable from Python
+without further bindings.
+
 To add a tool: add its catalog entry, implement the calculation (taking
 `Parameters` and returning `ToolOutput`), add a runner row and, if useful,
 plot and property builders; then describe its method, units and limits in the

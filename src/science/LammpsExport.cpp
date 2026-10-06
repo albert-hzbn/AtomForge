@@ -5,6 +5,7 @@
 #include <cmath>
 #include <filesystem>
 #include <iomanip>
+#include <map>
 #include <sstream>
 #include <stdexcept>
 
@@ -88,25 +89,13 @@ ToolOutput lammpsExport(const Parameters& p)
         for (const auto& atom : structure.atoms) positions.push_back(sub({atom.x, atom.y, atom.z}, low));
         low = {0, 0, 0};
     }
-    std::ostringstream data;
-    data << std::setprecision(12);
-    data << "LAMMPS data file written by AtomForge\n\n" << structure.atoms.size() << " atoms\n" << species.size() << " atom types\n\n";
-    data << "0.0 " << box[0][0] << " xlo xhi\n0.0 " << box[1][1] << " ylo yhi\n0.0 " << box[2][2] << " zlo zhi\n";
-    if (periodic && (std::abs(box[1][0]) > 1e-12 || std::abs(box[2][0]) > 1e-12 || std::abs(box[2][1]) > 1e-12))
-        data << box[1][0] << ' ' << box[2][0] << ' ' << box[2][1] << " xy xz yz\n";
-    data << "\nMasses\n\n";
-    for (std::size_t t = 0; t < species.size(); ++t) data << t + 1 << ' ' << atomicMass(species[t]) << "  # " << species[t] << "\n";
-    data << "\nAtoms  # atomic\n\n";
-    for (std::size_t i = 0; i < structure.atoms.size(); ++i) {
-        const std::size_t type = static_cast<std::size_t>(std::find(species.begin(), species.end(), structure.atoms[i].symbol) - species.begin()) + 1;
-        data << i + 1 << ' ' << type << ' ' << positions[i][0] << ' ' << positions[i][1] << ' ' << positions[i][2] << "\n";
-    }
-
     // Potential.
     std::string elementList;
     for (const auto& s : species) elementList += " " + s;
     std::ostringstream pair;
     std::vector<std::string> notes;
+    std::map<std::string, double> charges;   // atom_style charge when non-empty
+    std::map<std::string, std::string> extraFiles;
     const Json potential = p.has("calculator") ? p.json("calculator") : Json::parse(R"({"potential": "EMT"})");
     std::string name = potential.contains("potential") ? potential.at("potential").string() : "EMT";
     std::string key;
@@ -127,10 +116,65 @@ ToolOutput lammpsExport(const Parameters& p)
         const double epsilon = potential.contains("epsilon") ? potential.at("epsilon").number() : 1.0;
         const double cutoff = potential.contains("cutoff") ? potential.at("cutoff").number() : 3 * sigma;
         pair << "pair_style lj/cut " << cutoff << "\npair_coeff * * " << epsilon << ' ' << sigma << "\npair_modify shift yes\n";
+    } else if (key == "tersoff" || key == "stillingerweber" || key == "sw") {
+        const bool tersoff = key == "tersoff";
+        std::string file = potential.contains("file") && !potential.at("file").string().empty() ? fileName(potential.at("file").string()) : "";
+        if (file.empty()) {
+            // The built-in Si parameters, in LAMMPS's own file format.
+            file = tersoff ? "Si.tersoff" : "Si.sw";
+            extraFiles[file] = tersoff
+                ? "# Si, Tersoff PRB 38 9902 (1988)\nSi Si Si 3.0 1.0 0.0 1.0039e5 16.217 -0.59825 0.78734 1.1e-6 1.7322 471.18 2.85 0.15 2.4799 1830.8\n"
+                : "# Si, Stillinger and Weber PRB 31 5262 (1985)\nSi Si Si 2.1683 2.0951 1.80 21.0 1.20 -0.333333333333 7.049556277 0.6022245584 4.0 0.0 0.0\n";
+        } else notes.push_back("Copy " + file + " beside in.lammps.");
+        pair << "pair_style " << (tersoff ? "tersoff" : "sw") << "\npair_coeff * * " << file << elementList << "\n";
+    } else if (key == "buckingham" || key == "buck") {
+        const double cutoff = potential.contains("cutoff") ? potential.at("cutoff").number() : 10.0;
+        if (const Json* table = potential.find("charges"); table && table->isObject())
+            for (const auto& [element, q] : table->members()) charges[element] = q.number();
+        pair << (charges.empty() ? "pair_style buck " : "pair_style buck/coul/long ") << cutoff << "\n";
+        // Unlisted pairs interact only through their charges.
+        for (std::size_t a = 0; a < species.size(); ++a)
+            for (std::size_t b = a; b < species.size(); ++b) {
+                double A = 0, rho = 1, C = 0;
+                if (const Json* list = potential.find("pairs"); list && list->isArray())
+                    for (const auto& entry : list->items()) {
+                        const auto& e = entry.at("elements").items();
+                        if ((e[0].string() == species[a] && e[1].string() == species[b]) || (e[0].string() == species[b] && e[1].string() == species[a])) {
+                            A = entry.at("A").number();
+                            rho = entry.at("rho").number();
+                            C = entry.contains("C") ? entry.at("C").number() : 0.0;
+                        }
+                    }
+                pair << "pair_coeff " << a + 1 << ' ' << b + 1 << ' ' << A << ' ' << rho << ' ' << C << "  # " << species[a] << '-' << species[b] << "\n";
+            }
+        if (!charges.empty()) {
+            if (!periodic) throw std::runtime_error("LAMMPS export of Coulomb interactions needs a periodic structure");
+            pair << "kspace_style ewald " << (potential.contains("ewald_accuracy") ? potential.at("ewald_accuracy").number() : 1e-6) << "\n";
+        }
     } else {
         pair << "# EMT has no LAMMPS pair style: choose a potential for" << elementList << ", e.g.\n# pair_style eam/alloy\n# pair_coeff * * FILE.eam.alloy" << elementList << "\n";
         notes.push_back("EMT is not available in LAMMPS; the pair style is left as a commented placeholder.");
     }
+    std::ostringstream data;
+    data << std::setprecision(12);
+    data << "LAMMPS data file written by AtomForge\n\n" << structure.atoms.size() << " atoms\n" << species.size() << " atom types\n\n";
+    data << "0.0 " << box[0][0] << " xlo xhi\n0.0 " << box[1][1] << " ylo yhi\n0.0 " << box[2][2] << " zlo zhi\n";
+    if (periodic && (std::abs(box[1][0]) > 1e-12 || std::abs(box[2][0]) > 1e-12 || std::abs(box[2][1]) > 1e-12))
+        data << box[1][0] << ' ' << box[2][0] << ' ' << box[2][1] << " xy xz yz\n";
+    data << "\nMasses\n\n";
+    for (std::size_t t = 0; t < species.size(); ++t) data << t + 1 << ' ' << atomicMass(species[t]) << "  # " << species[t] << "\n";
+    data << (charges.empty() ? "\nAtoms  # atomic\n\n" : "\nAtoms  # charge\n\n");
+    for (std::size_t i = 0; i < structure.atoms.size(); ++i) {
+        const std::size_t type = static_cast<std::size_t>(std::find(species.begin(), species.end(), structure.atoms[i].symbol) - species.begin()) + 1;
+        data << i + 1 << ' ' << type << ' ';
+        if (!charges.empty()) {
+            const auto charge = charges.find(structure.atoms[i].symbol);
+            if (charge == charges.end()) throw std::runtime_error("No charge given for " + structure.atoms[i].symbol);
+            data << charge->second << ' ';
+        }
+        data << positions[i][0] << ' ' << positions[i][1] << ' ' << positions[i][2] << "\n";
+    }
+
     const std::string task = p.has("task") ? p.json("task").string() : "minimize";
     const double temperature = p.number("temperature_K", 300.0);
     const double pressureBar = p.number("pressure_GPa", 0.0) * 10000.0;
@@ -142,7 +186,7 @@ ToolOutput lammpsExport(const Parameters& p)
     const long long seed = integer(p.number("seed", 12345), "seed");
     std::ostringstream in;
     in << std::setprecision(10);
-    in << "# LAMMPS input written by AtomForge (" << task << ")\nunits metal\natom_style atomic\nboundary " << (periodic ? "p p p" : "f f f") << "\n";
+    in << "# LAMMPS input written by AtomForge (" << task << ")\nunits metal\natom_style " << (charges.empty() ? "atomic" : "charge") << "\nboundary " << (periodic ? "p p p" : "f f f") << "\n";
     if (task == "neb") in << "atom_modify map array\n";
     in << "read_data data.lammps\n\n" << pair.str() << "\nneighbor 2.0 bin\nneigh_modify delay 0 every 1 check yes\nthermo " << interval << "\n";
     in << "thermo_style custom step temp pe etotal press vol\n";
@@ -185,6 +229,7 @@ ToolOutput lammpsExport(const Parameters& p)
         in << "neb 0.0 " << p.number("fmax", 0.03) << ' ' << steps << ' ' << steps << ' ' << interval << " final final.neb\n";
         notes.push_back("Run NEB with one partition per image, e.g. mpirun -np " + std::to_string(images) + " lmp -partition " + std::to_string(images) + "x1 -in in.lammps");
     } else throw std::runtime_error("task must be minimize, nvt, npt or neb");
+    for (const auto& [file, text] : extraFiles) files[file] = text;
     files["data.lammps"] = data.str();
     files["in.lammps"] = in.str();
     Json result = Json::object();

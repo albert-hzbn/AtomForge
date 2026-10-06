@@ -51,6 +51,7 @@ PUBLIC_FILES = {
     "python/atomforge/science/thermomechanics.py": "Elasticity, equation of state and harmonic thermodynamics",
     "python/atomforge/science/advanced_simulation.py": "NEB, NVT, NPT and symmetry paths",
     "python/atomforge/science/workflows.py": "Shared scientific workflow interface",
+    "python/atomforge/native.py": "Native scientific tools (no dependencies)",
 }
 FALLBACK = {
     "BaderPartition.num_basins": "Number of basins in the native on-grid Bader partition.",

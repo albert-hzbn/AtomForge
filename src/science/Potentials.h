@@ -58,8 +58,21 @@ std::unique_ptr<Potential> makeLennardJones(double epsilon, double sigma, double
 // interpolated with LAMMPS's cubic scheme; pair terms are stored as r*phi.
 std::unique_ptr<Potential> makeEam(const std::filesystem::path& file, const std::string& format = "auto");
 
+// Tersoff bond-order potential (LAMMPS pair_style tersoff file format); an empty
+// path gives the built-in Si parameters (Tersoff 1988).
+std::unique_ptr<Potential> makeTersoff(const std::filesystem::path& file);
+// Stillinger-Weber (LAMMPS pair_style sw file format); empty path: built-in Si (1985).
+std::unique_ptr<Potential> makeStillingerWeber(const std::filesystem::path& file);
+// Buckingham A exp(-r/rho) - C/r^6 pairs plus Coulomb interactions of fixed
+// charges, Ewald-summed for periodic cells (LAMMPS buck/coul/long):
+// {"pairs": [{"elements": [a, b], "A", "rho", "C"}], "charges": {element: q},
+//  "cutoff": 10, "ewald_accuracy": 1e-6}.
+std::unique_ptr<Potential> makeBuckingham(const Json& options);
+
 // Parses {"potential": "EMT"}, {"potential": "LennardJones", "epsilon", "sigma", "cutoff"} or
-// {"potential": "EAM", "file": PATH, "format": "auto|setfl|fs|funcfl"}; relative files are
+// {"potential": "EAM", "file": PATH, "format": "auto|setfl|fs|funcfl"},
+// {"potential": "Tersoff" | "StillingerWeber", "file": PATH (optional)} or
+// {"potential": "Buckingham", ...}; relative files are
 // resolved against base. ASE-style {"module", "attribute", "kwargs"} descriptions of
 // EMT/LennardJones are accepted.
 PotentialFactory potentialFactory(const Json& specification, const std::filesystem::path& base = ".");

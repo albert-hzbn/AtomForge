@@ -41,6 +41,12 @@ public:
     std::string snapshot() const;
     // Restores a snapshot(); empty text keeps the current state.
     void restore(const std::string& state);
+    // Keeps the current result for comparison: later results overlay its plots
+    // and tabulate its summary next to theirs (cleared when the tool changes).
+    void keepForComparison();
+    std::size_t keptRuns() const { return m_kept.size(); }
+    // Plot `index` of the current result as shown, with kept runs overlaid.
+    atomforge::science::PlotSpec displayedPlot(std::size_t index) const;
 private:
     struct Field {
         std::array<char, 8192> value{};
@@ -57,6 +63,9 @@ private:
         double cutoff = 8.5;
         std::string potentialFile;
         int eamFormat = 0;
+        // Buckingham pairs and charges as JSON (MgO, Lewis and Catlow 1985, by default).
+        std::array<char, 4096> potentialOptions{};
+        Field();
     };
     struct Result { std::filesystem::path output; std::string report; std::filesystem::path structures;
                     std::vector<atomforge::science::PlotSpec> plots;
@@ -87,6 +96,7 @@ private:
     void drawPlots(float height);
     void drawSaveButtons(const std::function<void(Structure&)>& loadResult);
     void drawDetails();
+    void drawComparison();
     void drawAtomLayout(const Structure& structure, const std::function<void(Structure&)>& loadResult, const ColourAtoms& colourAtoms);
     void drawPlotLayout(const Structure& structure, const std::function<void(Structure&)>& loadResult);
     void drawSimulationLayout(const Structure& structure, const std::function<void(Structure&)>& loadResult);
@@ -100,6 +110,10 @@ private:
     int m_pickerTarget = -1;
     int m_property = 0;
     int m_plot = 0;
+    struct KeptRun { std::string label; std::vector<atomforge::science::PlotSpec> plots;
+                     std::vector<std::pair<std::string, std::string>> summary; };
+    std::vector<KeptRun> m_kept;
+    bool m_overlay = true;
     int m_file = 0;
     bool m_useActive = true;
     bool m_autoColour = true;

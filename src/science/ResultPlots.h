@@ -34,6 +34,11 @@ struct PlotSpec
 
 // Plots describing a tool result; empty when the result has no curve to show.
 std::vector<PlotSpec> resultPlots(const std::string& tool, const Json& result);
+// One plot with the matching plots (same title) of earlier runs drawn on the same
+// axes; their series are named "label: series". Runs without that plot are skipped.
+PlotSpec overlayPlots(const PlotSpec& current, const std::string& currentLabel,
+                      const std::vector<std::pair<std::string, std::vector<PlotSpec>>>& others);
+
 // Tool ids that have result plots (for registry consistency checks).
 std::vector<std::string> plottedTools();
 

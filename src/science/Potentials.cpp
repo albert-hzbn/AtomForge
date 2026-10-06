@@ -477,6 +477,20 @@ std::unique_ptr<Potential> makeLennardJones(double epsilon, double sigma, double
     return std::make_unique<LennardJones>(epsilon, sigma, cutoff);
 }
 
+namespace
+{
+// Parameter tables are parsed once; every image or run shares them (potentials are stateless).
+PotentialFactory sharedPotential(std::shared_ptr<const Potential> parsed)
+{
+    struct Shared final : Potential {
+        std::shared_ptr<const Potential> inner;
+        PotentialResult compute(const Configuration& c, bool stress) const override { return inner->compute(c, stress); }
+        std::string description() const override { return inner->description(); }
+    };
+    return [parsed] { auto copy = std::make_unique<Shared>(); copy->inner = parsed; return std::unique_ptr<Potential>(std::move(copy)); };
+}
+}
+
 PotentialFactory potentialFactory(const Json& specification, const std::filesystem::path& base)
 {
     if (!specification.isObject()) throw std::runtime_error("The interatomic potential must be an object such as {\"potential\": \"EMT\"}");
@@ -509,13 +523,20 @@ PotentialFactory potentialFactory(const Json& specification, const std::filesyst
         // Parse once up front so a bad file fails before a calculation starts;
         // each image or run then shares the parsed tables.
         std::shared_ptr<const Potential> parsed(makeEam(path, format).release());
-        struct Shared final : Potential {
-            std::shared_ptr<const Potential> inner;
-            PotentialResult compute(const Configuration& c, bool stress) const override { return inner->compute(c, stress); }
-            std::string description() const override { return inner->description(); }
-        };
-        return [parsed] { auto copy = std::make_unique<Shared>(); copy->inner = parsed; return std::unique_ptr<Potential>(std::move(copy)); };
+        return sharedPotential(parsed);
     }
-    throw std::runtime_error("Unsupported interatomic potential '" + name + "'; AtomForge provides EMT, LennardJones and EAM natively");
+    if (key == "tersoff" || key == "stillingerweber" || key == "sw") {
+        std::filesystem::path path;
+        if (const Json* file = options.find("file"); file && file->isString() && !file->string().empty())
+            path = (base / std::filesystem::u8path(file->string())).lexically_normal();
+        const bool tersoff = key == "tersoff";
+        std::shared_ptr<const Potential> parsed((tersoff ? makeTersoff(path) : makeStillingerWeber(path)).release());
+        return sharedPotential(parsed);
+    }
+    if (key == "buckingham" || key == "buck") {
+        std::shared_ptr<const Potential> parsed(makeBuckingham(options).release());
+        return sharedPotential(parsed);
+    }
+    throw std::runtime_error("Unsupported interatomic potential '" + name + "'; AtomForge provides EMT, LennardJones, EAM, Tersoff, StillingerWeber and Buckingham natively");
 }
 }

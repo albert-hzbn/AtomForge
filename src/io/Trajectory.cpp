@@ -84,10 +84,15 @@ std::vector<Structure> loadLammpsTrajectory(const std::string& path)
 {
     std::ifstream input(std::filesystem::u8path(path));
     if (!input) throw std::runtime_error("Cannot open trajectory");
+    return loadLammpsFrames(input, static_cast<std::size_t>(-1));
+}
+
+std::vector<Structure> loadLammpsFrames(std::istream& input, std::size_t maxFrames)
+{
     std::vector<Structure> frames;
     std::string line;
     std::size_t totalAtoms=0;
-    while (std::getline(input,line)) {
+    while (frames.size()<maxFrames && std::getline(input,line)) {
         atomforge::taskCheckpoint();
         if (line.find_first_not_of(" \t\r")==std::string::npos) continue;
         if (line.rfind("ITEM: TIMESTEP",0)!=0) throw std::runtime_error("Expected 'ITEM: TIMESTEP', got: "+line);

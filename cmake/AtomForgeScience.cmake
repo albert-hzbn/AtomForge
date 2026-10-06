@@ -6,6 +6,7 @@ add_library(atomforge_science STATIC
     ${PROJECT_SOURCE_DIR}/src/science/ScienceData.cpp
     ${PROJECT_SOURCE_DIR}/src/science/Analysis.cpp
     ${PROJECT_SOURCE_DIR}/src/science/Potentials.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/ManyBodyPotentials.cpp
     ${PROJECT_SOURCE_DIR}/src/science/Simulation.cpp
     ${PROJECT_SOURCE_DIR}/src/science/ReciprocalPath.cpp
     ${PROJECT_SOURCE_DIR}/src/science/ScienceTools.cpp
@@ -20,6 +21,9 @@ add_library(atomforge_science STATIC
     ${PROJECT_SOURCE_DIR}/src/science/LammpsExport.cpp
     ${PROJECT_SOURCE_DIR}/src/science/GifWriter.cpp
     ${PROJECT_SOURCE_DIR}/src/science/ScienceCatalog.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/Symmetry.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/Workflows.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/TrajectoryStructure.cpp
     # Nye-tensor algorithms shared with the desktop dislocation tools.
     ${PROJECT_SOURCE_DIR}/src/algorithms/NyeTensor.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/DislocationFit.cpp)
@@ -63,4 +67,13 @@ if(ATOMFORGE_ENABLE_SPGLIB)
     else()
         message(STATUS "spglib not found: symmetry reciprocal-space paths are unavailable")
     endif()
+endif()
+
+# Shared library behind the Python package's atomforge.native module.
+set_target_properties(atomforge_science PROPERTIES POSITION_INDEPENDENT_CODE ON)
+add_library(atomforge_science_native SHARED ${PROJECT_SOURCE_DIR}/src/science/NativeAPI.cpp)
+target_link_libraries(atomforge_science_native PRIVATE atomforge_science)
+set_target_properties(atomforge_science_native PROPERTIES PREFIX "" CXX_VISIBILITY_PRESET hidden)
+if(NOT ATOMFORGE_BUILD_APP)
+    install(TARGETS atomforge_science_native RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
 endif()

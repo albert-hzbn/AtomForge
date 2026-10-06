@@ -186,6 +186,8 @@ if(TARGET AtomForge)
         ${PROJECT_SOURCE_DIR}/tests/science_dialog.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/ScientificToolsDialog.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/ScientificToolsLayouts.cpp
+        ${PROJECT_SOURCE_DIR}/src/ui/TrajectoryDialog.cpp
+        ${PROJECT_SOURCE_DIR}/src/io/Trajectory.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/PathPicker.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/ResponsiveLayout.cpp
         ${PROJECT_SOURCE_DIR}/src/util/PathUtils.cpp
@@ -243,6 +245,10 @@ if(Python3_Interpreter_FOUND)
         COMMAND ${CMAKE_COMMAND} -E env
             "ATOMFORGE_ELECTRONIC_LIBRARY=$<TARGET_FILE:atomforge_electronic>"
             ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tests/test_electronic.py)
+    add_test(NAME python_native
+        COMMAND ${CMAKE_COMMAND} -E env
+            "ATOMFORGE_SCIENCE_LIBRARY=$<TARGET_FILE:atomforge_science_native>"
+            ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tests/test_native.py)
     foreach(suite test_atomforge test_notebook test_regressions)
         add_test(NAME python_${suite}
             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tests/${suite}.py)

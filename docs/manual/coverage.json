@@ -3,7 +3,7 @@
   "files": [
     {
       "source": "CMakeLists.txt",
-      "sha256": "60003b9988d4f42bfc8a311d6966ae302ea3a940ef742661416335ff787960c2",
+      "sha256": "f2b811021bce8b9a15217059e84bb8a27f69ec36468ebfdbd41e027e8b7b9b68",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -254,6 +254,15 @@
       "sha256": "31ebaf71e605a433c1560b1e59cd64dba0eb77f9eaf6db28babdabbb5569d0e4",
       "documentation": [
         "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "python/atomforge/native.py",
+      "sha256": "15a97a66647501839d493dc047eeb8cab33bf0bf2d97a834fe566a39327837e4",
+      "documentation": [
+        "08-python.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": []
@@ -814,7 +823,7 @@
     },
     {
       "source": "src/cli/RenderCLI.cpp",
-      "sha256": "982e3dbaedd49322bd03756ced78a5bebe1f71413efc9f07a043343efec85972",
+      "sha256": "09a644b4c902c514bdaa028ea0acb23906f79d249740f513ba2964b313438527",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -949,7 +958,7 @@
     },
     {
       "source": "src/science/Potentials.h",
-      "sha256": "01f7e2b3aa475698fa6ab3447ce56a3606bba790950cf1234da654061faf396b",
+      "sha256": "439f46129d6e86efcb3c0e90c77c6e32452f5a824050ec81170eaa12685e573a",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -967,7 +976,7 @@
     },
     {
       "source": "src/science/ResultPlots.h",
-      "sha256": "f434d510a0f3fbe323c5da743f104f3b1a3117380cbbf506fe103adc4ceba95b",
+      "sha256": "410a8827f0a7898ff120f0a89e7ce78f1641268a92622d6d99aec93a0ded28c8",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -1003,7 +1012,7 @@
     },
     {
       "source": "src/science/ScienceData.h",
-      "sha256": "af9596420b103687818dc9d4285542ddeb7034c2c657df2ba43c0a6e8843ef70",
+      "sha256": "4cad0a17a96b78647188a1171d89a08386ac034f5122263b8eea9841a1ce0f8d",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -1029,8 +1038,35 @@
       "literal_controls": []
     },
     {
+      "source": "src/science/Symmetry.h",
+      "sha256": "62293dc45a1074dd86be6a3b84d3add027eb727dd66eb18551edddcb95134143",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/science/TrajectoryStructure.h",
+      "sha256": "3e24fe2c5f97439ff434edc5d5d6da989ddefd41f83081bfeecf52b7dbd143fd",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
       "source": "src/science/VaspElectronic.h",
       "sha256": "33acf3ccae6937b1cd7a9ba5c79c7633793e2e7aa905a84861dbbefc76016d8c",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/science/Workflows.h",
+      "sha256": "546dbf218c20d9d34228e7782d68da3dec0aac263f9345327da5201dc7723dcb",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -2589,7 +2625,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "1877db43c19f54da5ea1671f83b4cd9031b8a029a1b8b62709e97f7fbe6f7722",
+      "sha256": "2d99babeb45236c691de832b67b147a74f123f5f569a271e89d37d40b696116a",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2950,231 +2986,231 @@
           "declaration_label": "Angle##measure"
         },
         {
-          "line": 1674,
+          "line": 1678,
           "declaration_label": "OK"
         },
         {
-          "line": 1698,
+          "line": 1702,
           "declaration_label": "Close"
         },
         {
-          "line": 1704,
+          "line": 1708,
           "declaration_label": "Show lattice planes"
         },
         {
-          "line": 1710,
+          "line": 1714,
           "declaration_label": "H##plane"
         },
         {
-          "line": 1713,
+          "line": 1717,
           "declaration_label": "K##plane"
         },
         {
-          "line": 1716,
+          "line": 1720,
           "declaration_label": "L##plane"
         },
         {
-          "line": 1719,
+          "line": 1723,
           "declaration_label": "Offset n##plane"
         },
         {
-          "line": 1721,
+          "line": 1725,
           "declaration_label": "Opacity##plane"
         },
         {
-          "line": 1723,
+          "line": 1727,
           "declaration_label": "Color##plane"
         },
         {
-          "line": 1730,
+          "line": 1734,
           "declaration_label": "Add Plane"
         },
         {
-          "line": 1763,
+          "line": 1767,
           "declaration_label": "##visible"
         },
         {
-          "line": 1768,
+          "line": 1772,
           "declaration_label": "H##plane-h"
         },
         {
-          "line": 1771,
+          "line": 1775,
           "declaration_label": "K##plane-k"
         },
         {
-          "line": 1774,
+          "line": 1778,
           "declaration_label": "L##plane-l"
         },
         {
-          "line": 1777,
+          "line": 1781,
           "declaration_label": "n##plane-offset"
         },
         {
-          "line": 1780,
+          "line": 1784,
           "declaration_label": "a##plane-opacity"
         },
         {
-          "line": 1786,
+          "line": 1790,
           "declaration_label": "##plane-color"
         },
         {
-          "line": 1794,
+          "line": 1798,
           "declaration_label": "Delete"
         },
         {
-          "line": 1809,
+          "line": 1813,
           "declaration_label": "Close"
         },
         {
-          "line": 1831,
+          "line": 1835,
           "declaration_label": "Close"
         },
         {
-          "line": 1837,
+          "line": 1841,
           "declaration_label": "Show Miller directions"
         },
         {
-          "line": 1843,
+          "line": 1847,
           "declaration_label": "U##dir"
         },
         {
-          "line": 1846,
+          "line": 1850,
           "declaration_label": "V##dir"
         },
         {
-          "line": 1849,
+          "line": 1853,
           "declaration_label": "W##dir"
         },
         {
-          "line": 1852,
+          "line": 1856,
           "declaration_label": "Length (A)##dir"
         },
         {
-          "line": 1854,
+          "line": 1858,
           "declaration_label": "Color##dir"
         },
         {
-          "line": 1861,
+          "line": 1865,
           "declaration_label": "Add Direction"
         },
         {
-          "line": 1889,
+          "line": 1893,
           "declaration_label": "##vis"
         },
         {
-          "line": 1894,
+          "line": 1898,
           "declaration_label": "U##du"
         },
         {
-          "line": 1897,
+          "line": 1901,
           "declaration_label": "V##dv"
         },
         {
-          "line": 1900,
+          "line": 1904,
           "declaration_label": "W##dw"
         },
         {
-          "line": 1903,
+          "line": 1907,
           "declaration_label": "L##dl"
         },
         {
-          "line": 1910,
+          "line": 1914,
           "declaration_label": "##dc"
         },
         {
-          "line": 1917,
+          "line": 1921,
           "declaration_label": "Delete##ddel"
         },
         {
-          "line": 1931,
+          "line": 1935,
           "declaration_label": "Close##dclose"
         },
         {
-          "line": 1951,
+          "line": 1955,
           "declaration_label": "Max displayed centers"
         },
         {
-          "line": 1953,
+          "line": 1957,
           "declaration_label": "Nearest neighbors"
         },
         {
-          "line": 1957,
+          "line": 1961,
           "declaration_label": "Specify center atom indices"
         },
         {
-          "line": 1965,
+          "line": 1969,
           "declaration_label": "Center atom IDs##polyIndexFilter"
         },
         {
-          "line": 1977,
+          "line": 1981,
           "declaration_label": "Show polyhedral edges"
         },
         {
-          "line": 1979,
+          "line": 1983,
           "declaration_label": "Face opacity"
         },
         {
-          "line": 1981,
+          "line": 1985,
           "declaration_label": "Edge opacity"
         },
         {
-          "line": 1985,
+          "line": 1989,
           "declaration_label": "Filter center elements"
         },
         {
-          "line": 1994,
+          "line": 1998,
           "declaration_label": "Centers##polyFilter"
         },
         {
-          "line": 2005,
+          "line": 2009,
           "declaration_label": "Filter ligand elements"
         },
         {
-          "line": 2014,
+          "line": 2018,
           "declaration_label": "Ligands##polyFilter"
         },
         {
-          "line": 2024,
+          "line": 2028,
           "declaration_label": "Reset Defaults"
         },
         {
-          "line": 2032,
+          "line": 2036,
           "declaration_label": "Close##polySettings"
         },
         {
-          "line": 2153,
+          "line": 2157,
           "declaration_label": "Manual##about"
         },
         {
-          "line": 2156,
+          "line": 2160,
           "declaration_label": "Close##about"
         },
         {
-          "line": 2218,
+          "line": 2222,
           "declaration_label": "Color"
         },
         {
-          "line": 2265,
+          "line": 2269,
           "declaration_label": "Automatic colour range"
         },
         {
-          "line": 2268,
+          "line": 2272,
           "declaration_label": "Minimum"
         },
         {
-          "line": 2269,
+          "line": 2273,
           "declaration_label": "Maximum"
         },
         {
-          "line": 2271,
+          "line": 2275,
           "declaration_label": "Hide atoms outside the range"
         },
         {
-          "line": 2272,
+          "line": 2276,
           "declaration_label": "Hide atoms without a value"
         },
         {
-          "line": 2273,
+          "line": 2277,
           "declaration_label": "Show element colours"
         }
       ]
@@ -4159,7 +4195,7 @@
     },
     {
       "source": "src/ui/ScientificToolsDialog.cpp",
-      "sha256": "8b9c563f51f00c214b108330307246039eb435dce2b98d4083ed9d78c1c407ba",
+      "sha256": "13ed216c25d2a55e2f4d2af6e34e3188df196135db097617e2bcf79e5478b2b4",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -4168,7 +4204,7 @@
     },
     {
       "source": "src/ui/ScientificToolsDialog.h",
-      "sha256": "a68b6275417773a8f86eb8669eb247dfdb7fa370b349e798b22007092100f97f",
+      "sha256": "9ba20d5993aa0471d9592da351eb551fb2a653f2c8a2b2bc6bb02603027101ae",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -4177,7 +4213,7 @@
     },
     {
       "source": "src/ui/ScientificToolsLayouts.cpp",
-      "sha256": "7dff36760dffa4201345fb5a407c52063ae841e3a82d66cae6bc7ad3d695f629",
+      "sha256": "e036a426763763ee72258f39fa44acfcef72d71e8746a3209194f29ce62d948e",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -4232,99 +4268,119 @@
           "declaration_label": "##potential"
         },
         {
-          "line": 127,
+          "line": 130,
+          "declaration_label": "Browse parameter file..."
+        },
+        {
+          "line": 133,
+          "declaration_label": "Use built-in Si"
+        },
+        {
+          "line": 141,
+          "declaration_label": "##buckingham"
+        },
+        {
+          "line": 144,
           "declaration_label": "Browse potential..."
         },
         {
-          "line": 130,
+          "line": 147,
           "declaration_label": "Table format"
         },
         {
-          "line": 136,
+          "line": 153,
           "declaration_label": "Well depth epsilon (eV)"
         },
         {
-          "line": 137,
+          "line": 154,
           "declaration_label": "Zero-crossing sigma (Angstrom)"
         },
         {
-          "line": 138,
+          "line": 155,
           "declaration_label": "Cutoff (Angstrom)"
         },
         {
-          "line": 143,
+          "line": 160,
           "declaration_label": "##value"
         },
         {
-          "line": 200,
+          "line": 217,
           "declaration_label": "Cancel"
         },
         {
-          "line": 254,
+          "line": 271,
           "declaration_label": "Colour atoms in the view"
         },
         {
-          "line": 270,
+          "line": 287,
           "declaration_label": "Export plot data..."
         },
         {
-          "line": 278,
+          "line": 335,
+          "declaration_label": "Clear kept runs"
+        },
+        {
+          "line": 341,
+          "declaration_label": "Keep for comparison"
+        },
+        {
+          "line": 344,
           "declaration_label": "Save results..."
         },
         {
-          "line": 281,
+          "line": 347,
           "declaration_label": "Save structures..."
         },
         {
-          "line": 283,
+          "line": 349,
           "declaration_label": "Open final structure in a new tab"
         },
         {
-          "line": 295,
+          "line": 361,
           "declaration_label": "Full report"
         },
         {
-          "line": 309,
+          "line": 375,
           "declaration_label": "Analyse the active structure"
         },
         {
-          "line": 318,
+          "line": 384,
           "declaration_label": "More options"
         },
         {
-          "line": 329,
+          "line": 395,
           "declaration_label": "Colour automatically after each analysis"
         },
         {
-          "line": 331,
+          "line": 397,
           "declaration_label": "Plots"
         },
         {
-          "line": 347,
+          "line": 413,
           "declaration_label": "Optional inputs"
         },
         {
-          "line": 441,
+          "line": 508,
           "declaration_label": "Plots"
         },
         {
-          "line": 524,
+          "line": 591,
           "declaration_label": "##preview"
         },
         {
-          "line": 525,
+          "line": 592,
           "declaration_label": "Save this file..."
         },
         {
-          "line": 527,
+          "line": 594,
           "declaration_label": "Save all files..."
         },
         {
-          "line": 529,
+          "line": 596,
           "declaration_label": "Copy to clipboard"
         },
         {
-          "line": 531,
+          "line": 598,
           "declaration_label": "Save results..."
         }
       ]
@@ -4549,53 +4605,65 @@
     },
     {
       "source": "src/ui/TrajectoryDialog.cpp",
-      "sha256": "74e2663ac15321b63bd4aaac7b9f2cf3097379ecfb5ec81d0a447d20b3c9272e",
+      "sha256": "d3e9311f3491bc60d5af61274fe4d22e072607c4243a4011cac52ef068d7c0b3",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": [
         {
-          "line": 12,
+          "line": 15,
           "declaration_label": "Trajectory playback"
         },
         {
-          "line": 83,
+          "line": 143,
           "declaration_label": "Open trajectory..."
         },
         {
-          "line": 85,
+          "line": 145,
           "declaration_label": "Cancel"
         },
         {
-          "line": 90,
+          "line": 150,
           "declaration_label": "First frame"
         },
         {
-          "line": 92,
+          "line": 152,
           "declaration_label": "##frame"
         },
         {
-          "line": 94,
+          "line": 154,
           "declaration_label": "##fps"
         },
         {
-          "line": 98,
+          "line": 159,
+          "declaration_label": "Analyse every displayed frame"
+        },
+        {
+          "line": 161,
+          "declaration_label": "##frameanalysis"
+        },
+        {
+          "line": 168,
+          "declaration_label": "Neighbour cutoff (Angstrom)"
+        },
+        {
+          "line": 173,
           "declaration_label": "##gifstride"
         },
         {
-          "line": 100,
+          "line": 175,
           "declaration_label": "Export GIF..."
         },
         {
-          "line": 104,
+          "line": 179,
           "declaration_label": "Stop export"
         }
       ]
     },
     {
       "source": "src/ui/TrajectoryDialog.h",
-      "sha256": "f07577260998ac5471b08d604a1ad2b7ebbd07a29d6d67775316ea16e88d3e64",
+      "sha256": "90e7678a389f8634a89a1721d517e8dc0c34ed2c92e71190a825932b79aff94a",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"

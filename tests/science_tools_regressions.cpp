@@ -16,6 +16,7 @@
 #include <Eigen/Dense>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -137,6 +138,66 @@ Json structureJsonOf(const Crystal& crystal, bool periodic = true)
     Json result = object({{"symbols", symbols}, {"positions", rows(crystal.positions)}});
     if (periodic) result["cell"] = matrixJson(crystal.cell);
     return result;
+}
+
+Crystal diamondCubic(double a, int repeat, const std::string& symbol = "Si")
+{
+    Crystal crystal = fccCubic(a, repeat, symbol);
+    const std::size_t count = crystal.positions.size();
+    for (std::size_t i = 0; i < count; ++i) {
+        crystal.symbols.push_back(symbol);
+        crystal.positions.push_back(add(crystal.positions[i], {a / 4, a / 4, a / 4}));
+    }
+    return crystal;
+}
+
+// Largest difference between analytic forces and central differences of the energy.
+double forceError(const Potential& potential, Configuration c, double h = 1e-5)
+{
+    const auto analytic = potential.compute(c, false).forces;
+    double worst = 0;
+    for (std::size_t i = 0; i < c.size(); ++i)
+        for (int k = 0; k < 3; ++k) {
+            const double x = c.positions[i][static_cast<std::size_t>(k)];
+            c.positions[i][static_cast<std::size_t>(k)] = x + h;
+            const double plus = potential.compute(c, false).energy;
+            c.positions[i][static_cast<std::size_t>(k)] = x - h;
+            const double minus = potential.compute(c, false).energy;
+            c.positions[i][static_cast<std::size_t>(k)] = x;
+            worst = std::max(worst, std::abs(analytic[i][static_cast<std::size_t>(k)] + (plus - minus) / (2 * h)));
+        }
+    return worst;
+}
+
+// Largest difference between analytic stress and (1/V) dE/d(strain) by central differences.
+double stressError(const Potential& potential, const Configuration& c, double h = 1e-6)
+{
+    const auto analytic = potential.compute(c, true).stress;
+    double worst = 0;
+    for (int a = 0; a < 3; ++a)
+        for (int b = 0; b < 3; ++b) {
+            double energy[2];
+            for (int side = 0; side < 2; ++side) {
+                Mat3 strain = identity();
+                strain[a][b] += (side ? -h : h) * 0.5;
+                strain[b][a] += (side ? -h : h) * 0.5;
+                Configuration d = c;
+                for (auto& x : d.positions) x = rowTimes(x, strain);
+                for (int r = 0; r < 3; ++r) d.cell[r] = rowTimes(c.cell[r], strain);
+                energy[side] = potential.compute(d, false).energy;
+            }
+            worst = std::max(worst, std::abs(analytic[a][b] - (energy[0] - energy[1]) / (2 * h) / cellVolume(c.cell)));
+        }
+    return worst;
+}
+
+void jiggle(Configuration& c, double amplitude, std::uint64_t seed)
+{
+    for (auto& position : c.positions)
+        for (double& x : position) {
+            seed = seed * 6364136223846793005ull + 1442695040888963407ull;
+            x += amplitude * (static_cast<double>(seed >> 11) / 9007199254740992.0 - 0.5);
+        }
 }
 
 Configuration configuration(const Crystal& crystal, bool periodic = true)
@@ -1728,6 +1789,401 @@ int main()
         check(error < 40, "gradient mean error " + std::to_string(error));
         expectError([&] { GifWriter bad(path, 4, 4, 5); bad.addFrame(std::vector<unsigned char>(10)); }, "short frame rejected");
         std::filesystem::remove(path);
+    });
+
+#ifdef ATOMS_ENABLE_SPGLIB
+    test("symmetry analysis: space groups, Wyckoff positions and standard cells", [] {
+        const auto wyckoffOf = [](const Json& result, std::size_t atom) { return result.at("wyckoff_letters").items()[atom].string(); };
+        // Rock salt: Fm-3m, Na on 4a and Cl on 4b, a two-atom primitive cell.
+        Crystal salt;
+        salt.cell = {{{5.64, 0, 0}, {0, 5.64, 0}, {0, 0, 5.64}}};
+        const Vec3 fcc[4] = {{0, 0, 0}, {0, .5, .5}, {.5, 0, .5}, {.5, .5, 0}};
+        for (const auto& b : fcc) {
+            salt.symbols.push_back("Na"); salt.positions.push_back(rowTimes(b, salt.cell));
+            salt.symbols.push_back("Cl"); salt.positions.push_back(rowTimes(add(b, {.5, 0, 0}), salt.cell));
+        }
+        const auto saltOutput = runTool("symmetry", object({{"structure", structureJsonOf(salt)}}));
+        const Json& nacl = saltOutput.result;
+        check(nacl.at("spacegroup_number").number() == 225 && nacl.at("international_symbol").string() == "Fm-3m", "NaCl is Fm-3m");
+        check(nacl.at("crystal_system").string() == "cubic" && nacl.at("point_group").string() == "m-3m", "cubic m-3m");
+        check(nacl.at("operation_count").number() == 192, "conventional fcc cell has 48 x 4 operations");
+        check(wyckoffOf(nacl, 0) == "a" && wyckoffOf(nacl, 1) == "b" && nacl.at("orbit_count").number() == 2, "Na 4a, Cl 4b");
+        check(nacl.at("primitive_atom_count").number() == 2 && nacl.at("conventional_atom_count").number() == 8, "primitive and conventional atom counts");
+        close(nacl.at("primitive_cell").at("alpha_deg").number(), 60, 1e-9, "fcc primitive angle");
+        close(nacl.at("conventional_cell").at("a_A").number(), 5.64, 1e-9, "conventional lattice parameter");
+        check(saltOutput.frames.size() == 3 && saltOutput.frames.back().atoms.size() == 8, "conventional cell opens by default");
+        check(perAtomProperties("symmetry", nacl).size() == 2, "orbit and Wyckoff properties");
+        // hcp Mg: P6_3/mmc with both atoms on 2c.
+        Crystal mg;
+        const double a = 3.209, c = 5.211;
+        mg.cell = {{{a, 0, 0}, {-a / 2, a * std::sqrt(3.0) / 2, 0}, {0, 0, c}}};
+        mg.symbols = {"Mg", "Mg"};
+        mg.positions = {rowTimes({1.0 / 3, 2.0 / 3, .25}, mg.cell), rowTimes({2.0 / 3, 1.0 / 3, .75}, mg.cell)};
+        const Json hcp = run("symmetry", object({{"structure", structureJsonOf(mg)}}));
+        check(hcp.at("spacegroup_number").number() == 194 && wyckoffOf(hcp, 0) == "c" && wyckoffOf(hcp, 1) == "c", "hcp Mg is P6_3/mmc 2c");
+        // Rutile TiO2: P4_2/mnm, Ti 2a, O 4f.
+        Crystal rutile;
+        rutile.cell = {{{4.594, 0, 0}, {0, 4.594, 0}, {0, 0, 2.959}}};
+        const double u = 0.3053;
+        const std::vector<std::pair<std::string, Vec3>> sites = {{"Ti", {0, 0, 0}}, {"Ti", {.5, .5, .5}}, {"O", {u, u, 0}}, {"O", {1 - u, 1 - u, 0}},
+                                                                 {"O", {.5 + u, .5 - u, .5}}, {"O", {.5 - u, .5 + u, .5}}};
+        for (const auto& [symbol, f] : sites) { rutile.symbols.push_back(symbol); rutile.positions.push_back(rowTimes(f, rutile.cell)); }
+        const Json tio2 = run("symmetry", object({{"structure", structureJsonOf(rutile)}}));
+        check(tio2.at("spacegroup_number").number() == 136 && wyckoffOf(tio2, 0) == "a" && wyckoffOf(tio2, 2) == "f", "rutile is P4_2/mnm, Ti 2a, O 4f");
+        check(tio2.at("sites").size() == 2 && tio2.at("sites").items()[1].at("multiplicity").number() == 4, "one row per orbit with multiplicity");
+        // Noisy fcc Cu: found with a loose tolerance, exactly symmetric after symmetrization.
+        Crystal noisy = fccCubic(3.615, 2);
+        std::uint64_t seed = 7;
+        for (auto& position : noisy.positions)
+            for (double& x : position) { seed = seed * 6364136223846793005ull + 1442695040888963407ull; x += 2e-4 * (static_cast<double>(seed >> 11) / 9007199254740992.0 - 0.5); }
+        check(run("symmetry", object({{"structure", structureJsonOf(noisy)}, {"symprec_A", 1e-6}})).at("spacegroup_number").number() == 1, "tight tolerance sees the noise");
+        const auto loose = runTool("symmetry", object({{"structure", structureJsonOf(noisy)}, {"symprec_A", 1e-3}, {"output_cell", "symmetrized"}}));
+        check(loose.result.at("spacegroup_number").number() == 225, "loose tolerance finds Fm-3m");
+        check(loose.result.at("max_symmetrization_shift_A").number() < 2e-4, "symmetrization moves atoms by at most the noise");
+        const Structure& cleaned = loose.frames.back();
+        check(cleaned.atoms.size() == noisy.positions.size(), "symmetrized cell keeps the input atoms");
+        Json cleanedJson = structureJson(cleaned);
+        check(run("symmetry", object({{"structure", cleanedJson}, {"symprec_A", 1e-8}})).at("spacegroup_number").number() == 225,
+              "symmetrized positions are exactly Fm-3m");
+        check(runTool("symmetry", object({{"structure", structureJsonOf(noisy)}, {"output_cell", "primitive"}})).frames.back().atoms.size() == 1,
+              "primitive fcc cell has one atom");
+        expectError([&] { run("symmetry", object({{"structure", structureJsonOf(noisy, false)}})); }, "open structures rejected");
+        expectError([&] { run("symmetry", object({{"structure", structureJsonOf(noisy)}, {"output_cell", "rotated"}})); }, "unknown output cell rejected");
+    });
+#endif
+
+    test("Tersoff, Stillinger-Weber and Buckingham-Coulomb potentials", [] {
+        const auto sw = makeStillingerWeber({});
+        const auto tersoff = makeTersoff({});
+        // Reference cohesive energies of diamond Si.
+        close(sw->compute(configuration(diamondCubic(5.431, 1)), false).energy / 8, -4.3366, 2e-4, "SW Si cohesive energy");
+        close(tersoff->compute(configuration(diamondCubic(5.432, 1)), false).energy / 8, -4.6300, 2e-3, "Tersoff Si cohesive energy");
+        // Analytic forces and stress match numerical derivatives on distorted cells.
+        Configuration si = configuration(diamondCubic(5.431, 2));
+        jiggle(si, 0.25, 3);
+        si.cell[1][0] += 0.3;  // a sheared cell exercises off-diagonal stress
+        check(forceError(*sw, si) < 2e-6, "SW forces");
+        check(stressError(*sw, si) < 2e-7, "SW stress");
+        check(forceError(*tersoff, si) < 2e-6, "Tersoff forces");
+        check(stressError(*tersoff, si) < 2e-7, "Tersoff stress");
+        // A two-element Tersoff file (Si-C, LAMMPS SiC.tersoff by Tersoff 1989).
+        const auto sic = scratch("SiC.tersoff");
+        { std::ofstream out(sic);
+          out << "# Si-C, Tersoff PRB 39 5566 (1989)\n"
+                 "C C C 3.0 1.0 0.0 38049 4.3484 -.57058 .72751 1.5724e-7 2.2119 346.7 1.95 0.15 3.4879 1393.6\n"
+                 "Si Si Si 3.0 1.0 0.0 100390 16.217 -.59825 .78734 1.1e-6 1.73222 471.18 2.85 0.15 2.4799 1830.8\n"
+                 "Si Si C 3.0 1.0 0.0 100390 16.217 -.59825 0.0 0.0 0.0 0.0 2.36 0.15 0.0 0.0\n"
+                 "Si C C 3.0 1.0 0.0 100390 16.217 -.59825 .787340 1.1e-6 1.97205 395.126 2.36 0.15 2.9839 1597.3111\n"
+                 "C Si Si 3.0 1.0 0.0 38049 4.3484 -.57058 .72751 1.5724e-7 1.97205 395.126 2.36 0.15 2.9839 1597.3111\n"
+                 "C Si C 3.0 1.0 0.0 38049 4.3484 -.57058 0.0 0.0 0.0 0.0 1.95 0.15 0.0 0.0\n"
+                 "C C Si 3.0 1.0 0.0 38049 4.3484 -.57058 0.0 0.0 0.0 0.0 2.36 0.15 0.0 0.0\n"
+                 "Si C Si 3.0 1.0 0.0 100390 16.217 -.59825 0.0 0.0 0.0 0.0 2.85 0.15 0.0 0.0\n"; }
+        const auto sicPotential = makeTersoff(sic);
+        Crystal zincblende = diamondCubic(4.36, 1);
+        for (std::size_t i = 4; i < 8; ++i) zincblende.symbols[i] = "C";
+        Configuration sicCell = configuration(zincblende);
+        check(sicCell.size() == 8, "zinc-blende SiC cell");
+        const double sicEnergy = sicPotential->compute(sicCell, false).energy / 8;
+        check(sicEnergy < -6.0 && sicEnergy > -6.6, "Tersoff SiC cohesive energy near -6.2 eV/atom (got " + std::to_string(sicEnergy) + ")");
+        jiggle(sicCell, 0.2, 11);
+        check(forceError(*sicPotential, sicCell) < 2e-6, "two-element Tersoff forces");
+        expectError([&] { sw->compute(configuration(fccCubic(3.6, 1)), false); }, "SW without Cu parameters");
+
+        // Madelung energy of rock salt from point charges (Ewald).
+        Crystal salt;
+        const double a = 5.64;
+        salt.cell = {{{a, 0, 0}, {0, a, 0}, {0, 0, a}}};
+        const Vec3 fcc[4] = {{0, 0, 0}, {0, .5, .5}, {.5, 0, .5}, {.5, .5, 0}};
+        for (const auto& b : fcc) {
+            salt.symbols.push_back("Na"); salt.positions.push_back(rowTimes(b, salt.cell));
+            salt.symbols.push_back("Cl"); salt.positions.push_back(rowTimes(add(b, {.5, 0, 0}), salt.cell));
+        }
+        Json charges = Json::parse(R"({"charges": {"Na": 1, "Cl": -1}, "cutoff": 8})");
+        const auto ionic = makeBuckingham(charges);
+        const double madelung = -ionic->compute(configuration(salt), false).energy / 4 * (a / 2) / 14.3996454784255;
+        close(madelung, 1.747565, 2e-5, "NaCl Madelung constant");
+        charges["cutoff"] = 12.0;
+        close(makeBuckingham(charges)->compute(configuration(salt), false).energy, ionic->compute(configuration(salt), false).energy, 1e-4,
+              "Ewald energy independent of the real-space cutoff");
+        // Buckingham + Coulomb for MgO (Lewis and Catlow 1985), forces and stress.
+        Crystal mgo = salt;
+        for (auto& symbol : mgo.symbols) symbol = symbol == "Na" ? "Mg" : "O";
+        for (auto& x : mgo.positions) x = scale(x, 4.21 / a);
+        for (int r = 0; r < 3; ++r) mgo.cell[r] = scale(mgo.cell[r], 4.21 / a);
+        const auto oxide = makeBuckingham(Json::parse(R"({"charges": {"Mg": 2, "O": -2}, "cutoff": 8,
+            "pairs": [{"elements": ["Mg", "O"], "A": 821.6, "rho": 0.3242, "C": 0}, {"elements": ["O", "O"], "A": 22764, "rho": 0.149, "C": 27.88}]})"));
+        Configuration mgoCell = configuration(mgo);
+        jiggle(mgoCell, 0.1, 5);
+        check(forceError(*oxide, mgoCell) < 1e-5, "Buckingham-Ewald forces");
+        check(stressError(*oxide, mgoCell) < 1e-6, "Buckingham-Ewald stress");
+        Crystal pair;
+        pair.cell = identity();
+        pair.symbols = {"Na", "Cl"};
+        pair.positions = {{0, 0, 0}, {2.5, 0, 0}};
+        close(ionic->compute(configuration(pair, false), false).energy, -14.3996454784255 / 2.5, 1e-9, "open-boundary Coulomb pair");
+        Crystal charged = salt;
+        charged.symbols[1] = "Na";
+        expectError([&] { ionic->compute(configuration(charged), false); }, "Ewald rejects a charged cell");
+
+        // Through the request interface: relaxing the cell recovers Si's SW lattice constant.
+        const Json relaxed = run("relax", object({{"structure", structureJsonOf(diamondCubic(5.6, 1))},
+            {"calculator", object({{"potential", "StillingerWeber"}})}, {"relax_cell", true}, {"fmax", 1e-4}, {"steps", 2000}}));
+        check(relaxed.at("converged").boolean(), "SW cell relaxation converges");
+        close(std::cbrt(relaxed.at("volume_A3").number()), 5.431, 2e-3, "SW Si lattice constant");
+        check(run("nvt", object({{"structure", structureJsonOf(diamondCubic(5.431, 1))}, {"calculator", object({{"potential", "Tersoff"}})},
+            {"steps", 10}, {"sample_interval", 5}, {"temperature_K", 100.0}})).at("frames").size() == 3, "Tersoff dynamics request");
+        // LAMMPS export writes matching pair styles (and the built-in parameter files).
+        const Json siExport = run("lammps-export", object({{"structure", structureJsonOf(diamondCubic(5.431, 1))}, {"calculator", object({{"potential", "Tersoff"}})}}));
+        check(siExport.at("files").at("in.lammps").string().find("pair_style tersoff\npair_coeff * * Si.tersoff Si") != std::string::npos, "Tersoff pair style");
+        check(siExport.at("files").at("Si.tersoff").string().find("Si Si Si 3.0 1.0 0.0 1.0039e5") != std::string::npos, "built-in Tersoff file exported");
+        const Json swExport = run("lammps-export", object({{"structure", structureJsonOf(diamondCubic(5.431, 1))}, {"calculator", object({{"potential", "SW"}})}}));
+        check(swExport.at("files").at("in.lammps").string().find("pair_style sw\npair_coeff * * Si.sw Si") != std::string::npos, "SW pair style");
+        Json mgoCalculator = Json::parse(R"({"potential": "Buckingham", "charges": {"Mg": 2, "O": -2}, "cutoff": 8,
+            "pairs": [{"elements": ["Mg", "O"], "A": 821.6, "rho": 0.3242, "C": 0}, {"elements": ["O", "O"], "A": 22764, "rho": 0.149, "C": 27.88}]})");
+        const Json oxideExport = run("lammps-export", object({{"structure", structureJsonOf(mgo)}, {"calculator", mgoCalculator}}));
+        const std::string oxideInput = oxideExport.at("files").at("in.lammps").string(), oxideData = oxideExport.at("files").at("data.lammps").string();
+        check(oxideInput.find("atom_style charge") != std::string::npos && oxideInput.find("pair_style buck/coul/long 8") != std::string::npos &&
+              oxideInput.find("kspace_style ewald") != std::string::npos, "Buckingham-Coulomb pair and kspace styles");
+        check(oxideInput.find("pair_coeff 2 2 22764 0.149 27.88") != std::string::npos && oxideInput.find("pair_coeff 1 1 0 1 0") != std::string::npos,
+              "Buckingham pair coefficients, charge-only Mg-Mg");
+        check(oxideData.find("Atoms  # charge") != std::string::npos && oxideData.find("\n1 1 2 ") != std::string::npos, "charges in the data file");
+    });
+
+    test("elastic constants and equation-of-state scans from a potential", [] {
+        const Json sw = object({{"potential", "StillingerWeber"}});
+        const Json silicon = structureJsonOf(diamondCubic(5.431, 1));
+        const auto elastic = runTool("elastic-constants", object({{"structure", silicon}, {"calculator", sw}}));
+        const auto& c = elastic.result.at("stiffness_GPa").items();
+        const auto at = [&](int i, int j) { return c[static_cast<std::size_t>(i)].items()[static_cast<std::size_t>(j)].number(); };
+        // Stillinger-Weber Si: C11 151.4, C12 76.4, relaxed C44 56.4 GPa.
+        close(at(0, 0), 151.4, 0.8, "SW C11");
+        close(at(0, 1), 76.4, 0.8, "SW C12");
+        close(at(3, 3), 56.4, 0.8, "SW relaxed C44");
+        close(at(1, 1), at(0, 0), 1e-3, "cubic C22 = C11");
+        check(elastic.result.at("stable_zero_prestress").boolean() && elastic.result.at("unconverged_relaxations").number() == 0, "stable, all relaxations converged");
+        check(elastic.result.at("strains").size() == 25, "6 components x 2 signs x 2 amplitudes + reference");
+        // Without internal relaxation the diamond lattice's C44 is far stiffer.
+        const Json unrelaxed = run("elastic-constants", object({{"structure", silicon}, {"calculator", sw}, {"relax_ions", false}}));
+        check(unrelaxed.at("stiffness_GPa").items()[3].items()[3].number() > 100, "unrelaxed C44 exceeds the relaxed value");
+        expectError([&] { run("elastic-constants", object({{"structure", silicon}, {"calculator", sw}, {"max_strain", 0.2}})); }, "large strains rejected");
+
+        const auto eos = runTool("eos-scan", object({{"structure", silicon}, {"calculator", sw}, {"volume_range", 0.06}, {"points", 9}}));
+        close(eos.result.at("bulk_modulus_GPa").number(), (at(0, 0) + 2 * at(0, 1)) / 3, 0.6, "EOS bulk modulus matches (C11 + 2 C12) / 3");
+        close(eos.result.at("volume_A3").number(), std::pow(5.431, 3), 0.05, "EOS equilibrium volume");
+        check(eos.result.at("energies_eV").size() == 9 && eos.result.at("pressures_GPa").size() == 9, "nine volumes");
+        const auto& pressures = eos.result.at("pressures_GPa").items();
+        check(pressures.front().number() > 0 && pressures.back().number() < 0, "compressed cells have positive pressure");
+        check(resultPlots("eos-scan", eos.result).size() == 1, "EOS plot");
+        expectError([&] { run("eos-scan", object({{"structure", structureJsonOf(diamondCubic(5.431, 1), false)}, {"calculator", sw}})); }, "open structures rejected");
+    });
+
+    test("point-defect formation and planar-defect energies", [] {
+        const Json lj = object({{"potential", "LennardJones"}, {"epsilon", 0.0104}, {"sigma", 3.40}, {"cutoff", 8.5}});
+        const Crystal argon = fccCubic(5.26, 3, "Ar");
+        Crystal vacancy = argon;
+        vacancy.symbols.erase(vacancy.symbols.begin());
+        vacancy.positions.erase(vacancy.positions.begin());
+        // A pair potential's unrelaxed vacancy costs exactly the cohesive energy per atom.
+        const Json unrelaxed = run("formation-energy", object({{"structure", structureJsonOf(vacancy)}, {"bulk", structureJsonOf(argon)},
+                                                             {"calculator", lj}, {"relax", false}}));
+        close(unrelaxed.at("formation_energy_eV").number(), -unrelaxed.at("bulk_energy_per_atom_eV").number(), 1e-9, "unrelaxed LJ vacancy = -E_coh");
+        check(unrelaxed.at("atom_change").at("Ar").number() == -1, "one atom removed");
+        const Json relaxedVacancy = run("formation-energy", object({{"structure", structureJsonOf(vacancy)}, {"bulk", structureJsonOf(argon)}, {"calculator", lj}}));
+        check(relaxedVacancy.at("formation_energy_eV").number() < unrelaxed.at("formation_energy_eV").number() &&
+              relaxedVacancy.at("formation_energy_eV").number() > 0.8 * unrelaxed.at("formation_energy_eV").number(), "relaxation lowers the vacancy energy slightly");
+        check(relaxedVacancy.at("defect_converged").boolean(), "defect relaxation converged");
+        // Substitutions need the chemical potentials of the exchanged elements.
+        const Crystal copper = fccCubic(3.615, 2);
+        Crystal alloyed = copper;
+        alloyed.symbols[0] = "Ni";
+        const Json emt = object({{"potential", "EMT"}});
+        expectError([&] { run("formation-energy", object({{"structure", structureJsonOf(alloyed)}, {"bulk", structureJsonOf(copper)}, {"calculator", emt}})); },
+                    "substitution needs the Ni chemical potential");
+        const double nickel = makeEmt()->compute(configuration(fccCubic(3.52, 1, "Ni")), false).energy / 4;
+        const Json substitution = run("formation-energy", object({{"structure", structureJsonOf(alloyed)}, {"bulk", structureJsonOf(copper)}, {"calculator", emt},
+                                                                {"chemical_potentials_eV", Json::parse("{\"Ni\": " + std::to_string(nickel) + "}")}}));
+        check(std::abs(substitution.at("formation_energy_eV").number()) < 1.0 && substitution.at("atom_change").at("Cu").number() == -1, "Ni in Cu substitution");
+
+        // Surfaces: no vacuum means no surface; the energy is independent of slab thickness.
+        const auto surface = [&](int layers, double vacuum, int interfaces, bool relax) {
+            Crystal bulk = fccCubic(3.615, 2);
+            Crystal slab = bulk;
+            if (layers > 2) {
+                slab = fccCubic(3.615, 2);
+                Crystal upper = slab;
+                for (auto& x : upper.positions) x[2] += 2 * 3.615;
+                slab.symbols.insert(slab.symbols.end(), upper.symbols.begin(), upper.symbols.end());
+                slab.positions.insert(slab.positions.end(), upper.positions.begin(), upper.positions.end());
+                slab.cell[2][2] *= 2;
+            }
+            slab.cell[2][2] += vacuum;
+            return run("planar-defect-energy", object({{"structure", structureJsonOf(slab)}, {"bulk", structureJsonOf(bulk)}, {"calculator", emt},
+                                                       {"interfaces", interfaces}, {"relax", relax}}));
+        };
+        close(surface(2, 0.0, 2, false).at("energy_J_per_m2").number(), 0.0, 1e-9, "no vacuum, no surface energy");
+        const double thin = surface(2, 12.0, 2, false).at("energy_J_per_m2").number();
+        const double thick = surface(4, 12.0, 2, false).at("energy_J_per_m2").number();
+        check(thin > 0.5 && thin < 2.5, "Cu(100) surface energy of order 1 J/m^2 (got " + std::to_string(thin) + ")");
+        close(thick, thin, 0.02 * thin, "surface energy independent of slab thickness");
+        close(surface(2, 12.0, 1, false).at("energy_J_per_m2").number(), 2 * thin, 1e-9, "one interface doubles the per-interface energy");
+        check(surface(2, 12.0, 2, true).at("energy_J_per_m2").number() < thin, "surface relaxation lowers the energy");
+        Crystal offStoichiometry = vacancy;
+        offStoichiometry.cell[2][2] += 10;
+        expectError([&] { run("planar-defect-energy", object({{"structure", structureJsonOf(offStoichiometry)}, {"bulk", structureJsonOf(copper)}, {"calculator", emt}})); },
+                    "non-stoichiometric cells rejected");
+    });
+
+    test("trajectory streaming matches full reads", [] {
+        const auto same = [](const FrameData& a, const FrameData& b, const std::string& what) {
+            check(a.structure.atoms.size() == b.structure.atoms.size(), what + ": atom count");
+            for (std::size_t i = 0; i < a.structure.atoms.size(); ++i) {
+                check(a.structure.atoms[i].symbol == b.structure.atoms[i].symbol, what + ": species");
+                close(a.structure.atoms[i].x, b.structure.atoms[i].x, 1e-12, what + ": x");
+                close(a.structure.atoms[i].z, b.structure.atoms[i].z, 1e-12, what + ": z");
+            }
+            check(a.structure.hasUnitCell == b.structure.hasUnitCell, what + ": cell presence");
+            for (int r = 0; r < 3; ++r)
+                for (int c = 0; c < 3; ++c) close(a.structure.cellVectors[r][c], b.structure.cellVectors[r][c], 1e-12, what + ": cell");
+        };
+        const auto compare = [&](const std::filesystem::path& file, std::size_t expected, bool streamed) {
+            const auto all = readFrames(file);
+            const TrajectoryStream stream(file);
+            check(stream.size() == expected && all.size() == expected, file.filename().u8string() + ": frame count");
+            check(stream.streamed() == streamed, file.filename().u8string() + ": streamed");
+            // Random access in reverse and interleaved order.
+            for (std::size_t k = 0; k < expected; ++k) {
+                const std::size_t i = (k * 7 + 3) % expected;
+                same(stream.frame(i), all[i], file.filename().u8string() + " frame " + std::to_string(i));
+            }
+            expectError([&] { stream.frame(expected); }, "frame index past the end");
+        };
+        // extXYZ with a changing atom count and lattice.
+        const auto xyz = scratch("stream.extxyz");
+        { std::ofstream out(xyz, std::ios::binary);
+          for (int f = 0; f < 5; ++f) {
+              const int n = 2 + f % 3;
+              out << n << "\nLattice=\"" << 4 + f << " 0 0 0 4 0 0 0 4\" Properties=species:S:1:pos:R:3\n";
+              for (int a = 0; a < n; ++a) out << (a % 2 ? "O" : "Cu") << ' ' << 0.1 * f + a << " 0.5 " << 0.25 * a << "\n";
+          } }
+        compare(xyz, 5, true);
+        // LAMMPS dump with Windows line endings.
+        const auto dump = scratch("stream.lammpstrj");
+        { std::ofstream out(dump, std::ios::binary);
+          for (int f = 0; f < 4; ++f)
+              out << "ITEM: TIMESTEP\r\n" << f * 100 << "\r\nITEM: NUMBER OF ATOMS\r\n2\r\nITEM: BOX BOUNDS pp pp pp\r\n0 4\r\n0 5\r\n0 6\r\n"
+                  << "ITEM: ATOMS id type element x y z\r\n1 1 Cu " << 0.1 * f << " 0 0\r\n2 2 O 1 1 " << 1 + 0.2 * f << "\r\n"; }
+        compare(dump, 4, true);
+        // XDATCAR: constant cell, then a variable-cell file that repeats the header.
+        const std::string header = "Cu2O\n1.0\n4 0 0\n0 4 0\n0 0 4\nCu O\n2 1\n";
+        const auto xdatcar = scratch("XDATCAR");
+        { std::ofstream out(xdatcar, std::ios::binary);
+          out << header;
+          for (int f = 1; f <= 3; ++f) out << "Direct configuration= " << f << "\n0 0 " << 0.01 * f << "\n0.5 0.5 0\n0.25 0.25 0.25\n"; }
+        compare(xdatcar, 3, true);
+        const auto variable = scratch("XDATCAR_variable");
+        { std::ofstream out(variable, std::ios::binary);
+          for (int f = 1; f <= 3; ++f)
+              out << "Cu2O\n1.0\n" << 4 + 0.1 * f << " 0 0\n0 4 0\n0 0 4\nCu O\n2 1\nDirect configuration= " << f << "\n0 0 0\n0.5 0.5 0\n0.25 0.25 0.25\n"; }
+        compare(variable, 3, true);
+        check(std::abs(TrajectoryStream(variable).frame(2).structure.cellVectors[0][0] - 4.3) < 1e-12, "variable cell of the last frame");
+        // Single structures are kept.
+        const auto poscar = scratch("POSCAR");
+        { std::ofstream out(poscar); out << header << "Direct\n0 0 0\n0.5 0.5 0\n0.25 0.25 0.25\n"; }
+        compare(poscar, 1, false);
+        // Indexing a long trajectory is fast and frames are read on demand.
+        const auto big = scratch("big.xyz");
+        { std::ofstream out(big, std::ios::binary);
+          for (int f = 0; f < 3000; ++f) {
+              out << "100\nframe " << f << "\n";
+              for (int a = 0; a < 100; ++a) out << "Ar " << a << ' ' << f * 0.001 << " 0\n";
+          } }
+        const auto start = std::chrono::steady_clock::now();
+        const TrajectoryStream bigStream(big);
+        check(bigStream.size() == 3000, "3000 frames indexed");
+        close(bigStream.frame(2999).structure.atoms[5].y, 2.999, 1e-12, "last frame read on demand");
+        const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+        check(seconds < 5.0, "indexing 300k atom lines takes " + std::to_string(seconds) + " s");
+    });
+
+    test("trajectory-averaged g(r), coordination and bond angles", [] {
+        const auto write = [](const std::filesystem::path& file, const std::vector<Crystal>& frames) {
+            std::ofstream out(file, std::ios::binary);
+            out << std::setprecision(12);
+            for (const auto& c : frames) {
+                out << c.positions.size() << "\nLattice=\"";
+                for (int r = 0; r < 3; ++r) for (int k = 0; k < 3; ++k) out << (r || k ? " " : "") << c.cell[r][k];
+                out << "\" Properties=species:S:1:pos:R:3 pbc=\"T T T\"\n";
+                for (std::size_t i = 0; i < c.positions.size(); ++i)
+                    out << c.symbols[i] << ' ' << c.positions[i][0] << ' ' << c.positions[i][1] << ' ' << c.positions[i][2] << "\n";
+            }
+        };
+        const auto integral = [](const Json& result, const std::string& pair, double lo, double hi, double density) {
+            const auto r = values(result.at("r_A"));
+            const auto g = values(pair.empty() ? result.at("g_total") : result.at("g_partial").at(pair));
+            const double dr = r[1] - r[0];
+            double n = 0;
+            for (std::size_t k = 0; k < r.size(); ++k)
+                if (r[k] > lo && r[k] < hi) n += g[k] * density * 4 * kPi * r[k] * r[k] * dr;
+            return n;
+        };
+        // Perfect fcc copper: 12 neighbours and the 24:12:24:6 first-shell angle split.
+        const double a = 3.615;
+        const auto fcc = scratch("fcc_frames.extxyz");
+        write(fcc, {fccCubic(a, 3), fccCubic(a, 3), fccCubic(a, 3)});
+        const Json copper = run("trajectory-structure", object({{"trajectory_file", fcc.u8string()}, {"bins", 400}}));
+        check(copper.at("frames_used").number() == 3, "three frames averaged");
+        close(copper.at("mean_coordination").number(), 12, 1e-12, "fcc coordination");
+        close(integral(copper, "", 2.3, 2.8, 4 / (a * a * a)), 12, 0.15, "12 neighbours in the first g(r) peak");
+        const auto angle = values(copper.at("angle_density_per_deg"));
+        const auto fraction = [&](double centre) { double f = 0; for (int k = static_cast<int>(centre) - 2; k <= std::min(179, static_cast<int>(centre) + 1); ++k) f += angle[static_cast<std::size_t>(k)]; return f; };
+        close(fraction(60), 24.0 / 66, 1e-9, "60 degree fraction");
+        close(fraction(90), 12.0 / 66, 1e-9, "90 degree fraction");
+        close(fraction(120), 24.0 / 66, 1e-9, "120 degree fraction");
+        close(fraction(179), 6.0 / 66, 1e-9, "180 degree fraction");
+        check(copper.at("coordination_distribution").at("Cu").items()[0].items()[0].number() == 12, "every atom has 12 neighbours");
+        // Rock salt partials: Na has six Cl neighbours and no Na neighbours within 3 A.
+        Crystal salt;
+        const double b = 5.64;
+        salt.cell = {{{b, 0, 0}, {0, b, 0}, {0, 0, b}}};
+        const Vec3 basis[4] = {{0, 0, 0}, {0, .5, .5}, {.5, 0, .5}, {.5, .5, 0}};
+        for (const auto& f : basis) {
+            salt.symbols.push_back("Na"); salt.positions.push_back(rowTimes(f, salt.cell));
+            salt.symbols.push_back("Cl"); salt.positions.push_back(rowTimes(add(f, {.5, 0, 0}), salt.cell));
+        }
+        const auto rocksalt = scratch("nacl_frames.extxyz");
+        write(rocksalt, {salt, salt});
+        const Json nacl = run("trajectory-structure", object({{"trajectory_file", rocksalt.u8string()}, {"r_max_A", 6.0}, {"bins", 300}}));
+        close(nacl.at("pair_coordination").at("Cl around Na").number(), 6, 1e-12, "Na-Cl coordination");
+        close(nacl.at("pair_coordination").at("Na around Na").number(), 0, 1e-12, "no Na-Na neighbours within the cutoff");
+        close(integral(nacl, "Na-Cl", 2.6, 3.0, 4 / (b * b * b)), 6, 0.1, "partial g_NaCl integrates to six");
+        // Ideal gas: uncorrelated positions have g(r) = 1.
+        std::vector<Crystal> gas;
+        std::uint64_t seed = 99;
+        for (int f = 0; f < 30; ++f) {
+            Crystal frame;
+            frame.cell = {{{12, 0, 0}, {0, 12, 0}, {0, 0, 12}}};
+            for (int i = 0; i < 300; ++i) {
+                Vec3 x{};
+                for (double& v : x) { seed = seed * 6364136223846793005ull + 1442695040888963407ull; v = 12.0 * static_cast<double>(seed >> 11) / 9007199254740992.0; }
+                frame.symbols.push_back("Ar");
+                frame.positions.push_back(x);
+            }
+            gas.push_back(frame);
+        }
+        const auto gasFile = scratch("gas.extxyz");
+        write(gasFile, gas);
+        const Json ideal = run("trajectory-structure", object({{"trajectory_file", gasFile.u8string()}, {"r_max_A", 5.0}, {"bins", 50}}));
+        const auto r = values(ideal.at("r_A")), g = values(ideal.at("g_total"));
+        double sum = 0; int n = 0;
+        for (std::size_t k = 0; k < r.size(); ++k) if (r[k] > 2) { sum += g[k]; ++n; }
+        close(sum / n, 1.0, 0.03, "ideal-gas g(r) averages to one");
+        check(run("trajectory-structure", object({{"trajectory_file", gasFile.u8string()}, {"first_frame", 10}, {"every", 5}, {"r_max_A", 4.0}})).at("frames_used").number() == 4,
+              "first_frame and every select frames 10, 15, 20, 25");
+        check(resultPlots("trajectory-structure", nacl).size() == 3, "g(r), coordination and angle plots");
+        expectError([&] { run("trajectory-structure", object({{"trajectory_file", gasFile.u8string()}, {"first_frame", 30}})); }, "first frame past the end");
+        const auto open = scratch("open.xyz");
+        { std::ofstream out(open); out << "2\nopen cluster\nAr 0 0 0\nAr 3 0 0\n"; }
+        expectError([&] { run("trajectory-structure", object({{"trajectory_file", open.u8string()}})); }, "open frames rejected");
     });
 
     test("tool registry tables agree with the catalog", [] {

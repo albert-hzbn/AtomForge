@@ -1,6 +1,9 @@
 #include "science/ScienceTools.h"
 #include "science/Analysis.h"
 #include "science/LammpsExport.h"
+#include "science/Symmetry.h"
+#include "science/Workflows.h"
+#include "science/TrajectoryStructure.h"
 #include "science/VaspElectronic.h"
 #include "science/Diffraction.h"
 #include "science/Clusters.h"
@@ -236,6 +239,15 @@ const std::map<std::string, ToolRunner>& toolRunners()
         {"band-gap", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(bandGap(p)); }},
         {"effective-mass", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(effectiveMass(p)); }},
         {"work-function", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(workFunction(p)); }},
+        {"trajectory-structure", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(trajectoryStructure(p)); }},
+        {"elastic-constants", [](const Parameters& p, const std::filesystem::path& base) -> ToolOutput {
+            return elasticConstants(p.structure("structure"), *potentialFactory(p.json("calculator"), base)(), p); }},
+        {"eos-scan", [](const Parameters& p, const std::filesystem::path& base) -> ToolOutput {
+            return equationOfStateScan(p.structure("structure"), *potentialFactory(p.json("calculator"), base)(), p); }},
+        {"formation-energy", [](const Parameters& p, const std::filesystem::path& base) -> ToolOutput {
+            return formationEnergy(p.structure("structure"), p.structure("bulk"), *potentialFactory(p.json("calculator"), base)(), p); }},
+        {"planar-defect-energy", [](const Parameters& p, const std::filesystem::path& base) -> ToolOutput {
+            return planarDefectEnergy(p.structure("structure"), p.structure("bulk"), *potentialFactory(p.json("calculator"), base)(), p); }},
         {"equation-of-state", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(equationOfState(p)); }},
         {"elastic-tensor", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(elasticTensor(p)); }},
         {"phonon-dos", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(phononDos(p)); }},
@@ -246,6 +258,7 @@ const std::map<std::string, ToolRunner>& toolRunners()
         {"nvt", [](const Parameters& p, const std::filesystem::path& base) { return runDynamics(p, base, false); }},
         {"npt", [](const Parameters& p, const std::filesystem::path& base) { return runDynamics(p, base, true); }},
         {"vasp-electronic", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return vaspElectronic(p); }},
+        {"symmetry", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return symmetryAnalysis(p.structure("structure"), p); }},
         {"lammps-export", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return lammpsExport(p); }},
         {"powder-xrd", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return powderXrd(p.structure("structure"), p); }},
         {"electron-diffraction", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return electronDiffraction(p.structure("structure"), p); }},

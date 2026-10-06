@@ -93,9 +93,16 @@ void wignerSeitzProperties(const Json& result, std::vector<AtomProperty>& proper
     add(properties, "Assigned site index", numbers(result.find("site_index")));
 }
 
+void symmetryProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Symmetry orbit (equivalent atoms)", numbers(result.find("orbit_id")));
+    add(properties, "Wyckoff position (0 = a, 1 = b, ...)", numbers(result.find("wyckoff_index")));
+}
+
 const std::map<std::string, PropertyBuilder>& propertyBuilders()
 {
     static const std::map<std::string, PropertyBuilder> builders = {
+        {"symmetry", symmetryProperties},
         {"cluster-analysis", clusterAnalysisProperties},
         {"void-analysis", voidAnalysisProperties},
         {"dislocation-lines", dislocationLinesProperties},

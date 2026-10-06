@@ -1643,7 +1643,11 @@ void FileBrowser::draw(Structure& structure,
     wannierDialog.drawDialog();
     lobsterDialog.drawDialog();
     dislocationAnalysisDialog.drawDialog();
-    trajectoryDialog.draw(structure,updateBuffers);
+    trajectoryDialog.draw(structure,updateBuffers,[&] {
+        propertyDisplay.autoRange = true;
+        if (atomColorMode != AtomColorMode::AtomProperty) atomColorModeJustChanged = true;
+        atomColorMode = AtomColorMode::AtomProperty;
+    });
     scientificToolsDialog.setTrajectorySource(trajectoryDialog.loadedPath());
     scientificToolsDialog.draw(structure, updateFromBuilderToNewTab,
         [&](const std::string& name, const std::vector<double>& values) {

@@ -64,14 +64,30 @@ std::string saveActiveStructure(const Structure& structure)
     return file.u8string();
 }
 
-Json potentialJson(int potential, double epsilon, double sigma, double cutoff, const std::string& file, int format)
+// Index order of the desktop's interatomic-potential selector.
+enum PotentialChoice { kEmt, kLennardJones, kEam, kTersoff, kStillingerWeber, kBuckingham };
+
+Json potentialJson(int potential, double epsilon, double sigma, double cutoff, const std::string& file, int format,
+                   const std::string& options)
 {
     Json result = Json::object();
-    if (potential == 0) {
+    if (potential == kTersoff || potential == kStillingerWeber) {
+        result["potential"] = potential == kTersoff ? "Tersoff" : "StillingerWeber";
+        if (!file.empty()) result["file"] = file;  // empty: built-in Si
+        return result;
+    }
+    if (potential == kBuckingham) {
+        try { result = Json::parse(options); }
+        catch (const std::exception& error) { throw std::runtime_error(std::string("Buckingham parameters: ") + error.what()); }
+        if (!result.isObject()) throw std::runtime_error("Buckingham parameters must be a JSON object");
+        result["potential"] = "Buckingham";
+        return result;
+    }
+    if (potential == kEmt) {
         result["potential"] = "EMT";
         return result;
     }
-    if (potential == 2) {
+    if (potential == kEam) {
         static const char* formats[] = {"auto", "setfl", "fs", "funcfl"};
         if (file.empty()) throw std::runtime_error("Choose an EAM potential file");
         result["potential"] = "EAM";
@@ -85,6 +101,14 @@ Json potentialJson(int potential, double epsilon, double sigma, double cutoff, c
     result["cutoff"] = cutoff;
     return result;
 }
+}
+
+ScientificToolsDialog::Field::Field()
+{
+    std::snprintf(potentialOptions.data(), potentialOptions.size(), "%s",
+        "{\"charges\": {\"Mg\": 2, \"O\": -2}, \"cutoff\": 10,\n"
+        " \"pairs\": [{\"elements\": [\"Mg\", \"O\"], \"A\": 821.6, \"rho\": 0.3242, \"C\": 0},\n"
+        "           {\"elements\": [\"O\", \"O\"], \"A\": 22764, \"rho\": 0.149, \"C\": 27.88}]}");
 }
 
 void ScientificToolsDialog::selectTool(int index)
@@ -102,6 +126,7 @@ void ScientificToolsDialog::selectTool(int index)
     }
     m_error.clear();
     m_result = {};
+    m_kept.clear();
 }
 
 std::string ScientificToolsDialog::snapshot() const
@@ -126,6 +151,7 @@ std::string ScientificToolsDialog::snapshot() const
         item["cutoff"] = field.cutoff;
         item["potential_file"] = field.potentialFile;
         item["eam_format"] = field.eamFormat;
+        item["potential_options"] = std::string(field.potentialOptions.data());
         fields.push(item);
     }
     state["fields"] = fields;
@@ -188,6 +214,7 @@ void ScientificToolsDialog::restore(const std::string& text)
                 field.cutoff = number(item, "cutoff", field.cutoff);
                 field.potentialFile = string(item, "potential_file");
                 field.eamFormat = static_cast<int>(number(item, "eam_format", 0));
+                copyText(field.potentialOptions, item.find("potential_options"));
             }
         }
         if (const Json* document = state.find("result"); document && document->isObject() && document->contains("result")) {
@@ -236,6 +263,7 @@ bool ScientificToolsDialog::acceptsTrajectory(const std::string& tool, const std
 {
     if (tool == "msd" || tool == "structure-factor") return parameter == "positions";
     if (tool == "vacf" || tool == "vibrational-spectrum") return parameter == "velocities";
+    if (tool == "trajectory-structure") return parameter == "trajectory_file";
     return false;
 }
 
@@ -448,7 +476,7 @@ void ScientificToolsDialog::startCalculation(const Structure& structure)
             const auto& parameter = tool.parameters[i];
             const std::string kind = parameter.kind;
             if (kind == "calculator") {
-                request[parameter.name] = potentialJson(field.potential, field.epsilon, field.sigma, field.cutoff, field.potentialFile, field.eamFormat);
+                request[parameter.name] = potentialJson(field.potential, field.epsilon, field.sigma, field.cutoff, field.potentialFile, field.eamFormat, field.potentialOptions.data());
             } else if (field.useFile) {
                 if (field.path.empty()) throw std::runtime_error("Choose a file for " + std::string(parameter.label));
                 Json reference = Json::object();
@@ -459,8 +487,10 @@ void ScientificToolsDialog::startCalculation(const Structure& structure)
             } else {
                 const std::string value = field.value.data();
                 if (value.find_first_not_of(" \t\r\n") == std::string::npos) throw std::runtime_error("Provide " + std::string(parameter.label));
-                // Plain text (e.g. an element symbol) is accepted without JSON quotes.
-                if (kind == "string" && value.find_first_not_of(" \t") != std::string::npos && value[value.find_first_not_of(" \t")] != '"')
+                // Plain text (e.g. an element symbol) is accepted without JSON quotes;
+                // text starting with a quote, { or [ is read as JSON.
+                const char first = value[value.find_first_not_of(" \t\r\n")];
+                if (kind == "string" && first != '"' && first != '{' && first != '[')
                     request[parameter.name] = value.substr(value.find_first_not_of(" \t"), value.find_last_not_of(" \t\r\n") - value.find_first_not_of(" \t") + 1);
                 else try { request[parameter.name] = Json::parse(value); }
                 catch (const std::exception& error) { throw std::runtime_error(std::string(parameter.label) + ": " + error.what()); }
@@ -547,7 +577,7 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
                     writeText(std::filesystem::u8path(*path), m_result.files[static_cast<std::size_t>(m_file)].second);
                 else if (m_pickerTarget == -3) std::filesystem::copy_file(m_result.output, std::filesystem::u8path(*path), std::filesystem::copy_options::overwrite_existing);
                 else if (m_pickerTarget <= -10 && m_pickerTarget > -100 && static_cast<std::size_t>(-10 - m_pickerTarget) < m_result.plots.size())
-                    writeText(std::filesystem::u8path(*path), atomforge::science::plotCsv(m_result.plots[static_cast<std::size_t>(-10 - m_pickerTarget)]));
+                    writeText(std::filesystem::u8path(*path), atomforge::science::plotCsv(displayedPlot(static_cast<std::size_t>(-10 - m_pickerTarget))));
                 else if (m_pickerTarget == -4) std::filesystem::copy_file(m_result.structures, std::filesystem::u8path(*path), std::filesystem::copy_options::overwrite_existing);
                 else if (m_pickerTarget <= -100 && static_cast<std::size_t>(-100 - m_pickerTarget) < m_fields.size())
                     m_fields[static_cast<std::size_t>(-100 - m_pickerTarget)].potentialFile = *path;

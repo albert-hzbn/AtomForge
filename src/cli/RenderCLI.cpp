@@ -267,18 +267,20 @@ int runRenderCLI(int argc, char* argv[])
             throw std::invalid_argument("--every must be positive");
 
         // ---- Load structure (or trajectory frames for a GIF) ----
+        // Trajectory frames are read one at a time while rendering.
         std::vector<Structure> structures;
+        std::unique_ptr<atomforge::science::TrajectoryStream> trajectory;
         if (gifOutput)
         {
             // Trajectory formats first; anything else is read as one structure.
             try
             {
-                const auto frames = atomforge::science::readFrames(std::filesystem::u8path(inputPath));
-                for (std::size_t i = 0; i < frames.size(); i += static_cast<std::size_t>(every))
-                    structures.push_back(frames[i].structure);
+                trajectory = std::make_unique<atomforge::science::TrajectoryStream>(std::filesystem::u8path(inputPath));
+                structures.push_back(trajectory->frame(0).structure);
             }
             catch (const std::exception&)
             {
+                trajectory.reset();
                 structures.clear();
             }
         }
@@ -292,10 +294,10 @@ int runRenderCLI(int argc, char* argv[])
         }
         if (structures.empty() || structures.front().atoms.empty())
             throw std::runtime_error("Error loading input structure: no atoms found");
-        const bool trajectoryGif = gifOutput && structures.size() > 1;
+        const bool trajectoryGif = gifOutput && trajectory && trajectory->size() > 1;
 
         const bool hasFrames = findArg(argc, argv, "--frames") != nullptr;
-        const int frameCount = trajectoryGif ? static_cast<int>(structures.size())
+        const int frameCount = trajectoryGif ? static_cast<int>((trajectory->size() + static_cast<std::size_t>(every) - 1) / static_cast<std::size_t>(every))
                                              : argInt(argc, argv, "--frames", gifOutput ? 36 : 1);
         if (frameCount <= 0 || (trajectoryGif && hasFrames))
             throw std::invalid_argument(trajectoryGif ? "--frames does not apply to trajectory GIFs; use --every"
@@ -310,8 +312,8 @@ int runRenderCLI(int argc, char* argv[])
         for (float& radius : elementRadii)
             radius *= radiusScale;
 
-        for (auto& structure : structures)
-            for (auto& atom : structure.atoms)
+        const auto applyColors = [&](Structure& target) {
+            for (auto& atom : target.atoms)
             {
                 if (atom.atomicNumber >= 0 && atom.atomicNumber < (int)elementColors.size())
                 {
@@ -319,6 +321,8 @@ int runRenderCLI(int argc, char* argv[])
                     atom.r = color.r; atom.g = color.g; atom.b = color.b;
                 }
             }
+        };
+        for (auto& target : structures) applyColors(target);
         const Structure& structure = structures.front();
 
         // ---- Headless OpenGL bootstrap ----
@@ -388,8 +392,10 @@ int runRenderCLI(int argc, char* argv[])
             {
                 if (trajectoryGif && frame > 0)
                 {
+                    Structure next = trajectory->frame(static_cast<std::size_t>(frame) * static_cast<std::size_t>(every)).structure;
+                    applyColors(next);
                     const StructureInstanceData frameData = buildStructureInstanceData(
-                        structures[static_cast<std::size_t>(frame)], false, identity, elementRadii, elementShininess);
+                        next, false, identity, elementRadii, elementShininess);
                     sceneBuffers.upload(frameData, false, {});
                 }
                 FrameView frameView;

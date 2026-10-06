@@ -2232,6 +2232,75 @@ from NVT/\allowbreak{}NPT are retained as momenta through ASE's extXYZ conventio
 
 
 
+\section{Native scientific tools (no dependencies)}
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+catalog()
+\end{lstlisting}
+
+Tools with their parameters: [\{"id", "title", "category", "help", "parameters": [...]\}].
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+tool_ids()
+\end{lstlisting}
+
+Identifiers of every native tool, such as "symmetry" or "relax".
+
+\end{samepage}
+
+
+
+\subsection{NativeResult}
+
+Result of a native tool: result (dict), frames (atomforge structures),
+velocities (Angstrom/\allowbreak{}fs per frame) and times\_\allowbreak{}fs for dynamics.
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+NativeResult.files
+\end{lstlisting}
+
+Generated text files (for example KPOINTS or in.lammps) by name.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+NativeResult.write_files(directory)
+\end{lstlisting}
+
+Write the generated files into directory (created if needed); returns their paths.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+run(tool: str, request: Optional[Dict[str, Any]]=None, *, base: Optional[os.PathLike]=None, **parameters: Any)
+\end{lstlisting}
+
+Run native tool tool with a request dict and/\allowbreak{}or keyword parameters.
+
+Raises ValueError with the engine's message for invalid requests.
+
+\end{samepage}
+
+
+
 \section{Native builder options}
 
 Use \code{AtomForge --help MODE} for detailed help. \code{AtomForge --build MODE --help} prints the general overview in this version. These option listings are extracted from the source help and checked against the normal executable. CLI defaults may differ from a dialog's remembered settings. The caret line continuations shown in help are for Windows cmd; use a single line or a subprocess argument list in PowerShell/Python.

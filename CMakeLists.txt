@@ -310,11 +310,11 @@ endif()
 target_compile_definitions(AtomForge PRIVATE ATOMFORGE_SOURCE_MANUAL="${ATOMFORGE_MANUAL_PDF}")
 if(BUILD_PORTABLE)
     install(TARGETS AtomForge DESTINATION "${ATOMFORGE_PORTABLE_BIN_DIR}")
-    install(TARGETS atomforge_electronic
+    install(TARGETS atomforge_electronic atomforge_science_native
         RUNTIME DESTINATION "${ATOMFORGE_PORTABLE_BIN_DIR}"
         LIBRARY DESTINATION "${ATOMFORGE_PORTABLE_BIN_DIR}")
     if(UNIX AND NOT APPLE)
-        set_target_properties(atomforge_electronic PROPERTIES INSTALL_RPATH "$ORIGIN")
+        set_target_properties(atomforge_electronic atomforge_science_native PROPERTIES INSTALL_RPATH "$ORIGIN")
     endif()
     install(DIRECTORY python/atomforge DESTINATION "${ATOMFORGE_PORTABLE_ROOT}/python"
         PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
@@ -358,7 +358,7 @@ else()
     install(DIRECTORY python/atomforge DESTINATION share/atomforge/python
         PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
     install(FILES "${ATOMFORGE_MANUAL_PDF}" DESTINATION share/doc/atomforge)
-    install(TARGETS atomforge_electronic RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
+    install(TARGETS atomforge_electronic atomforge_science_native RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
     if(WIN32)
         install(TARGETS AtomForge DESTINATION bin)
     else()

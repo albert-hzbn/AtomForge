@@ -5,6 +5,7 @@
 
 #include <filesystem>
 #include <functional>
+#include <istream>
 #include <map>
 #include <optional>
 #include <string>
@@ -27,6 +28,41 @@ struct FrameData
 };
 
 std::vector<FrameData> readFrames(const std::filesystem::path& path, const StructureReader& reader = {});
+// Random access to the frames of a trajectory file without holding them in
+// memory: one indexing pass records where each frame starts, and frame(i)
+// parses only that frame. extXYZ, LAMMPS dumps and XDATCAR (including
+// variable-cell headers) are streamed; other formats are read once and kept.
+class TrajectoryStream
+{
+public:
+    explicit TrajectoryStream(const std::filesystem::path& path, const StructureReader& reader = {});
+    std::size_t size() const;
+    FrameData frame(std::size_t index) const;
+    const std::filesystem::path& path() const { return m_path; }
+    bool streamed() const { return m_kept.empty(); }
+
+private:
+    enum class Format { Extxyz, Lammps, Xdatcar, Kept };
+    struct Entry { std::streamoff start = 0, header = 0; bool direct = true; };
+    std::filesystem::path m_path;
+    Format m_format = Format::Kept;
+    std::vector<Entry> m_entries;
+    std::vector<FrameData> m_kept;
+};
+
+// Up to maxFrames extended-XYZ frames from the current stream position.
+std::vector<FrameData> readExtxyzFrames(std::istream& input, std::size_t maxFrames);
+// VASP 5 POSCAR/XDATCAR blocks: a header (comment, scale, lattice, species,
+// counts) sets the cell and species used by the following coordinate blocks.
+struct VaspReader
+{
+    explicit VaspReader(std::istream& input) : in(input) {}
+    bool readHeader(bool skipComment);  // false at end of file (when reading the comment)
+    FrameData readPositions(bool direct);
+    std::istream& in;
+    Mat3 cell{};
+    std::vector<std::string> symbols;
+};
 
 // Whole text file, decompressing .gz, .bz2 and .xz when the build supports it.
 std::string readTextFile(const std::filesystem::path& path);

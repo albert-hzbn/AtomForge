@@ -110,7 +110,7 @@ void ScientificToolsDialog::drawField(std::size_t i, const Structure& structure)
                 try { useActiveStructure(i, structure); }
                 catch (const std::exception& error) { m_error = error.what(); }
             }
-            if (kind == "data" && !m_trajectory.empty() && acceptsTrajectory(tool.id, name)) {
+            if ((kind == "data" || kind == "file") && !m_trajectory.empty() && acceptsTrajectory(tool.id, name)) {
                 if (responsive::button("Use loaded trajectory")) {
                     field.path = m_trajectory;
                     field.useFile = true;
@@ -122,8 +122,25 @@ void ScientificToolsDialog::drawField(std::size_t i, const Structure& structure)
         }
         if (kind == "calculator") {
             ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(340)));
-            ImGui::Combo("##potential", &field.potential, "EMT (effective-medium theory)\0Lennard-Jones 12-6\0EAM / Finnis-Sinclair file\0");
-            if (field.potential == 2) {
+            ImGui::Combo("##potential", &field.potential,
+                         "EMT (effective-medium theory)\0Lennard-Jones 12-6\0EAM / Finnis-Sinclair file\0"
+                         "Tersoff (covalent)\0Stillinger-Weber (covalent)\0Buckingham + Coulomb (ionic)\0");
+            if (field.potential == 3 || field.potential == 4) {
+                const bool tersoff = field.potential == 3;
+                if (responsive::button("Browse parameter file...")) { m_pickerTarget = -100 - static_cast<int>(i); m_picker.open(tersoff ? "Tersoff parameter file" : "Stillinger-Weber parameter file", false, field.potentialFile); }
+                if (!field.potentialFile.empty()) {
+                    ImGui::SameLine();
+                    if (responsive::button("Use built-in Si")) field.potentialFile.clear();
+                }
+                ImGui::TextWrapped("%s", field.potentialFile.empty()
+                    ? (tersoff ? "Built-in Si (Tersoff 1988). Choose a LAMMPS .tersoff file for other elements, e.g. SiC.tersoff."
+                               : "Built-in Si (Stillinger-Weber 1985). Choose a LAMMPS .sw file for other elements.")
+                    : field.potentialFile.c_str());
+            } else if (field.potential == 5) {
+                ImGui::TextWrapped("Pairs A exp(-r/rho) - C/r^6 and fixed charges (e); Coulomb terms are Ewald-summed in periodic cells.");
+                ImGui::InputTextMultiline("##buckingham", field.potentialOptions.data(), field.potentialOptions.size(),
+                                          ImVec2(-1, ImGui::GetTextLineHeight() * 6));
+            } else if (field.potential == 2) {
                 if (responsive::button("Browse potential...")) { m_pickerTarget = -100 - static_cast<int>(i); m_picker.open("EAM potential file", false, field.potentialFile); }
                 ImGui::TextWrapped("%s", field.potentialFile.empty() ? "Choose a LAMMPS-format .eam.alloy, .eam.fs or .eam file" : field.potentialFile.c_str());
                 ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(340)));
@@ -265,16 +282,65 @@ void ScientificToolsDialog::drawPlots(float height)
         }
         ImGui::EndTabBar();
     }
-    const float plotHeight = std::max(responsive::dp(200), height - ImGui::GetFrameHeightWithSpacing());
-    uiPlot::drawSciencePlot("##plot", m_result.plots[static_cast<std::size_t>(m_plot)], plotHeight / responsive::scale());
+    const float plotHeight = std::max(responsive::dp(200), height - 2 * ImGui::GetFrameHeightWithSpacing());
+    uiPlot::drawSciencePlot("##plot", displayedPlot(static_cast<std::size_t>(m_plot)), plotHeight / responsive::scale());
     if (responsive::button("Export plot data...")) {
         m_pickerTarget = -10 - m_plot;
         m_picker.open("Save plot data", true, "plot.csv");
     }
+    if (!m_kept.empty()) {
+        ImGui::SameLine();
+        ImGui::Checkbox(("Overlay " + std::to_string(m_kept.size()) + " kept run" + (m_kept.size() > 1 ? "s" : "")).c_str(), &m_overlay);
+    }
+}
+
+atomforge::science::PlotSpec ScientificToolsDialog::displayedPlot(std::size_t index) const
+{
+    const auto& current = m_result.plots.at(index);
+    if (!m_overlay || m_kept.empty()) return current;
+    std::vector<std::pair<std::string, std::vector<atomforge::science::PlotSpec>>> others;
+    for (const auto& run : m_kept) others.push_back({run.label, run.plots});
+    return atomforge::science::overlayPlots(current, "Current", others);
+}
+
+void ScientificToolsDialog::keepForComparison()
+{
+    if (m_result.output.empty()) return;
+    m_kept.push_back({"Run " + std::to_string(m_kept.size() + 1), m_result.plots, m_result.summary});
+}
+
+void ScientificToolsDialog::drawComparison()
+{
+    if (m_kept.empty() || m_result.summary.empty()) return;
+    if (!ImGui::CollapsingHeader(("Compare with kept runs (" + std::to_string(m_kept.size()) + ")").c_str(), ImGuiTreeNodeFlags_DefaultOpen)) return;
+    const int columns = static_cast<int>(m_kept.size()) + 2;
+    if (ImGui::BeginTable("Run comparison", columns, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollX |
+                                                     ImGuiTableFlags_SizingFixedFit)) {
+        ImGui::TableSetupColumn("Quantity");
+        for (const auto& run : m_kept) ImGui::TableSetupColumn(run.label.c_str());
+        ImGui::TableSetupColumn("Current");
+        ImGui::TableHeadersRow();
+        for (const auto& [label, value] : m_result.summary) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(label.c_str());
+            for (const auto& run : m_kept) {
+                ImGui::TableNextColumn();
+                const auto found = std::find_if(run.summary.begin(), run.summary.end(), [&](const auto& row) { return row.first == label; });
+                ImGui::TextUnformatted(found == run.summary.end() ? "-" : found->second.c_str());
+            }
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(value.c_str());
+        }
+        ImGui::EndTable();
+    }
+    if (responsive::button("Clear kept runs")) m_kept.clear();
 }
 
 void ScientificToolsDialog::drawSaveButtons(const std::function<void(Structure&)>& loadResult)
 {
+    drawComparison();
+    if (responsive::button("Keep for comparison")) keepForComparison();
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Keep this result; change inputs and run again to overlay plots and compare values.");
+    ImGui::SameLine();
     if (responsive::button("Save results...")) { m_pickerTarget = -3; m_picker.open("Save scientific results", true, "analysis.json"); }
     if (!m_result.structures.empty()) {
         if (ImGui::GetContentRegionAvail().x > responsive::dp(380)) ImGui::SameLine();
@@ -400,6 +466,7 @@ void ScientificToolsDialog::drawPropertiesLayout(const Structure& structure, con
     responsive::beginChild("Property inputs", ImVec2(formWidth, height), true);
     ImGui::BeginDisabled(m_task.running());
     if (hasFields(0, -1)) { ImGui::SeparatorText("Data"); drawFields(structure, 0, -1); }
+    if (hasFields(3, -1)) { ImGui::SeparatorText("Interatomic potential"); drawFields(structure, 3, -1); }
     if (hasFields(1, -1)) { ImGui::SeparatorText("Settings"); drawFields(structure, 1, -1); }
     if (hasFields(2, -1) && ImGui::TreeNode("Optional inputs")) { drawFields(structure, 2, -1); ImGui::TreePop(); }
     ImGui::EndDisabled();

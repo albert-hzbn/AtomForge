@@ -3,6 +3,7 @@
 #include "science/ScienceCatalog.h"
 #include "science/ScienceTools.h"
 #include "ui/ScientificToolsDialog.h"
+#include "ui/TrajectoryDialog.h"
 #include "ui/SciencePlot.h"
 #include <cmath>
 #include "imgui.h"
@@ -134,6 +135,20 @@ int main()
                 restored.draw(copper, [](Structure&) {}, [&](const std::string& name, const std::vector<double>&) { coloured = name; });
                 ImGui::Render();
             }
+            // Kept runs overlay their plots on the current result's plots.
+            const std::size_t baseSeries = restored.displayedPlot(0).series.size();
+            restored.keepForComparison();
+            restored.keepForComparison();
+            if (restored.keptRuns() != 2) throw std::runtime_error("Kept runs");
+            const auto overlaid = restored.displayedPlot(0);
+            if (overlaid.series.size() != 3 * baseSeries || overlaid.series.front().name.rfind("Run 1: ", 0) != 0 ||
+                overlaid.series.back().name.rfind("Current: ", 0) != 0)
+                throw std::runtime_error("Overlay of kept runs");
+            for (int frame = 0; frame < 2; ++frame) {
+                ImGui::NewFrame();
+                restored.draw(copper, [](Structure&) {}, [&](const std::string& name, const std::vector<double>&) { coloured = name; });
+                ImGui::Render();
+            }
             ImGuiWindow* window = ImGui::FindWindowByName("Centrosymmetry parameter###Atom analysis");
             if (!window || !window->WasActive) throw std::runtime_error("Restored dialog not shown");
             // Unknown tools (from a newer release) and malformed state leave the dialog closed.
@@ -173,6 +188,28 @@ int main()
                 ImGuiWindow* window = ImGui::FindWindowByName(title.c_str());
                 if (!window || !window->WasActive) throw std::runtime_error("Result layout not shown for " + id);
             }
+        }
+        // Per-frame analyses of Trajectory playback colour each frame's atoms.
+        {
+            Structure supercell = copper;
+            supercell.atoms.clear();
+            supercell.cellVectors = {{{7.2, 0, 0}, {0, 7.2, 0}, {0, 0, 7.2}}};
+            for (int i = 0; i < 2; ++i) for (int j = 0; j < 2; ++j) for (int k = 0; k < 2; ++k)
+                for (const auto& atom : copper.atoms) {
+                    AtomSite site = atom;
+                    site.x += 3.6 * i; site.y += 3.6 * j; site.z += 3.6 * k;
+                    supercell.atoms.push_back(site);
+                }
+            const auto types = TrajectoryDialog::analyseFrame(supercell, "structure-type", 3.0);
+            if (types.values.size() != 32) throw std::runtime_error("Per-frame structure types per atom");
+            for (double t : types.values) if (t != 1) throw std::runtime_error("Perfect fcc frame is all fcc");
+            const auto csp = TrajectoryDialog::analyseFrame(supercell, "centrosymmetry", 3.0);
+            for (double v : csp.values) if (!(std::abs(v) < 1e-9)) throw std::runtime_error("Perfect fcc frame has zero centrosymmetry");
+            const auto q6 = TrajectoryDialog::analyseFrame(supercell, "bond-order", 3.0);
+            if (q6.values.size() != 32 || std::abs(q6.values[0] - 0.574524) > 1e-5) throw std::runtime_error("Per-frame q6 of fcc");
+            if (TrajectoryDialog::frameAnalyses().size() != 3) throw std::runtime_error("Per-frame analysis list");
+            for (const auto& [id, title] : TrajectoryDialog::frameAnalyses())
+                if (!findScienceTool(id)) throw std::runtime_error("Per-frame analysis names an unknown tool " + id);
         }
         const auto ticks = uiPlot::niceTicks(0.013, 0.98, 5);
         if (ticks.size() < 4 || ticks.front() < 0.013 || ticks.back() > 0.98) throw std::runtime_error("Tick generation");

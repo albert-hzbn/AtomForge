@@ -1,5 +1,6 @@
 #pragma once
 #include "model/Structure.h"
+#include <istream>
 #include <string>
 #include <vector>
 
@@ -13,6 +14,8 @@ std::vector<Structure> loadXyzTrajectory(const std::string& path);
 // inferred from "type" alone. Accepts wrapped (x y z) or unwrapped
 // (xu yu zu) coordinates, and orthogonal or triclinic box bounds.
 std::vector<Structure> loadLammpsTrajectory(const std::string& path);
+// Up to maxFrames dump frames from the current stream position.
+std::vector<Structure> loadLammpsFrames(std::istream& input, std::size_t maxFrames);
 
 // Auto-detects XYZ/extXYZ vs. LAMMPS dump from the first non-blank line
 // ("ITEM:" marks a LAMMPS dump) and dispatches to the matching loader.

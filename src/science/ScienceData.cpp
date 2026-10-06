@@ -1,4 +1,5 @@
 #include "science/ScienceData.h"
+#include "science/ScienceCatalog.h"
 #include "io/Trajectory.h"
 #include "util/ElementData.h"
 #include "util/TaskControl.h"
@@ -111,14 +112,14 @@ std::map<std::string, std::string> parseComment(const std::string& line)
     return result;
 }
 
-std::vector<FrameData> readExtxyz(const std::filesystem::path& path)
+}
+
+std::vector<FrameData> readExtxyzFrames(std::istream& input, std::size_t maxFrames)
 {
-    std::ifstream input(path);
-    if (!input) throw std::runtime_error("Cannot open " + path.u8string());
     std::vector<FrameData> frames;
     std::string line;
     std::size_t total = 0;
-    while (std::getline(input, line)) {
+    while (frames.size() < maxFrames && std::getline(input, line)) {
         taskCheckpoint();
         if (line.find_first_not_of(" \t\r") == std::string::npos) continue;
         const auto countTokens = split(line);
@@ -201,34 +202,40 @@ std::vector<FrameData> readExtxyz(const std::filesystem::path& path)
     return frames;
 }
 
-// VASP POSCAR/CONTCAR and XDATCAR (constant or repeated variable-cell headers).
-std::vector<FrameData> readVasp(const std::filesystem::path& path, bool trajectory)
+namespace
+{
+std::vector<FrameData> readExtxyz(const std::filesystem::path& path)
 {
     std::ifstream input(path);
     if (!input) throw std::runtime_error("Cannot open " + path.u8string());
-    std::vector<FrameData> frames;
+    return readExtxyzFrames(input, static_cast<std::size_t>(-1));
+}
+
+// VASP POSCAR/CONTCAR and XDATCAR (constant or repeated variable-cell headers).
+}
+
+bool VaspReader::readHeader(bool skipComment)
+{
     std::string line;
-    Mat3 cell{};
-    std::vector<std::string> symbols;
-    auto readHeader = [&](bool skipComment) {
-        if (!skipComment && !std::getline(input, line)) return false;
-        if (!std::getline(input, line)) throw std::runtime_error("Truncated VASP header");
+    {
+        if (!skipComment && !std::getline(in, line)) return false;
+        if (!std::getline(in, line)) throw std::runtime_error("Truncated VASP header");
         const auto scaleTokens = split(line);
         if (scaleTokens.empty()) throw std::runtime_error("Missing VASP scale factor");
         double factor = parseDouble(scaleTokens[0], "VASP scale");
         for (auto& row : cell) {
-            if (!std::getline(input, line)) throw std::runtime_error("Truncated VASP lattice");
+            if (!std::getline(in, line)) throw std::runtime_error("Truncated VASP lattice");
             const auto tokens = split(line);
             if (tokens.size() < 3) throw std::runtime_error("Invalid VASP lattice");
             for (int k = 0; k < 3; ++k) row[k] = parseDouble(tokens[k], "VASP lattice");
         }
         if (factor < 0) factor = std::cbrt(-factor / cellVolume(cell));
         for (auto& row : cell) row = scale(row, factor);
-        if (!std::getline(input, line)) throw std::runtime_error("Truncated VASP species");
+        if (!std::getline(in, line)) throw std::runtime_error("Truncated VASP species");
         auto names = split(line);
         if (names.empty() || std::isdigit(static_cast<unsigned char>(names[0][0])))
             throw std::runtime_error("VASP files must list element symbols (VASP 5 format)");
-        if (!std::getline(input, line)) throw std::runtime_error("Truncated VASP counts");
+        if (!std::getline(in, line)) throw std::runtime_error("Truncated VASP counts");
         const auto counts = split(line);
         if (counts.size() != names.size()) throw std::runtime_error("VASP species and counts differ");
         symbols.clear();
@@ -238,21 +245,39 @@ std::vector<FrameData> readVasp(const std::filesystem::path& path, bool trajecto
             for (int c = 0; c < count; ++c) symbols.push_back(name);
         }
         return true;
-    };
-    auto readPositions = [&](bool direct) {
+    }
+}
+
+FrameData VaspReader::readPositions(bool direct)
+{
+    std::string line;
+    {
         FrameData frame;
         frame.pbc = {true, true, true};
         frame.structure.hasUnitCell = true;
         for (int r = 0; r < 3; ++r) frame.structure.cellVectors[r] = cell[r];
         for (const auto& symbol : symbols) {
-            if (!std::getline(input, line)) throw std::runtime_error("Truncated VASP coordinates");
+            if (!std::getline(in, line)) throw std::runtime_error("Truncated VASP coordinates");
             const auto tokens = split(line);
             if (tokens.size() < 3) throw std::runtime_error("Invalid VASP coordinates");
             Vec3 value{parseDouble(tokens[0], "VASP coordinates"), parseDouble(tokens[1], "VASP coordinates"), parseDouble(tokens[2], "VASP coordinates")};
             frame.structure.atoms.push_back(makeAtom(symbol, direct ? rowTimes(value, cell) : value));
         }
         return frame;
-    };
+    }
+}
+
+namespace
+{
+std::vector<FrameData> readVasp(const std::filesystem::path& path, bool trajectory)
+{
+    std::ifstream input(path);
+    if (!input) throw std::runtime_error("Cannot open " + path.u8string());
+    std::vector<FrameData> frames;
+    std::string line;
+    VaspReader vasp(input);
+    auto readHeader = [&](bool skipComment) { return vasp.readHeader(skipComment); };
+    auto readPositions = [&](bool direct) { return vasp.readPositions(direct); };
     if (!readHeader(false)) throw std::runtime_error("Empty VASP file");
     if (!trajectory) {
         if (!std::getline(input, line)) throw std::runtime_error("Truncated POSCAR");
@@ -571,6 +596,88 @@ std::vector<FrameData> readFrames(const std::filesystem::path& path, const Struc
     return {frame};
 }
 
+TrajectoryStream::TrajectoryStream(const std::filesystem::path& path, const StructureReader& reader) : m_path(path)
+{
+    if (!std::filesystem::is_regular_file(path)) throw std::runtime_error("File not found: " + path.u8string());
+    const std::string name = upper(path.filename().u8string());
+    const std::string extension = lower(path.extension().u8string());
+    // Binary mode keeps stream offsets exact on every platform; parsers accept CRLF.
+    std::ifstream input(path, std::ios::binary);
+    if (!input) throw std::runtime_error("Cannot open " + path.u8string());
+    std::string line;
+    const auto skip = [&](long long lines) {
+        for (long long k = 0; k < lines; ++k)
+            if (!std::getline(input, line)) throw std::runtime_error("Truncated trajectory frame in " + path.u8string());
+    };
+    if (name.rfind("XDATCAR", 0) == 0) {
+        m_format = Format::Xdatcar;
+        VaspReader vasp(input);
+        std::streamoff header = 0;
+        if (!vasp.readHeader(false)) throw std::runtime_error("Empty VASP file");
+        for (std::streamoff offset = input.tellg(); std::getline(input, line); offset = input.tellg()) {
+            taskCheckpoint();
+            if (line.find_first_not_of(" \t\r") == std::string::npos) continue;
+            const std::string head = lower(line.substr(line.find_first_not_of(" \t")));
+            if (head.rfind("direct", 0) == 0 || head.rfind("cartesian", 0) == 0) {
+                m_entries.push_back({input.tellg(), header, head[0] == 'd'});
+                skip(static_cast<long long>(vasp.symbols.size()));
+            } else {
+                header = offset;  // a variable-cell XDATCAR repeats the header
+                vasp.readHeader(true);
+            }
+        }
+    } else if (extension == ".xyz" || extension == ".extxyz") {
+        m_format = Format::Extxyz;
+        for (std::streamoff offset = input.tellg(); std::getline(input, line); offset = input.tellg()) {
+            taskCheckpoint();
+            if (line.find_first_not_of(" \t\r") == std::string::npos) continue;
+            const auto tokens = split(line);
+            if (tokens.size() != 1) throw std::runtime_error("Invalid XYZ frame atom count");
+            const double count = parseDouble(tokens[0], "XYZ atom count");
+            if (count < 0 || count > 10000000) throw std::runtime_error("Invalid XYZ frame atom count");
+            m_entries.push_back({offset, 0, true});
+            skip(static_cast<long long>(count) + 1);
+        }
+    } else if (!isVaspStructure(path) && extension != ".json" && isLammpsDump(path)) {
+        m_format = Format::Lammps;
+        for (std::streamoff offset = input.tellg(); std::getline(input, line); offset = input.tellg()) {
+            taskCheckpoint();
+            if (line.rfind("ITEM: TIMESTEP", 0) == 0) m_entries.push_back({offset, 0, true});
+        }
+    } else {
+        m_kept = readFrames(path, reader);
+        return;
+    }
+    if (m_entries.empty()) throw std::runtime_error("Structure/trajectory file contains no frames");
+}
+
+std::size_t TrajectoryStream::size() const
+{
+    return m_format == Format::Kept ? m_kept.size() : m_entries.size();
+}
+
+FrameData TrajectoryStream::frame(std::size_t index) const
+{
+    if (index >= size()) throw std::out_of_range("Trajectory frame " + std::to_string(index) + " of " + std::to_string(size()));
+    if (m_format == Format::Kept) return m_kept[index];
+    std::ifstream input(m_path, std::ios::binary);
+    if (!input) throw std::runtime_error("Cannot open " + m_path.u8string());
+    const Entry& entry = m_entries[index];
+    if (m_format == Format::Xdatcar) {
+        VaspReader vasp(input);
+        input.seekg(entry.header);
+        vasp.readHeader(false);
+        input.seekg(entry.start);
+        return vasp.readPositions(entry.direct);
+    }
+    input.seekg(entry.start);
+    if (m_format == Format::Extxyz) return readExtxyzFrames(input, 1).front();
+    FrameData frame;
+    frame.structure = loadLammpsFrames(input, 1).front();
+    frame.pbc = {frame.structure.hasUnitCell, frame.structure.hasUnitCell, frame.structure.hasUnitCell};
+    return frame;
+}
+
 namespace
 {
 NdArray framesField(const std::vector<FrameData>& frames, const std::string& field, std::optional<double> timestep)
@@ -654,6 +761,21 @@ StructureInput resolveStructure(const Json& value, const std::filesystem::path& 
 }
 }
 
+namespace
+{
+// Structure inputs are the catalog parameters of kind "structure" (for internal
+// requests without a catalog entry: structure, initial and final).
+bool isStructureParameter(const std::string& tool, const std::string& name)
+{
+    if (const ScienceToolDef* definition = findScienceTool(tool)) {
+        for (const auto& parameter : definition->parameters)
+            if (name == parameter.name) return std::strcmp(parameter.kind, "structure") == 0;
+        return false;
+    }
+    return name == "structure" || name == "initial" || name == "final";
+}
+}
+
 Parameters::Parameters(const std::string& tool, const Json& request, const std::filesystem::path& base,
                        const StructureReader& reader)
 {
@@ -663,7 +785,7 @@ Parameters::Parameters(const std::string& tool, const Json& request, const std::
         if (const Json* value = request.find("timestep_fs"); value && value->isNumber()) timestep = value->number();
     for (const auto& [name, value] : request.members()) {
         taskCheckpoint();
-        if (name == "structure" || name == "initial" || name == "final" || (name == "reference" && tool == "dislocation-lines")) {
+        if (isStructureParameter(tool, name)) {
             m_structures[name] = resolveStructure(value, base, reader);
             continue;
         }
