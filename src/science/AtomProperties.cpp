@@ -1,6 +1,7 @@
 #include "science/AtomProperties.h"
 
 #include <algorithm>
+#include <map>
 #include <cmath>
 #include <limits>
 
@@ -32,46 +33,87 @@ void add(std::vector<AtomProperty>& properties, const std::string& name, std::ve
 {
     if (!values.empty()) properties.push_back({name, std::move(values)});
 }
+
+using PropertyBuilder = void (*)(const Json& result, std::vector<AtomProperty>& properties);
+
+void clusterAnalysisProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Cluster id (-1 unselected)", numbers(result.find("cluster_id")));
+}
+
+void voidAnalysisProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Lining void id (-1 none)", numbers(result.find("lining_void_id")));
+}
+
+void dislocationLinesProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Dislocation line id (-1 none)", numbers(result.find("line_id")));
+    add(properties, "Structure type (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)", numbers(result.find("structure_type")));
+}
+
+void structureTypeProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Structure type (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)", numbers(result.find("structure_type")));
+}
+
+void centrosymmetryProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Centrosymmetry (A^2)", numbers(result.find("centrosymmetry_A2")));
+}
+
+void localStrainProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "D2min (A^2)", numbers(result.find("d2min_A2")));
+    std::vector<double> volumetric, shear;
+    if (const Json* strain = result.find("green_lagrange_strain"); strain && strain->isArray())
+        for (const auto& e : strain->items()) {
+            const double xx = element(e, 0, 0), yy = element(e, 1, 1), zz = element(e, 2, 2);
+            const double xy = element(e, 0, 1), xz = element(e, 0, 2), yz = element(e, 1, 2);
+            volumetric.push_back(xx + yy + zz);
+            // Von Mises local shear invariant (Shimizu, Ogata, Li 2007).
+            shear.push_back(std::sqrt(xy * xy + xz * xz + yz * yz +
+                ((xx - yy) * (xx - yy) + (yy - zz) * (yy - zz) + (xx - zz) * (xx - zz)) / 6));
+        }
+    add(properties, "Von Mises shear strain", shear);
+    add(properties, "Volumetric strain trace(E)", volumetric);
+    add(properties, "Coordination", numbers(result.find("coordination")));
+}
+
+void bondOrderProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    if (const Json* order = result.find("order"); order && order->isObject())
+        for (const auto& [name, values] : order->members()) add(properties, name, numbers(&values));
+    add(properties, "Coordination", numbers(result.find("coordination")));
+}
+
+void wignerSeitzProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Distance to assigned site (A)", numbers(result.find("distance_A")));
+    add(properties, "Assigned site index", numbers(result.find("site_index")));
+}
+
+const std::map<std::string, PropertyBuilder>& propertyBuilders()
+{
+    static const std::map<std::string, PropertyBuilder> builders = {
+        {"cluster-analysis", clusterAnalysisProperties},
+        {"void-analysis", voidAnalysisProperties},
+        {"dislocation-lines", dislocationLinesProperties},
+        {"structure-type", structureTypeProperties},
+        {"centrosymmetry", centrosymmetryProperties},
+        {"local-strain", localStrainProperties},
+        {"bond-order", bondOrderProperties},
+        {"wigner-seitz", wignerSeitzProperties},
+    };
+    return builders;
+}
 }
 
 std::vector<AtomProperty> perAtomProperties(const std::string& tool, const Json& result)
 {
     std::vector<AtomProperty> properties;
     if (!result.isObject()) return properties;
-    if (tool == "cluster-analysis") {
-        add(properties, "Cluster id (-1 unselected)", numbers(result.find("cluster_id")));
-    } else if (tool == "void-analysis") {
-        add(properties, "Lining void id (-1 none)", numbers(result.find("lining_void_id")));
-    } else if (tool == "dislocation-lines") {
-        add(properties, "Dislocation line id (-1 none)", numbers(result.find("line_id")));
-        add(properties, "Structure type (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)", numbers(result.find("structure_type")));
-    } else if (tool == "structure-type") {
-        add(properties, "Structure type (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)", numbers(result.find("structure_type")));
-    } else if (tool == "centrosymmetry") {
-        add(properties, "Centrosymmetry (A^2)", numbers(result.find("centrosymmetry_A2")));
-    } else if (tool == "local-strain") {
-        add(properties, "D2min (A^2)", numbers(result.find("d2min_A2")));
-        std::vector<double> volumetric, shear;
-        if (const Json* strain = result.find("green_lagrange_strain"); strain && strain->isArray())
-            for (const auto& e : strain->items()) {
-                const double xx = element(e, 0, 0), yy = element(e, 1, 1), zz = element(e, 2, 2);
-                const double xy = element(e, 0, 1), xz = element(e, 0, 2), yz = element(e, 1, 2);
-                volumetric.push_back(xx + yy + zz);
-                // Von Mises local shear invariant (Shimizu, Ogata, Li 2007).
-                shear.push_back(std::sqrt(xy * xy + xz * xz + yz * yz +
-                    ((xx - yy) * (xx - yy) + (yy - zz) * (yy - zz) + (xx - zz) * (xx - zz)) / 6));
-            }
-        add(properties, "Von Mises shear strain", shear);
-        add(properties, "Volumetric strain trace(E)", volumetric);
-        add(properties, "Coordination", numbers(result.find("coordination")));
-    } else if (tool == "bond-order") {
-        if (const Json* order = result.find("order"); order && order->isObject())
-            for (const auto& [name, values] : order->members()) add(properties, name, numbers(&values));
-        add(properties, "Coordination", numbers(result.find("coordination")));
-    } else if (tool == "wigner-seitz") {
-        add(properties, "Distance to assigned site (A)", numbers(result.find("distance_A")));
-        add(properties, "Assigned site index", numbers(result.find("site_index")));
-    }
+    if (const auto builder = propertyBuilders().find(tool); builder != propertyBuilders().end()) builder->second(result, properties);
     return properties;
 }
 
@@ -107,5 +149,12 @@ void colourByProperty(const std::vector<double>& values, const PropertyDisplay& 
         colours[i] = viridis(span > 0 ? (v - range.low) / span : 0.5);
         if (display.hideOutside && (v < range.low || v > range.high)) visible[i] = false;
     }
+}
+
+std::vector<std::string> toolsWithAtomProperties()
+{
+    std::vector<std::string> tools;
+    for (const auto& entry : propertyBuilders()) tools.push_back(entry.first);
+    return tools;
 }
 }

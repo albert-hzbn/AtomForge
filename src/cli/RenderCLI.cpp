@@ -1,4 +1,5 @@
 #include "cli/RenderCLI.h"
+#include "cli/CliArgs.h"
 
 #include "app/EditorOps.h"
 #include "app/ImageExport.h"
@@ -37,57 +38,10 @@
 #include <sstream>
 #include <stdexcept>
 
+using namespace cli;
+
 namespace
 {
-
-const char* findArg(int argc, char* argv[], const char* flag)
-{
-    for (int i = 1; i < argc - 1; ++i)
-        if (std::strcmp(argv[i], flag) == 0)
-            return argv[i + 1];
-    return nullptr;
-}
-
-bool hasFlag(int argc, char* argv[], const char* flag)
-{
-    for (int i = 1; i < argc; ++i)
-        if (std::strcmp(argv[i], flag) == 0)
-            return true;
-    return false;
-}
-
-std::vector<std::string> findAllArgs(int argc, char* argv[], const char* flag)
-{
-    std::vector<std::string> out;
-    for (int i = 1; i < argc - 1; ++i)
-        if (std::strcmp(argv[i], flag) == 0)
-            out.emplace_back(argv[i + 1]);
-    return out;
-}
-
-double argDouble(int argc, char* argv[], const char* flag, double def)
-{
-    const char* v = findArg(argc, argv, flag);
-    if (!v) return def;
-    std::size_t parsed = 0;
-    const std::string text(v);
-    const double value = std::stod(text, &parsed);
-    if (parsed != text.size() || !std::isfinite(value))
-        throw std::invalid_argument(std::string("invalid numeric value '") + v + "' for " + flag);
-    return value;
-}
-
-int argInt(int argc, char* argv[], const char* flag, int def)
-{
-    const char* v = findArg(argc, argv, flag);
-    if (!v) return def;
-    std::size_t parsed = 0;
-    const std::string text(v);
-    const int value = std::stoi(text, &parsed);
-    if (parsed != text.size())
-        throw std::invalid_argument(std::string("invalid integer value '") + v + "' for " + flag);
-    return value;
-}
 
 // Apply "SYMBOL r g b" overrides (0..1 components) onto a size-119 element
 // color table. Pulled out as a free function so flag semantics are testable

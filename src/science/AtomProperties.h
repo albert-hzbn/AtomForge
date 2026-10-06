@@ -17,6 +17,8 @@ struct AtomProperty
 };
 
 std::vector<AtomProperty> perAtomProperties(const std::string& tool, const Json& result);
+// Tool ids that report per-atom properties (for registry consistency checks).
+std::vector<std::string> toolsWithAtomProperties();
 
 // Perceptually uniform viridis colour map (polynomial fit), t clamped to [0, 1].
 std::array<float, 3> viridis(double t);

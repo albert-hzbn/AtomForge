@@ -169,10 +169,10 @@ int runScienceCLI(int argc, char* argv[])
         if (args.count("--files"))
             if (const Json* files = result.result.find("files"); files && files->isObject()) {
                 const auto directory = std::filesystem::u8path(args.at("--files"));
-                for (const auto& [name, text] : files->members()) {
+                for (const auto& [name, content] : files->members()) {
                     const auto target = directory / std::filesystem::u8path(name);
                     if (std::filesystem::exists(target) && !overwrite) throw std::runtime_error(target.u8string() + " exists; use --overwrite");
-                    writeText(target, text.string());
+                    writeText(target, content.string());
                 }
             }
         std::cout << "Saved " << output.u8string() << std::endl;

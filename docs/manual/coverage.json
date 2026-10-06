@@ -3,7 +3,7 @@
   "files": [
     {
       "source": "CMakeLists.txt",
-      "sha256": "170a3cd5e5a0cb312c261893655189f77c091efe4f50b79cdc98e63d8fcac359",
+      "sha256": "60003b9988d4f42bfc8a311d6966ae302ea3a940ef742661416335ff787960c2",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -741,8 +741,62 @@
       "literal_controls": []
     },
     {
+      "source": "src/cli/BuildCrystalCLI.cpp",
+      "sha256": "7b2648704dc0f8edbb3f748703ba97dce002f7655174e699b0e6ac94e4aafeac",
+      "documentation": [
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/cli/BuildDefectCLI.cpp",
+      "sha256": "715726753b18221e5436d607fc95cd5a449235e8b9087c06349ec6b0a6b4bd70",
+      "documentation": [
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/cli/BuildModes.h",
+      "sha256": "488702ada81069f7486fb63e343c3e583a6890af63d380e9414608d96c54dbf4",
+      "documentation": [
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/cli/BuildNanoCLI.cpp",
+      "sha256": "6b2f3f2ea90017fb43bfdc4df80a6f798bc9d8ae7c57fa7e244707ef8d16ee21",
+      "documentation": [
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/cli/CliArgs.cpp",
+      "sha256": "84b1187d97e56c46939b31efaa87b21f3ccb4a5f455e288cdcf8078bb2df8a97",
+      "documentation": [
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/cli/CliArgs.h",
+      "sha256": "c6a3cc64b6568ffff861638b6594281ae58b8271e4085a5ac41880bcbea885a5",
+      "documentation": [
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
       "source": "src/cli/CLIMode.cpp",
-      "sha256": "1926f091dfd694bb783e99d23ec8cecb3170ffd99cef72dc45a2b448990fcdc5",
+      "sha256": "3de6d0997161e2b57a62e4e417e1ca8dc0b403470bacb6897e3fc83d348e6b3a",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -760,7 +814,7 @@
     },
     {
       "source": "src/cli/RenderCLI.cpp",
-      "sha256": "fddbc1eb586f04e194b29e74c377b9ded451a2c710575b030363138f9136d71d",
+      "sha256": "982e3dbaedd49322bd03756ced78a5bebe1f71413efc9f07a043343efec85972",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -778,7 +832,7 @@
     },
     {
       "source": "src/cli/ScienceCLI.cpp",
-      "sha256": "0e9880ff8dce0c0142a58131cca91172e075bf4ce6f01d431f2a03a923255a97",
+      "sha256": "f5578d445ef22b5bf6c9892aeb7f2c05f30b2afda5e44d32558646b23d89602b",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -805,7 +859,7 @@
     },
     {
       "source": "src/science/AtomProperties.h",
-      "sha256": "c0bf0f43efd72c069925a06226003ce7972951280517d554e19d1ee089282e0d",
+      "sha256": "f0c2c980b7d13f48b9d797d0460861ededf563ee2f85f028a14fe4fe98fb716b",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -913,7 +967,7 @@
     },
     {
       "source": "src/science/ResultPlots.h",
-      "sha256": "61e1129f5b082fb3ed2e4b9c80c7fcb5a105fbe87a8534a03c3b3276995441a0",
+      "sha256": "f434d510a0f3fbe323c5da743f104f3b1a3117380cbbf506fe103adc4ceba95b",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -931,7 +985,7 @@
     },
     {
       "source": "src/science/ScienceCatalog.h",
-      "sha256": "9370c2f75aa865ba30c368af14fed6f217e2e9b21182437c90a600c5efb904ee",
+      "sha256": "feadb6cd21ddbfacb8b9e6e71783403fafc4087d85b6f0e1362946fa4b0a380a",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -958,7 +1012,7 @@
     },
     {
       "source": "src/science/ScienceTools.h",
-      "sha256": "e1835eade369c9b930cf9e10687a826254b91857ae1dc70311e834cee5cdd5df",
+      "sha256": "0a36a44094d086632737ed0b4700d0e5e979d913af08a987e8be93fc0e2f7a4b",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -4105,166 +4159,175 @@
     },
     {
       "source": "src/ui/ScientificToolsDialog.cpp",
-      "sha256": "e22dd55e6d73c7a5377f47f9fb2a9673f1769d5b06c38298700dc42983ba0398",
+      "sha256": "8b9c563f51f00c214b108330307246039eb435dce2b98d4083ed9d78c1c407ba",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/ui/ScientificToolsDialog.h",
+      "sha256": "a68b6275417773a8f86eb8669eb247dfdb7fa370b349e798b22007092100f97f",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/ui/ScientificToolsLayouts.cpp",
+      "sha256": "7dff36760dffa4201345fb5a407c52063ae841e3a82d66cae6bc7ad3d695f629",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": [
         {
-          "line": 471,
+          "line": 65,
           "declaration_label": "##components"
         },
         {
-          "line": 485,
+          "line": 79,
           "declaration_label": "##window"
         },
         {
-          "line": 489,
+          "line": 83,
           "declaration_label": "##number"
         },
         {
-          "line": 495,
+          "line": 89,
           "declaration_label": "##source"
         },
         {
-          "line": 499,
+          "line": 93,
           "declaration_label": "Browse..."
         },
         {
-          "line": 503,
+          "line": 97,
           "declaration_label": "##field"
         },
         {
-          "line": 504,
+          "line": 98,
           "declaration_label": "Select numeric column"
         },
         {
-          "line": 505,
+          "line": 99,
           "declaration_label": "##column"
         },
         {
-          "line": 511,
+          "line": 105,
           "declaration_label": "Use active cell"
         },
         {
-          "line": 515,
+          "line": 109,
           "declaration_label": "Use active structure"
         },
         {
-          "line": 520,
+          "line": 114,
           "declaration_label": "Use loaded trajectory"
         },
         {
-          "line": 531,
+          "line": 125,
           "declaration_label": "##potential"
         },
         {
-          "line": 533,
+          "line": 127,
           "declaration_label": "Browse potential..."
         },
         {
-          "line": 536,
+          "line": 130,
           "declaration_label": "Table format"
         },
         {
-          "line": 542,
+          "line": 136,
           "declaration_label": "Well depth epsilon (eV)"
         },
         {
-          "line": 543,
+          "line": 137,
           "declaration_label": "Zero-crossing sigma (Angstrom)"
         },
         {
-          "line": 544,
+          "line": 138,
           "declaration_label": "Cutoff (Angstrom)"
         },
         {
-          "line": 549,
+          "line": 143,
           "declaration_label": "##value"
         },
         {
-          "line": 681,
+          "line": 200,
           "declaration_label": "Cancel"
         },
         {
-          "line": 735,
+          "line": 254,
           "declaration_label": "Colour atoms in the view"
         },
         {
-          "line": 751,
+          "line": 270,
           "declaration_label": "Export plot data..."
         },
         {
-          "line": 759,
+          "line": 278,
           "declaration_label": "Save results..."
         },
         {
-          "line": 762,
+          "line": 281,
           "declaration_label": "Save structures..."
         },
         {
-          "line": 764,
+          "line": 283,
           "declaration_label": "Open final structure in a new tab"
         },
         {
-          "line": 776,
+          "line": 295,
           "declaration_label": "Full report"
         },
         {
-          "line": 790,
+          "line": 309,
           "declaration_label": "Analyse the active structure"
         },
         {
-          "line": 799,
+          "line": 318,
           "declaration_label": "More options"
         },
         {
-          "line": 810,
+          "line": 329,
           "declaration_label": "Colour automatically after each analysis"
         },
         {
-          "line": 812,
+          "line": 331,
           "declaration_label": "Plots"
         },
         {
-          "line": 828,
+          "line": 347,
           "declaration_label": "Optional inputs"
         },
         {
-          "line": 922,
+          "line": 441,
           "declaration_label": "Plots"
         },
         {
-          "line": 1005,
+          "line": 524,
           "declaration_label": "##preview"
         },
         {
-          "line": 1006,
+          "line": 525,
           "declaration_label": "Save this file..."
         },
         {
-          "line": 1008,
+          "line": 527,
           "declaration_label": "Save all files..."
         },
         {
-          "line": 1010,
+          "line": 529,
           "declaration_label": "Copy to clipboard"
         },
         {
-          "line": 1012,
+          "line": 531,
           "declaration_label": "Save results..."
         }
       ]
-    },
-    {
-      "source": "src/ui/ScientificToolsDialog.h",
-      "sha256": "2eed86cadefaa70562e977e346b4d039204ffb5b74a02dc92e384c124d791400",
-      "documentation": [
-        "14-workflows.tex",
-        "12-api-signatures.tex"
-      ],
-      "literal_controls": []
     },
     {
       "source": "src/ui/ShortRangeOrderDialog.cpp",

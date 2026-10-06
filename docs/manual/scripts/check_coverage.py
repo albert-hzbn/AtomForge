@@ -144,10 +144,11 @@ def snapshot():
 
 
 def cli_help():
-    source = (ROOT / "src/cli/CLIMode.cpp").read_text(encoding="utf-8-sig")
+    # Builder help pages live in the CLI mode files (src/cli/Build*CLI.cpp).
+    source = "\n".join(path.read_text(encoding="utf-8-sig") for path in sorted((ROOT / "src/cli").glob("*.cpp")))
     result = {}
     for mode, name in HELP_NAMES.items():
-        match = re.search(r"static void printHelp" + name + r"\(\)\s*\{(.*?)\n\}", source, re.S)
+        match = re.search(r"^(?:static )?void printHelp" + name + r"\(\)\s*\{(.*?)\n\}", source, re.S | re.M)
         if not match:
             raise ValueError(f"Missing CLI help for {mode}")
         literals = re.findall(r'"(?:\\.|[^"\\])*"', match[1])

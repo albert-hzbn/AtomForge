@@ -34,6 +34,8 @@ struct PlotSpec
 
 // Plots describing a tool result; empty when the result has no curve to show.
 std::vector<PlotSpec> resultPlots(const std::string& tool, const Json& result);
+// Tool ids that have result plots (for registry consistency checks).
+std::vector<std::string> plottedTools();
 
 // Fixed-width histogram of the finite values (centres and counts).
 PlotSeries histogram(const std::string& name, const std::vector<double>& values, int bins);

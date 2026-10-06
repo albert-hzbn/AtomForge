@@ -2,6 +2,7 @@
 
 #include "model/Structure.h"
 #include "science/AtomProperties.h"
+#include "science/ScienceCatalog.h"
 #include "science/Json.h"
 #include "science/ResultPlots.h"
 #include "ui/PathPicker.h"
@@ -27,7 +28,8 @@ public:
     static bool acceptsTrajectory(const std::string& tool, const std::string& parameter);
     // Each family of tools has its own window: per-atom analyses beside the view,
     // plot workspaces, simulation runs and input-file generators.
-    enum class Layout { Atoms, Trajectory, Properties, Plot, Simulation, Generator };
+    using Layout = ScienceToolView;
+    // The catalog's view of a tool (Plot for unknown ids).
     static Layout layoutFor(const std::string& tool);
     // ImGui window id suffix ("###...") of a layout.
     static const char* windowId(Layout layout);
@@ -78,6 +80,8 @@ private:
     bool drawRunButton(const char* label, const Structure& structure, float width);
     void drawSummary(const char* id, int pairsPerRow = 1);
     static std::string prettyLabel(const std::string& key);
+    // The structure's cell as a JSON matrix.
+    static std::string cellJson(const Structure& structure);
     bool suppliedByActive(std::size_t index) const;
     void drawPropertyControls(const Structure& structure, const ColourAtoms& colourAtoms);
     void drawPlots(float height);
@@ -88,6 +92,9 @@ private:
     void drawSimulationLayout(const Structure& structure, const std::function<void(Structure&)>& loadResult);
     void drawGeneratorLayout(const Structure& structure);
     void selectTool(int index);
+    // Catalog index of a tool id, or -1.
+    static int catalogIndex(const std::string& id);
+    const ScienceToolDef& currentTool() const;
     bool m_open = false;
     int m_tool = -1;
     int m_pickerTarget = -1;

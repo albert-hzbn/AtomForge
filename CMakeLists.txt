@@ -78,6 +78,7 @@ set(ATOMFORGE_SOURCES
     src/cli/RenderCLI.cpp
     src/ui/TrajectoryDialog.cpp
     src/ui/ScientificToolsDialog.cpp
+    src/ui/ScientificToolsLayouts.cpp
     src/cli/ScienceCLI.cpp
     src/app/EditorApplication.cpp
     src/app/FileDropHandler.cpp
@@ -156,6 +157,10 @@ set(ATOMFORGE_SOURCES
     src/algorithms/SQSBuilder.cpp
     src/algorithms/NanostructureTools.cpp
     src/cli/CLIMode.cpp
+    src/cli/BuildCrystalCLI.cpp
+    src/cli/BuildDefectCLI.cpp
+    src/cli/BuildNanoCLI.cpp
+    src/cli/CliArgs.cpp
     src/io/StructureLoader.cpp
     imgui/imgui.cpp
     imgui/imgui_draw.cpp

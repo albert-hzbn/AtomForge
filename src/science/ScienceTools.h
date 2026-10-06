@@ -11,6 +11,8 @@ namespace atomforge::science
 // catalog; data references are resolved relative to the base directory.
 ToolOutput runTool(const std::string& tool, const Json& request, const std::filesystem::path& base = ".",
                    const StructureReader& reader = {});
+// Tool ids with a runner (for registry consistency checks).
+std::vector<std::string> runnableTools();
 
 // Compact human-readable summary; full arrays remain in the result JSON.
 std::string resultReport(const std::string& tool, const Json& result);

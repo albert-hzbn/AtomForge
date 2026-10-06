@@ -185,6 +185,7 @@ if(TARGET AtomForge)
     add_executable(atomforge_science_dialog_tests
         ${PROJECT_SOURCE_DIR}/tests/science_dialog.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/ScientificToolsDialog.cpp
+        ${PROJECT_SOURCE_DIR}/src/ui/ScientificToolsLayouts.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/PathPicker.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/ResponsiveLayout.cpp
         ${PROJECT_SOURCE_DIR}/src/util/PathUtils.cpp

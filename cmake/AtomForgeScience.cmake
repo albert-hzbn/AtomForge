@@ -19,6 +19,7 @@ add_library(atomforge_science STATIC
     ${PROJECT_SOURCE_DIR}/src/science/Batch.cpp
     ${PROJECT_SOURCE_DIR}/src/science/LammpsExport.cpp
     ${PROJECT_SOURCE_DIR}/src/science/GifWriter.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/ScienceCatalog.cpp
     # Nye-tensor algorithms shared with the desktop dislocation tools.
     ${PROJECT_SOURCE_DIR}/src/algorithms/NyeTensor.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/DislocationFit.cpp)

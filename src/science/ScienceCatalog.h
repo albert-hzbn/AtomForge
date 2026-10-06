@@ -1,256 +1,31 @@
 // Desktop and CLI metadata for the native scientific tools (src/science).
 // Parameter names match the JSON request keys of the atomforge.science Python API.
+//
+// Adding a tool: describe it in ScienceCatalog.cpp, add its runner to the
+// table in ScienceTools.cpp and, optionally, plots (ResultPlots.cpp) and
+// per-atom properties (AtomProperties.cpp). Registry tests check that every
+// table names a catalog tool and that every catalog tool can run.
 #pragma once
+#include <string>
 #include <vector>
+
 struct ScienceParameterDef { const char* name; const char* label; const char* value; const char* kind; bool required; };
-struct ScienceToolDef { const char* id; const char* title; const char* help; const char* category; std::vector<ScienceParameterDef> parameters; };
-inline const std::vector<ScienceToolDef>& scienceToolCatalog()
+
+// How the desktop presents a tool: per-atom analyses beside the viewport,
+// trajectory analyses, property calculators, plot workspaces, simulations
+// and input-file generators each have their own window layout.
+enum class ScienceToolView { Atoms, Trajectory, Properties, Plot, Simulation, Generator };
+
+struct ScienceToolDef
 {
-    static const std::vector<ScienceToolDef> tools = {
-        {"msd", "Mean-square displacement", "Time-origin-averaged MSD and Cartesian displacement covariance.\n\nAtom ordering must be stable. Unwrapped coordinates are recommended.\nWith wrapped=True, unwrap successive displacements in a FIXED cell using\nits shortest image; sampling must resolve motion below the MIC ambiguity.\nVariable-cell trajectories must first be mapped to an explicit reference\nframe. remove_drift subtracts the geometric centroid at every frame.\nCovariance is <dr_a dr_b>, not a covariance about the mean displacement.", "Trajectories and transport", {
-            {"positions", "Atomic positions (Angstrom)", "", "data", true},
-            {"timestep_fs", "Sampling interval (fs)", "1.0", "float", true},
-            {"cell", "Cell vectors (Angstrom)", "", "data", false},
-            {"pbc", "Periodic boundaries", "[true, true, true]", "axes", false},
-            {"wrapped", "Unwrap periodic positions", "false", "bool", false},
-            {"remove_drift", "Remove geometric-centroid drift", "false", "bool", false},
-            {"max_lag", "Maximum lag (frames)", "", "int", false},
-        }},
-        {"diffusion", "Diffusion coefficient", "Einstein diffusion from an explicitly selected diffusive time interval.\n\nD = slope/(2*d); input MSD must sum ONLY the d selected directions.\nReports slope, intercept, R-squared and OLS fit uncertainty. Overlapping\ntime origins correlate MSD samples: the OLS uncertainty is NOT a physical\nconfidence interval. Use independent trajectories/block estimates for that.\nA linear fit alone does not establish the diffusive regime.", "Trajectories and transport", {
-            {"lag_fs", "Lag times (fs)", "", "data", true},
-            {"msd_A2", "Mean-square displacements (Angstrom squared)", "", "data", true},
-            {"fit_range_fs", "Fit interval (fs)", "[0.0, 0.0]", "range", true},
-            {"dimensions", "Diffusion dimensions", "3", "int", false},
-        }},
-        {"vacf", "Velocity autocorrelation", "Unbiased time-origin average of v(t) dot v(t+lag), per atom.\n\nremove_drift removes each frame's geometric mean velocity, not its\nmass-weighted centre-of-mass velocity. Units before normalization: A^2/fs^2.", "Trajectories and transport", {
-            {"velocities", "Velocities (Angstrom/fs)", "", "data", true},
-            {"timestep_fs", "Sampling interval (fs)", "1.0", "float", true},
-            {"max_lag", "Maximum lag (frames)", "", "int", false},
-            {"remove_drift", "Remove geometric-centroid drift", "false", "bool", false},
-            {"normalize", "Normalize to the zero-lag value", "false", "bool", false},
-        }},
-        {"vibrational-spectrum", "Trajectory vibrational spectrum", "One-sided velocity power spectrum, the Fourier partner of velocity correlation.\n\nUses a nonnegative periodogram, with optional atomic-mass weighting, and\nreturns unit-integral spectral weight per THz. This is a classical velocity\nspectrum, not quantum neutron/IR/Raman intensity. Resolution and Nyquist\nfrequency are determined by duration and sampling; zero padding adds no data.", "Trajectories and transport", {
-            {"velocities", "Velocities (Angstrom/fs)", "", "data", true},
-            {"timestep_fs", "Sampling interval (fs)", "1.0", "float", true},
-            {"masses", "Atomic masses (amu)", "", "data", false},
-            {"window", "Window function", "\"hann\"", "window", false},
-            {"remove_mean", "Subtract mean velocity", "true", "bool", false},
-        }},
-        {"local-strain", "Local strain and D2min", "Least-squares deformation gradient, Green-Lagrange strain and D2min.\n\nAtom IDs/order must correspond. Neighbors are selected in the reference.\nD2min is the SUM of residual squared distances (A^2), not a per-neighbor\nmean. Rank-deficient environments have valid=False and NaN tensors; they\nmust not be interpreted as unstrained. Box deformation is included.", "Structure and defects", {
-            {"reference", "Reference positions (Angstrom)", "", "data", true},
-            {"current", "Current positions (Angstrom)", "", "data", true},
-            {"cutoff_A", "Neighbor cutoff (Angstrom)", "3.0", "float", true},
-            {"reference_cell", "Reference cell vectors (Angstrom)", "", "data", false},
-            {"current_cell", "Current cell vectors (Angstrom)", "", "data", false},
-            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
-        }},
-        {"structure-type", "Structure type (Ackland-Jones)", "Bond-angle classification of each atom as fcc, hcp, bcc, icosahedral or other.\n\nAckland and Jones (2006): the six nearest neighbours set a local length\nscale r0; the bond-angle cosines of neighbours within sqrt(1.45) r0 are\nbinned and compared with the ideal lattices. Robust to thermal noise; surface\nand defect-core atoms are 'other'. The cutoff must reach beyond the second\nbcc shell (automatic: three Wigner-Seitz radii of the cell).", "Structure and defects", {
-            {"positions", "Atomic positions (Angstrom)", "", "data", true},
-            {"cutoff_A", "Neighbor cutoff (Angstrom, 0 = automatic)", "0.0", "float", false},
-            {"cell", "Cell vectors (Angstrom)", "", "data", false},
-            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
-        }},
-        {"dislocation-lines", "Dislocation lines and Burgers vectors", "Extract dislocation lines, Burgers vectors and character (DXA-style).\n\nThe deformed structure is compared with its perfect reference (same atoms in\nthe same order). Atoms whose Ackland-Jones structure type changed form the\ncores and are clustered into lines; the direction is the lattice period of a\nline wrapping the cell, else the cluster's principal axis. The Burgers vector\nis the closure failure of a right-handed circuit about the line, with each\nstep reduced modulo lattice vectors; core clusters with zero closure failure\nare counted as non-dislocation defects. Lines closer than the circuit diameter\nor strongly curved lines need a smaller explicit circuit radius.", "Structure and defects", {
-            {"reference", "Perfect reference structure", "", "structure", true},
-            {"structure", "Deformed structure", "", "structure", true},
-            {"cutoff_A", "Structure-type neighbor cutoff (Angstrom, 0 = automatic)", "0.0", "float", false},
-            {"cluster_cutoff_A", "Cluster linking distance (Angstrom, 0 = automatic)", "0.0", "float", false},
-            {"min_atoms", "Minimum core atoms per line", "4", "int", false},
-            {"circuit_radius_A", "Burgers circuit radius (Angstrom, 0 = automatic)", "0.0", "float", false},
-        }},
-        {"cluster-analysis", "Atom clusters", "Connected clusters of atoms closer than the cutoff, periodic images included.\n\nAn optional mask (one value per atom, nonzero = selected) restricts the\nanalysis, e.g. to non-crystalline atoms from the structure-type tool or to\none species. Reports sizes, unwrapped centroids, radii of gyration and\nwhether a cluster percolates through the periodic cell.", "Structure and defects", {
-            {"positions", "Atomic positions (Angstrom)", "", "data", true},
-            {"cutoff_A", "Bond cutoff (Angstrom)", "3.0", "float", true},
-            {"cell", "Cell vectors (Angstrom)", "", "data", false},
-            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
-            {"mask", "Selected atoms (nonzero = include)", "", "data", false},
-            {"min_size", "Minimum cluster size", "1", "int", false},
-        }},
-        {"void-analysis", "Voids and empty space", "Empty space accessible to a probe sphere, grouped into connected voids.\n\nA grid point is empty when it is farther than atomic radius + probe radius\nfrom every atom (default atomic radius: half the nearest-neighbour\ndistance). Connected empty points form voids, wrapped through periodic\nboundaries; regions reaching an open boundary are exterior and excluded.\nReports probe-centre volumes, equivalent and pore radii and the atoms lining\neach void. A probe of about 1 A ignores interstitial holes in close-packed\nmetals but detects vacancies.", "Structure and defects", {
-            {"positions", "Atomic positions (Angstrom)", "", "data", true},
-            {"cell", "Cell vectors (Angstrom)", "", "data", false},
-            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
-            {"atomic_radius_A", "Atomic radius (Angstrom, 0 = automatic)", "0.0", "float", false},
-            {"probe_radius_A", "Probe radius (Angstrom)", "1.0", "float", false},
-            {"grid_spacing_A", "Grid spacing (Angstrom)", "0.3", "float", false},
-        }},
-        {"centrosymmetry", "Centrosymmetry parameter", "Kelchner CSP: sum the N/2 smallest |r_i+r_j|^2 of all distinct pairs.\n\nSelects the nearest N neighbors within cutoff, including periodic images.\nThis is the conventional smallest-pair algorithm, not disjoint optimal\nmatching. Missing neighbors produce valid=False and NaN, not zero.", "Structure and defects", {
-            {"positions", "Atomic positions (Angstrom)", "", "data", true},
-            {"cutoff_A", "Neighbor cutoff (Angstrom)", "3.0", "float", true},
-            {"neighbors", "Number of neighbors", "12", "int", false},
-            {"cell", "Cell vectors (Angstrom)", "", "data", false},
-            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
-        }},
-        {"bond-order", "Steinhardt bond order", "Local rotationally invariant Steinhardt q_l, with equal bond weights.\n\nq_l = sqrt(4*pi/(2*l+1) sum_m |mean_j Y_lm(r_ij)|^2).\nReports q_l (not w_l or neighbor-averaged qbar_l). No neighbors => invalid.", "Structure and defects", {
-            {"positions", "Atomic positions (Angstrom)", "", "data", true},
-            {"cutoff_A", "Neighbor cutoff (Angstrom)", "3.0", "float", true},
-            {"degrees", "Spherical-harmonic degrees", "[4, 6]", "data", false},
-            {"cell", "Cell vectors (Angstrom)", "", "data", false},
-            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
-        }},
-        {"wigner-seitz", "Wigner-Seitz defects", "Assign each atom to its nearest reference site; count vacancies/excess atoms.\n\nA site with occupancy n>1 contributes n-1 interstitial excess atoms. This\ndoes not identify a unique interstitial atom within that site. A supplied\ncurrent_cell maps homogeneous box deformation back to the reference cell.\nTies choose the lowest site index and are flagged for inspection.", "Structure and defects", {
-            {"reference_sites", "Reference lattice sites (Angstrom)", "", "data", true},
-            {"positions", "Atomic positions (Angstrom)", "", "data", true},
-            {"cell", "Cell vectors (Angstrom)", "", "data", false},
-            {"current_cell", "Current cell vectors (Angstrom)", "", "data", false},
-            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
-        }},
-        {"structure-factor", "Static structure factor", "S(q)=<|sum_j b_j exp(i q.r_j)|^2>/sum_j |b_j|^2.\n\nPositions have shape (atoms,3) or (frames,atoms,3). q vectors are Cartesian\nradians/A (include 2*pi in reciprocal lattice vectors). Equal weights give\nS(0)=N. No forward-scattering subtraction, powder average or quantum effects\nare implied. Use commensurate q for wrapped periodic coordinates.", "Reciprocal space", {
-            {"positions", "Atomic positions (Angstrom)", "", "data", true},
-            {"q_vectors", "Scattering vectors (radians/Angstrom)", "", "data", true},
-            {"weights", "Weights", "", "data", false},
-        }},
-        {"vasp-electronic", "VASP band structure, DOS and fat bands", "Band structure, density of states and orbital projections from VASP output.\n\nEIGENVAL gives the bands. A line-mode KPOINTS file adds the high-symmetry\nlabels and joins discontinuous segments as A|B; a POSCAR/CONTCAR gives the\nreciprocal lattice for distances in 1/A (2 pi included) and the element names.\nThe Fermi level is taken from the input, else from DOSCAR. DOSCAR adds the total\nand element-projected DOS; PROCAR adds fat-band weights (the fraction of each\nstate on an element and orbital). Energies are reported relative to E_F, with\nthe band gap from the sampled bands. Compressed files (.gz, .bz2, .xz) are read.", "Electronic structure", {
-            {"eigenval_file", "EIGENVAL file", "", "file", true},
-            {"kpoints_file", "Line-mode KPOINTS file", "", "file", false},
-            {"structure", "POSCAR or CONTCAR (lattice and elements)", "", "structure", false},
-            {"doscar_file", "DOSCAR file", "", "file", false},
-            {"procar_file", "PROCAR file (fat bands)", "", "file", false},
-            {"fermi_eV", "Fermi energy (eV)", "", "float", false},
-            {"projection_element", "Fat-band element (default: all)", "", "string", false},
-            {"projection_orbital", "Fat-band orbital (s, p, d, f, an lm name, or all)", "\"all\"", "string", false},
-        }},
-        {"band-gap", "Band gap and band edges", "Sampled band edges and smallest same-spin direct gap, relative to E_F.\n\nShape is (k,band) or (spin,k,band). Detects a metal when a band crosses E_F\non the supplied mesh, or a sampled state lies within tolerance of E_F.\nA sparse mesh can miss crossings/extrema. Smearing occupations are not\ninterpreted here, and the direct gap is not an optical excitation energy.", "Electronic structure", {
-            {"energies_eV", "Energies (eV)", "", "data", true},
-            {"fermi_eV", "Fermi energy (eV)", "0.0", "float", true},
-            {"tolerance_eV", "Fermi-level tolerance (eV)", "1e-06", "float", false},
-        }},
-        {"effective-mass", "Effective-mass tensor", "Fit E=E0+g.dk+1/2 dk.H.dk; return signed principal masses in m_e.\n\nk is Cartesian wavevector in radians/A, not fractional reciprocal position\nor path length. Use a small 3D neighborhood of a band extremum, with one\nconsistently tracked band. Negative masses describe valence curvature;\npositive hole masses are their negatives. This is a local quadratic model.", "Electronic structure", {
-            {"kpoints_inv_A", "Wavevectors (radians/Angstrom)", "", "data", true},
-            {"energies_eV", "Energies (eV)", "", "data", true},
-            {"center_inv_A", "Expansion center (radians/Angstrom)", "[0.0, 0.0, 0.0]", "vector", true},
-        }},
-        {"work-function", "Work function", "Phi=<V_vac>-E_F for a user-selected vacuum interval of a planar potential.\n\nSupply an electron potential-energy profile with a consistent reference,\ne.g. the appropriate VASP LOCPOT channel. A linear-fit slope and spread flag\na poorly converged/nonflat vacuum. Calculate the two slab faces separately.\nThis does not insert dipole corrections or detect vacuum automatically.", "Electronic structure", {
-            {"distance_A", "Profile distances (Angstrom)", "", "data", true},
-            {"potential_eV", "Potential-energy profile (eV)", "", "data", true},
-            {"fermi_eV", "Fermi energy (eV)", "0.0", "float", true},
-            {"vacuum_range_A", "Vacuum interval (Angstrom)", "[0.0, 0.0]", "range", true},
-            {"max_slope_eV_per_A", "Vacuum slope threshold (eV/Angstrom)", "0.01", "float", false},
-        }},
-        {"equation-of-state", "Equation of state", "Third-order Birch-Murnaghan E(V) fit; energy and volume must share a cell basis.\n\nRequires at least five distinct positive volumes bracketing the fitted\nminimum. Returns bulk modulus and pressure derivative, residuals and fit\ncovariance (a numerical diagnostic, not model/convergence uncertainty).", "Thermal and mechanical", {
-            {"volumes_A3", "Volumes (cubic Angstrom)", "", "data", true},
-            {"energies_eV", "Energies (eV)", "", "data", true},
-        }},
-        {"elastic-tensor", "Elastic tensor and moduli", "Fit sigma=sigma0+C epsilon with engineering-Voigt order xx,yy,zz,yz,xz,xy.\n\nStrain shears are 2*epsilon_ij; stress shears are sigma_ij, with tension\npositive. Input stresses are GPa, not eV/A^3 or pressure-positive outputs.\nRequires a full-rank strain design including an intercept. Symmetrizes C\nand reports the antisymmetric mismatch and residual. Stability is the\npositive-definiteness test appropriate to small strain at zero prestress.", "Thermal and mechanical", {
-            {"strains", "Engineering-Voigt strains", "", "data", true},
-            {"stresses_GPa", "Engineering-Voigt stresses (GPa)", "", "data", true},
-        }},
-        {"phonon-dos", "Phonon density of states", "Gaussian harmonic DOS, normalized to number of branches per cell.\n\nInput is (qpoints,branches) in eV with negative energies denoting imaginary\nfrequencies. Those are retained on the negative axis; they are not stable\nmodes. Finite plot bounds can truncate Gaussian tails; enclosed weight is\nreturned without silently renormalizing the plotted curve.", "Thermal and mechanical", {
-            {"energies_eV", "Energies (eV)", "", "data", true},
-            {"energy_grid_eV", "Output energy grid (eV)", "", "data", true},
-            {"sigma_eV", "Gaussian broadening (eV)", "0.001", "float", false},
-            {"weights", "Weights", "", "data", false},
-        }},
-        {"harmonic-thermodynamics", "Harmonic thermodynamics", "Harmonic F,U,S,Cv per cell, including zero-point energy.\n\nNegative modes below -tolerance are rejected. Modes within +/-tolerance\n(e.g. exact Gamma acoustic zeros) are omitted and their weight reported;\nuse a converged q mesh. Outputs eV/cell and eV/(cell K), not per mole.\nElectronic, configurational and anharmonic contributions are excluded.", "Thermal and mechanical", {
-            {"energies_eV", "Energies (eV)", "", "data", true},
-            {"temperatures_K", "Temperatures (K)", "", "data", true},
-            {"weights", "Weights", "", "data", false},
-            {"zero_tolerance_eV", "Zero-mode tolerance (eV)", "1e-08", "float", false},
-        }},
-        {"lammps-export", "Export to LAMMPS", "Write a LAMMPS data file and input script for the same task.\n\nThe data file uses metal units and atom_style atomic; periodic cells are\nconverted to LAMMPS restricted-triclinic form (a along x, b in the xy plane)\nwith tilts reduced by lattice translations, keeping fractional coordinates.\nOpen structures get a 10 A padded box with fixed boundaries. EAM files map to\npair_style eam/alloy, eam/fs or eam; Lennard-Jones to lj/cut with energy\nshift; EMT has no LAMMPS equivalent and is left as a placeholder. Tasks:\nminimize (optionally with box/relax), nvt, npt or neb (needs the final\nstructure; run with one partition per image). Trajectories are dumped with\nelement names so Trajectory playback can read them.", "Simulation", {
-            {"structure", "Structure", "", "structure", true},
-            {"calculator", "Interatomic potential", "{\"potential\": \"EMT\"}", "calculator", false},
-            {"task", "Task: minimize, nvt, npt or neb", "\"minimize\"", "string", false},
-            {"final", "Final structure (NEB)", "", "structure", false},
-            {"steps", "Steps", "10000", "int", false},
-            {"timestep_fs", "Timestep (fs)", "1.0", "float", false},
-            {"temperature_K", "Temperature (K)", "300.0", "float", false},
-            {"pressure_GPa", "Pressure (GPa)", "0.0", "float", false},
-            {"thermostat_fs", "Thermostat damping (fs)", "100.0", "float", false},
-            {"barostat_fs", "Barostat damping (fs)", "1000.0", "float", false},
-            {"relax_cell", "Relax the cell (minimize)", "false", "bool", false},
-            {"fmax", "Force tolerance (eV/Angstrom)", "0.01", "float", false},
-            {"images", "NEB images", "7", "int", false},
-            {"sample_interval", "Thermo and dump interval (steps)", "100", "int", false},
-            {"seed", "Velocity seed", "12345", "int", false},
-        }},
-        {"relax", "Structure relaxation", "Minimise energy (or enthalpy E+PV with a relaxed cell) with FIRE.\n\nAtomic positions always relax; enable cell relaxation to also optimise the\nfull 3x3 cell at the target pressure (positive in compression). Cell forces\nare scaled by the atom count, as in ASE's UnitCellFilter. Convergence is the\nlargest generalised force; reaching the step limit is reported, not hidden.\nA local minimum is not necessarily the ground state.", "Simulation", {
-            {"structure", "Structure", "", "structure", true},
-            {"calculator", "Interatomic potential", "{\"potential\": \"EMT\"}", "calculator", true},
-            {"fmax", "Force tolerance (eV/Angstrom)", "0.01", "float", false},
-            {"steps", "Maximum optimization steps", "500", "int", false},
-            {"relax_cell", "Relax the cell shape and volume", "false", "bool", false},
-            {"pressure_GPa", "Target pressure (GPa)", "0.0", "float", false},
-        }},
-        {"phonons", "Phonon band structure and DOS", "Harmonic phonons from finite-displacement force constants.\n\nForces on a supercell are differenced for +/- displacements of every\nunit-cell atom; the acoustic sum rule is enforced and the dynamical matrix\nuses minimum-image weighting (as phonopy), so q points between supercell\nvectors are interpolated. With the symmetry path, phonons are computed in\nthe standardized primitive cell along its HPKOT path. A mesh gives the DOS\nand harmonic thermodynamics. Relax the structure first; imaginary\n(negative) frequencies indicate instability with this potential. Converge\nthe supercell size and displacement.", "Thermal and mechanical", {
-            {"structure", "Structure", "", "structure", true},
-            {"calculator", "Interatomic potential", "{\"potential\": \"EMT\"}", "calculator", true},
-            {"symmetry_path", "Use the symmetry band path (primitive cell)", "true", "bool", false},
-            {"spacing_inv_A", "Band-path sampling spacing (1/Angstrom)", "0.05", "float", false},
-            {"supercell_min_A", "Minimum supercell width (Angstrom)", "12.0", "float", false},
-            {"supercell", "Supercell repetitions", "", "data", false},
-            {"displacement_A", "Finite displacement (Angstrom)", "0.01", "float", false},
-            {"mesh", "DOS q-point mesh", "[8, 8, 8]", "data", false},
-            {"sigma_eV", "DOS Gaussian broadening (eV)", "0.001", "float", false},
-            {"temperatures_K", "Temperatures (K)", "", "data", false},
-            {"q_points_fractional", "Explicit q points (fractional)", "", "data", false},
-        }},
-        {"neb", "NEB migration path", "Optimize a fixed-cell climbing-image NEB with the improved tangent and FIRE.\n\nEndpoints must be relaxed (or enable endpoint relaxation), share the\ncell/species/order, and describe the intended atom mapping. Images = 0 picks\nthe count from the total endpoint displacement (5-31). Restart images (the\nsaved frames of an earlier run) replace interpolation and continue it. Every image uses its own instance of the\nselected native potential (EMT, Lennard-Jones or EAM). Barriers are sampled image\nenergies; convergence and endpoint forces are reported rather than assumed.\nShortest periodic interpolation chooses minimum-image paths.", "Simulation", {
-            {"initial", "Initial structure", "", "structure", false},
-            {"final", "Final structure", "", "structure", false},
-            {"calculator_factory", "Interatomic potential", "{\"potential\": \"EMT\"}", "calculator", true},
-            {"images", "Number of images (including endpoints; 0 = automatic)", "7", "int", false},
-            {"image_spacing_A", "Automatic image spacing (Angstrom)", "0.5", "float", false},
-            {"relax_endpoints", "Relax both endpoints first (fixed cell)", "false", "bool", false},
-            {"endpoint_fmax", "Endpoint force tolerance (eV/Angstrom)", "0.01", "float", false},
-            {"restart_images", "Restart from saved images (extXYZ)", "", "data", false},
-            {"fmax", "Force tolerance (eV/Angstrom)", "0.03", "float", false},
-            {"steps", "Maximum optimization steps", "300", "int", false},
-            {"spring_eV_per_A2", "Spring constant (eV/Angstrom squared)", "0.1", "float", false},
-            {"climb", "Use climbing image", "true", "bool", false},
-            {"mic", "Use shortest periodic interpolation", "false", "bool", false},
-        }},
-        {"nvt", "NVT dynamics", "Langevin NVT (BAOAB) with a thermostat relaxation time in fs and reproducible seed.\n\nReturns temperatures, physical energies, frames and velocities. Physical\nenergy is not conserved under a thermostat. COM is not constrained; remove\nany unwanted drift explicitly during analysis. Equilibration is not inferred.\nForces come from the selected native potential (EMT, Lennard-Jones or EAM).", "Simulation", {
-            {"structure", "Structure", "", "structure", true},
-            {"calculator", "Interatomic potential", "{\"potential\": \"EMT\"}", "calculator", true},
-            {"steps", "Integration steps", "1000", "int", false},
-            {"timestep_fs", "Integration timestep (fs)", "1.0", "float", false},
-            {"temperature_K", "Target temperature (K)", "300.0", "float", false},
-            {"thermostat_fs", "Thermostat relaxation time (fs)", "100.0", "float", false},
-            {"seed", "Random seed", "0", "int", false},
-            {"sample_interval", "Save a frame every N steps", "10", "int", false},
-            {"production_steps", "NVE production steps after equilibration", "0", "int", false},
-            {"equilibration_fs", "Exclude samples before (fs) from statistics", "0.0", "float", false},
-        }},
-        {"npt", "NPT dynamics", "Isotropic Martyna-Tobias-Klein NPT with Nose-Hoover chains, pressure positive in compression.\n\nCell volume changes while shape remains fixed. The native EMT,\nLennard-Jones and EAM potentials provide the required stress. Finite runs must be checked for equilibration, fluctuations and\nintegration convergence; instantaneous T and P need not equal targets.", "Simulation", {
-            {"structure", "Structure", "", "structure", true},
-            {"calculator", "Interatomic potential", "{\"potential\": \"EMT\"}", "calculator", true},
-            {"steps", "Integration steps", "1000", "int", false},
-            {"timestep_fs", "Integration timestep (fs)", "1.0", "float", false},
-            {"temperature_K", "Target temperature (K)", "300.0", "float", false},
-            {"pressure_GPa", "Target pressure (GPa)", "0.0", "float", false},
-            {"thermostat_fs", "Thermostat relaxation time (fs)", "100.0", "float", false},
-            {"barostat_fs", "Barostat relaxation time (fs)", "1000.0", "float", false},
-            {"seed", "Random seed", "0", "int", false},
-            {"sample_interval", "Save a frame every N steps", "10", "int", false},
-            {"production_steps", "NVE production steps after equilibration", "0", "int", false},
-            {"equilibration_fs", "Exclude samples before (fs) from statistics", "0.0", "float", false},
-        }},
-        {"powder-xrd", "Powder X-ray diffraction", "Kinematic powder XRD pattern with Lorentz-polarization correction.\n\nStructure factors use tabulated atomic scattering factors (four-Gaussian\nfits, as in pymatgen) and an optional isotropic Debye-Waller factor\nexp(-B s^2). All reflections inside the limiting sphere are summed, so\nmultiplicity is automatic; peaks are scaled to 100 and broadened with a\nGaussian of the given FWHM. Anomalous dispersion, texture, absorption and\ninstrument functions are not modelled. Default wavelength: Cu K-alpha\n(1.54184 A); Mo K-alpha is 0.71073 A.", "Reciprocal space", {
-            {"structure", "Structure", "", "structure", true},
-            {"wavelength_A", "Wavelength (Angstrom)", "1.54184", "float", false},
-            {"two_theta_range_deg", "2-theta range (degrees)", "[10.0, 90.0]", "range", false},
-            {"fwhm_deg", "Peak FWHM (degrees)", "0.1", "float", false},
-            {"debye_waller_A2", "Debye-Waller B (Angstrom squared)", "0.0", "float", false},
-        }},
-        {"electron-diffraction", "Electron diffraction (zone axis)", "Kinematic zone-axis electron diffraction spot pattern.\n\nReflections g = h b1 + k b2 + l b3 with h u + k v + l w = 0 (zero-order Laue\nzone of [uvw]) inside g_max are listed with intensity |F|^2 from Mott-Bethe\nelectron scattering factors, scaled to 100, and detector coordinates in\n1/A along axes perpendicular to the beam. The relativistic wavelength follows\nfrom the voltage. Dynamical scattering (e.g. double diffraction into\nkinematically forbidden spots), excitation errors and higher-order Laue\nzones are not included.", "Reciprocal space", {
-            {"structure", "Structure", "", "structure", true},
-            {"zone_axis", "Zone axis [u, v, w]", "[0, 0, 1]", "vector", false},
-            {"voltage_kV", "Accelerating voltage (kV)", "200.0", "float", false},
-            {"g_max_inv_A", "Maximum |g| (1/Angstrom)", "1.0", "float", false},
-        }},
-        {"dft-inputs", "Band-structure inputs (VASP, Quantum ESPRESSO)", "Write band-structure inputs on the HPKOT symmetry path.\n\nThe standardized primitive cell and its high-symmetry path (as in the\nreciprocal-path tool) become a VASP line-mode KPOINTS file and POSCAR, and\nQuantum ESPRESSO CELL_PARAMETERS, ATOMIC_SPECIES, ATOMIC_POSITIONS and\nK_POINTS crystal_b cards (pseudopotential file names are placeholders). Use\nthe generated primitive cell for the self-consistent run too, so the k path\nrefers to the same reciprocal basis.", "Reciprocal space", {
-            {"structure", "Structure", "", "structure", true},
-            {"points_per_segment", "Points per path segment", "40", "int", false},
-            {"symprec_A", "Symmetry tolerance (Angstrom)", "1e-05", "float", false},
-            {"time_reversal", "Assume time-reversal symmetry", "true", "bool", false},
-        }},
-        {"reciprocal-path", "Symmetry reciprocal-space path", "HPKOT (SeeK-path convention) high-symmetry path from spglib symmetry, in the standardized primitive cell.\n\nReturns the primitive structure, reciprocal basis and segment endpoints so\nfractional k coordinates cannot be confused with the input supercell basis.\nNonmagnetic spatial symmetry is used; time_reversal controls path completion,\nnot a magnetic-space-group analysis. Disconnected segments remain explicit.", "Reciprocal space", {
-            {"structure", "Structure", "", "structure", true},
-            {"spacing_inv_A", "Reciprocal sampling spacing (1/Angstrom)", "0.025", "float", false},
-            {"symprec_A", "Symmetry tolerance (Angstrom)", "1e-05", "float", false},
-            {"time_reversal", "Assume time-reversal symmetry", "true", "bool", false},
-        }},
-    };
-    return tools;
-}
+    const char* id;
+    const char* title;
+    const char* help;      // first line: one-line description; the rest: method notes (CLI catalog)
+    const char* category;  // Analysis menu section
+    std::vector<ScienceParameterDef> parameters;
+    ScienceToolView view;
+};
+
+const std::vector<ScienceToolDef>& scienceToolCatalog();
+// The catalog entry with this id, or nullptr.
+const ScienceToolDef* findScienceTool(const std::string& id);

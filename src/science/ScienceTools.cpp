@@ -10,6 +10,7 @@
 #include "science/ScienceCatalog.h"
 #include "science/Simulation.h"
 
+#include <map>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -24,8 +25,7 @@ namespace
 {
 const ScienceToolDef& definition(const std::string& tool)
 {
-    for (const auto& candidate : scienceToolCatalog())
-        if (tool == candidate.id) return candidate;
+    if (const ScienceToolDef* found = findScienceTool(tool)) return *found;
     throw std::runtime_error("Unknown scientific tool: " + tool);
 }
 
@@ -165,6 +165,95 @@ void describe(const std::string& key, const Json& value, std::vector<std::string
         lines.push_back(key + ": None");
     }
 }
+
+// One entry per catalog tool; ScienceTools registry tests check the two agree.
+using ToolRunner = ToolOutput (*)(const Parameters&, const std::filesystem::path& base);
+
+ToolOutput runNeb(const Parameters& p, const std::filesystem::path& base)
+{
+    NebOptions options;
+    if (p.has("restart_images"))
+        for (const auto& frame : p.frames("restart_images")) options.restart.push_back(configurationFrom(frame.structure, frame.pbc));
+    else if (!p.has("initial") || !p.has("final"))
+        throw std::runtime_error("NEB needs initial and final structures, or restart_images");
+    const Configuration initial = options.restart.empty() ? configurationFrom(p.structure("initial").structure, p.structure("initial").pbc) : options.restart.front();
+    const Configuration final = options.restart.empty() ? configurationFrom(p.structure("final").structure, p.structure("final").pbc) : options.restart.back();
+    options.images = integer(p.number("images", 7), "images", 0);
+    options.imageSpacing = p.number("image_spacing_A", 0.5);
+    options.relaxEndpoints = p.boolean("relax_endpoints", false);
+    options.endpointFmax = positive(p.number("endpoint_fmax", 0.01), "endpoint_fmax");
+    options.fmax = positive(p.number("fmax", 0.03), "fmax");
+    options.steps = integer(p.number("steps", 300), "steps");
+    options.spring = positive(p.number("spring_eV_per_A2", 0.1), "spring_eV_per_A2");
+    options.climb = p.boolean("climb", true);
+    options.mic = p.boolean("mic", false);
+    return migrationPath(initial, final, potentialFactory(p.json("calculator_factory"), base), options);
+}
+
+ToolOutput runRelax(const Parameters& p, const std::filesystem::path& base)
+{
+    const auto& structure = p.structure("structure");
+    const auto potential = potentialFactory(p.json("calculator"), base)();
+    RelaxOptions options;
+    options.fmax = positive(p.number("fmax", 0.01), "fmax");
+    options.steps = integer(p.number("steps", 500), "steps", 0);
+    options.relaxCell = p.boolean("relax_cell", false);
+    options.pressureGPa = p.number("pressure_GPa", 0.0);
+    return relaxStructure(configurationFrom(structure.structure, structure.pbc), *potential, options);
+}
+
+ToolOutput runPhonons(const Parameters& p, const std::filesystem::path& base)
+{
+    const auto potential = potentialFactory(p.json("calculator"), base)();
+    return phononCalculation(p.structure("structure"), *potential, p);
+}
+
+ToolOutput runDynamics(const Parameters& p, const std::filesystem::path& base, bool npt)
+{
+    const auto& structure = p.structure("structure");
+    const auto potential = potentialFactory(p.json("calculator"), base)();
+    const auto configuration = configurationFrom(structure.structure, structure.pbc);
+    return !npt ? nvtDynamics(configuration, *potential, dynamicsOptions(p, false))
+                         : nptDynamics(configuration, *potential, dynamicsOptions(p, true));
+}
+
+const std::map<std::string, ToolRunner>& toolRunners()
+{
+    static const std::map<std::string, ToolRunner> runners = {
+        {"msd", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(meanSquareDisplacement(p)); }},
+        {"diffusion", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(diffusionCoefficient(p)); }},
+        {"vacf", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(velocityAutocorrelation(p)); }},
+        {"vibrational-spectrum", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(vibrationalSpectrum(p)); }},
+        {"local-strain", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(localStrain(p)); }},
+        {"centrosymmetry", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(centrosymmetry(p)); }},
+        {"structure-type", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(structureType(p)); }},
+        {"cluster-analysis", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(clusterAnalysis(p)); }},
+        {"void-analysis", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(voidAnalysis(p)); }},
+        {"dislocation-lines", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return dislocationLines(p.structure("reference"), p.structure("structure"), p); }},
+        {"bond-order", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(bondOrder(p)); }},
+        {"wigner-seitz", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(wignerSeitz(p)); }},
+        {"structure-factor", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(staticStructureFactor(p)); }},
+        {"band-gap", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(bandGap(p)); }},
+        {"effective-mass", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(effectiveMass(p)); }},
+        {"work-function", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(workFunction(p)); }},
+        {"equation-of-state", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(equationOfState(p)); }},
+        {"elastic-tensor", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(elasticTensor(p)); }},
+        {"phonon-dos", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(phononDos(p)); }},
+        {"harmonic-thermodynamics", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(harmonicThermodynamics(p)); }},
+        {"neb", runNeb},
+        {"relax", runRelax},
+        {"phonons", runPhonons},
+        {"nvt", [](const Parameters& p, const std::filesystem::path& base) { return runDynamics(p, base, false); }},
+        {"npt", [](const Parameters& p, const std::filesystem::path& base) { return runDynamics(p, base, true); }},
+        {"vasp-electronic", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return vaspElectronic(p); }},
+        {"lammps-export", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return lammpsExport(p); }},
+        {"powder-xrd", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return powderXrd(p.structure("structure"), p); }},
+        {"electron-diffraction", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return electronDiffraction(p.structure("structure"), p); }},
+        {"dft-inputs", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return dftInputs(p.structure("structure"), static_cast<int>(integer(p.number("points_per_segment", 40), "points_per_segment", 2)), p.number("symprec_A", 1e-5), p.boolean("time_reversal", true)); }},
+        {"reciprocal-path", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return reciprocalPath(p.structure("structure"), p.number("spacing_inv_A", 0.025), p.number("symprec_A", 1e-5), p.boolean("time_reversal", true)); }},
+    };
+    return runners;
+}
 }
 
 ToolOutput runTool(const std::string& tool, const Json& request, const std::filesystem::path& base, const StructureReader& reader)
@@ -172,77 +261,16 @@ ToolOutput runTool(const std::string& tool, const Json& request, const std::file
     const ScienceToolDef& def = definition(tool);
     validateKeys(def, request);
     const Parameters p(tool, request, base, reader);
-    if (tool == "msd") return numeric(meanSquareDisplacement(p));
-    if (tool == "diffusion") return numeric(diffusionCoefficient(p));
-    if (tool == "vacf") return numeric(velocityAutocorrelation(p));
-    if (tool == "vibrational-spectrum") return numeric(vibrationalSpectrum(p));
-    if (tool == "local-strain") return numeric(localStrain(p));
-    if (tool == "centrosymmetry") return numeric(centrosymmetry(p));
-    if (tool == "structure-type") return numeric(structureType(p));
-    if (tool == "cluster-analysis") return numeric(clusterAnalysis(p));
-    if (tool == "void-analysis") return numeric(voidAnalysis(p));
-    if (tool == "dislocation-lines") return dislocationLines(p.structure("reference"), p.structure("structure"), p);
-    if (tool == "bond-order") return numeric(bondOrder(p));
-    if (tool == "wigner-seitz") return numeric(wignerSeitz(p));
-    if (tool == "structure-factor") return numeric(staticStructureFactor(p));
-    if (tool == "band-gap") return numeric(bandGap(p));
-    if (tool == "effective-mass") return numeric(effectiveMass(p));
-    if (tool == "work-function") return numeric(workFunction(p));
-    if (tool == "equation-of-state") return numeric(equationOfState(p));
-    if (tool == "elastic-tensor") return numeric(elasticTensor(p));
-    if (tool == "phonon-dos") return numeric(phononDos(p));
-    if (tool == "harmonic-thermodynamics") return numeric(harmonicThermodynamics(p));
-    if (tool == "neb") {
-        NebOptions options;
-        if (p.has("restart_images"))
-            for (const auto& frame : p.frames("restart_images")) options.restart.push_back(configurationFrom(frame.structure, frame.pbc));
-        else if (!p.has("initial") || !p.has("final"))
-            throw std::runtime_error("NEB needs initial and final structures, or restart_images");
-        const Configuration initial = options.restart.empty() ? configurationFrom(p.structure("initial").structure, p.structure("initial").pbc) : options.restart.front();
-        const Configuration final = options.restart.empty() ? configurationFrom(p.structure("final").structure, p.structure("final").pbc) : options.restart.back();
-        options.images = integer(p.number("images", 7), "images", 0);
-        options.imageSpacing = p.number("image_spacing_A", 0.5);
-        options.relaxEndpoints = p.boolean("relax_endpoints", false);
-        options.endpointFmax = positive(p.number("endpoint_fmax", 0.01), "endpoint_fmax");
-        options.fmax = positive(p.number("fmax", 0.03), "fmax");
-        options.steps = integer(p.number("steps", 300), "steps");
-        options.spring = positive(p.number("spring_eV_per_A2", 0.1), "spring_eV_per_A2");
-        options.climb = p.boolean("climb", true);
-        options.mic = p.boolean("mic", false);
-        return migrationPath(initial, final, potentialFactory(p.json("calculator_factory"), base), options);
-    }
-    if (tool == "relax") {
-        const auto& structure = p.structure("structure");
-        const auto potential = potentialFactory(p.json("calculator"), base)();
-        RelaxOptions options;
-        options.fmax = positive(p.number("fmax", 0.01), "fmax");
-        options.steps = integer(p.number("steps", 500), "steps", 0);
-        options.relaxCell = p.boolean("relax_cell", false);
-        options.pressureGPa = p.number("pressure_GPa", 0.0);
-        return relaxStructure(configurationFrom(structure.structure, structure.pbc), *potential, options);
-    }
-    if (tool == "phonons") {
-        const auto potential = potentialFactory(p.json("calculator"), base)();
-        return phononCalculation(p.structure("structure"), *potential, p);
-    }
-    if (tool == "nvt" || tool == "npt") {
-        const auto& structure = p.structure("structure");
-        const auto potential = potentialFactory(p.json("calculator"), base)();
-        const auto configuration = configurationFrom(structure.structure, structure.pbc);
-        return tool == "nvt" ? nvtDynamics(configuration, *potential, dynamicsOptions(p, false))
-                             : nptDynamics(configuration, *potential, dynamicsOptions(p, true));
-    }
-    if (tool == "vasp-electronic") return vaspElectronic(p);
-    if (tool == "lammps-export") return lammpsExport(p);
-    if (tool == "powder-xrd") return powderXrd(p.structure("structure"), p);
-    if (tool == "electron-diffraction") return electronDiffraction(p.structure("structure"), p);
-    if (tool == "dft-inputs")
-        return dftInputs(p.structure("structure"), static_cast<int>(integer(p.number("points_per_segment", 40), "points_per_segment", 2)),
-                         p.number("symprec_A", 1e-5), p.boolean("time_reversal", true));
-    if (tool == "reciprocal-path")
-        return reciprocalPath(p.structure("structure"), p.number("spacing_inv_A", 0.025), p.number("symprec_A", 1e-5),
-                              p.boolean("time_reversal", true));
-    throw std::runtime_error("Unknown scientific tool: " + tool);
+    const auto runner = toolRunners().find(tool);
+    if (runner == toolRunners().end()) throw std::runtime_error("Unknown scientific tool: " + tool);
+    return runner->second(p, base);
+}
+
+std::vector<std::string> runnableTools()
+{
+    std::vector<std::string> tools;
+    for (const auto& entry : toolRunners()) tools.push_back(entry.first);
+    return tools;
 }
 
 std::string resultReport(const std::string& tool, const Json& result)

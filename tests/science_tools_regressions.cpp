@@ -1730,6 +1730,24 @@ int main()
         std::filesystem::remove(path);
     });
 
+    test("tool registry tables agree with the catalog", [] {
+        std::vector<std::string> catalogIds;
+        for (const auto& tool : scienceToolCatalog()) {
+            check(findScienceTool(tool.id) == &tool, std::string("catalog lookup for ") + tool.id);
+            catalogIds.push_back(tool.id);
+        }
+        std::sort(catalogIds.begin(), catalogIds.end());
+        check(std::adjacent_find(catalogIds.begin(), catalogIds.end()) == catalogIds.end(), "catalog ids are unique");
+        check(findScienceTool("no-such-tool") == nullptr, "unknown ids are not found");
+        // Every catalog tool can run, and no table names a tool missing from the catalog.
+        check(runnableTools() == catalogIds, "every catalog tool has exactly one runner");
+        for (const auto& id : plottedTools()) check(findScienceTool(id) != nullptr, "plot table names catalog tool " + id);
+        for (const auto& id : toolsWithAtomProperties()) check(findScienceTool(id) != nullptr, "property table names catalog tool " + id);
+        // Per-atom analyses are presented beside the viewport.
+        for (const auto& id : toolsWithAtomProperties())
+            if (id != "local-strain" && id != "dislocation-lines") check(findScienceTool(id)->view == ScienceToolView::Atoms, id + " uses the atom view");
+    });
+
     test("catalog defaults are valid requests", [] {
         check(scienceToolCatalog().size() >= 20, "catalog tools");
         for (const auto& tool : scienceToolCatalog())

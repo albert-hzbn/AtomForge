@@ -18,7 +18,19 @@
   a geometry operation and is also available through the core target.
 - `src/cli/CLIMode.cpp` registers build modes in `kBuildModes`, pairing each mode
   with its execution and help functions. Dispatch and valid-mode diagnostics use
-  that registry.
+  that registry. The modes themselves live in family files declared by
+  `src/cli/BuildModes.h`: `BuildCrystalCLI.cpp` (bulk, custom, solid solution,
+  primitive, surface, SQS, vacancy, strain), `BuildDefectCLI.cpp` (dislocation,
+  grain boundary, interface, stacking fault) and `BuildNanoCLI.cpp` (polycrystal,
+  nanocrystal, amorphous, nanowire, core-shell). `src/cli/CliArgs.*` holds the
+  argument parsing shared by every CLI mode; numeric flags reject malformed or
+  non-finite values with an error naming the flag. To add a mode, implement
+  `printHelpX`/`runX` in the matching family file, declare them in
+  `BuildModes.h` and add a `kBuildModes` row. The manual's CLI reference is
+  generated from these help pages.
+- `src/science/` is the native scientific-tools library (`atomforge_science`):
+  analyses, simulations, file readers and writers, with no GUI dependency. It is
+  driven by JSON requests from the desktop, `AtomForge --science` and batches.
 
 ### Reusable core
 
@@ -42,6 +54,33 @@ ctest --test-dir build-core --output-on-failure
 `cmake/AtomForgeTests.cmake` defines tests for both build modes. The normal desktop
 build remains the default. `BUILD_TESTING=OFF` omits tests. If Python is not found,
 set `Python3_EXECUTABLE` to an interpreter path to enable the Python/CLI tests.
+
+### Scientific tool registry
+
+Each native tool is described once in `src/science/ScienceCatalog.cpp`: id,
+title, one-line description and method notes, Analysis-menu category,
+parameters (JSON request keys with labels, defaults and input kinds) and the
+desktop `ScienceToolView`. Behaviour is attached through id-keyed tables, one
+named function per tool:
+
+| Table | File | Purpose |
+|---|---|---|
+| `toolRunners()` | `ScienceTools.cpp` | runs a validated request (required) |
+| `plotBuilders()` | `ResultPlots.cpp` | result plots (optional) |
+| `propertyBuilders()` | `AtomProperties.cpp` | per-atom properties for colouring (optional) |
+
+`runTool`, `resultPlots` and `perAtomProperties` look tools up in these tables;
+the catalog drives request validation, the CLI catalog, the batch runner and
+the desktop window. The registry test in `tests/science_tools_regressions.cpp`
+fails if a catalog tool has no runner or a table names an unknown tool.
+
+To add a tool: add its catalog entry, implement the calculation (taking
+`Parameters` and returning `ToolOutput`), add a runner row and, if useful,
+plot and property builders; then describe its method, units and limits in the
+manual (`docs/manual/chapters/14-workflows.tex`). The desktop picks the window
+layout from the entry's view: `ui/ScientificToolsDialog.cpp` holds dialog
+state, persistence and running, and `ui/ScientificToolsLayouts.cpp` draws the
+parameter widgets, result views and one layout per view.
 
 ### Adding an analysis
 
