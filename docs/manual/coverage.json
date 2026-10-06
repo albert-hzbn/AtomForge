@@ -702,7 +702,7 @@
     },
     {
       "source": "src/app/EditorApplication.cpp",
-      "sha256": "14e47543538c3dfe3427a53f66b4a49c8adf44af4d91961c512b6dbadd1854ab",
+      "sha256": "2dc7e8b08c77b993f980f9443b8f513df71ab59d110414f6171686a868e86a39",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

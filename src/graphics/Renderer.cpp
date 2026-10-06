@@ -701,22 +701,58 @@ static const char* kLineFS = R"(
 )";
 
 // Selection wireframe — one MVP per atom, hardcoded yellow.
-static const char* kSelWireVS = R"(
+// Selection halo: a camera-facing quad per selected atom. The vertex shader
+// scales it to the sphere's projected silhouette (larger than the radius under
+// perspective), so the ring hugs the outline at any zoom.
+static const char* kSelHaloVS = R"(
     #version 130
-    in vec3 position;
-    uniform mat4 uMVP;
+    in vec2 corner;
+    in vec4 atom;            // centre xyz, radius w
+    uniform mat4 uView;
+    uniform mat4 uProjection;
+    uniform float uExtent;   // quad half-size in silhouette radii
+    out vec2 vLocal;         // position in silhouette radii
     void main()
     {
-        gl_Position = uMVP * vec4(position, 1.0);
+        vec3 right = vec3(uView[0][0], uView[1][0], uView[2][0]);
+        vec3 up = vec3(uView[0][1], uView[1][1], uView[2][1]);
+        float silhouette = 1.0;
+        if (uProjection[3][3] < 0.5) {
+            float distance = length((uView * vec4(atom.xyz, 1.0)).xyz);
+            silhouette = distance / sqrt(max(distance * distance - atom.w * atom.w, 1e-6 * distance * distance));
+        }
+        vec3 world = atom.xyz + (right * corner.x + up * corner.y) * atom.w * silhouette * uExtent;
+        vLocal = corner * uExtent;
+        // At the sphere's front surface, so atoms behind the selected one never cover its ring.
+        vec4 eye = uView * vec4(world, 1.0);
+        eye.z += atom.w;
+        gl_Position = uProjection * eye;
     }
 )";
 
-static const char* kSelWireFS = R"(
+// Crisp accent ring just outside the outline, a thin dark edge for contrast on
+// light backgrounds and a soft glow that fades out. The atom itself is untouched.
+static const char* kSelHaloFS = R"(
     #version 130
+    in vec2 vLocal;
+    uniform vec3 uColor;
+    uniform float uExtent;
+    uniform float uOpacity;  // dimmed where the halo is hidden behind other atoms
     out vec4 fragColor;
     void main()
     {
-        fragColor = vec4(1.0, 0.9, 0.0, 1.0);
+        float d = length(vLocal);
+        if (d < 0.985 || d > uExtent) discard;
+        float pixel = fwidth(d);
+        float width = max(0.12, 2.0 * pixel);           // at least about two pixels
+        float inner = 1.0, outer = 1.0 + width;
+        float ring = smoothstep(inner - pixel, inner + pixel, d) * (1.0 - smoothstep(outer - pixel, outer + pixel, d));
+        float edge = smoothstep(outer - pixel, outer, d) * (1.0 - smoothstep(outer + pixel, outer + 2.0 * pixel, d));
+        float glow = 0.38 * pow(1.0 - smoothstep(outer, uExtent, d), 2.0) * step(outer, d);
+        vec3 color = mix(uColor, vec3(0.06), edge * 0.75);
+        float alpha = max(max(ring, edge * 0.75), glow);
+        if (alpha < 0.01) discard;
+        fragColor = vec4(color, alpha * uOpacity);
     }
 )";
 
@@ -943,88 +979,6 @@ static const char* kShadowBillboardSSBOVS = R"(
     }
 )";
 
-// Build a unit icosahedron with 1 subdivision, return unique edge pairs for GL_LINES.
-static std::vector<float> buildSelWireGeometry()
-{
-    const float PHI = 1.6180339887f;
-
-    auto norm3 = [](float& x, float& y, float& z)
-    {
-        float len = std::sqrt(x*x + y*y + z*z);
-        if (len > 1e-8f) { x /= len; y /= len; z /= len; }
-    };
-
-    std::vector<float> verts = {
-        -1,  PHI, 0,   1,  PHI, 0,  -1, -PHI, 0,   1, -PHI, 0,
-         0, -1,  PHI,  0,  1,  PHI,  0, -1, -PHI,   0,  1, -PHI,
-         PHI, 0, -1,   PHI, 0,  1,  -PHI, 0, -1,  -PHI, 0,  1
-    };
-    for (size_t i = 0; i < verts.size(); i += 3)
-        norm3(verts[i], verts[i+1], verts[i+2]);
-
-    std::vector<unsigned int> tris = {
-        0, 11, 5,  0, 5, 1,   0, 1, 7,   0, 7, 10,  0, 10, 11,
-        1, 5, 9,   5, 11, 4,  11, 10, 2, 10, 7, 6,   7, 1, 8,
-        3, 9, 4,   3, 4, 2,   3, 2, 6,   3, 6, 8,    3, 8, 9,
-        4, 9, 5,   2, 4, 11,  6, 2, 10,  8, 6, 7,    9, 8, 1
-    };
-
-    // 1 subdivision: 20 -> 80 faces
-    using MidMap = std::map<std::pair<unsigned int, unsigned int>, unsigned int>;
-    MidMap midCache;
-    auto midpoint = [&](unsigned int a, unsigned int b) -> unsigned int
-    {
-        if (a > b) std::swap(a, b);
-        auto key = std::make_pair(a, b);
-        auto it = midCache.find(key);
-        if (it != midCache.end()) return it->second;
-        float mx = (verts[3*a]   + verts[3*b])   * 0.5f;
-        float my = (verts[3*a+1] + verts[3*b+1]) * 0.5f;
-        float mz = (verts[3*a+2] + verts[3*b+2]) * 0.5f;
-        norm3(mx, my, mz);
-        unsigned int idx = (unsigned int)(verts.size() / 3);
-        verts.push_back(mx); verts.push_back(my); verts.push_back(mz);
-        midCache[key] = idx;
-        return idx;
-    };
-
-    std::vector<unsigned int> newTris;
-    newTris.reserve(tris.size() * 4);
-    for (size_t i = 0; i < tris.size(); i += 3)
-    {
-        unsigned int a = tris[i], b = tris[i+1], c = tris[i+2];
-        unsigned int ab = midpoint(a, b);
-        unsigned int bc = midpoint(b, c);
-        unsigned int ca = midpoint(c, a);
-        newTris.push_back(a);  newTris.push_back(ab); newTris.push_back(ca);
-        newTris.push_back(b);  newTris.push_back(bc); newTris.push_back(ab);
-        newTris.push_back(c);  newTris.push_back(ca); newTris.push_back(bc);
-        newTris.push_back(ab); newTris.push_back(bc); newTris.push_back(ca);
-    }
-    tris.swap(newTris);
-
-    // Deduplicate edges using sorted vertex-index pairs as key.
-    std::map<std::pair<unsigned int, unsigned int>, bool> edgeSet;
-    for (size_t i = 0; i < tris.size(); i += 3)
-    {
-        unsigned int a = tris[i], b = tris[i+1], c = tris[i+2];
-        auto addEdge = [&](unsigned int u, unsigned int v)
-        { if (u > v) std::swap(u, v); edgeSet[{u, v}] = true; };
-        addEdge(a, b); addEdge(b, c); addEdge(c, a);
-    }
-
-    // Build interleaved GL_LINES vertex buffer (v0.xyz, v1.xyz) per edge.
-    std::vector<float> lines;
-    lines.reserve(edgeSet.size() * 6);
-    for (auto& kv : edgeSet)
-    {
-        unsigned int u = kv.first.first, v = kv.first.second;
-        lines.push_back(verts[3*u]);   lines.push_back(verts[3*u+1]); lines.push_back(verts[3*u+2]);
-        lines.push_back(verts[3*v]);   lines.push_back(verts[3*v+1]); lines.push_back(verts[3*v+2]);
-    }
-    return lines;
-}
-
 // ---------------------------------------------------------------------------
 // Renderer implementation
 // ---------------------------------------------------------------------------
@@ -1057,19 +1011,24 @@ void Renderer::init()
         shadowBillboardSSBOProgram = createProgram(kShadowBillboardSSBOVS,   kShadowBillboardFS);
     }
 
-    // Selection wireframe — generate icosahedron edge geometry once.
-    selWireProgram = createProgram(kSelWireVS, kSelWireFS);
+    // Selection halo: one unit quad, instanced with per-atom centre and radius.
+    selHaloProgram = createProgram(kSelHaloVS, kSelHaloFS);
     {
-        std::vector<float> wireVerts = buildSelWireGeometry();
-        selWireLineVtxCount = (int)(wireVerts.size() / 3);
-        glGenVertexArrays(1, &selWireVAO);
-        glGenBuffers(1, &selWireVBO);
-        glBindVertexArray(selWireVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, selWireVBO);
-        glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(wireVerts.size() * sizeof(float)),
-                     wireVerts.data(), GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
+        const float corners[] = {-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1};
+        glGenVertexArrays(1, &selHaloVAO);
+        glGenBuffers(1, &selHaloQuadVBO);
+        glGenBuffers(1, &selHaloInstanceVBO);
+        glBindVertexArray(selHaloVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, selHaloQuadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(corners), corners, GL_STATIC_DRAW);
+        const GLint corner = glGetAttribLocation(selHaloProgram, "corner");
+        const GLint atom = glGetAttribLocation(selHaloProgram, "atom");
+        glVertexAttribPointer(static_cast<GLuint>(corner), 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(static_cast<GLuint>(corner));
+        glBindBuffer(GL_ARRAY_BUFFER, selHaloInstanceVBO);
+        glVertexAttribPointer(static_cast<GLuint>(atom), 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(static_cast<GLuint>(atom));
+        glVertexAttribDivisor(static_cast<GLuint>(atom), 1);
         glBindVertexArray(0);
     }
 }
@@ -1695,36 +1654,53 @@ void Renderer::drawShadowPassBillboardIndirect(const ShadowMap& shadow,
     endShadowPass();
 }
 
-void Renderer::drawSelectionWireframes(const glm::mat4& projection,
-                                        const glm::mat4& view,
-                                        const std::vector<glm::vec3>& positions,
-                                        const std::vector<float>& radii)
+void Renderer::drawSelectionHalos(const glm::mat4& projection,
+                                  const glm::mat4& view,
+                                  const std::vector<glm::vec3>& positions,
+                                  const std::vector<float>& radii)
 {
-    if (positions.empty() || selWireVAO == 0) return;
+    if (positions.empty() || selHaloVAO == 0) return;
 
-    // Scale slightly beyond the atom radius to prevent z-fighting with the sphere surface.
-    constexpr float kScaleBias = 1.06f;
+    // Quad half-size in silhouette radii: room for the ring and its glow.
+    constexpr float kExtent = 1.6f;
 
-    glUseProgram(selWireProgram);
-    const GLint mvpLoc = glGetUniformLocation(selWireProgram, "uMVP");
-    glLineWidth(1.5f);
-    glBindVertexArray(selWireVAO);
-
+    std::vector<float> instances;
+    instances.reserve(positions.size() * 4);
     for (size_t i = 0; i < positions.size(); ++i)
     {
-        const float r = (i < radii.size() ? radii[i] : 1.0f) * kScaleBias;
-        // Build a scale+translate matrix without pulling in matrix_transform.
-        glm::mat4 model(1.0f);
-        model[0][0] = r;
-        model[1][1] = r;
-        model[2][2] = r;
-        model[3][0] = positions[i].x;
-        model[3][1] = positions[i].y;
-        model[3][2] = positions[i].z;
-        const glm::mat4 mvp = projection * view * model;
-        glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, glm::value_ptr(mvp));
-        glDrawArrays(GL_LINES, 0, selWireLineVtxCount);
+        instances.insert(instances.end(), {positions[i].x, positions[i].y, positions[i].z,
+                                           i < radii.size() ? radii[i] : 1.0f});
     }
+    glBindBuffer(GL_ARRAY_BUFFER, selHaloInstanceVBO);
+    glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(instances.size() * sizeof(float)), instances.data(), GL_STREAM_DRAW);
 
+    // Never writes depth. Hidden parts are drawn faintly first, so selected atoms
+    // behind others stay findable; visible parts are then drawn at full strength.
+    GLboolean blend = glIsEnabled(GL_BLEND);
+    GLboolean depthMask = GL_TRUE;
+    glGetBooleanv(GL_DEPTH_WRITEMASK, &depthMask);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+
+    glUseProgram(selHaloProgram);
+    glUniformMatrix4fv(glGetUniformLocation(selHaloProgram, "uView"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(selHaloProgram, "uProjection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniform1f(glGetUniformLocation(selHaloProgram, "uExtent"), kExtent);
+    glUniform3f(glGetUniformLocation(selHaloProgram, "uColor"), 1.0f, 0.66f, 0.12f);
+    const GLint opacity = glGetUniformLocation(selHaloProgram, "uOpacity");
+    GLint depthFunc = GL_LESS;
+    glGetIntegerv(GL_DEPTH_FUNC, &depthFunc);
+    glBindVertexArray(selHaloVAO);
+    glDepthFunc(GL_GREATER);
+    glUniform1f(opacity, 0.3f);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, 6, static_cast<GLsizei>(positions.size()));
+    glDepthFunc(GL_LEQUAL);
+    glUniform1f(opacity, 1.0f);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, 6, static_cast<GLsizei>(positions.size()));
+    glDepthFunc(static_cast<GLenum>(depthFunc));
     glBindVertexArray(0);
+
+    glDepthMask(depthMask);
+    if (!blend) glDisable(GL_BLEND);
 }

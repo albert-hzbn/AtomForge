@@ -1268,7 +1268,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                   activeState.fileBrowser.isShowDislocationLinesEnabled(),
                   activeState.fileBrowser.isLightThemeEnabled());
 
-        // Selection wireframes — drawn after atoms so depth-testing is correct.
+        // Selection halos: drawn after atoms so nearer atoms hide them.
         if (!activeState.selectedInstanceIndices.empty() &&
             !activeState.sceneBuffers.cpuCachesDisabled)
         {
@@ -1286,7 +1286,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                                          : 1.0f);
                 }
             }
-            renderer.drawSelectionWireframes(frame.projection, frame.view, selPos, selRad);
+            renderer.drawSelectionHalos(frame.projection, frame.view, selPos, selRad);
         }
 
         handleImageExportIfRequested(hasImageExportRequest, imageExportRequest,

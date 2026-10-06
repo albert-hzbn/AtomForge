@@ -1021,6 +1021,6 @@ void drawSelectionOverlay(
     int /*windowWidth*/,
     int /*windowHeight*/)
 {
-    // Selection is now drawn as a 3D low-poly wireframe via
-    // Renderer::drawSelectionWireframes in the OpenGL colour pass.
+    // Selection is drawn as an outline halo by
+    // Renderer::drawSelectionHalos in the OpenGL colour pass.
 }

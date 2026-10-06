@@ -36,10 +36,10 @@ struct Renderer
     GLuint shadowBillboardProgram = 0;
     GLuint bondShadowProgram = 0;
     GLuint lineProgram      = 0;
-    GLuint selWireProgram   = 0;
-    GLuint selWireVAO       = 0;
-    GLuint selWireVBO       = 0;
-    int    selWireLineVtxCount = 0;
+    GLuint selHaloProgram     = 0;
+    GLuint selHaloVAO         = 0;
+    GLuint selHaloQuadVBO     = 0;
+    GLuint selHaloInstanceVBO = 0;
 
     // GPU-driven indirect rendering (GL 4.3+).
     // One compute cull pass per frame populates SceneBuffers::visibleIndexSSBO and
@@ -138,8 +138,8 @@ struct Renderer
                       size_t vertexCount,
                       const glm::vec3& color);
 
-    // Draw a yellow low-poly wireframe sphere around each selected atom.
-    void drawSelectionWireframes(const glm::mat4& projection,
+    // Draw a glowing outline ring around each selected atom (after the atoms).
+    void drawSelectionHalos(const glm::mat4& projection,
                                  const glm::mat4& view,
                                  const std::vector<glm::vec3>& positions,
                                  const std::vector<float>& radii);
