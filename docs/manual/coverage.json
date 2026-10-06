@@ -4105,137 +4105,161 @@
     },
     {
       "source": "src/ui/ScientificToolsDialog.cpp",
-      "sha256": "e09a841b8a7b307cb38b2a223bf1c44f17da3c9dfc3de9940997d3e2bdea4f3c",
+      "sha256": "e22dd55e6d73c7a5377f47f9fb2a9673f1769d5b06c38298700dc42983ba0398",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": [
         {
-          "line": 297,
-          "declaration_label": "Cancel"
-        },
-        {
-          "line": 307,
-          "declaration_label": "Inputs"
-        },
-        {
-          "line": 366,
+          "line": 471,
           "declaration_label": "##components"
         },
         {
-          "line": 380,
+          "line": 485,
           "declaration_label": "##window"
         },
         {
-          "line": 384,
+          "line": 489,
           "declaration_label": "##number"
         },
         {
-          "line": 390,
+          "line": 495,
           "declaration_label": "##source"
         },
         {
-          "line": 394,
+          "line": 499,
           "declaration_label": "Browse..."
         },
         {
-          "line": 398,
+          "line": 503,
           "declaration_label": "##field"
         },
         {
-          "line": 399,
+          "line": 504,
           "declaration_label": "Select numeric column"
         },
         {
-          "line": 400,
+          "line": 505,
           "declaration_label": "##column"
         },
         {
-          "line": 406,
+          "line": 511,
           "declaration_label": "Use active cell"
         },
         {
-          "line": 410,
+          "line": 515,
           "declaration_label": "Use active structure"
         },
         {
-          "line": 432,
+          "line": 520,
           "declaration_label": "Use loaded trajectory"
         },
         {
-          "line": 443,
+          "line": 531,
           "declaration_label": "##potential"
         },
         {
-          "line": 445,
+          "line": 533,
           "declaration_label": "Browse potential..."
         },
         {
-          "line": 448,
+          "line": 536,
           "declaration_label": "Table format"
         },
         {
-          "line": 454,
+          "line": 542,
           "declaration_label": "Well depth epsilon (eV)"
         },
         {
-          "line": 455,
+          "line": 543,
           "declaration_label": "Zero-crossing sigma (Angstrom)"
         },
         {
-          "line": 456,
+          "line": 544,
           "declaration_label": "Cutoff (Angstrom)"
         },
         {
-          "line": 461,
+          "line": 549,
           "declaration_label": "##value"
         },
         {
-          "line": 471,
-          "declaration_label": "Run calculation"
+          "line": 681,
+          "declaration_label": "Cancel"
         },
         {
-          "line": 524,
-          "declaration_label": "Results"
-        },
-        {
-          "line": 527,
-          "declaration_label": "Save results..."
-        },
-        {
-          "line": 531,
-          "declaration_label": "Save generated files..."
-        },
-        {
-          "line": 535,
-          "declaration_label": "Save structures..."
-        },
-        {
-          "line": 536,
-          "declaration_label": "Open final structure in a new tab"
-        },
-        {
-          "line": 547,
-          "declaration_label": "##property"
-        },
-        {
-          "line": 555,
+          "line": 735,
           "declaration_label": "Colour atoms in the view"
         },
         {
-          "line": 564,
+          "line": 751,
           "declaration_label": "Export plot data..."
         },
         {
-          "line": 579,
-          "declaration_label": "Method"
+          "line": 759,
+          "declaration_label": "Save results..."
+        },
+        {
+          "line": 762,
+          "declaration_label": "Save structures..."
+        },
+        {
+          "line": 764,
+          "declaration_label": "Open final structure in a new tab"
+        },
+        {
+          "line": 776,
+          "declaration_label": "Full report"
+        },
+        {
+          "line": 790,
+          "declaration_label": "Analyse the active structure"
+        },
+        {
+          "line": 799,
+          "declaration_label": "More options"
+        },
+        {
+          "line": 810,
+          "declaration_label": "Colour automatically after each analysis"
+        },
+        {
+          "line": 812,
+          "declaration_label": "Plots"
+        },
+        {
+          "line": 828,
+          "declaration_label": "Optional inputs"
+        },
+        {
+          "line": 922,
+          "declaration_label": "Plots"
+        },
+        {
+          "line": 1005,
+          "declaration_label": "##preview"
+        },
+        {
+          "line": 1006,
+          "declaration_label": "Save this file..."
+        },
+        {
+          "line": 1008,
+          "declaration_label": "Save all files..."
+        },
+        {
+          "line": 1010,
+          "declaration_label": "Copy to clipboard"
+        },
+        {
+          "line": 1012,
+          "declaration_label": "Save results..."
         }
       ]
     },
     {
       "source": "src/ui/ScientificToolsDialog.h",
-      "sha256": "dbb4b60f808f9a419234d41cd23edbe049bab0ed200fc841db3614d175620e21",
+      "sha256": "2eed86cadefaa70562e977e346b4d039204ffb5b74a02dc92e384c124d791400",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"

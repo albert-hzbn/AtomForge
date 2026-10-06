@@ -8,6 +8,7 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -49,6 +50,7 @@ int main()
             throw std::runtime_error("Trajectory input rules");
         dialog.setTrajectorySource("trajectory.xyz");
         int rendered = 0;
+        int layoutCounts[6] = {0, 0, 0, 0, 0, 0};
         for (const auto& tool : scienceToolCatalog()) {
             if (!dialog.open(tool.id)) throw std::runtime_error(std::string("Cannot open ") + tool.id);
             for (int frame = 0; frame < 3; ++frame) {
@@ -56,11 +58,27 @@ int main()
                 dialog.draw(copper, [](Structure&) {}, [](const std::string&, const std::vector<double>&) {});
                 ImGui::Render();
             }
-            const std::string title = std::string(tool.title) + "###Scientific analysis";
+            const auto layout = ScientificToolsDialog::layoutFor(tool.id);
+            const std::string title = std::string(tool.title) + ScientificToolsDialog::windowId(layout);
             ImGuiWindow* window = ImGui::FindWindowByName(title.c_str());
             if (!window || !window->WasActive) throw std::runtime_error(std::string("Dialog not shown for ") + tool.id);
+            ++layoutCounts[static_cast<int>(layout)];
             ++rendered;
         }
+        // Tools are spread over distinct layouts rather than one shared form.
+        using Layout = ScientificToolsDialog::Layout;
+        for (int count : layoutCounts)
+            if (count == 0) throw std::runtime_error("Every window layout must be used by at least one tool");
+        if (*std::max_element(layoutCounts, layoutCounts + 6) * 3 > rendered) throw std::runtime_error("One layout serves too many tools");
+        if (ScientificToolsDialog::layoutFor("centrosymmetry") != Layout::Atoms || ScientificToolsDialog::layoutFor("nvt") != Layout::Simulation ||
+            ScientificToolsDialog::layoutFor("dft-inputs") != Layout::Generator || ScientificToolsDialog::layoutFor("msd") != Layout::Trajectory ||
+            ScientificToolsDialog::layoutFor("elastic-tensor") != Layout::Properties || ScientificToolsDialog::layoutFor("powder-xrd") != Layout::Plot)
+            throw std::runtime_error("Tool layout assignment");
+        // The former shared Inputs/Method/Results tab bar is gone.
+        for (auto& tabBar : ImGui::GetCurrentContext()->TabBars.Buf)
+            for (auto& tab : tabBar.Tabs)
+                if (ImGui::TabBarGetTabName(&tabBar, &tab) == std::string("Inputs") || ImGui::TabBarGetTabName(&tabBar, &tab) == std::string("Method"))
+                    throw std::runtime_error("Generic Inputs/Method tabs are still drawn");
         // Plot widget edge cases: log axis with non-positive values, NaN gaps,
         // markers and reference lines, a single point, and no data.
         using atomforge::science::PlotSpec;
@@ -116,13 +134,45 @@ int main()
                 restored.draw(copper, [](Structure&) {}, [&](const std::string& name, const std::vector<double>&) { coloured = name; });
                 ImGui::Render();
             }
-            ImGuiWindow* window = ImGui::FindWindowByName("Centrosymmetry parameter###Scientific analysis");
+            ImGuiWindow* window = ImGui::FindWindowByName("Centrosymmetry parameter###Atom analysis");
             if (!window || !window->WasActive) throw std::runtime_error("Restored dialog not shown");
             // Unknown tools (from a newer release) and malformed state leave the dialog closed.
             ScientificToolsDialog unknown;
             unknown.restore(R"({"open": true, "tool": "from-the-future"})");
             unknown.restore("not json");
             if (Json::parse(unknown.snapshot()).at("open").boolean()) throw std::runtime_error("Unknown tool restored as open");
+        }
+        // Every layout renders a real result: plots, tensors, generated files and frames.
+        {
+            using atomforge::science::Json;
+            const std::string copperJson = R"({"symbols":["Cu","Cu","Cu","Cu"],"positions":[[0,0,0],[0,1.8,1.8],[1.8,0,1.8],[1.8,1.8,0]],"cell":[[3.6,0,0],[0,3.6,0],[0,0,3.6]]})";
+            const std::vector<std::pair<std::string, std::string>> cases = {
+                {"msd", R"({"positions":[[[0,0,0],[1,1,1]],[[0.1,0,0],[1,1.1,1]],[[0.2,0,0],[1,1.2,1]],[[0.3,0,0],[1,1.3,1]]],"timestep_fs":1.0})"},
+                {"elastic-tensor", R"({"strains":[[0.01,0,0,0,0,0],[0,0.01,0,0,0,0],[0,0,0.01,0,0,0],[0,0,0,0.01,0,0],[0,0,0,0,0.01,0],[0,0,0,0,0,0.01],[0,0,0,0,0,0]],
+                    "stresses_GPa":[[1.7,1.2,1.2,0,0,0],[1.2,1.7,1.2,0,0,0],[1.2,1.2,1.7,0,0,0],[0,0,0,0.75,0,0],[0,0,0,0,0.75,0], [0,0,0,0,0,0.75],[0,0,0,0,0,0]]})"},
+                {"powder-xrd", std::string(R"({"structure":)") + copperJson + "}"},
+                {"relax", std::string(R"({"structure":)") + copperJson + R"(,"calculator":{"potential":"EMT"},"steps":5})"},
+                {"lammps-export", std::string(R"({"structure":)") + copperJson + "}"},
+            };
+            for (const auto& [id, text] : cases) {
+                const Json request = Json::parse(text);
+                const auto output = atomforge::science::runTool(id, request, ".");
+                ScientificToolsDialog view;
+                if (!view.open(id)) throw std::runtime_error("Cannot open " + id);
+                Json state = Json::parse(view.snapshot());
+                state["result"] = atomforge::science::resultDocument(id, request, output);
+                if (!output.frames.empty()) state["frames"] = "1\nframe\nCu 0 0 0\n";
+                view.restore(state.dump());
+                for (int frame = 0; frame < 3; ++frame) {
+                    ImGui::NewFrame();
+                    view.draw(copper, [](Structure&) {}, [](const std::string&, const std::vector<double>&) {});
+                    ImGui::Render();
+                }
+                const auto& tool = *std::find_if(scienceToolCatalog().begin(), scienceToolCatalog().end(), [&](const auto& t) { return id == t.id; });
+                const std::string title = std::string(tool.title) + ScientificToolsDialog::windowId(ScientificToolsDialog::layoutFor(id));
+                ImGuiWindow* window = ImGui::FindWindowByName(title.c_str());
+                if (!window || !window->WasActive) throw std::runtime_error("Result layout not shown for " + id);
+            }
         }
         const auto ticks = uiPlot::niceTicks(0.013, 0.98, 5);
         if (ticks.size() < 4 || ticks.front() < 0.013 || ticks.back() > 0.98) throw std::runtime_error("Tick generation");
