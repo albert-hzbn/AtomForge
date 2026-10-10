@@ -1,4 +1,7 @@
 #include "app/FileDropHandler.h"
+#include "app/LargeData.h"
+
+#include <filesystem>
 #include "io/StructureLoader.h"
 
 #include "app/EditorOps.h"
@@ -123,6 +126,13 @@ void processDroppedFiles(EditorState& state)
         if (state.fileBrowser.isElectronicDialogOpen())
         {
             state.fileBrowser.feedDropToElectronicDialog(droppedFile);
+            continue;
+        }
+
+        // Large datasets open with the out-of-core renderer (converted on demand).
+        if (opensAsCloud(std::filesystem::u8path(droppedFile)))
+        {
+            state.pendingExternalLoadPaths.push_back(droppedFile);
             continue;
         }
 

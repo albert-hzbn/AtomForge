@@ -53,6 +53,7 @@ PUBLIC_FILES = {
     "python/atomforge/science/workflows.py": "Shared scientific workflow interface",
     "python/atomforge/native.py": "Native scientific tools (no dependencies)",
     "python/atomforge/pipeline.py": "Structure pipelines",
+    "python/atomforge/cloud.py": "Atom clouds (billions of atoms)",
 }
 FALLBACK = {
     "BaderPartition.num_basins": "Number of basins in the native on-grid Bader partition.",
@@ -108,6 +109,8 @@ def source_files():
     paths.update((ROOT / "src/science").glob("*.h"))
     paths.update((ROOT / "src/cli").glob("*.*"))
     paths.update((ROOT / "src/pipeline").glob("*.*"))
+    paths.update((ROOT / "src/cloud").glob("*.*"))
+    paths.update(ROOT / p for p in ("src/graphics/CloudRenderer.cpp", "src/graphics/CloudRenderer.h", "src/app/LargeData.cpp", "src/app/LargeData.h"))
     paths.update((ROOT / "python/atomforge").rglob("*.py"))
     paths.update(ROOT / p for p in ("src/app/EditorApplication.cpp", "src/app/EditorOps.cpp", "CMakeLists.txt"))
     return sorted(p for p in paths if p.is_file() and p.suffix in {".cpp", ".h", ".py", ".txt"})
@@ -115,6 +118,8 @@ def source_files():
 
 def documentation_for(path):
     name = path.name
+    if "cloud" in path.parts or name.startswith(("CloudRenderer", "CloudCLI", "LargeData")) or name == "cloud.py":
+        return ["04-analysis.tex", "08-python.tex", "12-api-signatures.tex"]
     if "pipeline" in path.parts or name.startswith(("PipelineDialog", "PipelineCLI")):
         return ["03-editing.tex", "12-api-signatures.tex"]
     if "science" in path.parts or name.startswith(("Scientific", "ScienceCatalog")) or name in {"Workspace.cpp","Workspace.h","TrajectoryDialog.cpp","TrajectoryDialog.h","pipeline.py","analysis.py"}:

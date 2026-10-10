@@ -69,6 +69,9 @@ Native errors raise \code{subprocess.CalledProcessError} with diagnostic streams
 \section{Structure pipelines}
 \code{atomforge.pipeline.Pipeline} is the non-destructive structure pipeline of the desktop (\ui{Edit > Structure pipeline}) and \code{AtomForge --pipe}: add, insert, move, enable, disable, change and remove steps, then \code{run(structure)}; \code{Structure.pipe(text)} applies one directly. \S\ref{sec:pipeline} describes every step and gives an example.
 
+\section{Atom clouds}
+\code{atomforge.cloud} writes and reads the desktop's large datasets (\S\ref{sec:large-datasets}): \code{generate(path, "fcc", 3.615, (630, 630, 630), "Cu")}, \code{build("run.dump", "run.afcloud", types=["Cu", "Ni"])} and \code{from\_structure(structure, path)} run the AtomForge executable; \code{info(path)} reads the header (atoms, box, species, chunks) and \code{read(path, chunk, count)} the positions and species of a chunk (NumPy arrays when NumPy is installed), both without the executable. A prefix of a chunk is a uniform random sample of it.
+
 \section{Desktop and notebook viewing}
 \code{structure.view()} opens the structure in AtomForge without blocking the Python workflow. \code{af.view(structure)} provides the package-level viewer. \code{structure.view_notebook(width=620,height=460)} requests an inline notebook view; if IPython support is absent it falls back to the desktop viewer. The notebook representation is a visual aid and does not run an electronic calculation.
 

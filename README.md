@@ -50,7 +50,9 @@ Dislocation and interstitial tools support defect studies. Interactive merging l
 - Measure distances and angles directly in the scene.
 - Inspect composition, unit-cell information, atomic positions and bonding information.
 - Undo and redo edits as you refine a model.
-- Edit non-destructively with a structure pipeline: chain selection, deletion, substitution, replication, slicing, strain and analysis steps, then reorder, bypass or change any step and the result updates, while the input structure is kept. Every Build and Edit feature is also a pipeline step, and every step is also a menu option. The same pipeline runs from the command line (`AtomForge --pipe "replicate 2 2 2 | select-expression fz > 0.5 | delete-selected"`, also through shell pipes) and from Python (`atomforge.pipeline.Pipeline`).
+- Edit non-destructively with a structure pipeline: chain selection, deletion, substitution, replication, slicing, strain and analysis steps, then reorder, bypass or change any step and the result updates, while the input structure is kept. Large datasets of up to billions of atoms (LAMMPS dumps, XYZ, or atom clouds made with `AtomForge --cloud`) open in an out-of-core renderer with level of detail, occlusion culling and streaming: a 2-billion-atom crystal displays at 60-400 frames per second on a laptop GPU.
+
+Every Build and Edit feature is also a pipeline step, and every step is also a menu option. The same pipeline runs from the command line (`AtomForge --pipe "replicate 2 2 2 | select-expression fz > 0.5 | delete-selected"`, also through shell pipes) and from Python (`atomforge.pipeline.Pipeline`).
 
 ## Understand structure and local environments
 

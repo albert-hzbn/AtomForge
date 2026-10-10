@@ -77,6 +77,15 @@ mask with `select(data, mask, mode)`; modifiers that drop or copy atoms use
 `rebuild`/`replicate`-style helpers so per-atom metadata stays aligned.
 `tests/pipeline_regressions.cpp` covers every modifier.
 
+Large datasets (billions of atoms) bypass `Structure`: `cloud/AtomCloud.*`
+stores atoms by space in chunks of 8-byte atoms in random order (a chunk prefix
+is a uniform subsample) and builds such files from streamed inputs through
+on-disk buckets; `graphics/CloudRenderer.*` draws them as sphere impostors with
+frustum and occlusion culling, prefix level of detail, point and GPU-memory
+budgets and a background streaming thread; `app/LargeData.*` opens and converts
+files, draws the Large dataset panel and runs `ATOMFORGE_CLOUD_BENCHMARK`.
+`tests/cloud_regressions.cpp` covers the format and converters.
+
 The Build and Edit operations are steps too: `cli/BuildModifiers.cpp` registers
 every `--build` mode (and the Cell Sculptor) with `registerModifierType` at
 start-up, running the same code as the menus. `ui/MenuParity.cpp` records where

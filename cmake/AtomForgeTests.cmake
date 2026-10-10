@@ -119,6 +119,10 @@ if(TARGET PkgConfig::ATOMFORGE_SCIENCE_SPGLIB)
 endif()
 add_test(NAME pipeline_regressions COMMAND atomforge_pipeline_tests)
 
+add_executable(atomforge_cloud_tests ${PROJECT_SOURCE_DIR}/tests/cloud_regressions.cpp)
+target_link_libraries(atomforge_cloud_tests PRIVATE atomforge_science)
+add_test(NAME cloud_regressions COMMAND atomforge_cloud_tests)
+
 add_executable(atomforge_science_tests ${PROJECT_SOURCE_DIR}/tests/science_tools_regressions.cpp)
 target_link_libraries(atomforge_science_tests PRIVATE atomforge_science)
 if(TARGET PkgConfig::ATOMFORGE_SCIENCE_SPGLIB)
@@ -273,6 +277,9 @@ if(Python3_Interpreter_FOUND)
             COMMAND ${CMAKE_COMMAND} -E env "ATOMFORGE_PATH=$<TARGET_FILE:AtomForge>"
                 "ATOMFORGE_SCIENCE_LIBRARY=$<TARGET_FILE:atomforge_science_native>"
                 ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tests/test_pipeline.py)
+        add_test(NAME python_cloud
+            COMMAND ${CMAKE_COMMAND} -E env "ATOMFORGE_PATH=$<TARGET_FILE:AtomForge>"
+                ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tests/test_cloud.py)
         add_test(NAME python_builders
             COMMAND ${CMAKE_COMMAND} -E env "ATOMFORGE_PATH=$<TARGET_FILE:AtomForge>"
                 ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tests/test_builders.py)

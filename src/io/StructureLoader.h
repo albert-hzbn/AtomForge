@@ -5,6 +5,9 @@
 
 // Returns true if the filename has a supported input extension.
 bool isSupportedStructureFile(const std::string& filename);
+// Files the desktop opens with its large-data renderer: atom clouds (.afcloud)
+// and LAMMPS dumps (.dump, .lammpstrj); XYZ files above 5 M atoms go there too.
+bool isLargeDataFile(const std::string& filename);
 
 // Load structure from file and return detailed error text on failure.
 bool loadStructureFromFile(const std::string& filename, Structure& structure, std::string& errorMessage);

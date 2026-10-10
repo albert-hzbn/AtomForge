@@ -29,6 +29,8 @@ add_library(atomforge_science STATIC
     ${PROJECT_SOURCE_DIR}/src/pipeline/Modifiers.cpp
     ${PROJECT_SOURCE_DIR}/src/pipeline/Expression.cpp
     ${PROJECT_SOURCE_DIR}/src/pipeline/PipelineEditor.cpp
+    # Out-of-core atom clouds (billions of atoms) for the large-data renderer.
+    ${PROJECT_SOURCE_DIR}/src/cloud/AtomCloud.cpp
     # Nye-tensor algorithms shared with the desktop dislocation tools.
     ${PROJECT_SOURCE_DIR}/src/algorithms/NyeTensor.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/DislocationFit.cpp)

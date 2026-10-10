@@ -8,7 +8,7 @@ class Camera
 {
 public:
     static constexpr float kMinDistance = 2.0f;
-    static constexpr float kMaxDistance = 5000.0f;
+    static constexpr float kMaxDistance = 1.0e6f;  // Angstrom; atom clouds can be micrometres wide
 
     // trackball parameters
     float yaw   = 45.0f;

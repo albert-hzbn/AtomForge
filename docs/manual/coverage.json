@@ -3,7 +3,7 @@
   "files": [
     {
       "source": "CMakeLists.txt",
-      "sha256": "92751d539d8f5dfe0f0bd0869b49991687e3adf3e812bacfb939864b505b0138",
+      "sha256": "ef5e0df22869f5b5a2a7243366534d9ab64d71bf749b289a608e4788ae13bef9",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -160,6 +160,16 @@
       "source": "python/atomforge/builders.py",
       "sha256": "4a8c8cdb6702d35638d703d3382c09c791958d0df8c3b711ee4e9b03a382847f",
       "documentation": [
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "python/atomforge/cloud.py",
+      "sha256": "2f118e654c925f7518dbcfbf1f00e5ff1840526d183aef001f62cb28bcb77170",
+      "documentation": [
+        "04-analysis.tex",
         "08-python.tex",
         "12-api-signatures.tex"
       ],
@@ -720,7 +730,7 @@
     },
     {
       "source": "src/app/EditorApplication.cpp",
-      "sha256": "5549a996736b8d819e4cdba6e2ca1182fceee07f3c84ea3d96e4b4baea52f721",
+      "sha256": "91addf53567c7f19bcb26829ad07215f46c95a0a07d0c549b577cda61b6fd483",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -737,6 +747,63 @@
         "04-analysis.tex",
         "04-display-controls.tex",
         "09-installation.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/app/LargeData.cpp",
+      "sha256": "24e154585494fbde66d8c4616dd744be9185f9484ac03101ecf949246094a3e7",
+      "documentation": [
+        "04-analysis.tex",
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": [
+        {
+          "line": 205,
+          "declaration_label": "Atoms per frame (M)"
+        },
+        {
+          "line": 208,
+          "declaration_label": "GPU memory (MB)"
+        },
+        {
+          "line": 209,
+          "declaration_label": "Level of detail"
+        },
+        {
+          "line": 212,
+          "declaration_label": "Detail"
+        },
+        {
+          "line": 214,
+          "declaration_label": "Atom size"
+        },
+        {
+          "line": 216,
+          "declaration_label": "Colour"
+        },
+        {
+          "line": 217,
+          "declaration_label": "Show box"
+        },
+        {
+          "line": 219,
+          "declaration_label": "Occlusion culling"
+        },
+        {
+          "line": 235,
+          "declaration_label": "Cancel"
+        }
+      ]
+    },
+    {
+      "source": "src/app/LargeData.h",
+      "sha256": "d64bf1e8b5097949111768e2be0fc14720d248c419ca30fb7582fea16c63913a",
+      "documentation": [
+        "04-analysis.tex",
+        "08-python.tex",
+        "12-api-signatures.tex"
       ],
       "literal_controls": []
     },
@@ -832,7 +899,7 @@
     },
     {
       "source": "src/cli/CLIMode.cpp",
-      "sha256": "b4f487e5799b7c5cc1a9f58caac6e09c79a2c145706579565bbf7579754d001d",
+      "sha256": "063078944927fb224b85ed31c34d92b39940efcb2c489c6d0b41940215515bfa",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -843,6 +910,26 @@
       "source": "src/cli/CLIMode.h",
       "sha256": "3db38f7ae2aafb0c9bb4664c7f95d61ee8243f5f970509a69c87710eb42b3871",
       "documentation": [
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/cli/CloudCLI.cpp",
+      "sha256": "a25ae7829b74a0cb7198f77f5396606dd74ad0daf95f059b414173452ce92681",
+      "documentation": [
+        "04-analysis.tex",
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/cli/CloudCLI.h",
+      "sha256": "44898b4d8e5bcc85db90e37da952b6d266b0d2299a988de2c5ddb8abb06b1259",
+      "documentation": [
+        "04-analysis.tex",
         "08-python.tex",
         "12-api-signatures.tex"
       ],
@@ -897,6 +984,46 @@
       "source": "src/cli/ScienceCLI.h",
       "sha256": "3e801fd77c7df46f9c2be499c3258ebc77abdb7f3b78552077af3182ffcbd6c4",
       "documentation": [
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/cloud/AtomCloud.cpp",
+      "sha256": "87310690c7266f129b3a5228b3ac7546ad37ca19e3dc8c64f511b3c652bf96bc",
+      "documentation": [
+        "04-analysis.tex",
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/cloud/AtomCloud.h",
+      "sha256": "d0002df9412573a890a6dbbd51c422725203bff1e7d1336dd085dc7e9a08c10f",
+      "documentation": [
+        "04-analysis.tex",
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/graphics/CloudRenderer.cpp",
+      "sha256": "c38b7647c92910698712b0d86659152741dfcd75433e258bb404895ff88e28de",
+      "documentation": [
+        "04-analysis.tex",
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/graphics/CloudRenderer.h",
+      "sha256": "00bb7a58ca25792b8190c6455f7b7594247d0d8f47b88b409e0542ade76ba839",
+      "documentation": [
+        "04-analysis.tex",
         "08-python.tex",
         "12-api-signatures.tex"
       ],
@@ -2810,7 +2937,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "9aba56b9cfed9835cded3a9d716f13838fbcdb993e09e3966f89e88b51610a69",
+      "sha256": "67824748097e93337decefadd4b958498267f4864a3129be68814ccf319ce433",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

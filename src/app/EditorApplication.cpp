@@ -6,6 +6,7 @@
 #include "app/EditorState.h"
 #include "app/ImageExport.h"
 #include "app/InteractionHandlers.h"
+#include "app/LargeData.h"
 #include "app/StructureFileService.h"
 #include "app/WindowSetup.h"
 
@@ -226,6 +227,13 @@ void applyPendingDefaultViewReset(Camera& camera, EditorState& state, const Fram
 {
     if (!state.pendingDefaultViewReset)
         return;
+    if (state.hasCloud())
+    {
+        // Large datasets fit their own box (there are no scene atoms).
+        state.pendingCloudFit = true;
+        state.pendingDefaultViewReset = false;
+        return;
+    }
 
     applyDefaultView(camera, state.sceneBuffers, frame.framebufferWidth, frame.framebufferHeight, true);
     state.pendingDefaultViewReset = false;
@@ -348,7 +356,9 @@ void drawScene(Renderer& renderer,
                bool showAtoms,
                bool showBoundingBox,
                bool showDislocationLines,
-               bool lightTheme)
+               bool lightTheme,
+               CloudRenderer* cloud = nullptr,
+               bool orthographic = false)
 {
     // GPU-driven frustum cull: one compute dispatch per frame builds a compact list
     // of visible atom indices in sceneBuffers.visibleIndexSSBO and writes the
@@ -424,6 +434,14 @@ void drawScene(Renderer& renderer,
     const glm::vec4& bg = lightTheme ? kLightBackground : kDarkBackground;
     glClearColor(bg.r, bg.g, bg.b, bg.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // A large dataset: the out-of-core renderer draws everything.
+    if (cloud && cloud->active())
+    {
+        cloud->settings.showBox = showBoundingBox;
+        cloud->draw(frame.projection, frame.view, frame.framebufferWidth, frame.framebufferHeight, orthographic, lightTheme);
+        return;
+    }
 
     if (showBonds && showAtoms)
     {
@@ -662,6 +680,13 @@ void loadStartupStructureIfRequested(StructureTab& tab, const std::string& start
         return;
     }
 
+    if (opensAsCloud(std::filesystem::u8path(startupStructurePath)))
+    {
+        state.fileBrowser.initFromPath("");
+        state.pendingExternalLoadPaths.push_back(startupStructurePath);
+        return;
+    }
+
     Structure loadedStructure;
     std::string loadError;
     if (!loadStructureFromPath(startupStructurePath, loadedStructure, loadError))
@@ -776,8 +801,18 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         }
     } catch (const std::exception& error) { std::cerr << "Autosave unavailable: " << error.what() << '\n'; }
 
+    CloudConversion cloudConversion;
+    std::unique_ptr<CloudBenchmark> cloudBenchmark = CloudBenchmark::fromEnvironment();
+    double lastFrameTime = glfwGetTime();
+    float frameMilliseconds = 0.0f;
+
     while (!glfwWindowShouldClose(window))
     {
+        {
+            const double now = glfwGetTime();
+            frameMilliseconds = static_cast<float>(1000.0 * (now - lastFrameTime));
+            lastFrameTime = now;
+        }
         // --- Active-tab alias ---
         EditorState& state = tabs[activeTabIdx]->state;
 
@@ -795,9 +830,52 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
 
         // Helper: load a structure file into a target tab (creates new tab when
         // current tab already has atoms). Returns true on success.
+        // Opens an atom cloud in the active tab when it is empty, else in a new tab.
+        auto openCloudIntoTab = [&](const std::string& path) -> bool
+        {
+            auto cloudRenderer = std::make_unique<CloudRenderer>();
+            try { cloudRenderer->open(std::filesystem::u8path(path)); }
+            catch (const std::exception& error)
+            {
+                state.fileBrowser.showLoadError(error.what());
+                std::cout << "[Operation] Cloud open failed: " << path << " (" << error.what() << ")" << std::endl;
+                return false;
+            }
+            int targetIdx = activeTabIdx;
+            if (tabs[activeTabIdx]->state.hasContent())
+            {
+                saveCameraToTab(camera, *tabs[activeTabIdx]);
+                tabs.push_back(std::make_unique<StructureTab>());
+                targetIdx = (int)tabs.size() - 1;
+                initTabResources(*tabs[targetIdx], sphere, lowPolyMesh, billboardMesh, cylinder, renderer);
+                copyDisplaySettings(tabs[activeTabIdx]->state, tabs[targetIdx]->state);
+                activeTabIdx     = targetIdx;
+                pendingTabSwitch = targetIdx;
+                restoreCameraFromTab(camera, *tabs[activeTabIdx]);
+            }
+            EditorState& t = tabs[targetIdx]->state;
+            t.structure = Structure();
+            updateBuffers(t);
+            t.cloud = std::move(cloudRenderer);
+            t.sceneBuffers.orbitCenter = t.cloud->center();
+            t.pendingDefaultViewReset = false;
+            t.pendingCloudFit = true;
+            t.fileBrowser.showLoadInfo("Large dataset: " + std::to_string(t.cloud->stats().totalAtoms) + " atoms (view only)");
+            setTabTitleFromPath(*tabs[targetIdx], path);
+            std::cout << "[Operation] Opened atom cloud: " << path << " (atoms=" << t.cloud->stats().totalAtoms << ")" << std::endl;
+            return true;
+        };
+
         auto loadPathIntoTab = [&](const std::string& path) -> bool
         {
             if (path.empty()) return false;
+            if (opensAsCloud(std::filesystem::u8path(path)))
+            {
+                if (atomforge::cloud::isCloudFile(std::filesystem::u8path(path))) return openCloudIntoTab(path);
+                // Converted in the background once, then opened.
+                cloudConversion.start(std::filesystem::u8path(path));
+                return true;
+            }
 
             Structure newStructure;
             std::string loadError;
@@ -811,7 +889,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
 
             // Use current tab only when it is empty; otherwise open a new tab.
             int targetIdx = activeTabIdx;
-            if (!tabs[activeTabIdx]->state.structure.atoms.empty())
+            if (tabs[activeTabIdx]->state.hasContent())
             {
                 saveCameraToTab(camera, *tabs[activeTabIdx]);
                 tabs.push_back(std::make_unique<StructureTab>());
@@ -856,7 +934,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                 // Reuse the current tab if it is empty; otherwise open a new one.
                 // This prevents a stale empty tab from remaining after a build.
                 int targetIdx = activeTabIdx;
-                if (!tabs[activeTabIdx]->state.structure.atoms.empty())
+                if (tabs[activeTabIdx]->state.hasContent())
                 {
                     saveCameraToTab(camera, *tabs[activeTabIdx]);
                     tabs.push_back(std::make_unique<StructureTab>());
@@ -888,7 +966,19 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
 
         applyPendingDefaultViewReset(camera, state, frame);
         camera.applyScrollVelocity(glfwGetTime());
+        if (state.hasCloud())
+        {
+            if (state.pendingCloudFit)
+            {
+                fitCameraToCloud(camera, *state.cloud, frame.framebufferWidth, frame.framebufferHeight);
+                state.pendingCloudFit = false;
+            }
+            if (cloudBenchmark)
+                cloudBenchmark->beforeFrame(camera, *state.cloud, frame.framebufferWidth, frame.framebufferHeight);
+        }
         buildFrameView(camera, state.sceneBuffers, state.fileBrowser.isOrthographicViewEnabled(), frame);
+        if (state.hasCloud())
+            adjustCloudProjection(frame, camera, *state.cloud, state.fileBrowser.isOrthographicViewEnabled());
 
         if (state.grabState.active)
         {
@@ -1010,6 +1100,20 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             }
         } catch (const std::exception& error) { state.fileBrowser.showLoadError(error.what()); }
 
+        // A finished large-data conversion opens its cloud.
+        {
+            std::filesystem::path converted;
+            std::string conversionError;
+            if (cloudConversion.finished(converted, conversionError))
+            {
+                if (!converted.empty()) openCloudIntoTab(converted.u8string());
+                else if (conversionError != "Cancelled") state.fileBrowser.showLoadError("Cannot convert the large dataset: " + conversionError);
+            }
+        }
+        drawConversionProgress(cloudConversion);
+        if (state.hasCloud())
+            drawCloudPanel(*state.cloud, frameMilliseconds);
+
         // Handle File > Open requests: load into current tab (if empty) or new tab
         {
             const std::string openPath = state.fileBrowser.consumePendingOpenPath();
@@ -1022,7 +1126,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         {
             const bool anyTabHasStructure = [&]() {
                 for (const auto& t : tabs)
-                    if (!t->state.structure.atoms.empty()) return true;
+                    if (t->state.hasContent()) return true;
                 return false;
             }();
             const bool showTabBar = anyTabHasStructure || (int)tabs.size() > 1;
@@ -1287,7 +1391,9 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                   activeState.fileBrowser.isShowAtomsEnabled(),
                   activeState.fileBrowser.isShowBoundingBoxEnabled(),
                   activeState.fileBrowser.isShowDislocationLinesEnabled(),
-                  activeState.fileBrowser.isLightThemeEnabled());
+                  activeState.fileBrowser.isLightThemeEnabled(),
+                  activeState.cloud.get(),
+                  activeState.fileBrowser.isOrthographicViewEnabled());
 
         // Selection halos: drawn after atoms so nearer atoms hide them.
         if (!activeState.selectedInstanceIndices.empty() &&
@@ -1310,6 +1416,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             renderer.drawSelectionHalos(frame.projection, frame.view, selPos, selRad);
         }
 
+        setImageExportCloud(activeState.cloud.get());
         handleImageExportIfRequested(hasImageExportRequest, imageExportRequest,
                                      frame, activeState, renderer, shadow);
         captureTrajectoryGifFrame(frame, activeState, renderer, shadow);
@@ -1318,6 +1425,11 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         saveCameraToTab(camera, *tabs[activeTabIdx]);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        if (cloudBenchmark && activeState.hasCloud())
+        {
+            cloudBenchmark->afterFrame(*activeState.cloud, frame.framebufferWidth, frame.framebufferHeight);
+            if (cloudBenchmark->done()) glfwSetWindowShouldClose(window, true);
+        }
         glfwSwapBuffers(window);
     }
 

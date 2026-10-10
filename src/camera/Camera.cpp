@@ -108,7 +108,8 @@ void Camera::cursor(GLFWwindow*,double x,double y)
 
         if (instance->allowPan)
         {
-            const float panScale = 0.01f;
+            // Scaled with distance beyond ~30 A so that very large scenes pan at the same screen speed.
+            const float panScale = 0.01f * std::max(1.0f, instance->distance / 30.0f);
             instance->panOffset += right * (dx * panScale);
             instance->panOffset += up    * (dy * panScale);
         }

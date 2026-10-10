@@ -1,4 +1,9 @@
 #include "app/ImageExport.h"
+#include "graphics/CloudRenderer.h"
+
+#include <GLFW/glfw3.h>
+#include <chrono>
+#include <thread>
 
 #include "graphics/CylinderMesh.h"
 #include "graphics/Renderer.h"
@@ -219,6 +224,8 @@ void flipImageRows(std::vector<unsigned char>& pixels, int width, int height, in
     }
 }
 
+CloudRenderer* g_exportCloud = nullptr;  // see setImageExportCloud
+
 bool captureSceneToRgba(const ImageExportView& view,
                         const glm::vec4& clearColor,
                         bool showBonds,
@@ -292,6 +299,25 @@ bool captureSceneToRgba(const ImageExportView& view,
         return false;
     }
 
+    if (g_exportCloud && g_exportCloud->active())
+    {
+        // The cloud at the export resolution: redraw while its atoms stream in (at most 30 s).
+        const bool orthographic = view.projection[3][3] == 1.0f;
+        const bool lightTheme = clearColor.r + clearColor.g + clearColor.b > 1.5f;
+        const double start = glfwGetTime();
+        for (int pass = 0;; ++pass)
+        {
+            glViewport(0, 0, view.width, view.height);
+            glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            g_exportCloud->settings.showBox = showBoundingBox;
+            g_exportCloud->draw(view.projection, view.view, view.width, view.height, orthographic, lightTheme);
+            if ((pass > 2 && g_exportCloud->stats().complete) || glfwGetTime() - start > 30.0) break;
+            glFinish();
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
+    }
+    else
     drawSceneToCurrentFramebuffer(view,
                                   clearColor,
                                   showBonds,
@@ -891,3 +917,5 @@ bool exportStructureImage(const ImageExportRequest& request,
                             structure,
                             errorMessage);
 }
+
+void setImageExportCloud(CloudRenderer* cloud) { g_exportCloud = cloud; }

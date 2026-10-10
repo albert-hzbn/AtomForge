@@ -1232,6 +1232,12 @@ bool isSupportedStructureFile(const std::string& filename)
     return filenameIsPoscarOrContcar(filename);
 }
 
+bool isLargeDataFile(const std::string& filename)
+{
+    const std::string extLower = toLowerCopy(extractExtension(filename));
+    return extLower == ".afcloud" || extLower == ".dump" || extLower == ".lammpstrj";
+}
+
 bool loadStructureFromFile(const std::string& filename, Structure& structure, std::string& errorMessage)
 {
     structure = Structure();

@@ -168,6 +168,9 @@ set(ATOMFORGE_SOURCES
     src/cli/CliArgs.cpp
     src/cli/PipelineCLI.cpp
     src/cli/BuildModifiers.cpp
+    src/cli/CloudCLI.cpp
+    src/app/LargeData.cpp
+    src/graphics/CloudRenderer.cpp
     src/io/StructureLoader.cpp
     imgui/imgui.cpp
     imgui/imgui_draw.cpp

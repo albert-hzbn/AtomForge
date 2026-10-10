@@ -2,6 +2,7 @@
 
 #include "UndoRedo.h"
 #include "algorithms/VoronoiComputation.h"
+#include "graphics/CloudRenderer.h"
 #include "graphics/SceneBuffers.h"
 #include "model/Structure.h"
 #include "ui/AtomContextMenu.h"
@@ -12,6 +13,7 @@
 
 #include <glm/glm.hpp>
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -74,4 +76,9 @@ struct EditorState
     VoronoiDiagram voronoiDiagram;
     bool voronoiDirty = true;  // recompute when structure changes
     GrabState grabState;
+    // A large dataset shown with the out-of-core renderer instead of `structure`.
+    std::unique_ptr<CloudRenderer> cloud;
+    bool pendingCloudFit = false;
+    bool hasCloud() const { return cloud && cloud->active(); }
+    bool hasContent() const { return !structure.atoms.empty() || hasCloud(); }
 };

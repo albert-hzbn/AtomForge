@@ -1015,7 +1015,7 @@ void FileBrowser::drawOpenStructureDialog()
         if (doLoad)
         {
             std::string fullPath = joinPath(openDir, openFilename);
-            if (!isSupportedStructureFile(openFilename))
+            if (!isSupportedStructureFile(openFilename) && !isLargeDataFile(openFilename))
             {
                 std::snprintf(openStatusMsg, sizeof(openStatusMsg),
                               "Unsupported file format.");

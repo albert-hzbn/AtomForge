@@ -54,6 +54,29 @@ Choose \ui{View > Miller Directions} to configure direction overlays and \ui{Sho
 
 \ui{View > Select Theme > Light/Dark} changes the desktop theme. Electronic scalar colours and transparency are configured separately in the electronic dialog's \ui{Appearance} and 3D controls. Use a consistent palette and numerical range when comparing several electronic fields.
 
+\section{Large datasets: billions of atoms}\label{sec:large-datasets}
+Structures far larger than memory --- molecular-dynamics snapshots of hundreds of millions or billions of atoms --- open with a separate large-data renderer. \ui{File > Open}, dropping a file or naming it on the command line opens an atom cloud (\code{.afcloud}) directly; a LAMMPS text dump (\code{.dump}, \code{.lammpstrj}, or any file starting with \code{ITEM: TIMESTEP}) and an XYZ file of more than five million atoms are first converted into one, once, with a progress window (the cloud is kept next to the file, or in the user's cache folder when that folder is read-only, and reused while it is newer than the file). Large datasets are for viewing: editing, analysis and pipelines work on ordinary structures.
+
+\paragraph{How it scales.} An atom cloud stores the atoms by space in chunks of about half a million atoms, 8 bytes per atom (positions to $1/65535$ of the chunk, about $10^{-3}$\,\AA, and a species), in random order inside each chunk, so that any first part of a chunk is a uniform random sample of it. Each frame the renderer
+\begin{itemize}
+\item skips chunks outside the view and chunks hidden behind atoms already drawn (occlusion queries, checked one frame later so that they never stall the display);
+\item gives every other chunk as many atoms as its size on screen needs: enough to cover it where atoms are smaller than a pixel, rising to every atom as atoms grow from 0.75 to 1.5 pixels in radius, where their arrangement becomes visible; distant parts are drawn as subsamples with slightly larger points;
+\item keeps within the \ui{Atoms per frame} budget (the nearest chunks get full detail first) and streams the atoms it lacks from the file on a background thread, within the \ui{GPU memory} budget (least recently drawn chunks are released first);
+\item draws atoms as lit sphere impostors with exact depth, front to back, so that hidden atoms cost little.
+\end{itemize}
+Memory therefore depends on the view, not on the dataset: the file can be as large as the disk. On a laptop GPU (NVIDIA RTX 2000 Ada, 8 GB) a 1.0-billion-atom crystal (8 GB file) and a 2.15-billion-atom crystal (17 GB) display at 60--400 frames per second, from the whole crystal to a close-up of individual atoms, each view streaming in within a few seconds.
+
+\paragraph{The Large dataset panel.} It shows the atoms in the dataset and drawn in the last frame, the visible and hidden chunks, the GPU time and memory, and whether streaming is complete. \ui{Atoms per frame} trades detail for speed; \ui{GPU memory} bounds the atoms kept on the GPU; \ui{Level of detail} off draws every atom of the visible chunks (within the budgets); \ui{Detail} sets how densely subsampled regions are filled; \ui{Atom size} scales the radii; \ui{Colour} colours by species or by height along x, y or z; \ui{Show box} and \ui{Occlusion culling} toggle the outline and the hidden-chunk test. \ui{Export Image} renders the cloud at the export resolution and waits for its atoms to stream in.
+
+\paragraph{Making atom clouds.} \code{AtomForge --cloud} converts and generates them without the desktop; conversion streams its input, so memory does not grow with the file (it needs about 16 bytes per atom of free disk space for intermediate files, see \code{--temp}):
+\begin{lstlisting}
+AtomForge --cloud build --input run.dump --types "Cu,Ni" --output run.afcloud
+AtomForge --cloud build --input big.extxyz --frame 10 --output big.afcloud
+AtomForge --cloud generate --lattice fcc --a 3.615 --cells 630 630 630 --element Cu --output cu1b.afcloud
+AtomForge --cloud info run.afcloud
+\end{lstlisting}
+LAMMPS dumps may give positions as \code{x y z}, scaled \code{xs ys zs} or unwrapped \code{xu yu zu}, in orthogonal or triclinic boxes, with an \code{element} or a \code{type} column (\code{--types} names the types); XYZ files may be extended XYZ (\code{Properties=}, \code{Lattice=}). Other formats are loaded whole and then converted. A dump of 10 million atoms converts in about 1.5\,s; a billion-atom crystal is generated in about 80\,s. In Python, \code{atomforge.cloud} offers the same (Chapter~\ref{ch:python}).
+
 \section{Exporting images}
 Choose \ui{File > Export Image}, select PNG, JPEG, or SVG, configure the available export settings, browse to a destination, and export. Inspect the output file at its intended presentation size. PNG is appropriate for lossless raster figures; JPEG can introduce compression artefacts around small labels; SVG is useful when a downstream tool supports the exported representation.
 

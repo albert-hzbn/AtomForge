@@ -2582,6 +2582,79 @@ Indices of the selected atoms in the output.
 
 
 
+\section{Atom clouds (billions of atoms)}
+
+\subsection{CloudInfo}
+
+Description of an atom cloud: atom count, box, species and chunks.
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+info(path: PathLike)
+\end{lstlisting}
+
+Reads the header of an .afcloud file (no executable needed).
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+read(path: PathLike, chunk: int, count: Optional[int]=None, first: int=0)
+\end{lstlisting}
+
+Atoms of one chunk as (positions, species): positions in Angstrom and species indices.
+
+NumPy arrays when NumPy is installed, else lists. A prefix (count from the
+start) is a uniform random subsample of the chunk.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+generate(output: PathLike, lattice: str, a: float, cells: Sequence[int], element: str, second: Optional[str]=None, c: Optional[float]=None, chunk: Optional[int]=None)
+\end{lstlisting}
+
+Writes a crystal of cells (nx, ny, nz) unit cells: lattice fcc, bcc, sc, diamond or hcp.
+
+second alternates a second element on the basis (ordered alloy test data).
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+build(input: PathLike, output: PathLike, types: Optional[Sequence[str]]=None, frame: int=0, chunk: Optional[int]=None, temporary: Optional[PathLike]=None)
+\end{lstlisting}
+
+Converts a LAMMPS dump or (extended) XYZ file, streaming it, or any other structure file.
+
+types names LAMMPS atom types 1, 2, ...; frame picks a frame of a trajectory.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+from_structure(structure, output: PathLike, chunk: Optional[int]=None)
+\end{lstlisting}
+
+Writes an :class:atomforge.Structure as an atom cloud (through extended XYZ).
+
+\end{samepage}
+
+
+
 \section{Native builder options}
 
 Use \code{AtomForge --help MODE} for detailed help. \code{AtomForge --build MODE --help} prints the general overview in this version. These option listings are extracted from the source help and checked against the normal executable. CLI defaults may differ from a dialog's remembered settings. The caret line continuations shown in help are for Windows cmd; use a single line or a subprocess argument list in PowerShell/Python.

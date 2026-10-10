@@ -72,6 +72,21 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
     run("--pipe", "replicate 2 1 1 | wrap", "--input", source, "--output", root / "wrapped.xyz", "--save-pipeline", saved, "--quiet")
     assert json.loads(saved.read_text())["modifiers"][0]["type"] == "replicate"
     run("--pipeline", saved, "--input", source, "--output", root / "again.xyz", "--quiet")
+    # Atom clouds for very large structures: generate, convert (dump, XYZ, other formats), describe.
+    cloud = root / "cu.afcloud"
+    run("--cloud", "generate", "--lattice", "fcc", "--a", "3.615", "--cells", "10", "10", "10", "--element", "Cu", "--output", cloud, "--quiet")
+    info = run("--cloud", "info", cloud).stdout
+    assert "atoms    4000" in info and "Cu" in info, info
+    dump = root / "md.dump"
+    dump.write_text("ITEM: TIMESTEP\n0\nITEM: NUMBER OF ATOMS\n3\nITEM: BOX BOUNDS pp pp pp\n0 10\n0 10\n0 10\n"
+                    "ITEM: ATOMS id type xs ys zs\n1 1 0.1 0.1 0.1\n2 2 0.5 0.5 0.5\n3 1 0.9 0.2 0.3\n")
+    run("--cloud", "build", "--input", dump, "--types", "Fe,Cr", "--output", root / "md.afcloud", "--quiet")
+    info = run("--cloud", "info", root / "md.afcloud").stdout
+    assert "atoms    3" in info and "Fe" in info and "Cr" in info, info
+    run("--cloud", "build", "--input", source, "--output", root / "cif.afcloud", "--quiet")
+    assert "atoms    4" in run("--cloud", "info", root / "cif.afcloud").stdout
+    run("--cloud", "info", root / "missing.afcloud", success=False)
+    run("--cloud", "generate", "--lattice", "nope", "--a", "3", "--element", "Cu", "--output", root / "bad.afcloud", success=False)
     # Every pipeline step, Build and Edit operations included, is also in the menus.
     steps = json.loads(run("--pipe", "--list-json").stdout)
     missing = [step["id"] for step in steps if not step.get("menu")]

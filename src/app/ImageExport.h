@@ -6,6 +6,8 @@
 #include <glm/glm.hpp>
 
 #include <string>
+
+class CloudRenderer;
 #include <vector>
 
 struct Renderer;
@@ -25,6 +27,10 @@ struct ImageExportView
 
 // Renders the scene off-screen into RGBA pixels (rows top to bottom), as used
 // for raster image export; GIF animation frames are captured this way.
+// A large dataset to draw instead of the scene buffers in exported images
+// (nullptr for normal structures). The export waits for its atoms to stream in.
+void setImageExportCloud(CloudRenderer* cloud);
+
 bool renderSceneToRgba(const ImageExportView& view,
                        const glm::vec4& backgroundColor,
                        bool showBonds,

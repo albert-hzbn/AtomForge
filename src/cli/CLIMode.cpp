@@ -2,6 +2,7 @@
 #include "cli/AnalysisCLI.h"
 #include "cli/BuildModes.h"
 #include "cli/CliArgs.h"
+#include "cli/CloudCLI.h"
 #include "cli/PipelineCLI.h"
 #include "cli/RenderCLI.h"
 #include "cli/ScienceCLI.h"
@@ -30,6 +31,7 @@ static void printHelp()
 "  AtomForge --science <tool> --input REQUEST.json --output RESULT.json\n"
 "  AtomForge --science-batch BATCH.json --output RESULTS.json [--csv TABLE.csv]\n"
 "  AtomForge --pipe \"STEP | STEP\" --input FILE|- --output FILE|-   (see --pipe --help)\n"
+"  AtomForge --cloud build|generate|info ...   Atom clouds of billions of atoms (see --cloud --help)\n"
 "\n"
 "Modes:\n"
 "  bulk        Build a bulk crystal from a space group and lattice parameters\n"
@@ -161,6 +163,7 @@ bool isCLIMode(int argc, char* argv[])
         if (std::strcmp(argv[i], "--science-batch") == 0) return true;
         if (std::strcmp(argv[i], "--pipe") == 0) return true;
         if (std::strcmp(argv[i], "--pipeline") == 0) return true;
+        if (std::strcmp(argv[i], "--cloud") == 0) return true;
         if (std::strcmp(argv[i], "--help")    == 0) return true;
         if (std::strcmp(argv[i], "-h")        == 0) return true;
         if (std::strcmp(argv[i], "--version") == 0) return true;
@@ -179,6 +182,8 @@ int runCLI(int argc, char* argv[])
         return runScienceCLI(argc, argv);
     if (hasFlag(argc, argv, "--pipe") || hasFlag(argc, argv, "--pipeline"))
         return runPipelineCLI(argc, argv);
+    if (hasFlag(argc, argv, "--cloud"))
+        return runCloudCLI(argc, argv);
     if (hasFlag(argc, argv, "--version") || hasFlag(argc, argv, "-v"))
     {
         std::cout << "AtomForge " << ATOMFORGE_VERSION << "\n";
