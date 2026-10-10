@@ -52,6 +52,7 @@ PUBLIC_FILES = {
     "python/atomforge/science/advanced_simulation.py": "NEB, NVT, NPT and symmetry paths",
     "python/atomforge/science/workflows.py": "Shared scientific workflow interface",
     "python/atomforge/native.py": "Native scientific tools (no dependencies)",
+    "python/atomforge/pipeline.py": "Structure pipelines",
 }
 FALLBACK = {
     "BaderPartition.num_basins": "Number of basins in the native on-grid Bader partition.",
@@ -106,6 +107,7 @@ def source_files():
     paths.update((ROOT / "src/algorithms").glob("*.h"))
     paths.update((ROOT / "src/science").glob("*.h"))
     paths.update((ROOT / "src/cli").glob("*.*"))
+    paths.update((ROOT / "src/pipeline").glob("*.*"))
     paths.update((ROOT / "python/atomforge").rglob("*.py"))
     paths.update(ROOT / p for p in ("src/app/EditorApplication.cpp", "src/app/EditorOps.cpp", "CMakeLists.txt"))
     return sorted(p for p in paths if p.is_file() and p.suffix in {".cpp", ".h", ".py", ".txt"})
@@ -113,6 +115,8 @@ def source_files():
 
 def documentation_for(path):
     name = path.name
+    if "pipeline" in path.parts or name.startswith(("PipelineDialog", "PipelineCLI")):
+        return ["03-editing.tex", "12-api-signatures.tex"]
     if "science" in path.parts or name.startswith(("Scientific", "ScienceCatalog")) or name in {"Workspace.cpp","Workspace.h","TrajectoryDialog.cpp","TrajectoryDialog.h","pipeline.py","analysis.py"}:
         return ["14-workflows.tex", "12-api-signatures.tex"]
     if "electronic" in path.parts or name.startswith("Electronic"):

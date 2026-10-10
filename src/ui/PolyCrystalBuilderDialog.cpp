@@ -91,6 +91,8 @@ bool PolyCrystalBuilderDialog::tryLoadFile(const std::string& path,
         return false;
     }
     m_reference = std::move(loaded);
+    m_referencePath = path;
+    m_referenceFromStep = false;
 
     // Extract basename for display
     std::string::size_type sep = path.find_last_of("/\\");
@@ -244,8 +246,98 @@ void PolyCrystalBuilderDialog::renderPreviewToFBO(int w, int h)
 
 void PolyCrystalBuilderDialog::drawMenuItem(bool enabled)
 {
-    if (ImGui::MenuItem("Polycrystal", NULL, false, enabled))
+    if (ImGui::MenuItem("Polycrystal", NULL, false, enabled)) {
+        m_step.finish();  // from the menu: build, not edit a step
         m_openRequested = true;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline step editing
+// ---------------------------------------------------------------------------
+
+bool PolyCrystalBuilderDialog::editStep(StepEdit edit)
+{
+    m_step = std::move(edit);
+    const auto r = m_step.reader();
+
+    // Missing flags take runPoly's defaults.
+    PolyParams p;
+    p.sizeX     = static_cast<float>(r.number("--sizex", 50.0));
+    p.sizeY     = static_cast<float>(r.number("--sizey", 50.0));
+    p.sizeZ     = static_cast<float>(r.number("--sizez", 50.0));
+    p.numGrains = r.integer("--grains", 8);
+    p.seed      = r.integer("--seed", 42);
+    const auto eulers = r.values("--euler");
+    for (int i = 0; i < (int)eulers.size(); ++i) {
+        std::istringstream in(eulers[i]);
+        GrainOrientation go;
+        go.grainIndex = i;
+        if (in >> go.phi1 >> go.Phi >> go.phi2) p.specifiedOrientations.push_back(go);
+    }
+    const auto grainEulers = r.values("--grain-euler");
+    for (const auto& text : grainEulers) {
+        std::istringstream in(text);
+        int grain = 0;
+        GrainOrientation go;
+        if (in >> grain >> go.phi1 >> go.Phi >> go.phi2 && grain >= 1) {
+            go.grainIndex = grain - 1;
+            p.specifiedOrientations.push_back(go);
+        }
+    }
+    if (grainEulers.empty() && !eulers.empty() && (int)eulers.size() >= p.numGrains)
+        p.orientationMode = GrainOrientationMode::AllSpecified;
+    else if (!p.specifiedOrientations.empty())
+        p.orientationMode = GrainOrientationMode::PartialSpecified;
+    else
+        p.orientationMode = GrainOrientationMode::AllRandom;
+    m_params = p;
+    m_lastResult = {};
+
+    // The reference: a file named in the options, else the step's input.
+    m_reference = {};
+    m_referenceFilename.clear();
+    m_referencePath.clear();
+    m_referenceFromStep = false;
+    m_statusMsg[0] = '\0';
+    const bool useInput = !m_step.parameters.contains("use_input") || m_step.parameters.at("use_input").boolean();
+    if (r.has("--input")) {
+        m_pendingDropPath = r.text("--input");
+        m_referencePath   = m_pendingDropPath;  // kept even if the file cannot be loaded now
+    } else if (useInput && !m_step.input.atoms.empty()) {
+        m_reference = m_step.input;
+        m_referenceFilename = "(pipeline step input)";
+        m_referenceFromStep = true;
+        m_previewBufDirty = true;
+        m_fitCameraPending = true;
+        std::snprintf(m_statusMsg, sizeof(m_statusMsg), "Step input: %d atoms", (int)m_reference.atoms.size());
+    }
+    m_openRequested = true;
+    return true;
+}
+
+std::string PolyCrystalBuilderDialog::stepOptions() const
+{
+    atomforge::pipeline::options::Writer w;
+    if (!m_referenceFromStep && !m_referencePath.empty()) w.add("--input", m_referencePath);
+    w.add("--sizex", m_params.sizeX);
+    w.add("--sizey", m_params.sizeY);
+    w.add("--sizez", m_params.sizeZ);
+    w.add("--grains", m_params.numGrains);
+    w.add("--seed", m_params.seed);
+    if (m_params.orientationMode == GrainOrientationMode::AllSpecified) {
+        // One --euler per grain, in grain order.
+        const int n = std::min(m_params.numGrains, (int)m_params.specifiedOrientations.size());
+        for (int i = 0; i < n; ++i) {
+            const auto& o = m_params.specifiedOrientations[i];
+            w.add("--euler", std::vector<double>{o.phi1, o.Phi, o.phi2});
+        }
+    } else if (m_params.orientationMode == GrainOrientationMode::PartialSpecified) {
+        // Grain numbers are explicit: the specified grains need not be the first ones.
+        for (const auto& o : m_params.specifiedOrientations)
+            w.add("--grain-euler", std::vector<double>{(double)(o.grainIndex + 1), o.phi1, o.Phi, o.phi2});
+    }
+    return w.str();
 }
 
 // ---------------------------------------------------------------------------
@@ -259,8 +351,8 @@ void PolyCrystalBuilderDialog::drawDialog(
     const std::vector<float>& elementShininess,
     const std::function<void(Structure&)>& updateBuffers)
 {
-    static PolyParams      params;
-    static PolyBuildResult lastResult;
+    PolyParams&      params     = m_params;
+    PolyBuildResult& lastResult = m_lastResult;
 
     // Consume pending drop
     if (!m_pendingDropPath.empty()) {
@@ -268,11 +360,12 @@ void PolyCrystalBuilderDialog::drawDialog(
         m_pendingDropPath.clear();
     }
 
+    const bool openedNow = m_openRequested;
     if (m_openRequested) {
         ImGui::OpenPopup("Build Polycrystal");
         lastResult      = {};
         m_openRequested = false;
-        m_statusMsg[0]  = '\0';
+        if (!m_step.active()) m_statusMsg[0] = '\0';
     }
 
     m_isOpen = ImGui::IsPopupOpen("Build Polycrystal");
@@ -280,10 +373,16 @@ void PolyCrystalBuilderDialog::drawDialog(
     responsive::windowSize(ImVec2(820.0f, 700.0f), ImGuiCond_FirstUseEver);
     bool dialogOpen = true;
     if (!responsive::beginModal("Build Polycrystal", &dialogOpen, 0)) {
+        if (!openedNow) m_step.finish();  // closed with X
         m_isOpen = false;
         return;
     }
     m_isOpen = true;
+
+    if (m_step.active())
+        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f),
+                           "Editing pipeline step %s: Update step writes these settings into the pipeline.",
+                           m_step.step.c_str());
 
     if (responsive::button("Load reference##sourcePicker"))
         m_sourcePicker.open("Load reference", false, "");
@@ -344,6 +443,10 @@ void PolyCrystalBuilderDialog::drawDialog(
         if (m_glReady) {
             if (m_previewBufDirty)
                 rebuildPreviewBuffers(elementRadii, elementShininess);
+            if (m_fitCameraPending) {
+                autoFitPreviewCamera();
+                m_fitCameraPending = false;
+            }
 
             const float previewPadding = 5.0f;
             const ImVec2 previewSize(dropMax.x - dropMin.x - 2.0f * previewPadding,
@@ -479,7 +582,7 @@ void PolyCrystalBuilderDialog::drawDialog(
             "Specify orientations for selected grains. Unspecified grains get random orientations.");
         ImGui::TextDisabled("Bunge Euler angles (phi1, Phi, phi2) in degrees");
 
-        static int newGrainIdx = 1;
+        int& newGrainIdx = m_newGrainIdx;
         ImGui::SetNextItemWidth(responsive::dp(70.0f));
         ImGui::InputInt("Grain #", &newGrainIdx);
         if (newGrainIdx < 1) newGrainIdx = 1;
@@ -557,20 +660,38 @@ void PolyCrystalBuilderDialog::drawDialog(
     // =========================================================================
 
     const bool canBuild = !m_reference.atoms.empty() && m_reference.hasUnitCell;
-    if (!canBuild) ImGui::BeginDisabled();
-    if (responsive::button("Build##poly", responsive::size(100.0f,0.0f)))
+    // A step may be updated before its input exists; building needs a reference.
+    const bool disableAction = !canBuild && !m_step.active();
+    if (disableAction) ImGui::BeginDisabled();
+    if (m_step.active())
+    {
+        if (responsive::button("Update step##poly", responsive::size(100.0f,0.0f)))
+        {
+            // The step input stays the reference unless a file was loaded here.
+            atomforge::pipeline::Json updated = m_step.parameters;
+            updated["options"] = stepOptions();
+            if (m_referenceFromStep) updated["use_input"] = true;
+            m_step.commitParameters(updated);
+            m_step.finish();
+            lastResult = {};
+            m_isOpen   = false;
+            ImGui::CloseCurrentPopup();
+        }
+    }
+    else if (responsive::button("Build##poly", responsive::size(100.0f,0.0f)))
     {
         lastResult = buildPolycrystal(structure, m_reference, params, elementColors);
         if (lastResult.success)
             updateBuffers(structure);
     }
-    if (!canBuild) ImGui::EndDisabled();
+    if (disableAction) ImGui::EndDisabled();
 
     ImGui::SameLine();
     if (responsive::button("Close##poly", responsive::size(80.0f,0.0f)))
     {
         lastResult = {};
         m_isOpen   = false;
+        m_step.finish();
         ImGui::CloseCurrentPopup();
     }
 

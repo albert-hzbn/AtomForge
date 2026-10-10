@@ -79,6 +79,11 @@ set(ATOMFORGE_SOURCES
     src/ui/TrajectoryDialog.cpp
     src/ui/ScientificToolsDialog.cpp
     src/ui/ScientificToolsLayouts.cpp
+    src/ui/PipelineDialog.cpp
+    src/ui/ModifierEditor.cpp
+    src/ui/OperationDialog.cpp
+    src/ui/MenuParity.cpp
+    src/ui/StepDialogCheck.cpp
     src/cli/ScienceCLI.cpp
     src/app/EditorApplication.cpp
     src/app/FileDropHandler.cpp
@@ -161,6 +166,8 @@ set(ATOMFORGE_SOURCES
     src/cli/BuildDefectCLI.cpp
     src/cli/BuildNanoCLI.cpp
     src/cli/CliArgs.cpp
+    src/cli/PipelineCLI.cpp
+    src/cli/BuildModifiers.cpp
     src/io/StructureLoader.cpp
     imgui/imgui.cpp
     imgui/imgui_draw.cpp

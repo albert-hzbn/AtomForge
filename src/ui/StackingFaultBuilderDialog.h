@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ui/StepEditing.h"
+
 #include "algorithms/StackingFaultBuilder.h"
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
@@ -32,6 +34,13 @@ struct StackingFaultBuilderDialog
 
     bool isOpen() const { return m_isOpen; }
     void feedDroppedFile(const std::string& path);
+
+    // Opens the dialog on a pipeline step: filled from the step's settings, with
+    // "Update step" writing them back instead of building.
+    bool editStep(StepEdit edit);
+    // The dialog's current settings as the step's options (command-line flags of
+    // AtomForge --build stacking-fault).
+    std::string stepOptions() const;
 
 private:
     struct PreviewState
@@ -73,6 +82,14 @@ private:
 
     bool m_openRequested = false;
     bool m_isOpen = false;
+
+    // Editing a pipeline step
+    StepEdit m_step;
+    bool m_stepLoadInput = false;     // load the step input as the source
+    bool m_stepSetup = false;         // apply the step's plane and frame once the source is loaded
+    StackingFaultPlane m_stepPlane = StackingFaultPlane::Auto;
+    int m_stepFrame = 0;              // the step's --frame while no sequence is generated
+    std::string m_stepSequence;       // the step's --sequence folder (kept as is)
     bool m_glReady = false;
     bool m_sourceLoaded = false;
 

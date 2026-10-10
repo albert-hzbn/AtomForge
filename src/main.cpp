@@ -1,4 +1,5 @@
 #include "app/EditorApplication.h"
+#include "cli/BuildModifiers.h"
 #include "cli/CLIMode.h"
 
 #include <algorithm>
@@ -78,6 +79,8 @@ static void expandWildcard(const std::string& pattern, std::vector<std::string>&
 
 int main(int argc, char* argv[])
 {
+    // Build and Edit operations are also structure-pipeline steps (desktop and CLI).
+    registerBuildModifiers();
     if (isCLIMode(argc, argv))
         return runCLI(argc, argv);
 

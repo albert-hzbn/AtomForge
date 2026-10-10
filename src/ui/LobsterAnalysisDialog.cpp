@@ -43,7 +43,7 @@ void LobsterAnalysisDialog::drawDialog()
     responsive::beginChild("Lobster controls",ImVec2(sidebar,stackPanels?responsive::dp(420):0),true);
 
     dialogLayout::section("COHP / COOP / COBI curves");
-    if (responsive::button("Open COHPCAR...")) m_cohpcarPicker.open("Open LOBSTER COHPCAR",false,m_cohpcarPath.empty()?"COHPCAR.lobster":m_cohpcarPath);
+    if (responsive::button("Open COHPCAR")) m_cohpcarPicker.open("Open LOBSTER COHPCAR",false,m_cohpcarPath.empty()?"COHPCAR.lobster":m_cohpcarPath);
     if (!m_cohpcarPath.empty())
         ImGui::TextWrapped("Loaded: %s (%zu bonds, %s)",std::filesystem::u8path(m_cohpcarPath).filename().u8string().c_str(),
             m_cohpcar.bonds.size(),m_cohpcar.spinPolarized?"spin-polarized":"non-spin-polarized");
@@ -72,7 +72,7 @@ void LobsterAnalysisDialog::drawDialog()
     }
 
     dialogLayout::section("ICOHPLIST / ICOOPLIST / ICOBILIST summary");
-    if (responsive::button("Open ICOHPLIST...")) m_icohplistPicker.open("Open LOBSTER ICOHPLIST",false,m_icohplistPath.empty()?"ICOHPLIST.lobster":m_icohplistPath);
+    if (responsive::button("Open ICOHPLIST")) m_icohplistPicker.open("Open LOBSTER ICOHPLIST",false,m_icohplistPath.empty()?"ICOHPLIST.lobster":m_icohplistPath);
     if (!m_icohplistPath.empty())
         ImGui::TextWrapped("Loaded: %s (%zu entries, %s)",std::filesystem::u8path(m_icohplistPath).filename().u8string().c_str(),
             m_icohplist.entries.size(),m_icohplist.spinPolarized?"spin-polarized":"non-spin-polarized");

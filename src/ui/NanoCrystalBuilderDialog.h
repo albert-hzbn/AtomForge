@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ui/PathPicker.h"
+#include "ui/StepEditing.h"
 
 #include "algorithms/NanoCrystalBuilder.h"
 #include "graphics/SceneBuffers.h"
@@ -53,13 +54,27 @@ struct NanoCrystalBuilderDialog
     // reference loader when the dialog is open.
     void feedDroppedFile(const std::string& path);
 
+    // Opens the dialog on a pipeline step: filled from the step's settings, with
+    // "Update step" writing them back instead of building.
+    bool editStep(StepEdit edit);
+    // The dialog's current settings as the step's options (command-line flags of
+    // AtomForge --build nano).
+    std::string stepOptions() const;
+
 private:
+    StepEdit m_step;
+    NanoParams      m_params;      // Wulff construction by default (constructor)
+    NanoBuildResult m_lastResult;
+
     PathPicker m_sourcePicker;
     bool m_openRequested = false;
     bool m_isOpen        = false;
 
     // Reference structure – the source for tiling and shape carving.
     Structure   m_reference;
+    std::string m_referencePath;      // file the reference was loaded from
+    bool m_referenceFromStep = false; // the reference is the pipeline step's input
+    bool m_fitCameraPending  = false; // fit the preview camera once its buffers exist
 
     // Path queued by feedDroppedFile(); consumed at the start of drawDialog().
     std::string m_pendingDropPath;

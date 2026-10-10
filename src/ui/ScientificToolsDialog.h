@@ -6,6 +6,7 @@
 #include "science/Json.h"
 #include "science/ResultPlots.h"
 #include "ui/PathPicker.h"
+#include "ui/StepEditing.h"
 #include "util/BackgroundTask.h"
 #include <array>
 #include <filesystem>
@@ -47,6 +48,15 @@ public:
     std::size_t keptRuns() const { return m_kept.size(); }
     // Plot `index` of the current result as shown, with kept runs overlaid.
     atomforge::science::PlotSpec displayedPlot(std::size_t index) const;
+    // Opens the tool of a scientific pipeline step (relax, nvt-dynamics,
+    // npt-dynamics, standardize-cell) filled from the step's parameters, with
+    // "Update step" writing them back instead of running; false for other steps.
+    bool editStep(StepEdit edit);
+    // The tool's current inputs as the step's parameters: scalars as JSON
+    // numbers and booleans, other values as their JSON text ("" when not given).
+    atomforge::pipeline::Json stepParameters() const;
+    bool isOpen() const { return m_open; }
+    void close() { m_open = false; m_step.finish(); }
 private:
     struct Field {
         std::array<char, 8192> value{};
@@ -87,6 +97,8 @@ private:
     void startCalculation(const Structure& structure);
     void drawStatus();
     bool drawRunButton(const char* label, const Structure& structure, float width);
+    // While editing a step: the structure the step's tool receives.
+    void drawStepInput() const;
     void drawSummary(const char* id, int pairsPerRow = 1);
     static std::string prettyLabel(const std::string& key);
     // The structure's cell as a JSON matrix.
@@ -123,4 +135,6 @@ private:
     atomforge::BackgroundTask<Result> m_task;
     std::string m_error;
     Result m_result;
+    StepEdit m_step;
+    int m_stepCell = 0;  // standardize-cell: primitive, conventional or symmetrized
 };

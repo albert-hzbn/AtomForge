@@ -55,6 +55,37 @@ ctest --test-dir build-core --output-on-failure
 build remains the default. `BUILD_TESTING=OFF` omits tests. If Python is not found,
 set `Python3_EXECUTABLE` to an interpreter path to enable the Python/CLI tests.
 
+### Structure pipeline
+
+`src/pipeline/` (compiled into `atomforge_science`, no GUI) holds the
+non-destructive editing pipeline. `Pipeline` is an ordered list of `Modifier`
+values (type id, JSON parameters, enabled flag, label); `evaluate` runs them on
+an input `Structure` and returns `PipelineData` (structure plus selection), with
+a `StageResult` per step. `PipelineCache` keeps each stage's output so an edit
+to step *i* re-runs only steps *i* and later. `Pipeline::parse`/`toText` and
+`toJson`/`fromJson` give the shell-pipe text syntax and the file format.
+`Expression` compiles the selection expressions. `PipelineEditor` is the GUI-free
+editing state (input, list operations, cache invalidation, change detection);
+`ui/PipelineDialog` draws it and `cli/PipelineCLI` runs `AtomForge --pipe`.
+
+To add a modifier, add one entry to `modifierTypes()` in
+`src/pipeline/Modifiers.cpp`: id, title, category, help, parameters (name,
+label, kind, default, choices) and an apply function on `PipelineData`. The panel
+builds its editor from the parameter kinds, and the text syntax, files and
+command line accept it with no other change. Selection modifiers combine their
+mask with `select(data, mask, mode)`; modifiers that drop or copy atoms use
+`rebuild`/`replicate`-style helpers so per-atom metadata stays aligned.
+`tests/pipeline_regressions.cpp` covers every modifier.
+
+The Build and Edit operations are steps too: `cli/BuildModifiers.cpp` registers
+every `--build` mode (and the Cell Sculptor) with `registerModifierType` at
+start-up, running the same code as the menus. `ui/MenuParity.cpp` records where
+each step appears in the menus; steps without a dedicated dialog use the
+one-step `ui/OperationDialog`. Tests fail when a step has no menu location, so
+a new modifier also needs a row there. `python/atomforge/pipeline.py` drives
+pipelines through the native library (core steps) or the executable (Build and
+Edit steps).
+
 ### Scientific tool registry
 
 Each native tool is described once in `src/science/ScienceCatalog.cpp`: id,

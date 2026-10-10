@@ -40,6 +40,10 @@ void printHelpPoly()
 "                               Specify once per grain in order. If fewer\n"
 "                               than --grains values are given, remaining\n"
 "                               grains get random orientations.\n"
+"  --grain-euler \"N phi1 Phi phi2\"\n"
+"                               Euler angles (deg) for grain number N (from 1);\n"
+"                               repeat per grain. Grains not given get random\n"
+"                               orientations.\n"
 "  --output <file>             Output file (format from extension)\n"
 "\n"
 "Example:\n"
@@ -106,6 +110,25 @@ int runPoly(int argc, char* argv[])
             params.orientationMode = GrainOrientationMode::PartialSpecified;
     }
 
+    // Euler angles of chosen grains: each value is "N phi1 Phi phi2" (N from 1)
+    auto grainEulerStrs = findAllArgs(argc, argv, "--grain-euler");
+    for (const auto& text : grainEulerStrs)
+    {
+        std::istringstream iss(text);
+        int grain = 0;
+        GrainOrientation go;
+        if (!(iss >> grain >> go.phi1 >> go.Phi >> go.phi2) || grain < 1)
+        {
+            std::cerr << "Error: cannot parse --grain-euler value '" << text
+                      << "'.  Expected: \"N phi1 Phi phi2\" with N >= 1\n";
+            return 1;
+        }
+        go.grainIndex = grain - 1;
+        params.specifiedOrientations.push_back(go);
+    }
+    if (!grainEulerStrs.empty())
+        params.orientationMode = GrainOrientationMode::PartialSpecified;
+
     const char* outPath = findArg(argc, argv, "--output");
     if (!outPath)
     {
@@ -159,6 +182,9 @@ void printHelpNano()
 "  --cylheight <Ang>           Cylinder height  (default: 30)\n"
 "  --cylaxis   <0|1|2>         Cylinder axis: 0=X 1=Y 2=Z  (default: 2)\n"
 "  --vacuum <Ang>              Vacuum padding around particle  (default: 5)\n"
+"  --no-cell                   No output cell (default: a rectangular cell\n"
+"                               around the particle plus --vacuum)\n"
+"  --center \"x y z\"            Carving center (Ang)  (default: centre of the atoms)\n"
 "  --repa <N>                  Manual supercell replication A  (0 = auto)\n"
 "  --repb <N>                  Manual supercell replication B  (0 = auto)\n"
 "  --repc <N>                  Manual supercell replication C  (0 = auto)\n"
@@ -263,8 +289,22 @@ int runNano(int argc, char* argv[])
     params.cylAxis   = argInt(argc, argv, "--cylaxis", 2);
 
     params.vacuumPadding = static_cast<float>(argDouble(argc, argv, "--vacuum", 5.0));
-    params.setOutputCell = true;
+    params.setOutputCell = !hasFlag(argc, argv, "--no-cell");
     params.autoCenterFromAtoms = true;
+    if (const char* center = findArg(argc, argv, "--center"))
+    {
+        glm::vec3 c;
+        if (!parseVec3(center, c))
+        {
+            std::cerr << "Error: cannot parse --center value '" << center
+                      << "'.  Expected: \"x y z\"\n";
+            return 1;
+        }
+        params.autoCenterFromAtoms = false;
+        params.cx = c.x;
+        params.cy = c.y;
+        params.cz = c.z;
+    }
 
     int repA = argInt(argc, argv, "--repa", 0);
     int repB = argInt(argc, argv, "--repb", 0);
@@ -324,6 +364,7 @@ void printHelpAmorphous()
 "  --covtol <frac>             Covalent-radii tolerance fraction  (default: 0.75)\n"
 "  --seed   <N>                RNG seed (0 = time-based)  (default: 42)\n"
 "  --attempts <N>              Max placement attempts per atom  (default: 1000)\n"
+"  --no-periodic               Non-periodic box (no unit cell attached)\n"
 "  --output <file>             Output file (format from extension)\n"
 "\n"
 "Example:\n"
@@ -422,7 +463,7 @@ int runAmorphous(int argc, char* argv[])
         params.pairDistances.push_back(pd);
     }
 
-    params.periodic = true;
+    params.periodic = !hasFlag(argc, argv, "--no-periodic");
 
     auto elementColors  = makeDefaultElementColors();
     auto covalentRadii  = makeLiteratureCovalentRadii();

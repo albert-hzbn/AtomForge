@@ -182,6 +182,9 @@ std::vector<FrameData> readExtxyzFrames(std::istream& input, std::size_t maxFram
                 } else if (column.name == "masses" && column.count == 1) {
                     hasMasses = true;
                     mass = parseDouble(tokens[cursor], "XYZ masses");
+                } else if (column.name == "property" && column.count == 1) {
+                    // Per-atom property column (as written by AtomForge --pipe).
+                    frame.structure.atomProperty.push_back(parseDouble(tokens[cursor], "XYZ property"));
                 }
                 cursor += static_cast<std::size_t>(column.count);
             }
@@ -300,6 +303,8 @@ std::vector<FrameData> readVasp(const std::filesystem::path& path, bool trajecto
     return frames;
 }
 
+}
+
 Structure structureFromJson(const Json& value)
 {
     if (!value.isObject()) throw std::runtime_error("Structure requires a file reference or symbols, positions and optional cell");
@@ -318,6 +323,9 @@ Structure structureFromJson(const Json& value)
     }
     return structure;
 }
+
+namespace
+{
 
 NdArray loadNpy(const std::filesystem::path& path)
 {

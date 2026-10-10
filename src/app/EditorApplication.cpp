@@ -914,12 +914,22 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         handleGrabMode(state, camera, frame.projection, frame.view,
                        frame.windowWidth, frame.windowHeight);
 
+        // Menu operations see the view's selection as atom indices.
+        {
+            std::vector<int> atoms;
+            for (int instance : state.selectedInstanceIndices)
+                if (instance >= 0 && instance < static_cast<int>(state.sceneBuffers.atomIndices.size()))
+                    atoms.push_back(state.sceneBuffers.atomIndices[static_cast<std::size_t>(instance)]);
+            std::sort(atoms.begin(), atoms.end());
+            atoms.erase(std::unique(atoms.begin(), atoms.end()), atoms.end());
+            state.fileBrowser.setViewSelection(std::move(atoms));
+        }
         state.fileBrowser.draw(
             state.structure,
             state.editMenuDialogs,
             [&](Structure& structure) {
                 const bool previous=state.suppressHistoryCommit;
-                state.suppressHistoryCommit=previous || state.fileBrowser.trajectoryPlaying();
+                state.suppressHistoryCommit=previous || state.fileBrowser.trajectoryPlaying() || state.fileBrowser.pipelineUpdating();
                 updateBuffers(state, structure);
                 state.suppressHistoryCommit=previous;
             },
@@ -927,6 +937,17 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             state.undoRedo.canUndo(),
             state.undoRedo.canRedo());
 
+        // A selection made by a menu operation selects every image of those atoms.
+        if (std::vector<int> atoms; state.fileBrowser.consumeSelectionRequest(atoms)) {
+            std::vector<char> wanted(state.structure.atoms.size(), 0);
+            for (int a : atoms) if (a >= 0 && static_cast<std::size_t>(a) < wanted.size()) wanted[static_cast<std::size_t>(a)] = 1;
+            state.selectedInstanceIndices.clear();
+            for (std::size_t instance = 0; instance < state.sceneBuffers.atomIndices.size(); ++instance) {
+                const int atom = state.sceneBuffers.atomIndices[instance];
+                if (atom >= 0 && static_cast<std::size_t>(atom) < wanted.size() && wanted[static_cast<std::size_t>(atom)])
+                    state.selectedInstanceIndices.push_back(static_cast<int>(instance));
+            }
+        }
         const auto captureProject=[&]() {
             saveCameraToTab(camera,*tabs[activeTabIdx]);
             std::vector<atomforge::Workspace> saved;

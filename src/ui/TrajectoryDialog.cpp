@@ -8,7 +8,6 @@
 #include <cmath>
 #include <filesystem>
 
-using atomforge::science::Json;
 
 void TrajectoryDialog::drawMenuItem()
 {
@@ -27,23 +26,7 @@ const std::vector<std::pair<std::string, std::string>>& TrajectoryDialog::frameA
 
 atomforge::science::AtomProperty TrajectoryDialog::analyseFrame(const Structure& frame, const std::string& tool, double cutoff)
 {
-    Json positions=Json::array();
-    for (const auto& atom : frame.atoms) positions.push(Json::array({atom.x,atom.y,atom.z}));
-    Json request=Json::object();
-    request["positions"]=positions;
-    if (frame.hasUnitCell) {
-        Json cell=Json::array();
-        for (const auto& row : frame.cellVectors) cell.push(Json::array({row[0],row[1],row[2]}));
-        request["cell"]=cell;
-        request["pbc"]=Json::array({true,true,true});
-    }
-    // Structure type picks its own cutoff in periodic cells.
-    if (tool!="structure-type" || !frame.hasUnitCell) request["cutoff_A"]=cutoff;
-    if (tool=="bond-order") request["degrees"]=Json::array({6});
-    const auto output=atomforge::science::runTool(tool,request);
-    auto properties=atomforge::science::perAtomProperties(tool,output.result);
-    if (properties.empty()) throw std::runtime_error(tool+" returned no per-atom values");
-    return properties.front();
+    return atomforge::science::analysePerAtom(frame,tool,cutoff);
 }
 
 void TrajectoryDialog::show(int index, Structure& structure, const std::function<void(Structure&)>& update, const std::function<void()>& showAtomProperty)
@@ -140,7 +123,7 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
     if (responsive::begin("Trajectory playback",&open,ImGuiWindowFlags_NoCollapse)) {
         const bool exporting=gifFrame>=0;
         ImGui::BeginDisabled(task.running() || exporting);
-        if (responsive::button("Open trajectory...")) picker.open("Open trajectory (XYZ/extXYZ, XDATCAR, POSCAR or LAMMPS dump)",false,"trajectory.xyz");
+        if (responsive::button("Open trajectory")) picker.open("Open trajectory (XYZ/extXYZ, XDATCAR, POSCAR or LAMMPS dump)",false,"trajectory.xyz");
         ImGui::EndDisabled();
         if (task.running()) { ImGui::TextUnformatted("Indexing frames..."); if (responsive::button("Cancel")) task.cancel(); }
         if (count>0) {
@@ -172,7 +155,7 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
             ImGui::TextUnformatted("GIF: use every Nth frame"); ImGui::SetNextItemWidth(-FLT_MIN);
             ImGui::SliderInt("##gifstride",&gifStride,1,std::max(1,count/2));
             gifStride=std::max(1,gifStride);
-            if (responsive::button("Export GIF...")) gifPicker.open("Export trajectory animation as GIF",true,"trajectory.gif");
+            if (responsive::button("Export GIF")) gifPicker.open("Export trajectory animation as GIF",true,"trajectory.gif");
             ImGui::EndDisabled();
             if (exporting) {
                 ImGui::Text("Writing GIF: frame %d of %d",gifFrame+1,count);

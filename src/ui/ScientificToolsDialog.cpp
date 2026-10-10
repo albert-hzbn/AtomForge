@@ -8,6 +8,8 @@
 #include "imgui.h"
 #include <algorithm>
 #include <cctype>
+#include <cmath>
+#include <cstdlib>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
@@ -101,6 +103,27 @@ Json potentialJson(int potential, double epsilon, double sigma, double cutoff, c
     result["cutoff"] = cutoff;
     return result;
 }
+
+// Pipeline steps that run a catalog tool (see scienceSteps() in src/pipeline/Modifiers.cpp).
+const char* stepTool(const std::string& step)
+{
+    if (step == "relax") return "relax";
+    if (step == "nvt-dynamics") return "nvt";
+    if (step == "npt-dynamics") return "npt";
+    if (step == "standardize-cell") return "symmetry";
+    return nullptr;
+}
+
+const char* const kStepCells[] = {"primitive", "conventional", "symmetrized"};
+
+bool scalarKind(const std::string& kind) { return kind == "float" || kind == "int" || kind == "bool"; }
+
+std::string trimmed(const std::string& text)
+{
+    const auto first = text.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) return "";
+    return text.substr(first, text.find_last_not_of(" \t\r\n") - first + 1);
+}
 }
 
 ScientificToolsDialog::Field::Field()
@@ -174,6 +197,7 @@ std::string ScientificToolsDialog::snapshot() const
 void ScientificToolsDialog::restore(const std::string& text)
 {
     if (text.empty() || m_task.running()) return;
+    m_step.finish();
     try {
         const Json state = Json::parse(text);
         const Json* tool = state.find("tool");
@@ -246,6 +270,7 @@ void ScientificToolsDialog::drawMenuItems(const char* category)
     for (std::size_t i = 0; i < catalog.size(); ++i)
         if (std::strcmp(catalog[i].category, category) == 0 &&
             ImGui::MenuItem(catalog[i].title, nullptr, m_open && m_tool == static_cast<int>(i), !m_task.running())) {
+            m_step.finish();
             selectTool(static_cast<int>(i));
             m_open = true;
         }
@@ -271,9 +296,146 @@ bool ScientificToolsDialog::open(const std::string& toolId)
 {
     const int index = catalogIndex(toolId);
     if (index < 0 || m_task.running()) return false;
+    m_step.finish();
     selectTool(index);
     m_open = true;
     return true;
+}
+
+bool ScientificToolsDialog::editStep(StepEdit edit)
+{
+    const char* toolId = stepTool(edit.step);
+    const int index = toolId ? catalogIndex(toolId) : -1;
+    if (index < 0 || m_task.running()) return false;
+    selectTool(index);
+    const auto& tool = currentTool();
+    const Json& parameters = edit.parameters;
+    for (std::size_t i = 0; i < tool.parameters.size(); ++i) {
+        const auto& parameter = tool.parameters[i];
+        const std::string kind = parameter.kind;
+        const Json* value = parameters.find(parameter.name);
+        if (kind == "structure" || !value || value->isNull()) continue;  // missing: the catalog default
+        auto& field = m_fields[i];
+        const auto setValue = [&field](const std::string& text) { std::snprintf(field.value.data(), field.value.size(), "%s", text.c_str()); };
+        if (scalarKind(kind)) {
+            if (value->isBool()) setValue(value->boolean() ? "true" : "false");
+            else if (value->isNumber()) {
+                char buffer[64];
+                std::snprintf(buffer, sizeof(buffer), "%.15g", value->number());
+                setValue(buffer);
+            } else if (value->isString()) setValue(trimmed(value->string()));
+            field.enabled = true;
+            continue;
+        }
+        const std::string text = trimmed(value->isString() ? value->string() : value->dump());
+        if (text.empty()) {
+            // Not given: optional inputs are switched off, required ones keep their default.
+            if (!parameter.required && parameter.value[0] == '\0') field.enabled = false;
+            continue;
+        }
+        field.enabled = true;
+        Json parsed;
+        bool isJson = true;
+        try { parsed = Json::parse(text); }
+        catch (const std::exception&) { isJson = false; }
+        if (kind == "calculator") {
+            if (!isJson || !parsed.isObject()) continue;
+            const Json* name = parsed.find("potential");
+            const std::string potential = name && name->isString() ? name->string() : "EMT";
+            const auto number = [&parsed](const char* key, double fallback) {
+                const Json* item = parsed.find(key);
+                return item && item->isNumber() ? item->number() : fallback;
+            };
+            const Json* file = parsed.find("file");
+            field.potentialFile = file && file->isString() ? file->string() : "";
+            if (potential == "LennardJones") {
+                field.potential = kLennardJones;
+                field.epsilon = number("epsilon", field.epsilon);
+                field.sigma = number("sigma", field.sigma);
+                field.cutoff = number("cutoff", field.cutoff);
+            } else if (potential == "EAM") {
+                field.potential = kEam;
+                static const char* formats[] = {"auto", "setfl", "fs", "funcfl"};
+                const Json* format = parsed.find("format");
+                field.eamFormat = 0;
+                for (int f = 0; f < 4 && format && format->isString(); ++f)
+                    if (format->string() == formats[f]) field.eamFormat = f;
+            } else if (potential == "Tersoff") field.potential = kTersoff;
+            else if (potential == "StillingerWeber") field.potential = kStillingerWeber;
+            else if (potential == "Buckingham") {
+                field.potential = kBuckingham;
+                Json options = Json::object();
+                for (const auto& [key, item] : parsed.members())
+                    if (key != "potential") options[key] = item;
+                std::snprintf(field.potentialOptions.data(), field.potentialOptions.size(), "%s", options.dump(1).c_str());
+            } else field.potential = kEmt;
+        } else if ((kind == "data" || kind == "file") && isJson && parsed.isObject() && parsed.contains("file")) {
+            // A file reference: {"file": path, "field": ..., "column": ...}.
+            const Json* file = parsed.find("file");
+            const Json* item = parsed.find("field");
+            const Json* column = parsed.find("column");
+            field.useFile = true;
+            field.path = file->isString() ? file->string() : "";
+            std::snprintf(field.field.data(), field.field.size(), "%s", item && item->isString() ? item->string().c_str() : "");
+            field.selectColumn = column && column->isNumber();
+            field.column = field.selectColumn ? static_cast<int>(column->number()) : 0;
+        } else if (kind == "file" && isJson && parsed.isString()) {
+            field.useFile = true;
+            field.path = parsed.string();
+        } else {
+            field.useFile = false;
+            setValue(text);
+        }
+    }
+    m_stepCell = 0;
+    if (const Json* cell = parameters.find("cell"); cell && cell->isString())
+        for (int c = 0; c < 3; ++c)
+            if (cell->string() == kStepCells[c]) m_stepCell = c;
+    m_step = std::move(edit);
+    m_open = true;
+    return true;
+}
+
+atomforge::pipeline::Json ScientificToolsDialog::stepParameters() const
+{
+    Json parameters = m_step.parameters.isObject() ? m_step.parameters : Json::object();
+    if (m_tool < 0) return parameters;
+    const auto& tool = currentTool();
+    for (std::size_t i = 0; i < tool.parameters.size(); ++i) {
+        const auto& parameter = tool.parameters[i];
+        const auto& field = m_fields[i];
+        const std::string kind = parameter.kind;
+        if (kind == "structure") continue;  // supplied by the pipeline
+        const std::string value = trimmed(field.value.data());
+        if (kind == "bool") { parameters[parameter.name] = value == "true"; continue; }
+        if (kind == "float" || kind == "int") {
+            if (!field.enabled) continue;
+            char* end = nullptr;
+            const double number = std::strtod(value.c_str(), &end);
+            if (value.empty() || *end != '\0') throw std::runtime_error("Provide a number for " + std::string(parameter.label));
+            if (kind == "int") parameters[parameter.name] = static_cast<long long>(std::llround(number));
+            else parameters[parameter.name] = number;
+            continue;
+        }
+        // Other values as JSON text, as the step reads them; "" when not given.
+        std::string text;
+        if (!field.enabled) text.clear();
+        else if (kind == "calculator")
+            text = potentialJson(field.potential, field.epsilon, field.sigma, field.cutoff, field.potentialFile, field.eamFormat, field.potentialOptions.data()).dump();
+        else if (field.useFile && (kind == "data" || kind == "file")) {
+            if (field.path.empty()) throw std::runtime_error("Choose a file for " + std::string(parameter.label));
+            Json reference = Json::object();
+            reference["file"] = field.path;
+            if (kind == "data" && field.field[0]) reference["field"] = std::string(field.field.data());
+            if (kind == "data" && field.selectColumn) reference["column"] = field.column;
+            text = reference.dump();
+        } else if (!value.empty() && kind == "string" && value[0] != '"' && value[0] != '{' && value[0] != '[')
+            text = Json(value).dump();  // plain text, accepted by the tool without quotes
+        else text = value;
+        parameters[parameter.name] = text;
+    }
+    if (m_step.step == "standardize-cell") parameters["cell"] = kStepCells[std::clamp(m_stepCell, 0, 2)];
+    return parameters;
 }
 
 ScientificToolsDialog::Layout ScientificToolsDialog::layoutFor(const std::string& tool)
@@ -556,6 +718,13 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
     if (responsive::begin(title.c_str(), &m_open, ImGuiWindowFlags_NoCollapse)) {
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, responsive::size(10, 6));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, responsive::size(10, 8));
+        if (m_step.active()) {
+            ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+            if (m_step.step == "standardize-cell") {
+                ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(240)));
+                ImGui::Combo("Cell to keep", &m_stepCell, "Primitive\0Conventional\0Symmetrized\0");
+            }
+        }
         ImGui::TextDisabled("%s", tool.category);
         const std::string summary = std::string(tool.help).substr(0, std::string(tool.help).find('\n'));
         ImGui::TextWrapped("%s", summary.c_str());
@@ -589,4 +758,5 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
         ImGui::PopStyleVar(2);
     }
     ImGui::End();
+    if (!m_open) m_step.finish();  // closed with the window's X or Update step
 }

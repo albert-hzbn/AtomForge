@@ -12,6 +12,7 @@
 #include "app/SceneView.h"
 #include "camera/Camera.h"
 #include "ui/ThemeUtils.h"
+#include "pipeline/Options.h"
 #include "imgui.h"
 
 #include <GL/glew.h>
@@ -256,7 +257,76 @@ void CSLGrainBoundaryDialog::feedDroppedFile(const std::string& path)
 void CSLGrainBoundaryDialog::drawMenuItem(bool enabled)
 {
     if (ImGui::MenuItem("CSL Grain Boundary", NULL, false, enabled))
+    {
+        m_step.finish();  // from the menu: build normally
         m_openRequested = true;
+    }
+}
+
+bool CSLGrainBoundaryDialog::editStep(StepEdit edit)
+{
+    m_step = std::move(edit);
+    const auto options = m_step.reader();
+
+    // Missing flags take the defaults of AtomForge --build gb.
+    const auto axis = options.numbers("--axis");
+    for (int i = 0; i < 3; ++i)
+        m_axis[i] = axis.size() == 3 ? (int)std::lround(axis[i]) : (i == 2 ? 1 : 0);
+    m_sigmaMax = std::max(3, options.integer("--sigmamax", 100));
+    m_planeSelection = std::clamp(options.integer("--plane", 0), 0, 2);
+    m_ucA = std::max(1, options.integer("--uca", 1));
+    m_ucB = std::max(1, options.integer("--ucb", 1));
+    m_vacuumPadding = (float)options.number("--vacuum", 0.0);
+    m_gapDist = (float)options.number("--gap", 0.0);
+    m_overlapDist = (float)options.number("--overlap", 0.0);
+    m_conventionalCell = options.has("--conventional");
+
+    // The sigma list of the axis, with the step's sigma selected (none = the smallest).
+    m_sigmaCandidates = computeGBInfo(m_axis, m_sigmaMax);
+    std::copy(m_axis, m_axis + 3, m_lastAxisForSigma);
+    m_lastSigmaMaxForSigma = m_sigmaMax;
+    m_sigmaSelection = 0;
+    const int sigma = options.integer("--sigma", 0);
+    for (int i = 0; i < (int)m_sigmaCandidates.size(); ++i)
+        if (m_sigmaCandidates[i].sigma == sigma) { m_sigmaSelection = i; break; }
+
+    // Reference: a file named in the options, else the structure entering the step.
+    m_inputStructure = Structure();
+    m_referencePath = options.text("--input");
+    std::snprintf(m_statusMsg, sizeof(m_statusMsg), "(no structure loaded)");
+    std::snprintf(m_loadedFileName, sizeof(m_loadedFileName), "(none)");
+    const auto* useInput = m_step.parameters.find("use_input");
+    if (!m_referencePath.empty())
+        feedDroppedFile(m_referencePath);
+    else if ((!useInput || !useInput->isBool() || useInput->boolean()) && !m_step.input.atoms.empty())
+    {
+        m_inputStructure = m_step.input;
+        std::snprintf(m_statusMsg, sizeof(m_statusMsg), "Step input: %d atoms", (int)m_inputStructure.atoms.size());
+        std::snprintf(m_loadedFileName, sizeof(m_loadedFileName), "(structure entering the step)");
+        m_previewBufDirty = true;
+        m_fitPending = true;
+    }
+    m_lastResult = CSLBuildResult{};
+    m_openRequested = true;
+    return true;
+}
+
+std::string CSLGrainBoundaryDialog::stepOptions() const
+{
+    atomforge::pipeline::options::Writer out;
+    if (!m_referencePath.empty()) out.add("--input", m_referencePath);
+    out.add("--axis", std::vector<double>{(double)m_axis[0], (double)m_axis[1], (double)m_axis[2]});
+    if (m_sigmaSelection >= 0 && m_sigmaSelection < (int)m_sigmaCandidates.size())
+        out.add("--sigma", m_sigmaCandidates[m_sigmaSelection].sigma);
+    out.add("--sigmamax", m_sigmaMax);
+    out.add("--plane", m_planeSelection);
+    out.add("--uca", m_ucA);
+    out.add("--ucb", m_ucB);
+    out.add("--vacuum", m_vacuumPadding);
+    out.add("--gap", m_gapDist);
+    out.add("--overlap", m_overlapDist);
+    if (m_conventionalCell) out.flag("--conventional");
+    return out.str();
 }
 
 void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
@@ -267,24 +337,24 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
 {
     (void)elementColors;
 
-// -- Static dialog state --------------------------------------------
-    static Structure inputStructure;
-    static char statusMsg[256] = "(no structure loaded)";
-    static char loadedFileName[256] = "(none)";
-    static int axis[3] = {0, 0, 1};
-    static int sigmaMax = 200;
-    static std::vector<SigmaCandidate> sigmaCandidates;
-    static int sigmaSelection = 0;
-    static int planeSelection = 0;
-    static int lastAxisForSigma[3] = {0, 0, 0};
-    static int lastSigmaMaxForSigma = 0;
-    static int ucA = 1;
-    static int ucB = 1;
-    static float vacuumPadding = 0.0f;
-    static float gapDist = 0.0f;
-    static float overlapDist = 0.0f;
-    static bool conventionalCell = false;
-    static CSLBuildResult lastResult;
+// -- Dialog state (members, so a pipeline step can fill and read it) --
+    Structure& inputStructure = m_inputStructure;
+    char (&statusMsg)[256] = m_statusMsg;
+    char (&loadedFileName)[256] = m_loadedFileName;
+    int (&axis)[3] = m_axis;
+    int& sigmaMax = m_sigmaMax;
+    std::vector<SigmaCandidate>& sigmaCandidates = m_sigmaCandidates;
+    int& sigmaSelection = m_sigmaSelection;
+    int& planeSelection = m_planeSelection;
+    int (&lastAxisForSigma)[3] = m_lastAxisForSigma;
+    int& lastSigmaMaxForSigma = m_lastSigmaMaxForSigma;
+    int& ucA = m_ucA;
+    int& ucB = m_ucB;
+    float& vacuumPadding = m_vacuumPadding;
+    float& gapDist = m_gapDist;
+    float& overlapDist = m_overlapDist;
+    bool& conventionalCell = m_conventionalCell;
+    CSLBuildResult& lastResult = m_lastResult;
 
     // -- Handle pending drop ----------------------------------------
     if (!m_pendingDropPath.empty())
@@ -307,6 +377,7 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
                     fileName = fileName.substr(slashPos + 1);
 
                 inputStructure = loaded;
+                m_referencePath = m_pendingDropPath;
                 std::snprintf(statusMsg, sizeof(statusMsg), "Loaded: %d atoms", (int)inputStructure.atoms.size());
                 std::snprintf(loadedFileName, sizeof(loadedFileName), "%s", fileName.c_str());
                 std::cout << "[CSL] Loaded input structure: " << m_pendingDropPath
@@ -341,6 +412,9 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
     bool dialogOpen = true;
     if (responsive::beginModal("CSL Grain Boundary Builder", &dialogOpen, ImGuiWindowFlags_None))
     {
+        if (m_step.active())
+            ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f),
+                               "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
         if (responsive::button("Load reference##sourcePicker"))
             m_sourcePicker.open("Load reference", false, "");
         if (const auto path = m_sourcePicker.draw())
@@ -374,6 +448,10 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
                 if (m_glReady) {
                     if (m_previewBufDirty)
                         rebuildPreviewBuffers(inputStructure, elementRadii, elementShininess);
+                    if (m_fitPending && !m_previewBufDirty) {
+                        autoFitPreviewCamera();
+                        m_fitPending = false;
+                    }
 
                     const float pad = 5.0f;
                     const ImVec2 prevSize(dropMax.x - dropMin.x - 2.0f * pad,
@@ -569,7 +647,21 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
         const float closeW = 110.0f;
         const float buildW = 110.0f;
 
-        if (responsive::button("Build", ImVec2(buildW, 0.0f)))
+        if (m_step.active())
+        {
+            if (responsive::button("Update step", ImVec2(buildW, 0.0f)))
+            {
+                // With the step input as reference there is no --input: the pipeline passes it.
+                atomforge::pipeline::Json parameters = m_step.parameters;
+                parameters["options"] = stepOptions();
+                parameters["use_input"] = m_referencePath.empty();
+                m_step.commitParameters(parameters);
+                m_step.finish();
+                dialogOpen = false;
+                ImGui::CloseCurrentPopup();
+            }
+        }
+        else if (responsive::button("Build", ImVec2(buildW, 0.0f)))
         {
             if (!inputStructure.hasUnitCell || inputStructure.atoms.empty())
             {
@@ -734,5 +826,6 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
     if (!dialogOpen)
     {
         m_isOpen = false;
+        m_step.finish();
     }
 }

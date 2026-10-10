@@ -4,6 +4,9 @@
 #include "science/ScienceTools.h"
 #include "ui/ScientificToolsDialog.h"
 #include "ui/TrajectoryDialog.h"
+#include "ui/PipelineDialog.h"
+#include "ui/OperationDialog.h"
+#include "ui/MenuParity.h"
 #include "ui/SciencePlot.h"
 #include <cmath>
 #include "imgui.h"
@@ -210,6 +213,231 @@ int main()
             if (TrajectoryDialog::frameAnalyses().size() != 3) throw std::runtime_error("Per-frame analysis list");
             for (const auto& [id, title] : TrajectoryDialog::frameAnalyses())
                 if (!findScienceTool(id)) throw std::runtime_error("Per-frame analysis names an unknown tool " + id);
+        }
+        // Structure pipeline panel: an active pipeline shows its output and keeps its input.
+        {
+            Structure shown = copper;
+            PipelineDialog panel;
+            panel.restore(R"({"format":"atomforge-pipeline","version":1,"active":true,"open":true,"modifiers":[
+                {"type":"replicate","parameters":{"counts":[2,2,1]}},
+                {"type":"select-expression","parameters":{"expression":"fz > 0.4"}},
+                {"type":"delete-selected"}]})", &copper);
+            int updates = 0;
+            for (int frame = 0; frame < 3; ++frame) {
+                ImGui::NewFrame();
+                panel.draw(shown, [&](Structure&) { ++updates; if (!panel.isUpdating()) throw std::runtime_error("Pipeline updates are flagged"); });
+                ImGui::Render();
+            }
+            if (shown.atoms.size() != 8 || updates != 1) throw std::runtime_error("Pipeline output in the view (" + std::to_string(shown.atoms.size()) + " atoms)");
+            if (panel.editor().input().atoms.size() != 4) throw std::runtime_error("Pipeline input kept");
+            if (!ImGui::FindWindowByName("Structure pipeline") || !ImGui::FindWindowByName("Structure pipeline")->WasActive)
+                throw std::runtime_error("Pipeline panel not shown");
+            // Editing re-evaluates on the next frame; the project snapshot round-trips.
+            panel.editor().setEnabled(2, false);
+            ImGui::NewFrame();
+            panel.draw(shown, [&](Structure&) { ++updates; });
+            ImGui::Render();
+            if (shown.atoms.size() != 16) throw std::runtime_error("Disabling a step restores its atoms");
+            PipelineDialog reopened;
+            reopened.restore(panel.snapshot(), &copper);
+            if (reopened.editor().size() != 3 || reopened.editor().modifier(2).enabled) throw std::runtime_error("Pipeline snapshot round trip");
+        }
+        // Moving and removing steps with real mouse input on the drawn controls.
+        {
+            Structure shown = copper;
+            PipelineDialog panel;
+            panel.restore(R"({"format":"atomforge-pipeline","version":1,"active":true,"open":true,"modifiers":[
+                {"type":"replicate","parameters":{"counts":[2,1,1]}},
+                {"type":"wrap"},
+                {"type":"select-element","parameters":{"elements":"Cu"}},
+                {"type":"invert-selection"}]})", &copper);
+            auto& io = ImGui::GetIO();
+            const auto frame = [&] {
+                ImGui::NewFrame();
+                ImGui::SetNextWindowPos(ImVec2(0, 0));
+                ImGui::SetNextWindowSize(ImVec2(700, 880));
+                panel.draw(shown, [](Structure&) {});
+                ImGui::Render();
+            };
+            const auto centre = [&](const std::string& name) {
+                for (const auto& [control, rect] : panel.controls())
+                    if (control == name) return ImVec2(0.5f * (rect[0] + rect[2]), 0.5f * (rect[1] + rect[3]));
+                throw std::runtime_error("Control not drawn: " + name);
+            };
+            const auto order = [&] {
+                std::string text;
+                for (std::size_t i = 0; i < panel.editor().size(); ++i) text += (i ? "," : "") + panel.editor().modifier(i).type;
+                return text;
+            };
+            const auto click = [&](const std::string& name) {
+                frame();
+                const ImVec2 at = centre(name);
+                io.AddMousePosEvent(at.x, at.y); frame();
+                io.AddMouseButtonEvent(0, true); frame();
+                io.AddMouseButtonEvent(0, false); frame();
+                frame();
+            };
+            for (int k = 0; k < 3; ++k) frame();
+            click("down 0");
+            if (order() != "wrap,replicate,select-element,invert-selection") throw std::runtime_error("Down arrow did not move the step: " + order());
+            click("up 2");
+            if (order() != "wrap,select-element,replicate,invert-selection") throw std::runtime_error("Up arrow did not move the step: " + order());
+            click("remove 0");
+            if (order() != "select-element,replicate,invert-selection") throw std::runtime_error("X did not remove the step: " + order());
+            // The selected step's own buttons.
+            click("step 2");
+            click("move up");
+            if (order() != "select-element,invert-selection,replicate") throw std::runtime_error("Move up did not move the selected step: " + order());
+            click("remove");
+            if (order() != "select-element,replicate") throw std::runtime_error("Remove did not remove the selected step: " + order());
+            click("duplicate");
+            if (order() != "select-element,replicate,replicate") throw std::runtime_error("Duplicate: " + order());
+            // Drag the first step onto the last.
+            frame();
+            const ImVec2 from = centre("step 0"), to = centre("step 2");
+            io.AddMousePosEvent(from.x, from.y); frame();
+            io.AddMouseButtonEvent(0, true); frame();
+            for (int k = 1; k <= 8; ++k) { io.AddMousePosEvent(from.x + (to.x - from.x) * k / 8, from.y + (to.y - from.y) * k / 8); frame(); }
+            io.AddMouseButtonEvent(0, false); frame();
+            frame();
+            if (order() != "replicate,replicate,select-element") throw std::runtime_error("Dragging did not move the step: " + order());
+            // The output follows the new order: two doublings of the 4-atom cell.
+            if (shown.atoms.size() != 16) throw std::runtime_error("Output after reordering: " + std::to_string(shown.atoms.size()));
+            io.AddMousePosEvent(-1, -1);
+            frame();
+        }
+        // Steps added before a pipeline exists start it on the active structure and can be removed.
+        {
+            Structure shown = copper;
+            PipelineDialog panel;
+            panel.restore(R"({"format":"atomforge-pipeline","version":1,"active":false,"open":true,"modifiers":[{"type":"wrap"},{"type":"center"}]})", nullptr);
+            ImGui::NewFrame();
+            panel.draw(shown, [](Structure&) {});
+            ImGui::Render();
+            bool listed = false;
+            for (const auto& control : panel.controls()) listed = listed || control.first == "remove 1";
+            if (!listed) throw std::runtime_error("Steps are listed (and removable) before the pipeline starts");
+            if (panel.isActive()) throw std::runtime_error("Not started yet");
+        }
+        // Menu parity: every pipeline step has a menu location, and menu operations work.
+        {
+            for (const auto& type : atomforge::pipeline::modifierTypes())
+                if (menuPathOf(type.id).empty()) throw std::runtime_error(std::string("Pipeline step without a menu entry: ") + type.id);
+            for (const auto& location : menuLocations())
+                if (!location.dialog && std::string(location.step).rfind("build-", 0) != 0 && !atomforge::pipeline::findModifierType(location.step))
+                    throw std::runtime_error(std::string("Menu entry for an unknown step: ") + location.step);
+            Structure cell = copper;
+            OperationDialog dialog;
+            if (!dialog.open("delete-selected") || !OperationDialog::actsOnAtoms("delete-selected")) throw std::runtime_error("Delete operation");
+            dialog.setTarget(OperationDialog::Condition, "fx > 0.25");
+            dialog.apply(cell, {});
+            if (cell.atoms.size() != 2) throw std::runtime_error("Delete by condition: " + std::to_string(cell.atoms.size()));
+            cell = copper;
+            dialog.open("assign-element");
+            dialog.setParameter("element", atomforge::pipeline::Json(std::string("Ni")));
+            dialog.setTarget(OperationDialog::ViewSelection);
+            dialog.apply(cell, {1, 3});
+            if (cell.atoms[1].symbol != "Ni" || cell.atoms[3].symbol != "Ni" || cell.atoms[0].symbol != "Cu") throw std::runtime_error("Assign element to the view selection");
+            bool noMatch = false;
+            dialog.setTarget(OperationDialog::Condition, "x > 100");
+            try { dialog.apply(cell, {}); } catch (const std::exception&) { noMatch = true; }
+            if (!noMatch) throw std::runtime_error("An empty condition must not change the structure");
+            // Selection steps return the new view selection, combined with the current one.
+            dialog.open("select-expression");
+            dialog.setParameter("expression", atomforge::pipeline::Json(std::string("fz > 0.25")));
+            dialog.setParameter("mode", atomforge::pipeline::Json(std::string("add")));
+            const auto selected = dialog.apply(cell, {0});
+            if (selected != std::vector<int>({0, 1, 2})) throw std::runtime_error("Selection step adds to the view selection");
+            if (cell.atoms.size() != 4) throw std::runtime_error("Selection steps leave the structure unchanged");
+            // Drawn with "Add to pipeline" wiring.
+            std::vector<atomforge::pipeline::Modifier> added;
+            OperationDialog::Callbacks callbacks;
+            callbacks.update = [](Structure&) {};
+            callbacks.select = [](const std::vector<int>&) {};
+            callbacks.addToPipeline = [&](const std::vector<atomforge::pipeline::Modifier>& steps) { added = steps; };
+            dialog.open("replicate");
+            for (int frame = 0; frame < 2; ++frame) {
+                ImGui::NewFrame();
+                dialog.draw(cell, {}, callbacks);
+                ImGui::Render();
+            }
+            if (!ImGui::FindWindowByName("Replicate###Structure operation") || !ImGui::FindWindowByName("Replicate###Structure operation")->WasActive)
+                throw std::runtime_error("Operation dialog not shown");
+            PipelineDialog panel;
+            panel.addSteps({atomforge::pipeline::makeModifier("replicate")}, copper);
+            if (!panel.isActive() || panel.editor().size() != 1) throw std::runtime_error("Add to pipeline starts the pipeline");
+        }
+        // Simulation steps open in their tool window, filled from the step.
+        {
+            ScientificToolsDialog tools;
+            StepEdit edit;
+            edit.step = "relax";
+            edit.parameters = atomforge::pipeline::makeModifier("relax").parameters;
+            edit.parameters["fmax"] = 0.02;
+            edit.parameters["relax_cell"] = true;
+            edit.parameters["calculator"] = std::string("{\"potential\": \"LennardJones\", \"epsilon\": 0.4, \"sigma\": 2.3, \"cutoff\": 6}");
+            edit.input = copper;
+            atomforge::pipeline::Json committed;
+            edit.commit = [&](const atomforge::pipeline::Json& p) { committed = p; };
+            if (!tools.editStep(std::move(edit))) throw std::runtime_error("Relax step opens in the tool window");
+            for (int frame = 0; frame < 2; ++frame) {
+                ImGui::NewFrame();
+                tools.draw(copper, [](Structure&) {}, {});
+                ImGui::Render();
+            }
+            const auto back = tools.stepParameters();
+            if (std::abs(back.at("fmax").number() - 0.02) > 1e-12 || !back.at("relax_cell").boolean()) throw std::runtime_error("Relax settings round trip");
+            const auto calculator = atomforge::pipeline::Json::parse(back.at("calculator").string());
+            if (calculator.at("potential").string() != "LennardJones" || std::abs(calculator.at("sigma").number() - 2.3) > 1e-9)
+                throw std::runtime_error("Potential round trip: " + back.at("calculator").string());
+        }
+        // A step opens in its menu dialog ("Edit in dialog"), and "Update step" writes it back.
+        {
+            Structure shown = copper;
+            PipelineDialog panel;
+            panel.restore(R"({"format":"atomforge-pipeline","version":1,"active":true,"open":true,"modifiers":[
+                {"type":"replicate","parameters":{"counts":[2,1,1]}},
+                {"type":"assign-element","parameters":{"element":"Ni","target":"all"}}]})", &copper);
+            OperationDialog dialog;
+            OperationDialog::Callbacks none;
+            auto& io = ImGui::GetIO();
+            const auto frame = [&] {
+                ImGui::NewFrame();
+                ImGui::SetNextWindowPos(ImVec2(0, 0));
+                ImGui::SetNextWindowSize(ImVec2(700, 880));
+                panel.draw(shown, [](Structure&) {});
+                if (StepEdit request; panel.consumeDialogRequest(request)) dialog.editStep(std::move(request));
+                ImGui::SetNextWindowPos(ImVec2(720, 0));
+                dialog.draw(shown, {}, none);
+                ImGui::Render();
+            };
+            const auto clickAt = [&](ImVec2 at) {
+                io.AddMousePosEvent(at.x, at.y); frame();
+                io.AddMouseButtonEvent(0, true); frame();
+                io.AddMouseButtonEvent(0, false); frame();
+                frame();
+            };
+            const auto centre = [&](const std::string& name) {
+                for (const auto& [control, rect] : panel.controls())
+                    if (control == name) return ImVec2(0.5f * (rect[0] + rect[2]), 0.5f * (rect[1] + rect[3]));
+                throw std::runtime_error("Control not drawn: " + name);
+            };
+            for (int k = 0; k < 3; ++k) frame();
+            // Double-clicking step 2 opens the operation window of Edit > Structure Operations > Assign Element.
+            const ImVec2 row = centre("step 1");
+            io.AddMousePosEvent(row.x, row.y); frame();
+            for (int k = 0; k < 2; ++k) { io.AddMouseButtonEvent(0, true); frame(); io.AddMouseButtonEvent(0, false); frame(); }
+            frame();
+            if (!dialog.editingStep() || dialog.step() != "assign-element") throw std::runtime_error("Double-click opens the step's dialog");
+            // Its settings come from the step; change one and press Update step.
+            dialog.setParameter("element", atomforge::pipeline::Json(std::string("Zn")));
+            frame();
+            const auto& rect = dialog.updateButton();
+            clickAt(ImVec2(0.5f * (rect[0] + rect[2]), 0.5f * (rect[1] + rect[3])));
+            if (panel.editor().modifier(1).parameters.at("element").string() != "Zn") throw std::runtime_error("Update step writes the dialog's settings into the step");
+            if (shown.atoms.size() != 8 || shown.atoms[0].symbol != "Zn") throw std::runtime_error("The pipeline output follows the updated step");
+            io.AddMousePosEvent(-1, -1);
+            frame();
         }
         const auto ticks = uiPlot::niceTicks(0.013, 0.98, 5);
         if (ticks.size() < 4 || ticks.front() < 0.013 || ticks.back() > 0.98) throw std::runtime_error("Tick generation");

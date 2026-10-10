@@ -6,11 +6,13 @@
 #include "imgui.h"
 #include "ui/PeriodicTableDialog.h"
 #include "ui/DialogLayout.h"
+#include "util/PathUtils.h"
 
 #include <glm/glm.hpp>
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <map>
@@ -100,6 +102,11 @@ void drawLatticeParameterInputs(CrystalSystem system, LatticeParameters& lattice
             break;
     }
 }
+
+// Names of the crystal systems as --system takes them, in CrystalSystem order.
+const char* const kSystemNames[] = {
+    "triclinic", "monoclinic", "orthorhombic", "tetragonal", "trigonal", "hexagonal", "cubic"
+};
 } // namespace
 
 BulkCrystalBuilderDialog::BulkCrystalBuilderDialog() = default;
@@ -107,25 +114,89 @@ BulkCrystalBuilderDialog::BulkCrystalBuilderDialog() = default;
 void BulkCrystalBuilderDialog::drawMenuItem(bool enabled)
 {
     if (ImGui::MenuItem("Bulk Crystal", NULL, false, enabled))
+    {
+        m_step.finish();
         m_openRequested = true;
+    }
+}
+
+bool BulkCrystalBuilderDialog::editStep(StepEdit edit)
+{
+    m_step = std::move(edit);
+    const auto reader = m_step.reader();
+
+    // Missing flags take the defaults of AtomForge --build bulk.
+    m_crystalSystemIndex = (int)CrystalSystem::Cubic;
+    std::string system = reader.text("--system", "cubic");
+    for (char& c : system) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (int i = 0; i < 7; ++i)
+        if (system == kSystemNames[i]) m_crystalSystemIndex = i;
+    m_lastCrystalSystemIndex = m_crystalSystemIndex;
+    m_selectedSpaceGroup = reader.integer("--spacegroup", 225);
+
+    m_latticeParams.a = reader.number("--a", 4.0);
+    m_latticeParams.b = reader.number("--b", m_latticeParams.a);
+    m_latticeParams.c = reader.number("--c", m_latticeParams.a);
+    m_latticeParams.alpha = reader.number("--alpha", 90.0);
+    m_latticeParams.beta = reader.number("--beta", 90.0);
+    m_latticeParams.gamma = reader.number("--gamma", 90.0);
+    applySystemConstraints((CrystalSystem)m_crystalSystemIndex, m_latticeParams);
+
+    // Each --atom is "SYMBOL fx fy fz"; colours are applied in drawDialog.
+    m_asymmetricAtoms.clear();
+    for (const auto& value : reader.values("--atom"))
+    {
+        std::istringstream in(value);
+        std::string symbol;
+        AtomSite site;
+        if (!(in >> symbol >> site.x >> site.y >> site.z)) continue;
+        const int z = atomicNumberFromSymbol(symbol);
+        if (z <= 0) continue;
+        site.atomicNumber = z;
+        site.symbol = elementSymbol(z);
+        m_asymmetricAtoms.push_back(site);
+    }
+    m_recolorAtoms = true;
+    m_openRequested = true;
+    return true;
+}
+
+std::string BulkCrystalBuilderDialog::stepOptions() const
+{
+    LatticeParameters lp = m_latticeParams;
+    applySystemConstraints((CrystalSystem)m_crystalSystemIndex, lp);
+    atomforge::pipeline::options::Writer out;
+    out.add("--system", kSystemNames[std::clamp(m_crystalSystemIndex, 0, 6)])
+       .add("--spacegroup", m_selectedSpaceGroup)
+       .add("--a", lp.a).add("--b", lp.b).add("--c", lp.c)
+       .add("--alpha", lp.alpha).add("--beta", lp.beta).add("--gamma", lp.gamma);
+    for (const AtomSite& atom : m_asymmetricAtoms)
+        out.add("--atom", atom.symbol + " " + out.number(atom.x) + " " + out.number(atom.y) + " " + out.number(atom.z));
+    return out.str();
 }
 
 void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
                                           const std::vector<glm::vec3>& elementColors,
                                           const std::function<void(Structure&)>& updateBuffers)
 {
-    static int crystalSystemIndex = (int)CrystalSystem::Cubic;
-    static int selectedSpaceGroup = 225;
-    static LatticeParameters latticeParams;
-    static std::vector<AtomSite> asymmetricAtoms;
+    int& crystalSystemIndex = m_crystalSystemIndex;
+    int& selectedSpaceGroup = m_selectedSpaceGroup;
+    LatticeParameters& latticeParams = m_latticeParams;
+    std::vector<AtomSite>& asymmetricAtoms = m_asymmetricAtoms;
     static BulkBuildResult lastResult;
     static int selectedEditElement = 6;
     static int targetAtomIndex = -1;
     static bool showElementPicker = false;
     static bool reopenBulkDialogAfterPicker = false;
     static bool scrollRowsToBottom = false;
-    static int lastCrystalSystemIndex = crystalSystemIndex;
+    int& lastCrystalSystemIndex = m_lastCrystalSystemIndex;
 
+    if (m_recolorAtoms)
+    {
+        for (AtomSite& atom : asymmetricAtoms)
+            applyElementToAtom(atom, atom.atomicNumber, elementColors);
+        m_recolorAtoms = false;
+    }
     if (asymmetricAtoms.empty())
         addDefaultAsymmetricAtom(asymmetricAtoms, elementColors);
 
@@ -140,6 +211,8 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
     bool dialogOpen = true;
     if (responsive::beginModal("Build Bulk Crystal", &dialogOpen, ImGuiWindowFlags_None))
     {
+        if (m_step.active())
+            ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
 #ifndef ATOMS_ENABLE_SPGLIB
         ImGui::TextWrapped("spglib is not available in this build, so symmetry expansion cannot be generated.");
 #else
@@ -273,7 +346,17 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
         }
 
         ImGui::Separator();
-        if (dialogLayout::primaryButton("Build",dialogLayout::actionSize()))
+        if (m_step.active())
+        {
+            if (dialogLayout::primaryButton("Update step",dialogLayout::actionSize()))
+            {
+                m_step.commitOptions(stepOptions());
+                m_step.finish();
+                dialogOpen = false;
+                ImGui::CloseCurrentPopup();
+            }
+        }
+        else if (dialogLayout::primaryButton("Build",dialogLayout::actionSize()))
         {
             applySystemConstraints((CrystalSystem)crystalSystemIndex, latticeParams);
             lastResult = buildBulkCrystal(structure,
@@ -301,6 +384,7 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
         ImGui::SameLine();
         if (responsive::button("Close",dialogLayout::actionSize()))
         {
+            m_step.finish();
             dialogOpen = false;
             ImGui::CloseCurrentPopup();
         }
@@ -315,6 +399,11 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
 #endif
 
         ImGui::EndPopup();
+    }
+    else if (m_step.active() && !m_openRequested && !reopenBulkDialogAfterPicker)
+    {
+        // Closed with the X (or by another popup): the next menu build is normal.
+        m_step.finish();
     }
 
     if (!dialogOpen)

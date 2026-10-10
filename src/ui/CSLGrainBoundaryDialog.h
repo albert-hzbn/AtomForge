@@ -1,6 +1,9 @@
 #pragma once
 
 #include "ui/PathPicker.h"
+#include "ui/StepEditing.h"
+
+#include "algorithms/CSLComputation.h"
 
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
@@ -34,11 +37,39 @@ struct CSLGrainBoundaryDialog
     bool isOpen() const { return m_isOpen; }
     void feedDroppedFile(const std::string& path);
 
+    // Opens the dialog on a pipeline step: filled from the step's settings, with
+    // "Update step" writing them back instead of building.
+    bool editStep(StepEdit edit);
+    // The dialog's current settings as the step's options (command-line flags of
+    // AtomForge --build gb).
+    std::string stepOptions() const;
+
 private:
     PathPicker m_sourcePicker;
     bool m_openRequested = false;
     bool m_isOpen        = false;
     std::string m_pendingDropPath;
+    StepEdit m_step;
+
+    // Dialog state
+    Structure m_inputStructure;
+    std::string m_referencePath;              // file the reference came from ("" = none or the step input)
+    char m_statusMsg[256] = "(no structure loaded)";
+    char m_loadedFileName[256] = "(none)";
+    int m_axis[3] = {0, 0, 1};
+    int m_sigmaMax = 200;
+    std::vector<SigmaCandidate> m_sigmaCandidates;
+    int m_sigmaSelection = 0;
+    int m_planeSelection = 0;
+    int m_lastAxisForSigma[3] = {0, 0, 0};
+    int m_lastSigmaMaxForSigma = 0;
+    int m_ucA = 1;
+    int m_ucB = 1;
+    float m_vacuumPadding = 0.0f;
+    float m_gapDist = 0.0f;
+    float m_overlapDist = 0.0f;
+    bool m_conventionalCell = false;
+    CSLBuildResult m_lastResult{};
 
     // 3-D preview GL resources
     Renderer*     m_renderer        = nullptr;
@@ -55,6 +86,7 @@ private:
 
     bool  m_glReady         = false;
     bool  m_previewBufDirty = true;
+    bool  m_fitPending      = false;   // fit the camera once the preview is rebuilt
 
     float m_camYaw      = 45.0f;
     float m_camPitch    = 35.0f;

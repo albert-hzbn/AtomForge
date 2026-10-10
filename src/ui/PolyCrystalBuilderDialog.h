@@ -1,7 +1,9 @@
 #pragma once
 
 #include "ui/PathPicker.h"
+#include "ui/StepEditing.h"
 
+#include "algorithms/PolyCrystalBuilder.h"
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
 #include "model/Structure.h"
@@ -37,7 +39,19 @@ struct PolyCrystalBuilderDialog
 
     void feedDroppedFile(const std::string& path);
 
+    // Opens the dialog on a pipeline step: filled from the step's settings, with
+    // "Update step" writing them back instead of building.
+    bool editStep(StepEdit edit);
+    // The dialog's current settings as the step's options (command-line flags of
+    // AtomForge --build poly).
+    std::string stepOptions() const;
+
 private:
+    StepEdit m_step;
+    PolyParams      m_params;
+    PolyBuildResult m_lastResult;
+    int m_newGrainIdx = 1;
+
     PathPicker m_sourcePicker;
     bool m_openRequested = false;
     bool m_isOpen        = false;
@@ -45,6 +59,9 @@ private:
     // Reference structure for tiling
     Structure   m_reference;
     std::string m_referenceFilename; // just the basename
+    std::string m_referencePath;     // full path of a loaded reference file
+    bool m_referenceFromStep = false; // the reference is the pipeline step's input
+    bool m_fitCameraPending  = false;
 
     // Path queued by feedDroppedFile(); consumed at start of drawDialog().
     std::string m_pendingDropPath;

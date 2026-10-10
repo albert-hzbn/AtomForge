@@ -52,11 +52,11 @@ void DislocationAnalysisDialog::drawDialog()
 
     dialogLayout::section("Structures");
     ImGui::TextWrapped("Both structures need the same atom count and ordering (e.g. a perfect crystal and the same crystal after inserting a dislocation).");
-    if (responsive::button("Open reference (undeformed)...", ImVec2(-FLT_MIN, 0))) m_referencePicker.open("Open reference structure", false, m_referencePath);
+    if (responsive::button("Open reference (undeformed)", ImVec2(-FLT_MIN, 0))) m_referencePicker.open("Open reference structure", false, m_referencePath);
     if (m_referenceLoaded)
         ImGui::TextWrapped("Reference: %s (%zu atoms)", std::filesystem::u8path(m_referencePath).filename().u8string().c_str(), m_reference.atoms.size());
     if (!m_referenceError.empty()) ImGui::TextWrapped("%s", m_referenceError.c_str());
-    if (responsive::button("Open deformed...", ImVec2(-FLT_MIN, 0))) m_deformedPicker.open("Open deformed structure", false, m_deformedPath);
+    if (responsive::button("Open deformed", ImVec2(-FLT_MIN, 0))) m_deformedPicker.open("Open deformed structure", false, m_deformedPath);
     if (m_deformedLoaded)
         ImGui::TextWrapped("Deformed: %s (%zu atoms)", std::filesystem::u8path(m_deformedPath).filename().u8string().c_str(), m_deformed.atoms.size());
     if (!m_deformedError.empty()) ImGui::TextWrapped("%s", m_deformedError.c_str());
@@ -145,7 +145,7 @@ void DislocationAnalysisDialog::drawDialog()
     if (!m_dragTask.error().empty()) ImGui::TextWrapped("%s", m_dragTask.error().c_str());
     if (m_dragResult.success)
     {
-        if (responsive::button("Save interpolated structure...", ImVec2(-FLT_MIN, 0))) m_dragSavePicker.open("Save interpolated structure", true, "interpolated.vasp");
+        if (responsive::button("Save interpolated structure", ImVec2(-FLT_MIN, 0))) m_dragSavePicker.open("Save interpolated structure", true, "interpolated.vasp");
     }
 
     dialogLayout::section("Fit dislocation (position/Burgers vector)");
@@ -197,14 +197,14 @@ void DislocationAnalysisDialog::drawDialog()
         ImGui::TextUnformatted("Top atoms by |alpha| (dislocation content):");
         for (std::size_t k = 0; k < std::min<std::size_t>(10, order.size()); ++k)
             ImGui::Text("  atom %zu: |alpha| = %.4g", order[k], m_nyeResult.alphaNorm[order[k]]);
-        if (responsive::button("Export full Nye tensor CSV...", ImVec2(-FLT_MIN, 0))) m_nyeExportPicker.open("Export Nye tensor", true, "nye_tensor.csv");
+        if (responsive::button("Export full Nye tensor CSV", ImVec2(-FLT_MIN, 0))) m_nyeExportPicker.open("Export Nye tensor", true, "nye_tensor.csv");
     }
 
     if (m_vitekResult.success)
     {
         dialogLayout::section("Vitek map result");
         ImGui::TextWrapped("%s", m_vitekResult.message.c_str());
-        if (responsive::button("Export full Vitek map CSV...", ImVec2(-FLT_MIN, 0))) m_vitekExportPicker.open("Export Vitek map", true, "vitek_map.csv");
+        if (responsive::button("Export full Vitek map CSV", ImVec2(-FLT_MIN, 0))) m_vitekExportPicker.open("Export Vitek map", true, "vitek_map.csv");
     }
 
     if (m_patternResult.success)
@@ -212,14 +212,14 @@ void DislocationAnalysisDialog::drawDialog()
         dialogLayout::section("Pattern matching result");
         ImGui::TextWrapped("Pattern: %s", m_pattern.message.c_str());
         ImGui::TextWrapped("Detection: %s", m_patternResult.message.c_str());
-        if (responsive::button("Export full pattern-match CSV...", ImVec2(-FLT_MIN, 0))) m_patternExportPicker.open("Export pattern match", true, "pattern_match.csv");
+        if (responsive::button("Export full pattern-match CSV", ImVec2(-FLT_MIN, 0))) m_patternExportPicker.open("Export pattern match", true, "pattern_match.csv");
     }
 
     if (m_dragResult.success)
     {
         dialogLayout::section("Drag preparation result");
         ImGui::TextWrapped("%s", m_dragResult.message.c_str());
-        ImGui::TextWrapped("Interpolated structure ready (%zu atoms); use \"Save interpolated structure...\" above.", m_dragResult.interpolated.atoms.size());
+        ImGui::TextWrapped("Interpolated structure ready (%zu atoms); use \"Save interpolated structure\" above.", m_dragResult.interpolated.atoms.size());
     }
 
     if (m_fitResult.success)

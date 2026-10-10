@@ -12,6 +12,7 @@
 #include "app/SceneView.h"
 #include "camera/Camera.h"
 #include "ui/ThemeUtils.h"
+#include "pipeline/Options.h"
 #include "imgui.h"
 
 #include <GL/glew.h>
@@ -235,6 +236,9 @@ bool InterfaceBuilderDialog::tryLoadFile(
         return false;
     }
     dest = std::move(loaded);
+    // Remember the file, so a pipeline step can name it in its options.
+    if (&dest == &m_structureA) m_pathA = path;
+    else if (&dest == &m_structureB) m_pathB = path;
     // Extract filename from path for display
     std::string fname = path;
     auto slashPos = fname.find_last_of("/\\");
@@ -261,6 +265,8 @@ void InterfaceBuilderDialog::runSearch()
     m_searchDone = false;
     m_selectedIdx = -1;
     m_lastRenderedResultIdx = -2;
+    m_stepCandidate = -1;  // a new search: the selection decides the step's match
+    m_stepPick = 0;
 
     if (!m_structureA.hasUnitCell || !m_structureB.hasUnitCell)
     {
@@ -697,7 +703,111 @@ void InterfaceBuilderDialog::draw2DPlot(float width, float height)
 void InterfaceBuilderDialog::drawMenuItem(bool enabled)
 {
     if (ImGui::MenuItem("Interface Builder", NULL, false, enabled))
+    {
+        m_step.finish();  // from the menu: build normally
+        m_stepSearch = false;
         m_openRequested = true;
+    }
+}
+
+// ============================================================================
+// Pipeline step editing
+// ============================================================================
+bool InterfaceBuilderDialog::editStep(StepEdit edit)
+{
+    m_step = std::move(edit);
+    const auto options = m_step.reader();
+
+    // Missing flags take the defaults of AtomForge --build interface.
+    m_nmax           = std::clamp(options.integer("--nmax", 4), 1, 10);
+    m_mmax           = std::clamp(options.integer("--mmax", m_nmax), 1, 10);
+    m_maxCellsA      = std::max(1, options.integer("--maxcells", 16));
+    m_maxCellsB      = std::max(1, options.integer("--maxcellsB", m_maxCellsA));
+    m_layersA        = std::max(1, options.integer("--layersA", 1));
+    m_layersB        = std::max(1, options.integer("--layersB", 1));
+    m_zGap           = std::max(0.0f, (float)options.number("--gap", 2.0));
+    m_vacuum         = std::max(0.0f, (float)options.number("--vacuum", 10.0));
+    m_repeatX        = std::max(1, options.integer("--repx", 1));
+    m_repeatY        = std::max(1, options.integer("--repy", 1));
+    m_maxMeanStrain  = std::max(0.0001f, (float)options.number("--max-strain", 0.1));
+    m_maxRotationDeg = std::max(0.0f, (float)options.number("--max-rotation", 10.0));
+    m_orTolDeg       = std::max(0.0f, (float)options.number("--or-tol", 2.0));
+
+    // Orientation relationship: plane + direction, an angle, or none.
+    const auto readTriple = [&](const char* flag, float out[3]) {
+        const auto values = options.numbers(flag);
+        if (values.size() == 3)
+            for (int i = 0; i < 3; ++i) out[i] = (float)values[i];
+    };
+    m_useOrPlaneDir = options.has("--or-plane-a");
+    m_useOrAngle    = !m_useOrPlaneDir && options.has("--or-angle");
+    readTriple("--or-plane-a", m_planeA);
+    readTriple("--or-dir-a", m_dirA);
+    readTriple("--or-plane-b", m_planeB);
+    readTriple("--or-dir-b", m_dirB);
+    m_orAngleDeg = (float)options.number("--or-angle", 0.0);
+
+    // Layer A: a file named in the options, else the structure entering the step.
+    m_structureA = Structure();
+    m_statusA.clear();
+    m_pathA = options.text("--layerA");
+    if (!m_pathA.empty())
+        m_pendingDropPathA = m_pathA;
+    else if (!m_step.input.atoms.empty())
+    {
+        m_structureA = m_step.input;
+        char msg[128];
+        std::snprintf(msg, sizeof(msg), "Step input  (%d atoms)", (int)m_structureA.atoms.size());
+        m_statusA = msg;
+        m_previewADirty = true;
+    }
+    // Layer B always comes from a file.
+    m_structureB = Structure();
+    m_statusB.clear();
+    m_pathB = options.text("--layerB");
+    if (!m_pathB.empty())
+        m_pendingDropPathB = m_pathB;
+
+    // The step's match is selected once the search has run on both layers.
+    m_candidates.clear();
+    m_interfaceStructures.clear();
+    m_searchDone = false;
+    m_selectedIdx = -1;
+    m_lastRenderedResultIdx = -2;
+    m_stepCandidate = options.has("--align") ? options.integer("--candidate", -1) : -1;
+    m_stepPick = std::max(0, options.integer("--pick", 0));
+    m_stepSearch = true;
+    m_openRequested = true;
+    return true;
+}
+
+std::string InterfaceBuilderDialog::stepOptions() const
+{
+    const auto triple = [](const float v[3]) { return std::vector<double>{v[0], v[1], v[2]}; };
+    atomforge::pipeline::options::Writer out;
+    if (!m_pathA.empty()) out.add("--layerA", m_pathA);
+    if (!m_pathB.empty()) out.add("--layerB", m_pathB);
+    out.flag("--align");
+    out.add("--nmax", m_nmax).add("--mmax", m_mmax);
+    out.add("--maxcells", m_maxCellsA).add("--maxcellsB", m_maxCellsB);
+    out.add("--layersA", m_layersA).add("--layersB", m_layersB);
+    out.add("--max-strain", m_maxMeanStrain).add("--max-rotation", m_maxRotationDeg);
+    if (m_useOrPlaneDir)
+        out.add("--or-plane-a", triple(m_planeA)).add("--or-dir-a", triple(m_dirA))
+           .add("--or-plane-b", triple(m_planeB)).add("--or-dir-b", triple(m_dirB));
+    else if (m_useOrAngle)
+        out.add("--or-angle", m_orAngleDeg);
+    out.add("--or-tol", m_orTolDeg);
+    out.add("--gap", m_zGap).add("--vacuum", m_vacuum);
+    out.add("--repx", m_repeatX).add("--repy", m_repeatY);
+    // The picked match, numbered in search order as in the plot's tooltip.
+    if (m_selectedIdx >= 0 && m_selectedIdx < (int)m_candidates.size())
+        out.add("--candidate", m_candidates[m_selectedIdx].idx);
+    else if (m_stepCandidate >= 0)
+        out.add("--candidate", m_stepCandidate);
+    else if (m_stepPick > 0)
+        out.add("--pick", m_stepPick);
+    return out.str();
 }
 
 // ============================================================================
@@ -727,6 +837,38 @@ void InterfaceBuilderDialog::drawDialog(
         m_pendingDropPathB.clear();
         m_searchDone = false;
     }
+    if (m_previewADirty && m_glReady)
+    {
+        rebuildPreviewBuffers(m_previewBufA, m_structureA, elementRadii, elementShininess);
+        autoFitCamera(m_previewBufA, m_camADist);
+        m_previewADirty = false;
+    }
+
+    // Editing a step: search with its settings and select its match.
+    if (m_stepSearch)
+    {
+        m_stepSearch = false;
+        if (m_structureA.hasUnitCell && m_structureB.hasUnitCell)
+        {
+            const int candidate = m_stepCandidate;
+            const int pick = m_stepPick;
+            runSearch();
+            if (candidate >= 0)
+            {
+                if (candidate < (int)m_candidates.size()) m_selectedIdx = candidate;
+            }
+            else
+            {
+                // --pick ranks the matches by strain (0 = best).
+                std::vector<int> order(m_candidates.size());
+                for (int i = 0; i < (int)order.size(); ++i) order[i] = i;
+                std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+                    return m_candidates[a].meanAbsStrain < m_candidates[b].meanAbsStrain;
+                });
+                if (pick < (int)order.size()) m_selectedIdx = order[pick];
+            }
+        }
+    }
 
     if (m_openRequested)
     {
@@ -745,11 +887,18 @@ void InterfaceBuilderDialog::drawDialog(
     if (!responsive::beginModal("Interface Builder", &dialogOpen,
                                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
     {
-        if (!dialogOpen) m_isOpen = false;
+        if (!dialogOpen || !m_isOpen)
+        {
+            m_isOpen = false;
+            m_step.finish();
+        }
         return;
     }
 
     m_isOpen = true;
+    if (m_step.active())
+        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f),
+                           "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
 
     float totalW = ImGui::GetContentRegionAvail().x;
     float gap = 4.0f;
@@ -1110,22 +1259,37 @@ void InterfaceBuilderDialog::drawDialog(
     // =========================================================================
     ImGui::Separator();
 
-    bool canBuild = (m_selectedIdx >= 0 &&
-                     m_selectedIdx < (int)m_interfaceStructures.size());
-    if (!canBuild) ImGui::BeginDisabled();
-    if (responsive::button("Build##iface", responsive::size(100.0f,0.0f)))
+    if (m_step.active())
     {
-        structure = m_interfaceStructures[m_selectedIdx];
-        updateBuffers(structure);
-        ImGui::CloseCurrentPopup();
-        m_isOpen = false;
+        // Without a picked match the step builds the best one (--pick 0).
+        if (responsive::button("Update step##iface", responsive::size(120.0f,0.0f)))
+        {
+            m_step.commitOptions(stepOptions());
+            m_step.finish();
+            ImGui::CloseCurrentPopup();
+            m_isOpen = false;
+        }
     }
-    if (!canBuild) ImGui::EndDisabled();
+    else
+    {
+        bool canBuild = (m_selectedIdx >= 0 &&
+                         m_selectedIdx < (int)m_interfaceStructures.size());
+        if (!canBuild) ImGui::BeginDisabled();
+        if (responsive::button("Build##iface", responsive::size(100.0f,0.0f)))
+        {
+            structure = m_interfaceStructures[m_selectedIdx];
+            updateBuffers(structure);
+            ImGui::CloseCurrentPopup();
+            m_isOpen = false;
+        }
+        if (!canBuild) ImGui::EndDisabled();
+    }
 
     ImGui::SameLine();
     if (responsive::button("Close##iface", responsive::size(80.0f,0.0f)))
     {
         m_isOpen = false;
+        m_step.finish();
         ImGui::CloseCurrentPopup();
     }
 

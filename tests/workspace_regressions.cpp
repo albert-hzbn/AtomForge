@@ -130,6 +130,18 @@ int main()
             check(back[0].structure.atomProperty.size()==2 && back[0].structure.atomProperty[0]==-0.25 &&
                   std::isnan(back[0].structure.atomProperty[1]),"Per-atom property or NaN markers changed");
             check(back[0].structure.atomPropertyName==extra.structure.atomPropertyName,"Per-atom property name changed");
+            // Format 3: the structure pipeline and its unmodified input.
+            extra.pipeline="{\"modifiers\":[{\"type\":\"replicate\"}]}";
+            extra.hasPipelineInput=true;
+            extra.pipelineInput=extra.structure;
+            extra.pipelineInput.atoms.pop_back();
+            atomforge::saveWorkspace({extra},extraPath);
+            const auto withPipeline=atomforge::loadWorkspace(extraPath);
+            check(withPipeline[0].pipeline==extra.pipeline && withPipeline[0].hasPipelineInput &&
+                  withPipeline[0].pipelineInput.atoms.size()==1,"Pipeline and its input changed");
+            atomforge::saveWorkspace({extra},extraPath,2);
+            const auto format2=atomforge::loadWorkspace(extraPath);
+            check(format2[0].pipeline.empty() && !format2[0].hasPipelineInput && format2[0].science==extra.science,"Format 2 project did not load");
             // Format 1 files (earlier releases) still load, without the new data.
             atomforge::saveWorkspace({extra},extraPath,1);
             { std::ifstream file(extraPath,std::ios::binary); std::string head(27,'\0'); file.read(head.data(),27);

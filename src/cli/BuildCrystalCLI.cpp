@@ -175,6 +175,10 @@ void printHelpCustom()
 "  --mesh    <file>            3D model file (OBJ or STL)\n"
 "  --scale   <factor>          Angstrom per model unit  (default: 1.0)\n"
 "  --vacuum  <Ang>             Vacuum padding for output cell  (default: 5.0)\n"
+"  --no-cell                   Keep the reference cell instead of a rectangular\n"
+"                               output cell around the atoms\n"
+"  --center  \"x y z\"          Mesh centre in the reference (Angstrom)\n"
+"                               (default: centre of the reference atoms)\n"
 "  --repa <N>                  Manual replication along a  (0 = auto)\n"
 "  --repb <N>                  Manual replication along b  (0 = auto)\n"
 "  --repc <N>                  Manual replication along c  (0 = auto)\n"
@@ -274,8 +278,22 @@ int runCustom(int argc, char* argv[])
     params.modelHy             = halfExt.y;
     params.modelHz             = halfExt.z;
     params.vacuumPadding       = static_cast<float>(argDouble(argc, argv, "--vacuum", 5.0));
-    params.setOutputCell       = true;
+    params.setOutputCell       = !hasFlag(argc, argv, "--no-cell");
     params.autoCenterFromAtoms = true;
+    if (const char* centerStr = findArg(argc, argv, "--center"))
+    {
+        std::istringstream iss(centerStr);
+        float x = 0.0f, y = 0.0f, z = 0.0f;
+        if (!(iss >> x >> y >> z))
+        {
+            std::cerr << "Error: --center needs three numbers \"x y z\"\n";
+            return 1;
+        }
+        params.autoCenterFromAtoms = false;
+        params.cx = x;
+        params.cy = y;
+        params.cz = z;
+    }
 
     int repA = argInt(argc, argv, "--repa", 0);
     int repB = argInt(argc, argv, "--repb", 0);

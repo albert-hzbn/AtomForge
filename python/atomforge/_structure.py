@@ -172,6 +172,16 @@ class Structure:
         except ImportError:
             self.view()
 
+    def pipe(self, steps, property=None) -> "Structure":
+        """Apply a structure pipeline (pipe text or an :class:`atomforge.pipeline.Pipeline`)
+        to a copy of this structure and return the result; this structure is unchanged.
+
+        >>> s.pipe("replicate 2 2 2 | select-expression 'fz > 0.5' | delete-selected")
+        """
+        from .pipeline import Pipeline
+        pipeline = steps if isinstance(steps, Pipeline) else Pipeline.parse(steps)
+        return pipeline.run(self, property).structure
+
     def save(self, path: str) -> None:
         """Save to file; format is inferred from the file extension."""
         from ._io import save

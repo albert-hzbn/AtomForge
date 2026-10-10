@@ -16,7 +16,7 @@ Use \ui{Resample to reference grid} only as an explicit interpolation step when 
 \section{Weighted density difference: complete GUI recipe}
 \begin{enumerate}
 \item Open \code{CHGCAR-AB} as the main volume. Select its total density field.
-\item Choose \ui{Charge transfer > Density difference}. Click \ui{Reference...} and load \code{CHGCAR-A}.
+\item Choose \ui{Charge transfer > Density difference}. Click \ui{Reference} and load \code{CHGCAR-A}.
 \item Check the \ui{Operand} channel and set \ui{Reference weight} to 1. Click \ui{Calculate}. The appended field represents $\rho_{AB}-\rho_A$.
 \item Select this derived field. Load \code{CHGCAR-B} through Reference, verify that the external reference is being used, and calculate again with weight 1.
 \item Select the new result $\Delta\rho$. Export it as a grid and use a diverging palette with an explicit symmetric colour range.

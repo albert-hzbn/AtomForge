@@ -66,6 +66,9 @@ print(af.builder_help("nano"))
 
 Native errors raise \code{subprocess.CalledProcessError} with diagnostic streams. The default timeout is 300 seconds; a time limit raises \code{subprocess.TimeoutExpired}. No command shell or GUI is opened. Use \code{builder_help(mode)} to check the installed executable's supported flags. Wulff scripting requires the updated executable with \code{--shape wulff}; repeated \code{--facet "h k l energy"} entries specify nonzero Miller indices and positive relative energies. Radius is the maximum plane distance, not the farthest vertex distance. GUI camera, transparency, lighting, interface scaling, and file-dialog controls are presentation settings and do not alter these numerical APIs.
 
+\section{Structure pipelines}
+\code{atomforge.pipeline.Pipeline} is the non-destructive structure pipeline of the desktop (\ui{Edit > Structure pipeline}) and \code{AtomForge --pipe}: add, insert, move, enable, disable, change and remove steps, then \code{run(structure)}; \code{Structure.pipe(text)} applies one directly. \S\ref{sec:pipeline} describes every step and gives an example.
+
 \section{Desktop and notebook viewing}
 \code{structure.view()} opens the structure in AtomForge without blocking the Python workflow. \code{af.view(structure)} provides the package-level viewer. \code{structure.view_notebook(width=620,height=460)} requests an inline notebook view; if IPython support is absent it falls back to the desktop viewer. The notebook representation is a visual aid and does not run an electronic calculation.
 

@@ -72,7 +72,7 @@ void WannierAnalysisDialog::drawDialog()
     const float sidebar = stackPanels ? ImGui::GetContentRegionAvail().x : std::clamp(ImGui::GetContentRegionAvail().x*.38f,responsive::dp(340),responsive::dp(440));
     responsive::beginChild("Wannier controls",ImVec2(sidebar,stackPanels?responsive::dp(360):0),true);
 
-    if (responsive::button("Open seedname_hr.dat...")) m_picker.open("Open Wannier90 Hamiltonian",false,m_loadedPath.empty()?"wannier90_hr.dat":m_loadedPath);
+    if (responsive::button("Open seedname_hr.dat")) m_picker.open("Open Wannier90 Hamiltonian",false,m_loadedPath.empty()?"wannier90_hr.dat":m_loadedPath);
     if (!m_loadedPath.empty()) ImGui::TextWrapped("Loaded: %s (%d Wannier functions)",std::filesystem::u8path(m_loadedPath).filename().u8string().c_str(),m_model.numWann);
     if (!m_loadError.empty()) ImGui::TextWrapped("%s",m_loadError.c_str());
     ImGui::TextWrapped("H(k) = sum_R exp(2*pi*i*k.R) H(R) / ndegen(R), k fractional reciprocal.");

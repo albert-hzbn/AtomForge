@@ -4,7 +4,7 @@ Choose \ui{Analysis > Electronic structure > Electronic Post-processing}. The le
 
 \begin{enumerate}
 \item Expand \ui{Import options} if you need to specify the physical quantity or Cube coordinate convention. Do this before loading, or use \ui{Reload volume} after changing an import setting.
-\item Click \ui{Open volume...}. Navigate with the location shortcuts, directory list, or folder bar. Select the file and click Open, or double-click the file.
+\item Click \ui{Open volume}. Navigate with the location shortcuts, directory list, or folder bar. Select the file and click Open, or double-click the file.
 \item Check the filename, selected \ui{Field}, dimensions, units, and displayed value range. Multi-channel files supply multiple selectable fields.
 \item Choose \ui{Charge transfer} for the eight direct charge-operation buttons or \ui{General analysis} for the other operations.
 \item Select a field and parameters, click \ui{Calculate}, and wait for completion. Grid-producing operations append derived fields; select the intended field before the next calculation or export.
@@ -41,7 +41,7 @@ Cube/XSF covering a complete periodic cell may include duplicate endpoint planes
 
 For subtraction, the selected \ui{Field} is $A$ and the reference/operand is $B$, giving $A-B$. For weighted density difference the result is $A-wB$. For resampling, the reference supplies the target grid geometry. For coloured isosurfaces, the reference supplies the colour values on the surface generated from $A$. For Boolean operations, the operand is the second binary mask.
 
-Click \ui{Reference...} to load another file. Then select its intended channel in the \ui{Reference} or \ui{Operand} selector. If no external reference is loaded, the selector can refer to a field already in the main volume. When an external reference exists, \ui{Use loaded/result field as reference} switches the operand source back to the main loaded/derived field list. Always verify the operand after loading a new file or changing tools.
+Click \ui{Reference} to load another file. Then select its intended channel in the \ui{Reference} or \ui{Operand} selector. If no external reference is loaded, the selector can refer to a field already in the main volume. When an external reference exists, \ui{Use loaded/result field as reference} switches the operand source back to the main loaded/derived field list. Always verify the operand after loading a new file or changing tools.
 
 \begin{guidance}{Avoid accidental self-subtraction}
 Immediately after loading a single-channel density, both Field and Operand can display the same field. Calculating density difference then gives zero. Load the intended independent reference, or deliberately choose another derived field, before interpreting a result as charge transfer. Self-subtraction is useful as a software sanity check only.
@@ -106,6 +106,6 @@ The approximately 184-electron total is a numerical property of the supplied fir
 \shot{chgcar-analysis.png}{1}{Numerical section, planar average, and cumulative integral generated through AtomForge's Python electronic API from the supplied CHGCAR. The left panel uses fractional in-plane coordinates; the profiles use distance along the cell-face normal.}
 
 \section{Exporting the right result}
-Expand \ui{Export}, choose Grid: XSF/Cube/VASP, Table: CSV, or Surface: OBJ/PLY, then click \ui{Save as...}. Browse to a directory and choose the output filename. Grid export uses the selected field; table export uses the calculated table; surface export requires a generated surface. Selecting a density field does not turn an older table into a table of that field: calculate the desired table again before exporting it.
+Expand \ui{Export}, choose Grid: XSF/Cube/VASP, Table: CSV, or Surface: OBJ/PLY, then click \ui{Save as}. Browse to a directory and choose the output filename. Grid export uses the selected field; table export uses the calculated table; surface export requires a generated surface. Selecting a density field does not turn an older table into a table of that field: calculate the desired table again before exporting it.
 
 When reopening exported grids, supply the correct quantity and endpoint convention. Generic filenames and interchange formats may not preserve enough metadata to infer physical units automatically. Cube export uses atomic-unit density/potential values; read it with the corresponding explicit quantity. Keep a record of whether duplicate periodic endpoints were written and verify round-trip geometry/integrals before combining exported data with the originals.

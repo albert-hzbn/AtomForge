@@ -26,7 +26,7 @@ class Archive
 public:
     explicit Archive(std::istream& input, std::uint64_t bytes) : in(&input), remaining(bytes) {}
     explicit Archive(std::ostream& output) : out(&output) {}
-    int version = 2;
+    int version = 3;
     bool reading() const { return in != nullptr; }
     void bytes(char* data, std::size_t count)
     {
@@ -120,6 +120,11 @@ public:
             }
             value(w.structure.atomPropertyName);
         }
+        if (version>=3) {
+            value(w.pipeline,1ull<<30);
+            value(w.hasPipelineInput);
+            if (w.hasPipelineInput) value(w.pipelineInput);
+        }
         if (!w.camera.empty() && w.camera.size()!=7) throw std::runtime_error("Invalid project camera");
         for (double coordinate:w.camera)
             if (std::abs(coordinate)>1e9) throw std::runtime_error("Project camera outside supported range");
@@ -136,7 +141,7 @@ private:
 void saveWorkspace(const std::vector<Workspace>& tabs,const std::string& filename,int formatVersion)
 {
     if (tabs.empty() || tabs.size()>1000) throw std::runtime_error("A project requires 1-1000 tabs");
-    if (formatVersion!=1 && formatVersion!=2) throw std::runtime_error("Unsupported project format");
+    if (formatVersion<1 || formatVersion>3) throw std::runtime_error("Unsupported project format");
     const auto path=std::filesystem::u8path(filename);
     auto temporary=path;
     temporary += ".tmp-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
@@ -170,7 +175,8 @@ std::vector<Workspace> loadWorkspace(const std::string& filename)
     Archive archive(stream,size);
     std::string magic; archive.value(magic);
     if (magic=="ATOMFORGE_PROJECT_1") archive.version=1;
-    else if (magic!="ATOMFORGE_PROJECT_2") throw std::runtime_error("Unsupported project version (saved by a newer AtomForge?)");
+    else if (magic=="ATOMFORGE_PROJECT_2") archive.version=2;
+    else if (magic!="ATOMFORGE_PROJECT_3") throw std::runtime_error("Unsupported project version (saved by a newer AtomForge?)");
     std::uint64_t count=0; archive.value(count);
     if (count==0 || count>1000) throw std::runtime_error("Invalid project tab count");
     std::vector<Workspace> result(static_cast<std::size_t>(count));

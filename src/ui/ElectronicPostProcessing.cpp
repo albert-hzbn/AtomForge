@@ -316,9 +316,9 @@ void ElectronicPostProcessingDialog::drawDialog()
     const float sidebar = stackPanels ? ImGui::GetContentRegionAvail().x : std::clamp(ImGui::GetContentRegionAvail().x * .38f,responsive::dp(340),responsive::dp(440));
     responsive::beginChild("Electronic controls",ImVec2(sidebar,stackPanels ? responsive::dp(420) : 0),true);
     ImGui::BeginDisabled(m_task.running());
-    if (responsive::button("Open workspace...")) { m_pickerAction=3; m_picker.open("Open electronic workspace",false,"workspace.afproject"); }
+    if (responsive::button("Open workspace")) { m_pickerAction=3; m_picker.open("Open electronic workspace",false,"workspace.afproject"); }
     ImGui::SameLine();
-    if (responsive::button("Save workspace...")) { m_pickerAction=4; m_picker.open("Save electronic workspace",true,"workspace.afproject"); }
+    if (responsive::button("Save workspace")) { m_pickerAction=4; m_picker.open("Save electronic workspace",true,"workspace.afproject"); }
     ImGui::BeginDisabled(m_undo.empty());
     if (responsive::button("Undo calculation")) {
         m_redo.push_back(snapshot()); auto previous=std::move(m_undo.back()); m_undo.pop_back(); restore(previous);
@@ -374,9 +374,9 @@ void ElectronicPostProcessingDialog::drawDialog()
             "Total integral\0Add reference\0Subtract reference (difference density)\0Multiply reference\0Divide by reference\0Scale\0Gaussian smoothing\0Cartesian gradient\0Laplacian\0Energy-density conversion\0Line profile\0Planar average\0Macroscopic average\0Plane section\0Contour segments (z=0)\0Peak search\0Voronoi site integration\0Sphere integration\0Structure factors\0Fourier synthesis\0Patterson density\0Ewald site potentials\0Isosurface\0Resample onto reference\0Verify periodic endpoint planes\0");
     dialogLayout::section("Input data");
     const float buttonWidth = (ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
-    if (dialogLayout::primaryButton("Open volume...",ImVec2(buttonWidth,0))) { m_pickerAction=0; m_picker.open("Open electronic volume",false,m_loadedPath); }
+    if (dialogLayout::primaryButton("Open volume",ImVec2(buttonWidth,0))) { m_pickerAction=0; m_picker.open("Open electronic volume",false,m_loadedPath); }
     ImGui::SameLine();
-    if (responsive::button("Reference...",ImVec2(buttonWidth,0))) { m_pickerAction=1; m_picker.open("Open reference volume",false,m_referencePath.empty() ? m_loadedPath : m_referencePath); }
+    if (responsive::button("Reference",ImVec2(buttonWidth,0))) { m_pickerAction=1; m_picker.open("Open reference volume",false,m_referencePath.empty() ? m_loadedPath : m_referencePath); }
     ImGui::BeginDisabled(m_loadedPath.empty());
     if (responsive::button("Reload volume",ImVec2(buttonWidth,0))) load(m_loadedPath,false);
     ImGui::EndDisabled();
@@ -654,7 +654,7 @@ void ElectronicPostProcessingDialog::drawDialog()
                 output.replace_extension(std::array<const char*,8>{".xsf",".cube",".vasp",".csv",".obj",".ply",".png",".svg"}[m_exportFormat]);
                 std::snprintf(m_output,sizeof(m_output),"%s",output.u8string().c_str());
             }
-            if (responsive::button("Save as...",ImVec2(-FLT_MIN,0)))
+            if (responsive::button("Save as",ImVec2(-FLT_MIN,0)))
             {
                 auto output = std::filesystem::u8path(m_output);
                 if (!output.has_parent_path() && !m_loadedPath.empty())

@@ -5,6 +5,8 @@
 #include "PeriodicTableDialog.h"
 #include "io/StructureLoader.h"
 #include "math/StructureMath.h"
+#include "science/ScienceData.h"
+#include "ui/ThemeUtils.h"
 
 #include "imgui.h"
 
@@ -38,7 +40,145 @@ EditMenuDialogs::EditMenuDialogs()
 void EditMenuDialogs::drawMenuItems()
 {
     if (ImGui::MenuItem("Edit Structure"))
+    {
+        m_step.finish();
         m_openEditStructure = true;
+    }
+}
+
+bool EditMenuDialogs::editStep(StepEdit edit)
+{
+    if (edit.step != "set-cell" && edit.step != "add-atom")
+        return false;
+    m_step = std::move(edit);
+    using atomforge::pipeline::Json;
+    using atomforge::pipeline::parameter;
+    const atomforge::pipeline::ModifierType* type = atomforge::pipeline::findModifierType(m_step.step);
+    const auto vector = [](const Json& v, double (&out)[3]) {
+        for (int k = 0; k < 3 && k < (int)v.items().size(); ++k)
+            out[k] = v.items()[(size_t)k].number();
+    };
+    try
+    {
+        if (m_step.step == "set-cell")
+        {
+            // Default vectors stand for "not set yet": show the cell entering the step.
+            bool defaults = true;
+            const char* names[3] = {"a", "b", "c"};
+            for (int r = 0; r < 3; ++r)
+            {
+                const Json value = parameter(m_step.parameters, *type, names[r]);
+                defaults = defaults && value.dump() == parameter(Json::object(), *type, names[r]).dump();
+                vector(value, m_stepCell[r]);
+            }
+            if (defaults && m_step.input.hasUnitCell)
+                for (int r = 0; r < 3; ++r)
+                    for (int c = 0; c < 3; ++c)
+                        m_stepCell[r][c] = m_step.input.cellVectors[r][c];
+            m_stepScaleAtoms = parameter(m_step.parameters, *type, "scale_atoms").boolean();
+        }
+        else
+        {
+            const int z = atomforge::science::atomicNumber(parameter(m_step.parameters, *type, "element").string());
+            if (isValidElementNumber(z))
+                m_stepElement = z;
+            vector(parameter(m_step.parameters, *type, "position"), m_stepPosition);
+            m_stepFractional = parameter(m_step.parameters, *type, "fractional").boolean();
+            m_stepSelect = parameter(m_step.parameters, *type, "select").boolean();
+        }
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "[Edit Structure] Step parameters not read: " << e.what() << std::endl;
+    }
+    m_openEditStructure = true;
+    return true;
+}
+
+atomforge::pipeline::Json EditMenuDialogs::stepParameters() const
+{
+    using atomforge::pipeline::Json;
+    const auto vector = [](const double (&v)[3]) { return Json::array({v[0], v[1], v[2]}); };
+    Json p = m_step.parameters;
+    if (m_step.step == "set-cell")
+    {
+        p["a"] = vector(m_stepCell[0]);
+        p["b"] = vector(m_stepCell[1]);
+        p["c"] = vector(m_stepCell[2]);
+        p["scale_atoms"] = m_stepScaleAtoms;
+    }
+    else
+    {
+        p["element"] = std::string(elementSymbol(m_stepElement));
+        p["position"] = vector(m_stepPosition);
+        p["fractional"] = m_stepFractional;
+        p["select"] = m_stepSelect;
+    }
+    return p;
+}
+
+// The Edit Structure dialog on a pipeline step: only the part the step can express.
+void EditMenuDialogs::drawStepEditor()
+{
+    ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+    ImGui::Separator();
+
+    const Structure& input = m_step.input;
+    if (m_step.step == "set-cell")
+    {
+        ImGui::Text("Lattice Vectors (Cartesian)");
+        ImGui::DragScalarN("a", ImGuiDataType_Double, m_stepCell[0], 3, 0.01f, nullptr, nullptr, "%.6f");
+        ImGui::DragScalarN("b", ImGuiDataType_Double, m_stepCell[1], 3, 0.01f, nullptr, nullptr, "%.6f");
+        ImGui::DragScalarN("c", ImGuiDataType_Double, m_stepCell[2], 3, 0.01f, nullptr, nullptr, "%.6f");
+        if (input.hasUnitCell && responsive::button("Use Cell Entering The Step"))
+            for (int r = 0; r < 3; ++r)
+                for (int c = 0; c < 3; ++c)
+                    m_stepCell[r][c] = input.cellVectors[r][c];
+        ImGui::Checkbox("Scale atoms with the cell (keep fractional coordinates)", &m_stepScaleAtoms);
+        if (m_stepScaleAtoms && !input.hasUnitCell)
+            ImGui::TextColored(themeStatusWarn(), "Scaling atoms needs a structure with a unit cell.");
+    }
+    else
+    {
+        ImGui::Text("Add Atom");
+        drawPeriodicTableInlineSelector(m_stepElement);
+        if (!isValidElementNumber(m_stepElement))
+            m_stepElement = 29;
+        ImGui::Text("Element: %s", elementSymbol(m_stepElement));
+
+        const char* modeLabels[] = { "Cartesian", "Direct" };
+        int mode = m_stepFractional ? 1 : 0;
+        if (ImGui::Combo("Position Mode", &mode, modeLabels, 2) && (mode == 1) != m_stepFractional)
+        {
+            // Keep the point where it is when the cell entering the step allows converting.
+            const glm::vec3 from((float)m_stepPosition[0], (float)m_stepPosition[1], (float)m_stepPosition[2]);
+            glm::vec3 to(0.0f);
+            const bool converted = mode == 1 ? tryCartesianToFractional(input, from, to)
+                                             : tryFractionalToCartesian(input, from, to);
+            if (converted)
+                for (int k = 0; k < 3; ++k) m_stepPosition[k] = to[k];
+            m_stepFractional = mode == 1;
+        }
+        ImGui::DragScalarN(m_stepFractional ? "Position (fractional)" : "Position (A)", ImGuiDataType_Double,
+                           m_stepPosition, 3, 0.005f, nullptr, nullptr, "%.6f");
+        if (m_stepFractional && !input.hasUnitCell)
+            ImGui::TextColored(themeStatusWarn(), "A fractional position needs a structure with a unit cell.");
+        ImGui::Checkbox("Select the new atom", &m_stepSelect);
+    }
+
+    ImGui::Separator();
+    if (responsive::button("Update step"))
+    {
+        m_step.commitParameters(stepParameters());
+        ImGui::CloseCurrentPopup();
+        m_step.finish();
+    }
+    ImGui::SameLine();
+    if (responsive::button("Close"))
+    {
+        ImGui::CloseCurrentPopup();
+        m_step.finish();
+    }
 }
 
 void EditMenuDialogs::drawSettingsMenuItems()
@@ -275,8 +415,22 @@ void EditMenuDialogs::drawPopups(Structure& structure,
 
     responsive::windowSize(ImVec2(980.0f, 640.0f), ImGuiCond_FirstUseEver);
     bool editStructureOpen = true;
-    if (responsive::beginModal("Edit Structure##edit", &editStructureOpen,
-                               ImGuiWindowFlags_NoResize))
+    if (m_step.active())
+    {
+        if (responsive::beginModal("Edit Structure##edit", &editStructureOpen,
+                                   ImGuiWindowFlags_NoResize))
+        {
+            drawStepEditor();
+            ImGui::EndPopup();
+        }
+        else
+        {
+            // Closed (X): the menu path edits the structure again.
+            m_step.finish();
+        }
+    }
+    else if (responsive::beginModal("Edit Structure##edit", &editStructureOpen,
+                                    ImGuiWindowFlags_NoResize))
     {
         ImGui::Text("Modify lattice vectors and atom list (add/edit/delete).\n"
                 "Click the element name next to position to substitute atom.");

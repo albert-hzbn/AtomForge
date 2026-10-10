@@ -279,6 +279,27 @@ ToolOutput runTool(const std::string& tool, const Json& request, const std::file
     return runner->second(p, base);
 }
 
+AtomProperty analysePerAtom(const Structure& structure, const std::string& tool, double cutoffA, const std::string& property)
+{
+    Json positions = Json::array();
+    for (const auto& atom : structure.atoms) positions.push(Json::array({atom.x, atom.y, atom.z}));
+    Json request = Json::object();
+    request["positions"] = positions;
+    if (structure.hasUnitCell) {
+        Json cell = Json::array();
+        for (const auto& row : structure.cellVectors) cell.push(Json::array({row[0], row[1], row[2]}));
+        request["cell"] = cell;
+        request["pbc"] = Json::array({true, true, true});
+    }
+    // Structure type picks its own cutoff in periodic cells.
+    if (tool != "structure-type" || !structure.hasUnitCell) request["cutoff_A"] = cutoffA;
+    if (tool == "bond-order") request["degrees"] = Json::array({6});
+    const auto properties = perAtomProperties(tool, runTool(tool, request).result);
+    for (const auto& candidate : properties)
+        if (property.empty() || candidate.name == property) return candidate;
+    throw std::runtime_error(tool + (property.empty() ? " returned no per-atom values" : " has no per-atom property " + property));
+}
+
 std::vector<std::string> runnableTools()
 {
     std::vector<std::string> tools;

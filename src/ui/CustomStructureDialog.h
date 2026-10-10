@@ -1,7 +1,9 @@
 #pragma once
 
 #include "ui/PathPicker.h"
+#include "ui/StepEditing.h"
 
+#include "algorithms/NanoCrystalBuilder.h"
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
 #include "model/Structure.h"
@@ -34,13 +36,33 @@ struct CustomStructureDialog
     bool isOpen() const { return m_isOpen; }
     void feedDroppedFile(const std::string& path);
 
+    // Opens the dialog on a pipeline step: filled from the step's settings, with
+    // "Update step" writing them back instead of building.
+    bool editStep(StepEdit edit);
+    // The dialog's current settings as the step's options (command-line flags of
+    // AtomForge --build custom).
+    std::string stepOptions() const;
+
 private:
     PathPicker m_sourcePicker;
     bool m_openRequested = false;
     bool m_isOpen = false;
+    StepEdit m_step;
+
+    // Fill settings.
+    NanoParams m_params;
+    NanoBuildResult m_lastResult;
+    int m_orientationType = 1;
+    float m_rotationAngles[3] = {0.0f, 0.0f, 0.0f};
+    int m_millerIndices[3] = {1, 0, 0};
 
     Structure m_reference;
     std::string m_refFileName;
+    // Files the reference and the model were loaded from (empty when the
+    // reference came from the scene or from the pipeline step's input).
+    std::string m_refPath;
+    std::string m_modelPath;
+    bool m_refFromStepInput = false;
     std::vector<glm::vec3> m_modelVertices;
     std::vector<unsigned int> m_modelIndices;
     glm::vec3 m_modelHalfExtents = glm::vec3(15.0f);

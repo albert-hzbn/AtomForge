@@ -4,6 +4,7 @@
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
 #include "model/Structure.h"
+#include "ui/StepEditing.h"
 
 #include <GL/glew.h>
 #include <glm/glm.hpp>
@@ -45,6 +46,13 @@ struct SubstitutionalSolidSolutionDialog
     bool isOpen() const { return m_isOpen; }
     void feedDroppedFile(const std::string& path);
 
+    // Opens the dialog on a pipeline step: filled from the step's settings, with
+    // "Update step" writing them back instead of building.
+    bool editStep(StepEdit edit);
+    // The dialog's current settings as the step's options (command-line flags of
+    // AtomForge --build sss).
+    std::string stepOptions() const;
+
 private:
     // -----------------------------------------------------------------------
     // One row in the composition table
@@ -61,11 +69,16 @@ private:
     // -----------------------------------------------------------------------
     bool m_openRequested = false;
     bool m_isOpen        = false;
+    StepEdit m_step;
 
     // The host structure used as lattice template.
     Structure   m_source;
     bool        m_sourceLoaded = false;
     std::string m_sourceLabel;
+    // File the host was loaded from (empty for the scene or the step's input).
+    std::string m_sourcePath;
+    // The preview camera is fitted on the next draw (host set by editStep).
+    bool        m_refitCamera = false;
 
     // Path queued by feedDroppedFile(); consumed at the start of drawDialog().
     std::string m_pendingDropPath;

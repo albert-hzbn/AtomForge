@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ui/StepEditing.h"
+
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
 #include "model/Structure.h"
@@ -56,9 +58,25 @@ struct InterfaceBuilderDialog
     // slotHint: 0 = auto (fills A then B), 1 = force A, 2 = force B.
     void feedDroppedFile(const std::string& path, int slotHint = 0);
 
+    // Opens the dialog on a pipeline step: filled from the step's settings, with
+    // "Update step" writing them back instead of building.
+    bool editStep(StepEdit edit);
+    // The dialog's current settings as the step's options (command-line flags of
+    // AtomForge --build interface).
+    std::string stepOptions() const;
+
 private:
     bool m_openRequested = false;
     bool m_isOpen        = false;
+
+    // -- Editing a pipeline step ------------------------------------------------
+    StepEdit m_step;
+    std::string m_pathA;              // file structure A came from ("" = none or the step input)
+    std::string m_pathB;              // file structure B came from
+    bool m_previewADirty  = false;    // structure A was set without loading a file
+    bool m_stepSearch     = false;    // search once both structures of the step are loaded
+    int  m_stepCandidate  = -1;       // the step's --candidate, until a search selects one
+    int  m_stepPick       = 0;        // the step's --pick (rank by strain) when it has no --candidate
 
     // -- Two input structures -------------------------------------------------
     Structure m_structureA;

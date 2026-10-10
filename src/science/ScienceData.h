@@ -119,4 +119,6 @@ void writeExtxyz(const std::filesystem::path& path, const std::vector<Structure>
                  const std::vector<std::vector<Vec3>>& velocities, const std::vector<double>& times);
 
 Json structureJson(const Structure& structure);
+// Structure from {"symbols", "positions", "cell" (optional)}.
+Structure structureFromJson(const Json& value);
 }

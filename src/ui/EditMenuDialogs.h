@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 
 #include "model/Structure.h"
+#include "ui/StepEditing.h"
 
 // Owns the per-element radius and colour tables, and draws the Edit menu
 // items + the "Atomic Sizes" and "Display Settings" modal dialogs.
@@ -41,6 +42,13 @@ struct EditMenuDialogs
     void drawPopups(Structure& structure,
                     const std::function<void(Structure&)>& updateBuffers);
 
+    // Opens Edit Structure on a pipeline step (set-cell or add-atom): filled
+    // from the step's settings, with "Update step" writing them back instead of
+    // editing the structure.
+    bool editStep(StepEdit edit);
+    // The dialog's current settings as the step's parameters.
+    atomforge::pipeline::Json stepParameters() const;
+
 private:
     bool m_openAtomicSize   = false;
     bool m_openElementColor = false;
@@ -54,4 +62,14 @@ private:
     int  m_selectedEditElement = 6;
     int  m_editStructureElementTargetAtom = -1;
     bool m_scrollEditRowsToBottom = false;
+
+    // Pipeline step being edited (set-cell: lattice vectors; add-atom: one atom).
+    StepEdit m_step;
+    double m_stepCell[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+    bool   m_stepScaleAtoms = true;
+    int    m_stepElement = 29;
+    double m_stepPosition[3] = {0, 0, 0};
+    bool   m_stepFractional = false;
+    bool   m_stepSelect = true;
+    void drawStepEditor();
 };

@@ -26,11 +26,14 @@
 #include "ui/LobsterAnalysisDialog.h"
 #include "ui/DislocationAnalysisDialog.h"
 #include "ui/TrajectoryDialog.h"
+#include "ui/PipelineDialog.h"
+#include "ui/OperationDialog.h"
 #include "ui/ScientificToolsDialog.h"
 #include "science/AtomProperties.h"
 
 #include <array>
 #include <functional>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -116,6 +119,18 @@ struct FileBrowser
     ProjectRequest drawProjectPicker();
     bool workspaceBusy() const { return electronicDialog.busy(); }
     bool trajectoryPlaying() const { return trajectoryDialog.isPlaying(); }
+    // The structure pipeline is writing its output (kept out of undo history).
+    bool pipelineUpdating() const { return pipelineDialog.isUpdating(); }
+    // Atoms selected in the view (set by the application each frame) and a
+    // selection requested by a menu operation (consumed by the application).
+    void setViewSelection(std::vector<int> atoms) { viewSelectionAtoms = std::move(atoms); }
+    bool consumeSelectionRequest(std::vector<int>& atoms)
+    {
+        if (!selectionRequested) return false;
+        atoms = std::move(requestedSelection);
+        selectionRequested = false;
+        return true;
+    }
     bool trajectoryGifCapturePending() const { return trajectoryDialog.gifCapturePending(); }
     void addTrajectoryGifFrame(const std::vector<unsigned char>& rgba, int width, int height) { trajectoryDialog.addGifFrame(rgba, width, height); }
     bool autosaveEnabled=true;
@@ -399,6 +414,15 @@ struct FileBrowser
     void showNotification(const std::string& message, bool isError = false);
 
 private:
+    // Opens the Build, Edit or Analysis dialog of a pipeline step on that step.
+    void openStepDialog(StepEdit request, EditMenuDialogs& editMenuDialogs);
+    // ATOMFORGE_STEP_DIALOG_CHECK=REPORT: opens every pipeline step in its dialog in
+    // the running window, reads the settings back and checks that the step built
+    // from them gives the same structure; writes REPORT and quits.
+    void runStepDialogCheck(EditMenuDialogs& editMenuDialogs);
+    atomforge::pipeline::Json stepDialogSettings(const std::string& step, const atomforge::pipeline::Json& parameters, EditMenuDialogs& editMenuDialogs) const;
+    struct StepDialogCheck;
+    std::shared_ptr<StepDialogCheck> stepDialogCheck;
     PathPicker projectPicker;
     int projectAction=0;
     void triggerSaveAsDialog();
@@ -553,6 +577,11 @@ private:
     LobsterAnalysisDialog lobsterDialog;
     DislocationAnalysisDialog dislocationAnalysisDialog;
     TrajectoryDialog trajectoryDialog;
+    PipelineDialog pipelineDialog;
+    OperationDialog operationDialog;
+    std::vector<int> viewSelectionAtoms;
+    std::vector<int> requestedSelection;
+    bool selectionRequested = false;
     ScientificToolsDialog scientificToolsDialog;
     ShortRangeOrderDialogState shortRangeOrderDialog;
     AngularDistributionAnalysisDialog angularDistributionDialog;

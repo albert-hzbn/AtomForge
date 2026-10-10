@@ -4,6 +4,7 @@
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
 #include "model/Structure.h"
+#include "ui/StepEditing.h"
 
 #include <functional>
 #include <string>
@@ -36,6 +37,12 @@ struct InterstitialAtomsDialog
 
     bool isOpen() const { return m_isOpen; }
     void feedDroppedFile(const std::string& path);
+
+    // Opens the dialog on a pipeline step (insert-interstitials): filled from the
+    // step's settings, with "Update step" writing them back instead of inserting.
+    bool editStep(StepEdit edit);
+    // The dialog's current settings as the step's parameters.
+    atomforge::pipeline::Json stepParameters() const;
 
     void drawVoidOverlay(ImDrawList* drawList,
                          const glm::mat4& projection,
@@ -130,6 +137,12 @@ private:
 
     bool m_openRequested = false;
     bool m_isOpen        = false;
+
+    // Pipeline step being edited, and its settings the menu path has no control for.
+    StepEdit    m_step;
+    int         m_stepKind    = 0;   // any, tetrahedral, octahedral, irregular
+    bool        m_stepRandom  = false; // sites at random (else the largest voids first)
+    bool        m_previewFitPending = false;
 
     std::vector<std::string> m_pendingDropPaths;
 

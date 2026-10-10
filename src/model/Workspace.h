@@ -21,10 +21,15 @@ struct Workspace
     std::vector<std::string> history;
     // Scientific tools dialog state (selected tool, inputs and last result) as JSON.
     std::string science;
+    // Structure pipeline (JSON) and, while it is active, its unmodified input.
+    std::string pipeline;
+    bool hasPipelineInput = false;
+    Structure pipelineInput;
 };
 
-// Projects are written in format 2 (adds per-atom properties and scientific tool
-// state); format 1 files still load. formatVersion exists for compatibility tests.
-void saveWorkspace(const std::vector<Workspace>& tabs, const std::string& path, int formatVersion = 2);
+// Projects are written in format 3 (format 2 added per-atom properties and
+// scientific tool state, format 3 the structure pipeline); formats 1 and 2 still
+// load. formatVersion exists for compatibility tests.
+void saveWorkspace(const std::vector<Workspace>& tabs, const std::string& path, int formatVersion = 3);
 std::vector<Workspace> loadWorkspace(const std::string& path);
 }

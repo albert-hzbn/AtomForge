@@ -22,11 +22,13 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdint>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -506,6 +508,7 @@ NanoCrystalBuilderDialog::NanoCrystalBuilderDialog()
     m_browsFilename[0] = '\0';
     m_browsStatusMsg[0] = '\0';
     m_browsDir = detectHomePath();
+    m_params.generationMode = NanoGenerationMode::WulffConstruction;
 }
 
 NanoCrystalBuilderDialog::~NanoCrystalBuilderDialog()
@@ -601,6 +604,8 @@ bool NanoCrystalBuilderDialog::tryLoadFile(const std::string& path,
         return false;
     }
     m_reference = std::move(loaded);
+    m_referencePath = path;
+    m_referenceFromStep = false;
     std::snprintf(m_browsStatusMsg, sizeof(m_browsStatusMsg),
                   "Loaded: %d atoms", (int)m_reference.atoms.size());
     m_previewBufDirty = true;
@@ -933,8 +938,145 @@ void NanoCrystalBuilderDialog::renderWulffPreviewToFBO(int w, int h)
 
 void NanoCrystalBuilderDialog::drawMenuItem(bool enabled)
 {
-    if (ImGui::MenuItem("Nanocrystal", NULL, false, enabled))
+    if (ImGui::MenuItem("Nanocrystal", NULL, false, enabled)) {
+        m_step.finish();  // from the menu: build, not edit a step
         m_openRequested = true;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline step editing
+// ---------------------------------------------------------------------------
+
+bool NanoCrystalBuilderDialog::editStep(StepEdit edit)
+{
+    m_step = std::move(edit);
+    const auto r = m_step.reader();
+
+    // Missing flags take runNano's defaults.
+    NanoParams p;
+    p.generationMode = NanoGenerationMode::Shape;
+    std::string shape = r.text("--shape", "sphere");
+    for (char& c : shape) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if      (shape == "ellipsoid")            p.shape = NanoShape::Ellipsoid;
+    else if (shape == "box")                  p.shape = NanoShape::Box;
+    else if (shape == "cylinder")             p.shape = NanoShape::Cylinder;
+    else if (shape == "octahedron")           p.shape = NanoShape::Octahedron;
+    else if (shape == "truncated-octahedron") p.shape = NanoShape::TruncatedOctahedron;
+    else if (shape == "cuboctahedron")        p.shape = NanoShape::Cuboctahedron;
+    else if (shape == "wulff")                p.generationMode = NanoGenerationMode::WulffConstruction;
+    else                                      p.shape = NanoShape::Sphere;
+
+    for (const auto& text : r.values("--facet")) {
+        std::istringstream in(text);
+        WulffPlaneInput plane;
+        if (in >> plane.h >> plane.k >> plane.l >> plane.surfaceEnergy) p.wulffPlanes.push_back(plane);
+    }
+    p.wulffMaxRadius = static_cast<float>(r.number("--radius", 20.0));
+    const float radius = static_cast<float>(r.number("--radius", 15.0));
+    p.sphereRadius   = radius;
+    p.octRadius      = radius;
+    p.cuboRadius     = radius;
+    p.truncOctRadius = static_cast<float>(r.number("--radius", 18.0));
+    p.ellipRx = static_cast<float>(r.number("--rx", 15.0));
+    p.ellipRy = static_cast<float>(r.number("--ry", 12.0));
+    p.ellipRz = static_cast<float>(r.number("--rz", 10.0));
+    p.boxHx = static_cast<float>(r.number("--hx", 15.0));
+    p.boxHy = static_cast<float>(r.number("--hy", 15.0));
+    p.boxHz = static_cast<float>(r.number("--hz", 15.0));
+    p.truncOctTrunc = static_cast<float>(r.number("--trunc", 12.0));
+    p.cylRadius = static_cast<float>(r.number("--cylradius", 12.0));
+    p.cylHeight = static_cast<float>(r.number("--cylheight", 30.0));
+    p.cylAxis   = std::clamp(r.integer("--cylaxis", 2), 0, 2);
+    p.vacuumPadding = static_cast<float>(r.number("--vacuum", 5.0));
+    p.setOutputCell = !r.has("--no-cell");
+    const auto center = r.numbers("--center");
+    p.autoCenterFromAtoms = center.size() < 3;
+    if (!p.autoCenterFromAtoms) {
+        p.cx = static_cast<float>(center[0]);
+        p.cy = static_cast<float>(center[1]);
+        p.cz = static_cast<float>(center[2]);
+    }
+    const int repA = r.integer("--repa", 0), repB = r.integer("--repb", 0), repC = r.integer("--repc", 0);
+    p.autoReplicate = !(repA > 0 || repB > 0 || repC > 0);
+    if (!p.autoReplicate) {
+        p.repA = repA > 0 ? repA : 5;
+        p.repB = repB > 0 ? repB : 5;
+        p.repC = repC > 0 ? repC : 5;
+    }
+    m_params = p;
+    m_lastResult = {};
+    m_wulffFamilyColors.clear();
+    m_wulffPreviewDirty = true;
+    m_wulffPreviewCameraNeedsFit = true;
+
+    // The reference: a file named in the options, else the step's input.
+    m_reference = {};
+    m_referencePath.clear();
+    m_referenceFromStep = false;
+    m_browsStatusMsg[0] = '\0';
+    m_previewBufDirty = true;
+    const bool useInput = !m_step.parameters.contains("use_input") || m_step.parameters.at("use_input").boolean();
+    if (r.has("--input")) {
+        m_pendingDropPath = r.text("--input");
+        m_referencePath   = m_pendingDropPath;  // kept even if the file cannot be loaded now
+    } else if (useInput && !m_step.input.atoms.empty()) {
+        m_reference = m_step.input;
+        m_referenceFromStep = true;
+        m_fitCameraPending = true;
+        std::snprintf(m_browsStatusMsg, sizeof(m_browsStatusMsg),
+                      "Step input: %d atoms", (int)m_reference.atoms.size());
+    }
+    m_openRequested = true;
+    return true;
+}
+
+std::string NanoCrystalBuilderDialog::stepOptions() const
+{
+    atomforge::pipeline::options::Writer w;
+    if (!m_referenceFromStep && !m_referencePath.empty()) w.add("--input", m_referencePath);
+    const NanoParams& p = m_params;
+    // Only the selected shape's sizes (runNano reads --radius for several shapes).
+    if (p.generationMode == NanoGenerationMode::WulffConstruction) {
+        w.add("--shape", "wulff");
+        w.add("--radius", p.wulffMaxRadius);
+        for (const auto& plane : p.wulffPlanes)
+            w.add("--facet", std::vector<double>{(double)plane.h, (double)plane.k, (double)plane.l, plane.surfaceEnergy});
+    } else {
+        switch (p.shape) {
+            case NanoShape::Ellipsoid:
+                w.add("--shape", "ellipsoid").add("--rx", p.ellipRx).add("--ry", p.ellipRy).add("--rz", p.ellipRz);
+                break;
+            case NanoShape::Box:
+                w.add("--shape", "box").add("--hx", p.boxHx).add("--hy", p.boxHy).add("--hz", p.boxHz);
+                break;
+            case NanoShape::Cylinder:
+                w.add("--shape", "cylinder").add("--cylradius", p.cylRadius)
+                 .add("--cylheight", p.cylHeight).add("--cylaxis", p.cylAxis);
+                break;
+            case NanoShape::Octahedron:
+                w.add("--shape", "octahedron").add("--radius", p.octRadius);
+                break;
+            case NanoShape::TruncatedOctahedron:
+                w.add("--shape", "truncated-octahedron").add("--radius", p.truncOctRadius).add("--trunc", p.truncOctTrunc);
+                break;
+            case NanoShape::Cuboctahedron:
+                w.add("--shape", "cuboctahedron").add("--radius", p.cuboRadius);
+                break;
+            default:
+                w.add("--shape", "sphere").add("--radius", p.sphereRadius);
+                break;
+        }
+    }
+    if (!p.autoCenterFromAtoms)
+        w.add("--center", std::vector<double>{p.cx, p.cy, p.cz});
+    if (!p.autoReplicate)
+        w.add("--repa", std::max(1, p.repA)).add("--repb", std::max(1, p.repB)).add("--repc", std::max(1, p.repC));
+    if (p.setOutputCell)
+        w.add("--vacuum", p.vacuumPadding);
+    else
+        w.flag("--no-cell");
+    return w.str();
 }
 
 // ---------------------------------------------------------------------------
@@ -948,12 +1090,8 @@ void NanoCrystalBuilderDialog::drawDialog(
     const std::vector<float>& elementShininess,
     const std::function<void(Structure&)>& updateBuffers)
 {
-    static NanoParams      params = []() {
-        NanoParams defaults;
-        defaults.generationMode = NanoGenerationMode::WulffConstruction;
-        return defaults;
-    }();
-    static NanoBuildResult lastResult;
+    NanoParams&      params     = m_params;
+    NanoBuildResult& lastResult = m_lastResult;
 
     if (params.wulffPlanes.empty())
         params.wulffPlanes.push_back(WulffPlaneInput{});
@@ -966,6 +1104,7 @@ void NanoCrystalBuilderDialog::drawDialog(
         m_pendingDropPath.clear();
     }
 
+    const bool openedNow = m_openRequested;
     if (m_openRequested) {
         ImGui::OpenPopup("Build Nanocrystal");
         lastResult      = {};
@@ -994,10 +1133,16 @@ void NanoCrystalBuilderDialog::drawDialog(
     responsive::windowSize(ImVec2(1160.0f, 900.0f), ImGuiCond_FirstUseEver);
     bool dialogOpen = true;
     if (!responsive::beginModal("Build Nanocrystal", &dialogOpen, 0)) {
+        if (!openedNow) m_step.finish();  // closed with X
         m_isOpen = false;
         return;
     }
     m_isOpen = true;
+
+    if (m_step.active())
+        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f),
+                           "Editing pipeline step %s: Update step writes these settings into the pipeline.",
+                           m_step.step.c_str());
 
     if (responsive::button("Load reference##sourcePicker"))
         m_sourcePicker.open("Load reference", false, "");
@@ -1041,6 +1186,8 @@ void NanoCrystalBuilderDialog::drawDialog(
         ImGui::SameLine();
         if (responsive::button("Clear##nanoClearRef", responsive::size(70.0f,0.0f))) {
             m_reference       = {};
+            m_referencePath.clear();
+            m_referenceFromStep = false;
             m_previewBufDirty = true;
             m_wulffPreviewDirty = true;
             m_wulffPreviewCameraNeedsFit = true;
@@ -1087,6 +1234,10 @@ void NanoCrystalBuilderDialog::drawDialog(
         if (m_glReady) {
             if (m_previewBufDirty)
                 rebuildPreviewBuffers(elementRadii, elementShininess);
+            if (m_fitCameraPending) {
+                autoFitPreviewCamera();
+                m_fitCameraPending = false;
+            }
 
             const float previewPadding = 5.0f;
             const ImVec2 previewSize(dropMax.x - dropMin.x - 2.0f * previewPadding,
@@ -1350,8 +1501,23 @@ void NanoCrystalBuilderDialog::drawDialog(
     const bool canBuild = !m_reference.atoms.empty()
                        && (params.generationMode != NanoGenerationMode::WulffConstruction
                            || m_wulffPreviewData.success);
-    if (!canBuild) ImGui::BeginDisabled();
-    if (responsive::button("Build Nanocrystal##nano", responsive::size(160.0f,0.0f))) {
+    // A step may be updated before its input exists; building needs a reference.
+    const bool disableAction = !canBuild && !m_step.active();
+    if (disableAction) ImGui::BeginDisabled();
+    if (m_step.active()) {
+        if (responsive::button("Update step##nano", responsive::size(160.0f,0.0f))) {
+            // The step input stays the reference unless a file was loaded here.
+            atomforge::pipeline::Json updated = m_step.parameters;
+            updated["options"] = stepOptions();
+            if (m_referenceFromStep) updated["use_input"] = true;
+            m_step.commitParameters(updated);
+            m_step.finish();
+            lastResult = {};
+            m_isOpen   = false;
+            ImGui::CloseCurrentPopup();
+        }
+    }
+    else if (responsive::button("Build Nanocrystal##nano", responsive::size(160.0f,0.0f))) {
         static const std::vector<glm::vec3>       kNoVerts;
         static const std::vector<unsigned int>    kNoIdx;
         lastResult = buildNanocrystal(structure,
@@ -1363,12 +1529,13 @@ void NanoCrystalBuilderDialog::drawDialog(
         if (lastResult.success)
             updateBuffers(structure);
     }
-    if (!canBuild) ImGui::EndDisabled();
+    if (disableAction) ImGui::EndDisabled();
 
     ImGui::SameLine(responsive::dp(0.0f), 8.0f);
     if (responsive::button("Close##nano", responsive::size(80.0f,0.0f))) {
         lastResult  = {};
         m_isOpen    = false;
+        m_step.finish();
         ImGui::CloseCurrentPopup();
     }
 

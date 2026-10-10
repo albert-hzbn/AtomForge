@@ -183,6 +183,21 @@ Explicitly display the inline 3D viewer in a Jupyter notebook cell.
 \begin{samepage}
 
 \begin{lstlisting}[language=Python]
+Structure.pipe(steps, property=None)
+\end{lstlisting}
+
+Apply a structure pipeline (pipe text or an :class:atomforge.pipeline.Pipeline)
+to a copy of this structure and return the result; this structure is unchanged.
+
+>>> s.pipe("replicate 2 2 2 | select-expression 'fz > 0.5' | delete-selected")
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
 Structure.save(path: str)
 \end{lstlisting}
 
@@ -2301,6 +2316,272 @@ Raises ValueError with the engine's message for invalid requests.
 
 
 
+\section{Structure pipelines}
+
+\subsection{PipelineError}
+
+A pipeline step failed; stage is its index and stages the per-step results.
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+modifiers()
+\end{lstlisting}
+
+Every pipeline step: [\{"id", "title", "category", "help", "parameters": [...]\}].
+
+Build and Edit steps are included when the AtomForge executable is available.
+
+\end{samepage}
+
+
+
+\subsection{Step}
+
+One pipeline step: modifier type, parameters (dict), enabled and an optional label.
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Step.to_json()
+\end{lstlisting}
+
+The step as stored in pipeline JSON.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Step.from_json(cls, item: Dict[str, Any])
+\end{lstlisting}
+
+A step from pipeline JSON.
+
+\end{samepage}
+
+
+
+\subsection{Pipeline}
+
+An ordered, editable list of steps; run(structure) applies them to a copy.
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.parse(cls, text: str)
+\end{lstlisting}
+
+A pipeline from the shell-pipe text syntax, e.g. "replicate 2 2 2 | wrap".
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.from_json(cls, data: Union[str, Dict[str, Any]])
+\end{lstlisting}
+
+A pipeline from its JSON form (a dict or JSON text), as saved by the desktop and the CLI.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.load(cls, path: Union[str, os.PathLike])
+\end{lstlisting}
+
+Load a pipeline file (JSON, or pipe text).
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.add(step_type: str, *args: Any, **params: Any)
+\end{lstlisting}
+
+Append a step; returns the pipeline, so calls chain.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.insert(index: int, step_type: str, *args: Any, **params: Any)
+\end{lstlisting}
+
+Insert a step at index.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.remove(index: int)
+\end{lstlisting}
+
+Delete the step at index.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.move(source: int, destination: int)
+\end{lstlisting}
+
+Move the step at source so that it ends up at destination.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.enable(index: int, enabled: bool=True)
+\end{lstlisting}
+
+Apply (or with enabled=False bypass) the step at index.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.disable(index: int)
+\end{lstlisting}
+
+Bypass the step at index without removing it.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.set(index: int, **params: Any)
+\end{lstlisting}
+
+Change parameters of the step at index.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.copy()
+\end{lstlisting}
+
+An independent copy.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.to_json()
+\end{lstlisting}
+
+The JSON form used by the desktop panel, project files and AtomForge --pipeline.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.to_text()
+\end{lstlisting}
+
+The shell-pipe text of the enabled steps (AtomForge --pipe accepts it).
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.save(path: Union[str, os.PathLike])
+\end{lstlisting}
+
+Save as JSON (open it in the desktop panel with Load pipeline...).
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+Pipeline.run(structure: Structure, property: Optional[Sequence[float]]=None, check: bool=True)
+\end{lstlisting}
+
+Apply the enabled steps to a copy of structure (which is not changed).
+
+property gives per-atom values for select-property. A failing
+step raises PipelineError, or with check=False the result holds the
+data before that step and the step's error.
+
+\end{samepage}
+
+
+
+\subsection{PipelineResult}
+
+Output of :meth:Pipeline.run: structure, selected (one bool per atom),
+property (per-atom values or empty), property\_\allowbreak{}name and stages
+(per step: type, atoms, selected, milliseconds, skipped, error, notes).
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+PipelineResult.selected_count
+\end{lstlisting}
+
+Number of selected atoms in the output.
+
+\end{samepage}
+
+
+
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+PipelineResult.selected_indices
+\end{lstlisting}
+
+Indices of the selected atoms in the output.
+
+\end{samepage}
+
+
+
 \section{Native builder options}
 
 Use \code{AtomForge --help MODE} for detailed help. \code{AtomForge --build MODE --help} prints the general overview in this version. These option listings are extracted from the source help and checked against the normal executable. CLI defaults may differ from a dialog's remembered settings. The caret line continuations shown in help are for Windows cmd; use a single line or a subprocess argument list in PowerShell/Python.
@@ -2379,6 +2660,10 @@ POLYCRYSTAL  (--build poly)
                                Specify once per grain in order. If fewer
                                than --grains values are given, remaining
                                grains get random orientations.
+  --grain-euler "N phi1 Phi phi2"
+                               Euler angles (deg) for grain number N (from 1);
+                               repeat per grain. Grains not given get random
+                               orientations.
   --output <file>             Output file (format from extension)
 
 Example:
@@ -2413,6 +2698,9 @@ NANOCRYSTAL  (--build nano)
   --cylheight <Ang>           Cylinder height  (default: 30)
   --cylaxis   <0|1|2>         Cylinder axis: 0=X 1=Y 2=Z  (default: 2)
   --vacuum <Ang>              Vacuum padding around particle  (default: 5)
+  --no-cell                   No output cell (default: a rectangular cell
+                               around the particle plus --vacuum)
+  --center "x y z"            Carving center (Ang)  (default: centre of the atoms)
   --repa <N>                  Manual supercell replication A  (0 = auto)
   --repb <N>                  Manual supercell replication B  (0 = auto)
   --repc <N>                  Manual supercell replication C  (0 = auto)
@@ -2444,6 +2732,7 @@ AMORPHOUS STRUCTURE  (--build amorphous)
   --covtol <frac>             Covalent-radii tolerance fraction  (default: 0.75)
   --seed   <N>                RNG seed (0 = time-based)  (default: 42)
   --attempts <N>              Max placement attempts per atom  (default: 1000)
+  --no-periodic               Non-periodic box (no unit cell attached)
   --output <file>             Output file (format from extension)
 
 Example:
@@ -2491,6 +2780,8 @@ DISLOCATION  (--build dislocation)
   --line    "u v w"          Line direction indices (default: 1 1 -2)
   --line-frac   "fx fy fz"   Dislocation line point in fractional coords
   --line-offset "x y z"      Cartesian offset added to line point (A)
+  --line-center               Line point at the structure's centre (plus --line-offset)
+                              instead of the fractional point
   --bscale <f>                Burgers magnitude scale factor (default: 1.0)
   --bmag <A>                  Explicit Burgers magnitude in Angstroms (overrides auto-detect)
   --mixed-angle <deg>         Edge/screw mixing angle for mixed mode
@@ -2546,6 +2837,10 @@ Fill a 3D mesh model with atoms from a reference crystal structure.
   --mesh    <file>            3D model file (OBJ or STL)
   --scale   <factor>          Angstrom per model unit  (default: 1.0)
   --vacuum  <Ang>             Vacuum padding for output cell  (default: 5.0)
+  --no-cell                   Keep the reference cell instead of a rectangular
+                               output cell around the atoms
+  --center  "x y z"          Mesh centre in the reference (Angstrom)
+                               (default: centre of the reference atoms)
   --repa <N>                  Manual replication along a  (0 = auto)
   --repb <N>                  Manual replication along b  (0 = auto)
   --repc <N>                  Manual replication along c  (0 = auto)
@@ -2582,6 +2877,22 @@ HETEROGENEOUS INTERFACE  (--build interface)
   --repx   <N>                XY repeat X  (default: 1)
   --repy   <N>                XY repeat Y  (default: 1)
   --output <file>             Output file (format from extension)
+
+  Rotated matching (the Interface Builder window's search): layer B's
+  supercell is rotated onto layer A's before its strain is measured.
+  --align                      Use rotated matching
+  --mmax <N>                   Max supercell search index of layer B (default: --nmax)
+  --maxcellsB <N>              Max supercell area of layer B (default: --maxcells)
+  --max-strain <f>             Largest mean |strain| kept (default: 0.1)
+  --max-rotation <deg>         Largest rotation of layer B kept (default: 10)
+  --or-angle <deg>             Orientation relationship: keep rotations near this angle
+  --or-plane-a "h k l" --or-dir-a "u v w"
+  --or-plane-b "h k l" --or-dir-b "u v w"
+                               Orientation relationship from a plane and a direction
+                               of each layer (replaces --or-angle)
+  --or-tol <deg>               Orientation relationship tolerance (default: 2)
+  --candidate <N>              Match number N in search order, as numbered by the
+                               Interface Builder window (replaces --pick)
 
 Example:
   AtomForge --build interface --layerA cu.cif --layerB ni.cif ^

@@ -112,6 +112,13 @@ if(TARGET PkgConfig::SPGLIB)
 endif()
 add_test(NAME dislocation_fit_regressions COMMAND atomforge_dislocation_fit_tests)
 
+add_executable(atomforge_pipeline_tests ${PROJECT_SOURCE_DIR}/tests/pipeline_regressions.cpp)
+target_link_libraries(atomforge_pipeline_tests PRIVATE atomforge_science)
+if(TARGET PkgConfig::ATOMFORGE_SCIENCE_SPGLIB)
+    target_compile_definitions(atomforge_pipeline_tests PRIVATE ATOMS_ENABLE_SPGLIB)
+endif()
+add_test(NAME pipeline_regressions COMMAND atomforge_pipeline_tests)
+
 add_executable(atomforge_science_tests ${PROJECT_SOURCE_DIR}/tests/science_tools_regressions.cpp)
 target_link_libraries(atomforge_science_tests PRIVATE atomforge_science)
 if(TARGET PkgConfig::ATOMFORGE_SCIENCE_SPGLIB)
@@ -187,6 +194,10 @@ if(TARGET AtomForge)
         ${PROJECT_SOURCE_DIR}/src/ui/ScientificToolsDialog.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/ScientificToolsLayouts.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/TrajectoryDialog.cpp
+        ${PROJECT_SOURCE_DIR}/src/ui/PipelineDialog.cpp
+        ${PROJECT_SOURCE_DIR}/src/ui/ModifierEditor.cpp
+        ${PROJECT_SOURCE_DIR}/src/ui/OperationDialog.cpp
+        ${PROJECT_SOURCE_DIR}/src/ui/MenuParity.cpp
         ${PROJECT_SOURCE_DIR}/src/io/Trajectory.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/PathPicker.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/ResponsiveLayout.cpp
@@ -258,6 +269,10 @@ if(Python3_Interpreter_FOUND)
             COMMAND ${CMAKE_COMMAND} -E env "ATOMFORGE_PATH=$<TARGET_FILE:AtomForge>"
                 "ATOMFORGE_ELECTRONIC_LIBRARY=$<TARGET_FILE:atomforge_electronic>"
                 ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tests/test_workflows.py)
+        add_test(NAME python_pipeline
+            COMMAND ${CMAKE_COMMAND} -E env "ATOMFORGE_PATH=$<TARGET_FILE:AtomForge>"
+                "ATOMFORGE_SCIENCE_LIBRARY=$<TARGET_FILE:atomforge_science_native>"
+                ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tests/test_pipeline.py)
         add_test(NAME python_builders
             COMMAND ${CMAKE_COMMAND} -E env "ATOMFORGE_PATH=$<TARGET_FILE:AtomForge>"
                 ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/python/tests/test_builders.py)

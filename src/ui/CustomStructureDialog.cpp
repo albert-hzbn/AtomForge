@@ -403,7 +403,116 @@ void CustomStructureDialog::renderModelPreviewToFBO(int w, int h)
 void CustomStructureDialog::drawMenuItem(bool enabled)
 {
     if (ImGui::MenuItem("Custom Structure", NULL, false, enabled))
+    {
+        m_step.finish();
         m_openRequested = true;
+    }
+}
+
+bool CustomStructureDialog::editStep(StepEdit edit)
+{
+    m_step = std::move(edit);
+    const auto reader = m_step.reader();
+    m_lastResult = NanoBuildResult();
+    m_status.clear();
+
+    // Reference crystal: --input FILE, else the structure entering the step.
+    const bool useInput = !m_step.parameters.contains("use_input")
+                       || !m_step.parameters.at("use_input").isBool()
+                       || m_step.parameters.at("use_input").boolean();
+    m_reference = Structure();
+    m_refFileName.clear();
+    m_refPath.clear();
+    m_refFromStepInput = false;
+    m_previewBufDirty = true;
+    if (reader.has("--input"))
+        loadReferenceStructure(reader.text("--input"));
+    else if (useInput && !m_step.input.atoms.empty())
+    {
+        m_reference = m_step.input;
+        m_refFileName = "pipeline step input";
+        m_refFromStepInput = true;
+    }
+
+    m_modelVertices.clear();
+    m_modelIndices.clear();
+    m_modelName.clear();
+    m_modelPath.clear();
+    m_modelHalfExtents = glm::vec3(15.0f);
+    m_meshTriCount = 0;
+    if (reader.has("--mesh"))
+        loadModelMesh(reader.text("--mesh"));
+
+    // Missing flags take the defaults of AtomForge --build custom.
+    NanoParams& params = m_params;
+    params.modelScale = (float)reader.number("--scale", 1.0);
+    params.vacuumPadding = (float)reader.number("--vacuum", 5.0);
+    params.setOutputCell = !reader.has("--no-cell");
+    const auto center = reader.numbers("--center");
+    params.autoCenterFromAtoms = center.size() < 3;
+    if (center.size() >= 3)
+    {
+        params.cx = (float)center[0];
+        params.cy = (float)center[1];
+        params.cz = (float)center[2];
+    }
+
+    const int repA = reader.integer("--repa", 0);
+    const int repB = reader.integer("--repb", 0);
+    const int repC = reader.integer("--repc", 0);
+    params.autoReplicate = !(repA > 0 || repB > 0 || repC > 0);
+    params.repA = repA > 0 ? repA : 5;
+    params.repB = repB > 0 ? repB : 5;
+    params.repC = repC > 0 ? repC : 5;
+
+    m_rotationAngles[0] = (float)reader.number("--rotx", 0.0);
+    m_rotationAngles[1] = (float)reader.number("--roty", 0.0);
+    m_rotationAngles[2] = (float)reader.number("--rotz", 0.0);
+    if (reader.has("--miller"))
+    {
+        // --miller overrides the rotations, as in the command line.
+        const auto miller = reader.numbers("--miller");
+        params.applyCrystalOrientation = true;
+        m_orientationType = 2;
+        m_millerIndices[0] = miller.size() > 0 ? (int)miller[0] : 1;
+        m_millerIndices[1] = miller.size() > 1 ? (int)miller[1] : 0;
+        m_millerIndices[2] = miller.size() > 2 ? (int)miller[2] : 0;
+    }
+    else
+    {
+        m_orientationType = 1;
+        params.applyCrystalOrientation = m_rotationAngles[0] != 0.0f || m_rotationAngles[1] != 0.0f || m_rotationAngles[2] != 0.0f;
+    }
+
+    m_openRequested = true;
+    return true;
+}
+
+std::string CustomStructureDialog::stepOptions() const
+{
+    const NanoParams& params = m_params;
+    atomforge::pipeline::options::Writer out;
+    if (!m_refFromStepInput && !m_refPath.empty())
+        out.add("--input", m_refPath);
+    if (!m_modelPath.empty())
+        out.add("--mesh", m_modelPath);
+    out.add("--scale", params.modelScale);
+    if (params.setOutputCell)
+        out.add("--vacuum", params.vacuumPadding);
+    else
+        out.flag("--no-cell");
+    if (!params.autoCenterFromAtoms)
+        out.add("--center", std::vector<double>{params.cx, params.cy, params.cz});
+    if (!params.autoReplicate)
+        out.add("--repa", std::max(1, params.repA)).add("--repb", std::max(1, params.repB)).add("--repc", std::max(1, params.repC));
+    if (params.applyCrystalOrientation)
+    {
+        if (m_orientationType == 2)
+            out.add("--miller", std::to_string(m_millerIndices[0]) + " " + std::to_string(m_millerIndices[1]) + " " + std::to_string(m_millerIndices[2]));
+        else
+            out.add("--rotx", m_rotationAngles[0]).add("--roty", m_rotationAngles[1]).add("--rotz", m_rotationAngles[2]);
+    }
+    return out.str();
 }
 
 void CustomStructureDialog::feedDroppedFile(const std::string& path)
@@ -424,6 +533,8 @@ bool CustomStructureDialog::loadReferenceStructure(const std::string& path)
     }
 
     m_reference = std::move(loaded);
+    m_refPath = path;
+    m_refFromStepInput = false;
     const size_t slash = path.find_last_of("/\\");
     m_refFileName = (slash == std::string::npos) ? path : path.substr(slash + 1);
     m_status = std::string("Crystal reference loaded: ") + m_refFileName
@@ -469,6 +580,7 @@ bool CustomStructureDialog::loadModelMesh(const std::string& path)
 
     m_modelVertices.swap(verts);
     m_modelIndices.swap(idx);
+    m_modelPath = path;
 
     const size_t slash = path.find_last_of("/\\");
     m_modelName = (slash == std::string::npos) ? path : path.substr(slash + 1);
@@ -489,11 +601,11 @@ void CustomStructureDialog::drawDialog(Structure& structure,
                                          const std::vector<float>& elementShininess,
                                          const std::function<void(Structure&)>& updateBuffers)
 {
-    static NanoParams params;
-    static NanoBuildResult lastResult;
-    static int orientationType = 1;
-    static float rotationAngles[3] = {0.0f, 0.0f, 0.0f};
-    static int millerIndices[3] = {1, 0, 0};
+    NanoParams& params = m_params;
+    NanoBuildResult& lastResult = m_lastResult;
+    int& orientationType = m_orientationType;
+    float (&rotationAngles)[3] = m_rotationAngles;
+    int (&millerIndices)[3] = m_millerIndices;
 
     params.shape = NanoShape::MeshModel;
     if (params.modelScale <= 0.0f)
@@ -521,8 +633,11 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     {
         ImGui::OpenPopup("Custom Structure");
         m_openRequested = false;
-        lastResult = NanoBuildResult();
-        m_status.clear();
+        if (!m_step.active())
+        {
+            lastResult = NanoBuildResult();
+            m_status.clear();
+        }
     }
 
     m_isOpen = ImGui::IsPopupOpen("Custom Structure");
@@ -532,10 +647,16 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     if (!responsive::beginModal("Custom Structure", &keepOpen, 0))
     {
         m_isOpen = false;
+        // Closed with the X (or by another popup): the next menu build is normal.
+        if (m_step.active() && !m_openRequested)
+            m_step.finish();
         return;
     }
 
     m_isOpen = true;
+
+    if (m_step.active())
+        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
 
     if (responsive::button("Load structure or model##sourcePicker"))
         m_sourcePicker.open("Load structure or model", false, "");
@@ -630,13 +751,37 @@ void CustomStructureDialog::drawDialog(Structure& structure,
             {
                 m_reference = Structure();
                 m_refFileName.clear();
+                m_refPath.clear();
+                m_refFromStepInput = false;
                 m_previewBufDirty = true;
                 m_status = "Crystal reference cleared.";
             }
             ImGui::SameLine();
         }
-        if (ImGui::SmallButton("Use Current Scene##ref"))
+        if (m_step.active())
         {
+            // The step's reference is the structure entering it, not the scene.
+            if (ImGui::SmallButton("Use Step Input##ref"))
+            {
+                if (!m_step.input.atoms.empty())
+                {
+                    m_reference = m_step.input;
+                    m_refFileName = "pipeline step input";
+                    m_refPath.clear();
+                    m_refFromStepInput = true;
+                    m_previewBufDirty = true;
+                    m_status = "Pipeline step input used as crystal reference.";
+                }
+                else
+                {
+                    m_status = "The step has no input structure. Load a structure first.";
+                }
+            }
+        }
+        else if (ImGui::SmallButton("Use Current Scene##ref"))
+        {
+            m_refPath.clear();
+            m_refFromStepInput = false;
             if (!structure.atoms.empty() && structure.hasUnitCell)
             {
                 m_reference = structure;
@@ -734,6 +879,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
                 m_modelVertices.clear();
                 m_modelIndices.clear();
                 m_modelName.clear();
+                m_modelPath.clear();
                 m_modelHalfExtents = glm::vec3(15.0f);
                 m_meshTriCount = 0;
                 m_status = "Model cleared.";
@@ -858,7 +1004,21 @@ void CustomStructureDialog::drawDialog(Structure& structure,
             ImGui::TextColored(themeStatusWarn(),
                                "Drop a 3D model (OBJ/STL) to continue.");
     }
-    if (responsive::button("Build Fill", responsive::size(140.0f,0.0f)))
+    if (m_step.active())
+    {
+        if (responsive::button("Update step", responsive::size(140.0f,0.0f)))
+        {
+            // Without --input the pipeline passes the step's input structure.
+            atomforge::pipeline::Json updated = m_step.parameters;
+            updated["options"] = stepOptions();
+            if (m_refFromStepInput)
+                updated["use_input"] = true;
+            m_step.commitParameters(updated);
+            m_step.finish();
+            ImGui::CloseCurrentPopup();
+        }
+    }
+    else if (responsive::button("Build Fill", responsive::size(140.0f,0.0f)))
     {
         if (params.applyCrystalOrientation)
         {
@@ -912,7 +1072,10 @@ void CustomStructureDialog::drawDialog(Structure& structure,
 
     ImGui::SameLine();
     if (responsive::button("Close", responsive::size(100.0f,0.0f)))
+    {
+        m_step.finish();
         ImGui::CloseCurrentPopup();
+    }
 
     if (!m_status.empty())
     {

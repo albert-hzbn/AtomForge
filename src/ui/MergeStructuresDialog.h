@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ui/PathPicker.h"
+#include "ui/StepEditing.h"
 
 #include "app/SceneView.h"
 #include "graphics/SceneBuffers.h"
@@ -34,6 +35,13 @@ struct MergeStructuresDialog
     bool isOpen() const { return m_isOpen; }
     void feedDroppedFile(const std::string& path);
 
+    // Opens the dialog on a pipeline step (merge): filled from the step's
+    // settings, with "Update step" writing them back instead of merging.
+    bool editStep(StepEdit edit);
+    // The dialog's current settings as the step's parameters: the first entry
+    // loaded from a file is the merged file, its position the offset.
+    atomforge::pipeline::Json stepParameters() const;
+
 private:
     PathPicker m_sourcePicker;
     // ------------------------------------------------------------------
@@ -43,6 +51,8 @@ private:
     {
         Structure structure;
         std::string name;
+        std::string path;                        // file it was loaded from (empty: scene)
+        bool        stepInput = false;           // the structure entering an edited step
         glm::vec3 translation = glm::vec3(0.0f);
         glm::vec3 rotationDeg = glm::vec3(0.0f);
         glm::vec3 pivot       = glm::vec3(0.0f); // centroid in original space
@@ -77,6 +87,13 @@ private:
     std::vector<MergeEntry>  m_entries;
     std::string              m_status;
     int m_selectedIndex = -1;
+
+    // Pipeline step being edited; the menu path's entries wait in m_savedEntries.
+    StepEdit                m_step;
+    std::vector<MergeEntry> m_savedEntries;
+    int                     m_savedSelectedIndex = -1;
+    void finishStepEdit();
+    int firstFileEntry() const;
 
     // ------------------------------------------------------------------
     // GL resources

@@ -57,6 +57,32 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
     run("--science-batch", batch, "--output", root / "batch_result.json", "--csv", root / "batch.csv")
     table = (root / "batch.csv").read_text().splitlines()
     assert table[0] == "temperatures_K,heat_capacity_eV_per_K.0,error" and len(table) == 3, table
+    # Structure pipeline: text steps, files, and a real stdin/stdout chain.
+    piped = root / "piped.xyz"
+    run("--pipe", "replicate 2 2 2 | select-expression fz > 0.5 | delete-selected", "--input", source, "--output", piped, "--quiet")
+    count = int(piped.read_text().splitlines()[0])
+    first = subprocess.run([exe, "--pipe", "replicate 2 2 2 | select-element Cu | invert-selection", "--input", str(source), "--output", "-", "--quiet"],
+                           capture_output=True, text=True, timeout=60)
+    assert first.returncode == 0 and "selection:I:1" in first.stdout.splitlines()[1], first.stderr
+    second = subprocess.run([exe, "--pipe", "select-expression fz > 0.5 | delete-selected", "--input", "-", "--output", str(root / "chain.xyz")],
+                            input=first.stdout, capture_output=True, text=True, timeout=60)
+    assert second.returncode == 0 and "2 delete-selected" in second.stderr, second.stderr
+    assert int((root / "chain.xyz").read_text().splitlines()[0]) == count, "a shell pipe gives the same result as one pipeline"
+    saved = root / "steps.json"
+    run("--pipe", "replicate 2 1 1 | wrap", "--input", source, "--output", root / "wrapped.xyz", "--save-pipeline", saved, "--quiet")
+    assert json.loads(saved.read_text())["modifiers"][0]["type"] == "replicate"
+    run("--pipeline", saved, "--input", source, "--output", root / "again.xyz", "--quiet")
+    # Every pipeline step, Build and Edit operations included, is also in the menus.
+    steps = json.loads(run("--pipe", "--list-json").stdout)
+    missing = [step["id"] for step in steps if not step.get("menu")]
+    assert not missing, f"pipeline steps without a menu entry: {missing}"
+    assert {"build-bulk", "build-vacancy", "build-surface", "insert-interstitials", "select-expression"} <= {step["id"] for step in steps}
+    listing = run("--pipe", "--list").stdout
+    assert "select-expression" in listing and "replicate" in listing, listing[:200]
+    bad = run("--pipe", "replicate 2 2", "--input", source, "--output", root / "bad.xyz", success=False)
+    assert "counts needs three numbers" in bad.stderr, bad.stderr
+    failing = run("--pipe", "select-property 0 1", "--input", source, "--output", root / "bad.xyz", success=False)
+    assert "step 1" in failing.stderr, failing.stderr
     # Native science tools: request file in, result JSON and generated files out.
     request = root / "dft.json"
     request.write_text(json.dumps({"structure": {"file": conventional.name}, "points_per_segment": 20}))

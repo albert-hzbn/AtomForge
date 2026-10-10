@@ -20,6 +20,10 @@
 #include <string_view>
 #include <vector>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 namespace cli
 {
 void printHelpDislocation()
@@ -40,6 +44,8 @@ void printHelpDislocation()
 "  --line    \"u v w\"          Line direction indices (default: 1 1 -2)\n"
 "  --line-frac   \"fx fy fz\"   Dislocation line point in fractional coords\n"
 "  --line-offset \"x y z\"      Cartesian offset added to line point (A)\n"
+"  --line-center               Line point at the structure's centre (plus --line-offset)\n"
+"                              instead of the fractional point\n"
 "  --bscale <f>                Burgers magnitude scale factor (default: 1.0)\n"
 "  --bmag <A>                  Explicit Burgers magnitude in Angstroms (overrides auto-detect)\n"
 "  --mixed-angle <deg>         Edge/screw mixing angle for mixed mode\n"
@@ -177,6 +183,8 @@ int runDislocation(int argc, char* argv[])
             }
         }
     }
+    if (hasFlag(argc, argv, "--line-center"))
+        params.useFractionalLinePoint = false;
     {
         const char* lo = findArg(argc, argv, "--line-offset");
         if (lo && !parseVec3(lo, params.linePointCartesianOffset))
@@ -548,6 +556,22 @@ void printHelpInterface()
 "  --repy   <N>                XY repeat Y  (default: 1)\n"
 "  --output <file>             Output file (format from extension)\n"
 "\n"
+"  Rotated matching (the Interface Builder window's search): layer B's\n"
+"  supercell is rotated onto layer A's before its strain is measured.\n"
+"  --align                      Use rotated matching\n"
+"  --mmax <N>                   Max supercell search index of layer B (default: --nmax)\n"
+"  --maxcellsB <N>              Max supercell area of layer B (default: --maxcells)\n"
+"  --max-strain <f>             Largest mean |strain| kept (default: 0.1)\n"
+"  --max-rotation <deg>         Largest rotation of layer B kept (default: 10)\n"
+"  --or-angle <deg>             Orientation relationship: keep rotations near this angle\n"
+"  --or-plane-a \"h k l\" --or-dir-a \"u v w\"\n"
+"  --or-plane-b \"h k l\" --or-dir-b \"u v w\"\n"
+"                               Orientation relationship from a plane and a direction\n"
+"                               of each layer (replaces --or-angle)\n"
+"  --or-tol <deg>               Orientation relationship tolerance (default: 2)\n"
+"  --candidate <N>              Match number N in search order, as numbered by the\n"
+"                               Interface Builder window (replaces --pick)\n"
+"\n"
 "Example:\n"
 "  AtomForge --build interface --layerA cu.cif --layerB ni.cif ^\n"
 "            --nmax 4 --layersA 3 --layersB 3 ^\n"
@@ -600,7 +624,14 @@ int runInterface(int argc, char* argv[])
     int  repx      = argInt   (argc, argv, "--repx",     1);
     int  repy      = argInt   (argc, argv, "--repy",     1);
 
-    if (nmax < 1 || nmax > 8 || maxCells < 1 || maxCells > 64 || pickIdx < 0 ||
+    const bool align = hasFlag(argc, argv, "--align");
+    int  mmax      = argInt   (argc, argv, "--mmax",      nmax);
+    int  maxCellsB = argInt   (argc, argv, "--maxcellsB", maxCells);
+    int  candidate = argInt   (argc, argv, "--candidate", -1);
+    if (!align) { mmax = nmax; maxCellsB = maxCells; candidate = -1; }
+
+    if (nmax < 1 || nmax > 10 || maxCells < 1 || maxCells > 400 || pickIdx < 0 ||
+        mmax < 1 || mmax > 10 || maxCellsB < 1 || maxCellsB > 400 ||
         layersA < 1 || layersB < 1 || layersA > 1000 || layersB > 1000 ||
         repx < 1 || repy < 1 || repx > 100 || repy > 100 || gap < 0 || vacuum < 0)
         throw std::invalid_argument("Invalid interface search bounds, repeats, gap or vacuum");
@@ -612,12 +643,43 @@ int runInterface(int argc, char* argv[])
 
     // Enumerate supercell candidates for both layers
     auto cellsA = generateUniqueSupercells(basisA, nmax, maxCells);
-    auto cellsB = generateUniqueSupercells(basisB, nmax, maxCells);
+    auto cellsB = generateUniqueSupercells(basisB, mmax, maxCellsB);
 
     if (cellsA.empty() || cellsB.empty())
     {
         std::cerr << "Error: no supercell candidates found (try increasing --nmax or --maxcells)\n";
         return 1;
+    }
+
+    // Rotated matching keeps the Interface Builder window's single-precision
+    // thresholds, so it finds the same matches in the same order.
+    const float maxStrain   = static_cast<float>(argDouble(argc, argv, "--max-strain",   0.1));
+    const float maxRotation = static_cast<float>(argDouble(argc, argv, "--max-rotation", 10.0));
+    const float orTol       = static_cast<float>(argDouble(argc, argv, "--or-tol",       2.0));
+    bool  useOr   = false;
+    float orAngle = 0.0f;
+    if (align)
+    {
+        const char* planeA = findArg(argc, argv, "--or-plane-a");
+        const char* dirA   = findArg(argc, argv, "--or-dir-a");
+        const char* planeB = findArg(argc, argv, "--or-plane-b");
+        const char* dirB   = findArg(argc, argv, "--or-dir-b");
+        if (planeA || dirA || planeB || dirB)
+        {
+            glm::vec3 hklA, uvwA, hklB, uvwB;
+            if (!planeA || !dirA || !planeB || !dirB || !parseVec3(planeA, hklA) || !parseVec3(dirA, uvwA) ||
+                !parseVec3(planeB, hklB) || !parseVec3(dirB, uvwB))
+                throw std::invalid_argument("--or-plane-a, --or-dir-a, --or-plane-b and --or-dir-b need three numbers each");
+            const float pA[3] = {hklA.x, hklA.y, hklA.z}, dA[3] = {uvwA.x, uvwA.y, uvwA.z};
+            const float pB[3] = {hklB.x, hklB.y, hklB.z}, dB[3] = {uvwB.x, uvwB.y, uvwB.z};
+            orAngle = orientationAngleFromPlaneDir(sA, pA, dA) - orientationAngleFromPlaneDir(sB, pB, dB);
+            useOr = true;
+        }
+        else if (findArg(argc, argv, "--or-angle"))
+        {
+            orAngle = static_cast<float>(argDouble(argc, argv, "--or-angle", 0.0));
+            useOr = true;
+        }
     }
 
     // Find best-strain pair
@@ -632,7 +694,26 @@ int runInterface(int argc, char* argv[])
         for (int iB = 0; iB < (int)cellsB.size(); ++iB)
         {
             double exx, eyy, exy;
-            if (!strainComponents(cellsA[iA].vecs, cellsB[iB].vecs, exx, eyy, exy))
+            if (align)
+            {
+                // Rotate B's supercell onto A's; keep small rotations near the orientation relationship.
+                const auto& va = cellsA[iA].vecs;
+                const auto& ub = cellsB[iB].vecs;
+                const double thetaDeg = wrapDegPm180(angleOf(va[0][0], va[0][1]) * 180.0 / M_PI
+                                                     - angleOf(ub[0][0], ub[0][1]) * 180.0 / M_PI);
+                if (std::abs(thetaDeg) > maxRotation) continue;
+                if (useOr && static_cast<float>(std::abs(wrapDegPm180(thetaDeg - orAngle))) > orTol) continue;
+                const Mat2 rot = rotation2D(thetaDeg * M_PI / 180.0);
+                double uRot[2][2];
+                for (int i = 0; i < 2; ++i)
+                {
+                    uRot[i][0] = ub[i][0]*rot.m[0][0] + ub[i][1]*rot.m[1][0];
+                    uRot[i][1] = ub[i][0]*rot.m[0][1] + ub[i][1]*rot.m[1][1];
+                }
+                if (!strainComponents(va, uRot, exx, eyy, exy)) continue;
+                if (meanAbsStrain(exx, eyy, exy) > maxStrain) continue;
+            }
+            else if (!strainComponents(cellsA[iA].vecs, cellsB[iB].vecs, exx, eyy, exy))
                 continue;
             Candidate c;
             c.iA = iA; c.iB = iB;
@@ -649,18 +730,32 @@ int runInterface(int argc, char* argv[])
         return 1;
     }
 
-    std::sort(ranked.begin(), ranked.end(),
-              [](const Candidate& a, const Candidate& b){ return a.strain < b.strain; });
-
-    if (pickIdx >= (int)ranked.size())
+    // --candidate counts matches in search order; --pick counts them by strain.
+    int chosen = candidate;
+    if (candidate >= 0)
     {
-        std::cerr << "Error: --pick " << pickIdx << " is out of range ("
-                  << ranked.size() << " candidates available)\n";
-        return 1;
+        if (candidate >= (int)ranked.size())
+        {
+            std::cerr << "Error: --candidate " << candidate << " is out of range ("
+                      << ranked.size() << " candidates available)\n";
+            return 1;
+        }
+    }
+    else
+    {
+        std::stable_sort(ranked.begin(), ranked.end(),
+                         [](const Candidate& a, const Candidate& b){ return a.strain < b.strain; });
+        if (pickIdx >= (int)ranked.size())
+        {
+            std::cerr << "Error: --pick " << pickIdx << " is out of range ("
+                      << ranked.size() << " candidates available)\n";
+            return 1;
+        }
+        chosen = pickIdx;
     }
 
-    const Candidate& best = ranked[pickIdx];
-    std::cout << "Selected supercell pair " << pickIdx
+    const Candidate& best = ranked[chosen];
+    std::cout << "Selected supercell pair " << chosen
               << " (mean |strain| = " << best.strain << ")\n";
 
     // Build layer supercells

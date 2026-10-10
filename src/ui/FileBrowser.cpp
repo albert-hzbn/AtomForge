@@ -550,8 +550,8 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
 
         ImGui::Separator();
 
-        if (ImGui::MenuItem("Open Project...")) { projectAction=1; projectPicker.open("Open AtomForge project",false,"project.afproject"); }
-        if (ImGui::MenuItem("Save Project As...")) { projectAction=2; projectPicker.open("Save AtomForge project",true,"project.afproject"); }
+        if (ImGui::MenuItem("Open Project")) { projectAction=1; projectPicker.open("Open AtomForge project",false,"project.afproject"); }
+        if (ImGui::MenuItem("Save Project As")) { projectAction=2; projectPicker.open("Save AtomForge project",true,"project.afproject"); }
         ImGui::MenuItem("Autosave project every minute",nullptr,&autosaveEnabled);
         if (ImGui::MenuItem("Recover Last Autosave")) projectAction=3;
         ImGui::Separator();
@@ -582,6 +582,17 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         mergeStructuresDialog.drawMenuItem(true);
         ImGui::Separator();
         cellSculptorDialog.drawMenuItem(!structure.atoms.empty() || true);
+        ImGui::Separator();
+        // Operations that are also pipeline steps (one-step dialogs).
+        if (ImGui::BeginMenu("Structure Operations")) {
+            operationDialog.drawMenuItems("Edit", "Structure Operations", !structure.atoms.empty());
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Select Atoms")) {
+            operationDialog.drawMenuItems("Edit", "Select Atoms", !structure.atoms.empty());
+            ImGui::EndMenu();
+        }
+        pipelineDialog.drawMenuItem(!structure.atoms.empty());
 
         ImGui::EndMenu();
     }
@@ -601,6 +612,8 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         customStructureDialog.drawMenuItem(true);
         polyCrystalDialog.drawMenuItem(true);
         amorphousBuilderDialog.drawMenuItem(true);
+        ImGui::Separator();
+        operationDialog.drawMenuItems("Build", "", !structure.atoms.empty());
         ImGui::EndMenu();
     }
 
@@ -1583,6 +1596,7 @@ void FileBrowser::draw(Structure& structure,
         }
     }
 
+    if (StepEdit request; pipelineDialog.consumeDialogRequest(request)) openStepDialog(std::move(request), editMenuDialogs);
     editMenuDialogs.drawPopups(structure, updateBuffers);
 
     transformDialog.drawDialog([&]() { updateBuffers(structure); });
@@ -1643,11 +1657,19 @@ void FileBrowser::draw(Structure& structure,
     wannierDialog.drawDialog();
     lobsterDialog.drawDialog();
     dislocationAnalysisDialog.drawDialog();
-    trajectoryDialog.draw(structure,updateBuffers,[&] {
+    const auto showAtomProperty = [&] {
         propertyDisplay.autoRange = true;
         if (atomColorMode != AtomColorMode::AtomProperty) atomColorModeJustChanged = true;
         atomColorMode = AtomColorMode::AtomProperty;
-    });
+    };
+    trajectoryDialog.draw(structure, updateBuffers, showAtomProperty);
+    pipelineDialog.draw(structure, updateBuffers, showAtomProperty);
+    OperationDialog::Callbacks operations;
+    operations.update = updateBuffers;
+    operations.select = [&](const std::vector<int>& atoms) { requestedSelection = atoms; selectionRequested = true; };
+    operations.addToPipeline = [&](const std::vector<atomforge::pipeline::Modifier>& steps) { pipelineDialog.addSteps(steps, structure); };
+    operations.showAtomProperty = showAtomProperty;
+    operationDialog.draw(structure, viewSelectionAtoms, operations);
     scientificToolsDialog.setTrajectorySource(trajectoryDialog.loadedPath());
     scientificToolsDialog.draw(structure, updateFromBuilderToNewTab,
         [&](const std::string& name, const std::vector<double>& values) {
@@ -1662,6 +1684,7 @@ void FileBrowser::draw(Structure& structure,
     drawShortRangeOrderDialog(shortRangeOrderDialog, structure);
     angularDistributionDialog.drawDialog(structure);
     cellSculptorDialog.drawDialog(structure, updateBuffers);
+    runStepDialogCheck(editMenuDialogs);
 
     if (loadErrorPopupRequested)
     {
@@ -2668,6 +2691,11 @@ atomforge::Workspace FileBrowser::workspace(const Structure& structure) const
     saved.settings["desktop.property.hideOutside"]=propertyDisplay.hideOutside;
     saved.settings["desktop.property.hideInvalid"]=propertyDisplay.hideInvalid;
     saved.science=scientificToolsDialog.snapshot();
+    saved.pipeline=pipelineDialog.snapshot();
+    if (pipelineDialog.isActive()) {
+        saved.hasPipelineInput=true;
+        saved.pipelineInput=pipelineDialog.editor().input();
+    }
     return saved;
 }
 
@@ -2698,6 +2726,7 @@ void FileBrowser::restoreWorkspace(const atomforge::Workspace& saved, Structure&
     propertyDisplay.hideOutside=read("desktop.property.hideOutside",propertyDisplay.hideOutside)!=0;
     propertyDisplay.hideInvalid=read("desktop.property.hideInvalid",propertyDisplay.hideInvalid)!=0;
     scientificToolsDialog.restore(saved.science);
+    pipelineDialog.restore(saved.pipeline, saved.hasPipelineInput ? &saved.pipelineInput : nullptr);
     atomDisplayMode=static_cast<AtomDisplayMode>(static_cast<int>(std::clamp(read("desktop.atomDisplayMode",0),0.0,3.0)));
 }
 
@@ -2706,4 +2735,33 @@ ProjectRequest FileBrowser::drawProjectPicker()
     if (projectAction==3) { projectAction=0; return {3,{}}; }
     if (auto path=projectPicker.draw()) { const int action=projectAction; projectAction=0; return {action,*path}; }
     return {};
+}
+
+void FileBrowser::openStepDialog(StepEdit request, EditMenuDialogs& editMenuDialogs)
+{
+    // The same dialog as the menu entry of the step (ui/MenuParity), opened on the step.
+    const std::string step = request.step;
+    if (step == "build-bulk") bulkCrystalDialog.editStep(std::move(request));
+    else if (step == "build-gb") cslDialog.editStep(std::move(request));
+    else if (step == "build-nano") nanoCrystalDialog.editStep(std::move(request));
+    else if (step == "build-custom") customStructureDialog.editStep(std::move(request));
+    else if (step == "build-interface") interfaceBuilderDialog.editStep(std::move(request));
+    else if (step == "build-poly") polyCrystalDialog.editStep(std::move(request));
+    else if (step == "build-amorphous") amorphousBuilderDialog.editStep(std::move(request));
+    else if (step == "build-dislocation") dislocationDialog.editStep(std::move(request));
+#if ATOMFORGE_ENABLE_SFE_BUILDER
+    else if (step == "build-stacking-fault") stackingFaultDialog.editStep(std::move(request));
+#endif
+#if ATOMFORGE_ENABLE_SSS_BUILDER
+    else if (step == "build-sss") substitutionalSolidSolutionDialog.editStep(std::move(request));
+#endif
+    else if (step == "add-atom" || step == "set-cell") editMenuDialogs.editStep(std::move(request));
+    else if (step == "insert-interstitials") interstitialAtomsDialog.editStep(std::move(request));
+    else if (step == "supercell") transformDialog.editStep(std::move(request));
+    else if (step == "merge") mergeStructuresDialog.editStep(std::move(request));
+    else if (step == "build-sculpt") cellSculptorDialog.editStep(std::move(request));
+    else if (step == "relax" || step == "nvt-dynamics" || step == "npt-dynamics" || step == "standardize-cell")
+        scientificToolsDialog.editStep(std::move(request));
+    // Steps without a dialog of their own use the operation window of their menu entry.
+    else operationDialog.editStep(std::move(request));
 }

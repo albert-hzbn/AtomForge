@@ -9,6 +9,7 @@
 #include "graphics/StructureInstanceBuilder.h"
 #include "io/StructureLoader.h"
 #include "ui/ThemeUtils.h"
+#include "pipeline/Options.h"
 #include "util/PathUtils.h"
 
 #include "imgui.h"
@@ -172,7 +173,63 @@ void StackingFaultBuilderDialog::initRenderResources(Renderer& renderer)
 void StackingFaultBuilderDialog::drawMenuItem(bool enabled)
 {
     if (ImGui::MenuItem("Stacking Faults", nullptr, false, enabled))
+    {
+        m_step.finish();  // from the menu: build normally
+        m_stepLoadInput = false;
+        m_stepSetup = false;
         m_openRequested = true;
+    }
+}
+
+bool StackingFaultBuilderDialog::editStep(StepEdit edit)
+{
+    m_step = std::move(edit);
+    const auto options = m_step.reader();
+
+    // Missing flags take the defaults of AtomForge --build stacking-fault.
+    m_params = StackingFaultParams{};
+    m_stepPlane = static_cast<StackingFaultPlane>(std::clamp(options.integer("--plane", 0), 0, 6));
+    m_params.plane = m_stepPlane;
+    m_params.layerCount = options.integer("--layers", 9);
+    m_params.interval = (float)options.number("--interval", 0.1);
+    m_params.maxDisplacementFactor = (float)options.number("--maximum", 2.0);
+    m_params.cellMode = options.has("--orthogonal") ? StackingFaultCellMode::OrthogonalCell
+                                                    : StackingFaultCellMode::SmallestUnitCell;
+    m_stepFrame = std::max(0, options.integer("--frame", 0));
+    m_stepSequence = options.text("--sequence");
+
+    // Source: a file named in the options, else the structure entering the step
+    // (both are loaded by drawDialog, which has the element radii for the preview).
+    m_source = Structure();
+    m_sourceLoaded = false;
+    m_sourceLabel.clear();
+    m_detection = {};
+    m_result = {};
+    m_selectedStructureIndex = 0;
+    m_statusMsg.clear();
+    m_statusIsError = false;
+    m_sourcePath = options.text("--input");
+    m_stepLoadInput = m_sourcePath.empty() && !m_step.input.atoms.empty();
+    if (!m_sourcePath.empty())
+        m_pendingDropPath = m_sourcePath;
+    m_stepSetup = true;
+    m_openRequested = true;
+    return true;
+}
+
+std::string StackingFaultBuilderDialog::stepOptions() const
+{
+    atomforge::pipeline::options::Writer out;
+    if (!m_sourcePath.empty()) out.add("--input", m_sourcePath);
+    out.add("--plane", static_cast<int>(m_params.plane));
+    out.add("--layers", m_params.layerCount);
+    out.add("--interval", m_params.interval);
+    out.add("--maximum", m_params.maxDisplacementFactor);
+    const bool haveSequence = m_result.success && !m_result.sequence.empty();
+    out.add("--frame", haveSequence ? m_selectedStructureIndex : m_stepFrame);
+    if (m_params.cellMode == StackingFaultCellMode::OrthogonalCell) out.flag("--orthogonal");
+    if (!m_stepSequence.empty()) out.add("--sequence", m_stepSequence);
+    return out.str();
 }
 
 void StackingFaultBuilderDialog::feedDroppedFile(const std::string& path)
@@ -490,6 +547,27 @@ void StackingFaultBuilderDialog::drawDialog(
         tryLoadFile(m_pendingDropPath, elementRadii, elementShininess);
         m_pendingDropPath.clear();
     }
+    if (m_stepLoadInput)
+    {
+        m_stepLoadInput = false;
+        loadFromScene(m_step.input, elementRadii, elementShininess);
+        if (m_sourceLoaded) m_sourceLabel = "step input";
+    }
+    // Editing a step: its plane (detection picks one) and its sequence, at its frame.
+    if (m_stepSetup)
+    {
+        m_stepSetup = false;
+        m_params.plane = m_stepPlane;
+        if (m_sourceLoaded)
+        {
+            regenerateSequence(elementRadii, elementShininess);
+            if (m_result.success && !m_result.sequence.empty())
+            {
+                m_selectedStructureIndex = std::min(m_stepFrame, (int)m_result.sequence.size() - 1);
+                m_outputPreview.dirty = true;
+            }
+        }
+    }
 
     if (m_openRequested)
     {
@@ -506,9 +584,20 @@ void StackingFaultBuilderDialog::drawDialog(
     if (!responsive::beginModal("Stacking Faults", &keepOpen, ImGuiWindowFlags_NoCollapse))
     {
         m_isOpen = false;
+        m_step.finish();
         return;
     }
     m_isOpen = true;
+
+    // Update step: the settings go into the pipeline, the scene is left alone.
+    const auto commitStep = [&] {
+        m_step.commitOptions(stepOptions());
+        m_step.finish();
+        ImGui::CloseCurrentPopup();
+    };
+    if (m_step.active())
+        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f),
+                           "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
 
     ImGui::TextDisabled("Load a crystal, identify whether it is FCC-like, HCP-like, or BCC-like, and build a sliding sequence across the detected stacking-fault family.");
     ImGui::Spacing();
@@ -523,7 +612,15 @@ void StackingFaultBuilderDialog::drawDialog(
     {
         ImGui::Text("Input Structure");
         ImGui::SameLine();
-        if (ImGui::SmallButton("Use Current Scene"))
+        if (m_step.active())
+        {
+            if (ImGui::SmallButton("Use Step Input"))
+            {
+                loadFromScene(m_step.input, elementRadii, elementShininess);
+                if (m_sourceLoaded && m_sourcePath.empty()) m_sourceLabel = "step input";
+            }
+        }
+        else if (ImGui::SmallButton("Use Current Scene"))
             loadFromScene(structure, elementRadii, elementShininess);
 
         if (m_sourceLoaded)
@@ -662,6 +759,10 @@ void StackingFaultBuilderDialog::drawDialog(
         ImGui::Spacing();
         if (responsive::button("Generate Sequence", responsive::size(-1.0f,0.0f)))
             regenerateSequence(elementRadii, elementShininess);
+        // Without a sequence the step keeps its frame.
+        if (m_step.active() && !(m_result.success && !m_result.sequence.empty()) &&
+            responsive::button("Update step", responsive::size(-1.0f,0.0f)))
+            commitStep();
 
         if (m_result.success && !m_result.sequence.empty())
         {
@@ -680,7 +781,12 @@ void StackingFaultBuilderDialog::drawDialog(
             ImGui::TextDisabled("Partial displacement: %.4f A", m_result.partialDisplacement);
             ImGui::TextDisabled("Shifted atoms: %d", m_result.shiftedAtomCount);
 
-            if (responsive::button("Use Selected Structure", responsive::size(-1.0f,0.0f)))
+            if (m_step.active())
+            {
+                if (responsive::button("Update step", responsive::size(-1.0f,0.0f)))
+                    commitStep();
+            }
+            else if (responsive::button("Use Selected Structure", responsive::size(-1.0f,0.0f)))
             {
                 structure = m_result.sequence[m_selectedStructureIndex].structure;
                 updateBuffers(structure);
@@ -797,7 +903,10 @@ void StackingFaultBuilderDialog::drawDialog(
     const float buttonWidth = 100.0f;
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonWidth);
     if (responsive::button("Close", ImVec2(buttonWidth, 0.0f)))
+    {
+        m_step.finish();
         ImGui::CloseCurrentPopup();
+    }
 
     ImGui::EndPopup();
 }

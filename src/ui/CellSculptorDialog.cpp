@@ -134,7 +134,102 @@ void CellSculptorDialog::initRenderResources(Renderer& renderer)
 void CellSculptorDialog::drawMenuItem(bool /*enabled*/)
 {
     if (ImGui::MenuItem("Cell Sculptor", nullptr, false, true))
+    {
+        m_step.finish();
         m_openRequested = true;
+    }
+}
+
+// ===========================================================================
+// Pipeline step editing
+// ===========================================================================
+bool CellSculptorDialog::editStep(StepEdit edit)
+{
+    m_step = std::move(edit);
+    m_status.clear();
+    atomforge::pipeline::options::Reader options("");
+    try { options = m_step.reader(); }
+    catch (const std::exception& e) { m_status = std::string("Options not read: ") + e.what(); }
+
+    // The step's source: a file named by --input, else the structure entering the step.
+    const std::string inputFile = options.text("--input");
+    if (inputFile.empty() || !loadSourceFromPath(inputFile))
+    {
+        if (!m_step.input.atoms.empty())
+            loadSourceFromScene(m_step.input, "step input");
+        else
+        {
+            m_source = {}; m_hasSource = false; m_sourcePath.clear();
+            m_previewResult = {};
+        }
+    }
+
+    m_nx = std::max(1, options.integer("--nx", 1));
+    m_ny = std::max(1, options.integer("--ny", 1));
+    m_nz = std::max(1, options.integer("--nz", 1));
+
+    // --slabs "h k l lower upper periodic;..." (periodic bounds are start plane and count).
+    m_slabs.clear();
+    std::istringstream rows(options.text("--slabs"));
+    std::string row;
+    while (std::getline(rows, row, ';'))
+    {
+        CellSlabPlane slab;
+        double lower = 0.0, upper = 0.0;
+        int periodic = 0;
+        std::istringstream values(row);
+        if (!(values >> slab.h >> slab.k >> slab.l >> lower >> upper >> periodic))
+            continue;
+        slab.usePeriodic = periodic != 0;
+        if (slab.usePeriodic)
+        {
+            slab.startPlane = (int)std::lround(lower);
+            slab.nPeriods   = std::max(1, (int)std::lround(upper));
+        }
+        else
+        {
+            slab.d1 = (float)lower;
+            slab.d2 = (float)upper;
+        }
+        const size_t ci = m_slabs.size() % 5;
+        slab.color[0] = kSlabColors[ci][0]; slab.color[1] = kSlabColors[ci][1]; slab.color[2] = kSlabColors[ci][2];
+        m_slabs.push_back(slab);
+    }
+
+    m_sourceBufDirty = true; m_facesDirty = true; m_resultDirty = true;
+    m_srcCameraFit = true; m_resCameraFit = true;
+    m_openRequested = true;
+    return true;
+}
+
+std::string CellSculptorDialog::stepOptions() const
+{
+    // Floats with their own precision (through 10 digits a float 0.1 prints as 0.1000000015).
+    const auto number = [](double value) {
+        std::ostringstream out;
+        out.precision(7);
+        out << value;
+        return out.str();
+    };
+    const bool hasPeriodic = m_hasSource && m_source.hasUnitCell;
+    std::string slabs;
+    for (const CellSlabPlane& slab : m_slabs)
+    {
+        if (!slabs.empty()) slabs += ";";
+        slabs += std::to_string(slab.h) + " " + std::to_string(slab.k) + " " + std::to_string(slab.l) + " ";
+        if (slab.usePeriodic && hasPeriodic)
+            slabs += std::to_string(slab.startPlane) + " " + std::to_string(std::max(1, slab.nPeriods)) + " 1";
+        else
+            slabs += number(slab.d1) + " " + number(slab.d2) + " 0";
+    }
+    atomforge::pipeline::options::Writer out;
+    out.add("--slabs", slabs);
+    if (m_nx != 1) out.add("--nx", m_nx);
+    if (m_ny != 1) out.add("--ny", m_ny);
+    if (m_nz != 1) out.add("--nz", m_nz);
+    // A source loaded from a file replaces the step input.
+    if (!m_sourcePath.empty()) out.add("--input", m_sourcePath);
+    return out.str();
 }
 
 void CellSculptorDialog::feedDroppedFile(const std::string& path)
@@ -156,6 +251,7 @@ bool CellSculptorDialog::loadSourceFromPath(const std::string& path)
     }
     m_source         = std::move(loaded);
     m_sourceName     = scBaseName(path);
+    m_sourcePath     = path;
     m_hasSource      = true;
     m_sourceBufDirty = true;
     m_facesDirty     = true;
@@ -175,6 +271,7 @@ void CellSculptorDialog::loadSourceFromScene(const Structure& s, const std::stri
     if (s.atoms.empty()) { m_status = "Scene is empty."; return; }
     m_source         = s;
     m_sourceName     = name;
+    m_sourcePath.clear();
     m_hasSource      = true;
     m_sourceBufDirty = true;
     m_facesDirty     = true;
@@ -751,9 +848,14 @@ void CellSculptorDialog::drawDialog(
     if (!responsive::beginModal("Cell Sculptor", &dialogOpen, 0))
     {
         m_isOpen = false;
+        // Closed (Close, X): the menu path builds normally again.
+        m_step.finish();
         return;
     }
     m_isOpen = true;
+
+    if (m_step.active())
+        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
 
     // Lazy rebuild
     if (m_sourceBufDirty) rebuildSourceBuffers();
@@ -784,7 +886,16 @@ void CellSculptorDialog::drawDialog(
     responsive::beginChild("##scSrcPanel", ImVec2(kLeftW, kTopPanelH), true);
     ImGui::TextUnformatted("Supercell + Cutting Planes");
     ImGui::SameLine();
-    if (responsive::button("Use Scene##scuse"))
+    if (m_step.active())
+    {
+        // The step works on the structure entering it, or on a dropped file (--input).
+        if (responsive::button("Use Step Input##scuse"))
+        {
+            loadSourceFromScene(m_step.input, "step input");
+            rebuildSourceBuffers(); rebuildFaces(); rebuildResult();
+        }
+    }
+    else if (responsive::button("Use Scene##scuse"))
     {
         loadSourceFromScene(structure, "scene");
         rebuildSourceBuffers(); rebuildFaces(); rebuildResult();
@@ -794,7 +905,7 @@ void CellSculptorDialog::drawDialog(
         ImGui::SameLine();
         if (responsive::button("Clear##scclear"))
         {
-            m_source = {}; m_hasSource = false;
+            m_source = {}; m_hasSource = false; m_sourcePath.clear();
             m_sourceBufDirty = true; m_facesDirty = true;
             m_resultDirty = true; m_previewResult = {}; m_status.clear();
         }
@@ -1126,17 +1237,41 @@ void CellSculptorDialog::drawDialog(
 
     // Fixed bottom buttons
     ImGui::Separator();
-    if (!bounded) ImGui::BeginDisabled();
-    const bool doGenerate = responsive::button("Generate##scgen", responsive::size(100.0f,0.0f));
-    if (!bounded)
+    bool doGenerate = false;
+    if (m_step.active())
     {
-        ImGui::EndDisabled();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("Close the region first.");
+        // The step keeps the atoms between the slabs; the region need not be closed.
+        if (m_slabs.empty()) ImGui::BeginDisabled();
+        if (responsive::button("Update step##scgen", responsive::size(100.0f,0.0f)))
+        {
+            m_step.commitOptions(stepOptions());
+            ImGui::CloseCurrentPopup();
+            m_step.finish();
+        }
+        if (m_slabs.empty())
+        {
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("Add at least one slab.");
+        }
+    }
+    else
+    {
+        if (!bounded) ImGui::BeginDisabled();
+        doGenerate = responsive::button("Generate##scgen", responsive::size(100.0f,0.0f));
+        if (!bounded)
+        {
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("Close the region first.");
+        }
     }
     ImGui::SameLine();
     if (responsive::button("Close##scclose", responsive::size(80.0f,0.0f)))
+    {
         ImGui::CloseCurrentPopup();
+        m_step.finish();
+    }
 
     ImGui::EndChild(); // ##scCtrlOuter
 

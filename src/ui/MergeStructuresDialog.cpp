@@ -100,7 +100,95 @@ void MergeStructuresDialog::initRenderResources(Renderer& renderer)
 void MergeStructuresDialog::drawMenuItem(bool enabled)
 {
     if (ImGui::MenuItem("Merge Structures", nullptr, false, enabled))
+    {
+        finishStepEdit();
         m_openRequested = true;
+    }
+}
+
+// ===========================================================================
+// Pipeline step editing
+// ===========================================================================
+bool MergeStructuresDialog::editStep(StepEdit edit)
+{
+    finishStepEdit();
+    m_step = std::move(edit);
+    // The menu path's arrangement is kept aside while the step is edited.
+    m_savedEntries = std::move(m_entries);
+    m_savedSelectedIndex = m_selectedIndex;
+    m_entries.clear();
+    m_selectedIndex = -1;
+    m_drag.active = false;
+    m_status.clear();
+
+    // The structure entering the step stays where it is; the file is shifted by the offset.
+    if (!m_step.input.atoms.empty())
+    {
+        MergeEntry entry;
+        entry.structure = m_step.input;
+        entry.name = "step input";
+        entry.stepInput = true;
+        entry.pivot = computeCentroid(entry.structure);
+        m_entries.push_back(std::move(entry));
+        m_selectedIndex = 0;
+    }
+    using atomforge::pipeline::parameter;
+    const atomforge::pipeline::ModifierType* type = atomforge::pipeline::findModifierType("merge");
+    try
+    {
+        const std::string file = parameter(m_step.parameters, *type, "file").string();
+        const atomforge::pipeline::Json offset = parameter(m_step.parameters, *type, "offset");
+        if (!file.empty() && addStructureFromPath(file))
+        {
+            MergeEntry& entry = m_entries.back();
+            for (int k = 0; k < 3 && k < (int)offset.items().size(); ++k)
+                entry.translation[k] = (float)offset.items()[(size_t)k].number();
+            m_selectedIndex = (int)m_entries.size() - 1;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        m_status = std::string("Step parameters not read: ") + e.what();
+    }
+    m_previewDirty = true;
+    m_autoFitOnRebuild = true;
+    m_openRequested = true;
+    return true;
+}
+
+void MergeStructuresDialog::finishStepEdit()
+{
+    if (!m_step.active())
+        return;
+    m_step.finish();
+    m_entries = std::move(m_savedEntries);
+    m_savedEntries.clear();
+    m_selectedIndex = m_savedSelectedIndex;
+    m_drag.active = false;
+    m_previewDirty = true;
+    m_autoFitOnRebuild = true;
+}
+
+int MergeStructuresDialog::firstFileEntry() const
+{
+    for (size_t i = 0; i < m_entries.size(); ++i)
+        if (!m_entries[i].path.empty() && !m_entries[i].stepInput) return (int)i;
+    return -1;
+}
+
+atomforge::pipeline::Json MergeStructuresDialog::stepParameters() const
+{
+    atomforge::pipeline::Json p = m_step.parameters;
+    const int file = firstFileEntry();
+    if (file < 0)
+        return p;
+    // The offset is relative to the step input (which the merge leaves in place).
+    glm::vec3 offset = m_entries[(size_t)file].translation;
+    for (const MergeEntry& entry : m_entries)
+        if (entry.stepInput) offset -= entry.translation;
+    p["file"] = m_entries[(size_t)file].path;
+    p["offset"] = atomforge::pipeline::Json::array({(double)offset.x, (double)offset.y, (double)offset.z});
+    return p;
 }
 
 void MergeStructuresDialog::feedDroppedFile(const std::string& path)
@@ -125,6 +213,7 @@ bool MergeStructuresDialog::addStructureFromPath(const std::string& path)
     entry.pivot = computeCentroid(loaded);
     entry.structure = std::move(loaded);
     entry.name = baseName(path);
+    entry.path = path;
     m_entries.push_back(std::move(entry));
     if (m_selectedIndex < 0)
         m_selectedIndex = 0;
@@ -615,10 +704,25 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
     if (!responsive::beginModal("Merge Structures", &keepOpen, ImGuiWindowFlags_NoCollapse))
     {
         m_isOpen = false;
+        // Closed (Close, X): the menu path merges normally again.
+        finishStepEdit();
         return;
     }
 
     m_isOpen = true;
+    const bool editingStep = m_step.active();
+    if (editingStep)
+    {
+        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+        ImGui::TextWrapped("The step appends one structure file to the structure entering it, shifted by an offset: "
+                           "the first entry loaded from a file is that file and its Pos is the offset. "
+                           "Rotations and further entries are not part of the step.");
+        const int file = firstFileEntry();
+        if (file < 0)
+            ImGui::TextColored(ImVec4(0.95f, 0.42f, 0.42f, 1.0f), "Add a structure file to merge.");
+        else if (m_entries[(size_t)file].rotationDeg != glm::vec3(0.0f))
+            ImGui::TextColored(ImVec4(0.95f, 0.75f, 0.30f, 1.0f), "The rotation of %s is not written to the step.", m_entries[(size_t)file].name.c_str());
+    }
 
     if (responsive::button("Add structure##sourcePicker"))
         m_sourcePicker.open("Add structure", false, "");
@@ -908,11 +1012,20 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
     ImGui::EndChild();
 
     // ---- Bottom bar ----
-    const bool canMerge = !m_entries.empty();
+    const bool canMerge = editingStep ? firstFileEntry() >= 0 : !m_entries.empty();
     if (!canMerge)
         ImGui::BeginDisabled();
 
-    if (responsive::button("Merge Structures", responsive::size(170.0f,0.0f)))
+    if (editingStep)
+    {
+        if (responsive::button("Update step", responsive::size(170.0f,0.0f)))
+        {
+            m_step.commitParameters(stepParameters());
+            ImGui::CloseCurrentPopup();
+            finishStepEdit();
+        }
+    }
+    else if (responsive::button("Merge Structures", responsive::size(170.0f,0.0f)))
     {
         Structure merged = buildCombinedPreviewStructure();
         if (merged.atoms.empty())
@@ -943,7 +1056,10 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
 
     ImGui::SameLine();
     if (responsive::button("Close", responsive::size(100.0f,0.0f)))
+    {
         ImGui::CloseCurrentPopup();
+        finishStepEdit();
+    }
 
     if (!m_status.empty())
     {

@@ -5,6 +5,7 @@
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
 #include "model/Structure.h"
+#include "ui/StepEditing.h"
 
 #include <array>
 #include <functional>
@@ -54,12 +55,20 @@ struct CellSculptorDialog
     bool isOpen()    const { return m_isOpen; }
     void feedDroppedFile(const std::string& path);
 
+    // Opens the dialog on a pipeline step: filled from the step's settings, with
+    // "Update step" writing them back instead of building.
+    bool editStep(StepEdit edit);
+    // The dialog's current settings as the step's options (command-line flags of
+    // AtomForge --analyze sculpt).
+    std::string stepOptions() const;
+
 private:
     // -----------------------------------------------------------------------
     // Source / supercell / slab state
     // -----------------------------------------------------------------------
     Structure   m_source;
     std::string m_sourceName;
+    std::string m_sourcePath;    // file the source was loaded from (empty: scene or step input)
     Structure   m_supercell;     // tiled source — kept in sync with m_sourceBuffers
     bool        m_hasSource = false;
 
@@ -71,6 +80,7 @@ private:
     // Dialog UI state
     // -----------------------------------------------------------------------
     bool        m_openRequested  = false;
+    StepEdit    m_step;
     bool        m_isOpen         = false;
     std::string m_status;
     std::vector<std::string> m_pendingDropPaths;

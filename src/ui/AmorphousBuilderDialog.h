@@ -2,6 +2,7 @@
 
 #include "model/Structure.h"
 #include "algorithms/AmorphousBuilder.h"
+#include "ui/StepEditing.h"
 
 #include <functional>
 #include <string>
@@ -38,7 +39,16 @@ struct AmorphousBuilderDialog
 
     bool isOpen() const { return m_isOpen; }
 
+    // Opens the dialog on a pipeline step: filled from the step's settings, with
+    // "Update step" writing them back instead of building.
+    bool editStep(StepEdit edit);
+    // The dialog's current settings as the step's options (command-line flags of
+    // AtomForge --build amorphous).
+    std::string stepOptions() const;
+
 private:
+    StepEdit m_step;
+
     // -----------------------------------------------------------------------
     // Dialog open/close state
     // -----------------------------------------------------------------------

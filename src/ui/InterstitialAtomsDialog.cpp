@@ -16,6 +16,7 @@
 #include "ui/PeriodicTableDialog.h"
 #include "ui/ThemeUtils.h"
 #include "util/ElementData.h"
+#include "science/ScienceData.h"
 
 #include "imgui.h"
 
@@ -37,6 +38,10 @@
 
 namespace
 {
+// Void kinds of the insert-interstitials step, in the order of its "kind" choice.
+const char* kStepKinds[] = {"any", "tetrahedral", "octahedral", "irregular"};
+const char* kStepKindLabels[] = {"Any", "Tetrahedral", "Octahedral", "Irregular"};
+
 bool rayIntersectsTriangle(const glm::vec3& orig,
                            const glm::vec3& dir,
                            const glm::vec3& v0,
@@ -769,7 +774,67 @@ void InterstitialAtomsDialog::drawPreviewOverlays(ImDrawList* dl,
 void InterstitialAtomsDialog::drawMenuItem(bool enabled)
 {
     if (ImGui::MenuItem("Add Interstitial Atoms", nullptr, false, enabled))
+    {
+        m_step.finish();
         m_openRequested = true;
+    }
+}
+
+bool InterstitialAtomsDialog::editStep(StepEdit edit)
+{
+    m_step = std::move(edit);
+    using atomforge::pipeline::parameter;
+    const atomforge::pipeline::ModifierType* type = atomforge::pipeline::findModifierType("insert-interstitials");
+    const auto value = [&](const char* name) { return parameter(m_step.parameters, *type, name); };
+    try
+    {
+        const int z = atomforge::science::atomicNumber(value("element").string());
+        if (z >= 1 && z <= 118) m_selectedElement = z;
+        m_stepKind = 0;
+        for (int k = 0; k < 4; ++k)
+            if (value("kind").string() == kStepKinds[k]) m_stepKind = k;
+        m_targetMode     = TargetMode::Count;
+        m_targetCount    = std::max(0, (int)value("count").number());
+        m_stepRandom     = value("order").string() == "random";
+        m_seed           = (int)value("seed").number();
+        m_gridResolution = (int)value("resolution").number();
+        m_minClearance   = (float)value("clearance").number();
+        m_minSeparation  = (float)value("separation").number();
+        m_statusMsg.clear();
+        m_statusIsError = false;
+    }
+    catch (const std::exception& e)
+    {
+        m_statusIsError = true;
+        m_statusMsg = std::string("Step parameters not read: ") + e.what();
+    }
+
+    // The voids are those of the structure entering the step.
+    m_source       = m_step.input;
+    m_sourceLoaded = !m_source.atoms.empty();
+    m_sourceLabel  = "step input";
+    m_voids.clear();
+    m_selectedVoidIndices.clear();
+    m_selectedVoidIndex = -1;
+    rebuildVoidTypeOptions();
+    m_previewBufDirty   = m_sourceLoaded;
+    m_previewFitPending = m_sourceLoaded;
+    m_openRequested = true;
+    return true;
+}
+
+atomforge::pipeline::Json InterstitialAtomsDialog::stepParameters() const
+{
+    atomforge::pipeline::Json p = m_step.parameters;
+    p["element"]    = std::string(elementSymbol(std::max(1, std::min(118, m_selectedElement))));
+    p["kind"]       = kStepKinds[std::max(0, std::min(3, m_stepKind))];
+    p["count"]      = std::max(0, m_targetCount);
+    p["order"]      = m_stepRandom ? "random" : "largest";
+    p["seed"]       = m_seed;
+    p["resolution"] = m_gridResolution;
+    p["clearance"]  = (double)m_minClearance;
+    p["separation"] = (double)m_minSeparation;
+    return p;
 }
 
 void InterstitialAtomsDialog::feedDroppedFile(const std::string& path)
@@ -864,7 +929,7 @@ bool InterstitialAtomsDialog::detectVoids()
 
     InterstitialVoidDetectionParams params;
     params.gridResolution = m_gridResolution;
-    params.maxVoids = m_maxVoids;
+    params.maxVoids = m_step.active() ? 0 : m_maxVoids;  // the step detects every void
     params.minClearance = m_minClearance;
     params.minSeparation = m_minSeparation;
 
@@ -1127,7 +1192,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
     {
         if (acceptsMeshPath(p))
             loadMeshFromPath(p);
-        else if (acceptsStructurePath(p))
+        else if (acceptsStructurePath(p) && !m_step.active())  // a step works on its input
             loadStructureFromPath(p, elementRadii, elementShininess);
     }
     m_pendingDropPaths.clear();
@@ -1145,13 +1210,27 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
     if (!responsive::beginModal("Add Interstitial Atoms", &keepOpen, ImGuiWindowFlags_NoCollapse))
     {
         m_isOpen = false;
+        // Closed (Close, X): the menu path inserts normally again.
+        m_step.finish();
         return;
     }
     m_isOpen = true;
+    const bool editingStep = m_step.active();
 
     // Rebuild preview buffers if dirty
     if (m_previewBufDirty)
         rebuildPreviewBuffers(elementRadii, elementShininess);
+    if (m_previewFitPending && !m_previewBufDirty)
+    {
+        autoFitPreviewCamera();
+        m_previewFitPending = false;
+    }
+
+    if (editingStep)
+    {
+        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+        ImGui::TextDisabled("The step fills voids of the structure entering it; mesh regions, manual picks and volume groups are not part of the step.");
+    }
 
     // ---- Layout: left preview panel | right controls, bottom bar ----
     const bool stackPanels = responsive::stacked();
@@ -1213,7 +1292,8 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
 
             const char* hint = m_sourceLoaded
                 ? (m_glReady ? "No atoms to preview." : "GL resources not ready.")
-                : "Drop a structure file here\nor press 'Use Current Scene'.";
+                : (editingStep ? "The step has no input structure yet."
+                               : "Drop a structure file here\nor press 'Use Current Scene'.");
             const ImVec2 textSz = ImGui::CalcTextSize(hint);
             dl->AddText(
                 ImVec2(canvasMin.x + (canvasSize.x - textSz.x) * 0.5f,
@@ -1232,7 +1312,11 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
         ImGui::Text("Source");
         ImGui::Separator();
 
-        if (responsive::button("Use Current Scene"))
+        if (editingStep)
+        {
+            ImGui::TextDisabled("The structure entering the step.");
+        }
+        else if (responsive::button("Use Current Scene"))
         {
             if (structure.atoms.empty())
             {
@@ -1254,8 +1338,11 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
                 m_statusMsg     = "Source set from current scene.";
             }
         }
-        ImGui::SameLine();
-        ImGui::TextDisabled("or drop a file onto the preview.");
+        if (!editingStep)
+        {
+            ImGui::SameLine();
+            ImGui::TextDisabled("or drop a file onto the preview.");
+        }
 
         if (m_sourceLoaded)
         {
@@ -1275,10 +1362,13 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
 
         ImGui::SetNextItemWidth(responsive::dp(180.0f));
         ImGui::SliderInt("Grid", &m_gridResolution, 8, 30);
-        ImGui::SetNextItemWidth(responsive::dp(180.0f));
-        ImGui::InputInt("Max Voids", &m_maxVoids);
-        m_maxVoids = std::max(0, m_maxVoids);
-        ImGui::TextDisabled("0 = detect all voids");
+        if (!editingStep)
+        {
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
+            ImGui::InputInt("Max Voids", &m_maxVoids);
+            m_maxVoids = std::max(0, m_maxVoids);
+            ImGui::TextDisabled("0 = detect all voids");
+        }
         ImGui::SetNextItemWidth(responsive::dp(180.0f));
         ImGui::DragFloat("Min Clearance (A)", &m_minClearance, 0.02f, 0.05f, 5.0f, "%.2f");
         ImGui::SetNextItemWidth(responsive::dp(180.0f));
@@ -1340,140 +1430,171 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
         if (m_voidTypeSelections.size() != m_voidTypeOptions.size())
             m_voidTypeSelections.assign(m_voidTypeOptions.size(), 1);
 
-        ImGui::Text("Void Types For Distribution");
-        if (!m_voidTypeOptions.empty())
+        if (editingStep)
         {
-            if (responsive::button("Select All Types"))
-                std::fill(m_voidTypeSelections.begin(), m_voidTypeSelections.end(), (char)1);
-            ImGui::SameLine();
-            if (responsive::button("Clear All Types"))
-                std::fill(m_voidTypeSelections.begin(), m_voidTypeSelections.end(), (char)0);
+            ImGui::Checkbox("Show Void Polyhedra in Scene", &m_showVoidOverlay);
 
-            ImGui::TextDisabled("Use checkboxes to choose one or multiple void types.");
-            for (size_t i = 0; i < m_voidTypeOptions.size(); ++i)
-            {
-                bool enabled = m_voidTypeSelections[i] != 0;
-                if (ImGui::Checkbox(m_voidTypeOptions[i].label.c_str(), &enabled))
-                    m_voidTypeSelections[i] = enabled ? 1 : 0;
-            }
+            if (responsive::button("Select Element"))
+                openPeriodicTable();
+            std::vector<ElementSelection> stepPick;
+            if (drawPeriodicTable(stepPick) && !stepPick.empty())
+                m_selectedElement = stepPick.front().atomicNumber;
+            ImGui::SameLine();
+            ImGui::Text("%s", elementSymbol(std::max(1, std::min(118, m_selectedElement))));
+
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
+            ImGui::Combo("Void Kind", &m_stepKind, kStepKindLabels, 4);
+            int order = m_stepRandom ? 1 : 0;
+            const char* orderItems[] = {"Largest voids first", "Random"};
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
+            if (ImGui::Combo("Choose Sites", &order, orderItems, 2))
+                m_stepRandom = order == 1;
+            ImGui::SetNextItemWidth(responsive::dp(160.0f));
+            ImGui::InputInt("Atom Count", &m_targetCount);
+            m_targetCount = std::max(0, m_targetCount);
+            ImGui::TextDisabled("0 = fill every site of the kind");
+            if (!m_stepRandom) ImGui::BeginDisabled();
+            ImGui::SetNextItemWidth(responsive::dp(160.0f));
+            ImGui::InputInt("Seed", &m_seed);
+            if (!m_stepRandom) ImGui::EndDisabled();
         }
         else
         {
-            ImGui::TextDisabled("Detect voids to populate void types.");
-        }
-
-        bool anyVoidTypeEnabled = false;
-        for (char v : m_voidTypeSelections)
-            anyVoidTypeEnabled = anyVoidTypeEnabled || (v != 0);
-        if (!anyVoidTypeEnabled && !m_voidTypeSelections.empty())
-            ImGui::TextColored(ImVec4(0.95f, 0.42f, 0.42f, 1.0f), "No void type selected. Placement pool will be empty.");
-
-        ImGui::Checkbox("Show Void Polyhedra in Scene", &m_showVoidOverlay);
-
-        if (responsive::button("Select Element"))
-            openPeriodicTable();
-        std::vector<ElementSelection> pick;
-        if (drawPeriodicTable(pick) && !pick.empty())
-            m_selectedElement = pick.front().atomicNumber;
-        ImGui::SameLine();
-        ImGui::Text("%s", elementSymbol(std::max(1, std::min(118, m_selectedElement))));
-
-        const char* placementItems[] = {
-            "Random distribution",
-            "Inside OBJ/STL mesh region",
-            "Manual (selected voids only)"
-        };
-        int placement = (m_placementMode == PlacementMode::Random) ? 0
-                      : (m_placementMode == PlacementMode::MeshRegion) ? 1 : 2;
-        ImGui::SetNextItemWidth(responsive::dp(280.0f));
-        if (ImGui::Combo("Mode", &placement, placementItems, 3))
-        {
-            if (placement == 0)
-                m_placementMode = PlacementMode::Random;
-            else if (placement == 1)
-                m_placementMode = PlacementMode::MeshRegion;
-            else
-                m_placementMode = PlacementMode::ManualSelection;
-        }
-
-        const bool manualMode = (m_placementMode == PlacementMode::ManualSelection);
-        if (manualMode)
-        {
-            ImGui::TextDisabled("Manual mode inserts atoms into the currently selected void centers.");
-            ImGui::TextDisabled("Selected centers: %d", (int)m_selectedVoidIndices.size());
-        }
-        else
-        {
-            const char* targetItems[] = {"By percentage", "By atom count"};
-            int target = (m_targetMode == TargetMode::Percent) ? 0 : 1;
-            ImGui::SetNextItemWidth(responsive::dp(160.0f));
-            if (ImGui::Combo("Target", &target, targetItems, 2))
-                m_targetMode = (target == 0) ? TargetMode::Percent : TargetMode::Count;
-
-            if (m_targetMode == TargetMode::Percent)
+            ImGui::Text("Void Types For Distribution");
+            if (!m_voidTypeOptions.empty())
             {
-                ImGui::SetNextItemWidth(responsive::dp(160.0f));
-                ImGui::SliderFloat("Percent", &m_targetPercent, 0.0f, 100.0f, "%.1f%%");
+                if (responsive::button("Select All Types"))
+                    std::fill(m_voidTypeSelections.begin(), m_voidTypeSelections.end(), (char)1);
+                ImGui::SameLine();
+                if (responsive::button("Clear All Types"))
+                    std::fill(m_voidTypeSelections.begin(), m_voidTypeSelections.end(), (char)0);
+
+                ImGui::TextDisabled("Use checkboxes to choose one or multiple void types.");
+                for (size_t i = 0; i < m_voidTypeOptions.size(); ++i)
+                {
+                    bool enabled = m_voidTypeSelections[i] != 0;
+                    if (ImGui::Checkbox(m_voidTypeOptions[i].label.c_str(), &enabled))
+                        m_voidTypeSelections[i] = enabled ? 1 : 0;
+                }
             }
             else
             {
-                ImGui::SetNextItemWidth(responsive::dp(160.0f));
-                ImGui::InputInt("Atom Count", &m_targetCount);
-                m_targetCount = std::max(0, m_targetCount);
+                ImGui::TextDisabled("Detect voids to populate void types.");
             }
-        }
 
-        ImGui::SetNextItemWidth(responsive::dp(160.0f));
-        ImGui::InputInt("Seed", &m_seed);
-        ImGui::SetNextItemWidth(responsive::dp(180.0f));
-        ImGui::DragFloat("Min Insert Distance (A)", &m_minInsertDistance, 0.02f, 0.0f, 5.0f, "%.2f");
+            bool anyVoidTypeEnabled = false;
+            for (char v : m_voidTypeSelections)
+                anyVoidTypeEnabled = anyVoidTypeEnabled || (v != 0);
+            if (!anyVoidTypeEnabled && !m_voidTypeSelections.empty())
+                ImGui::TextColored(ImVec4(0.95f, 0.42f, 0.42f, 1.0f), "No void type selected. Placement pool will be empty.");
 
-        // Mesh Region
-        if (m_placementMode == PlacementMode::MeshRegion)
-        {
-            ImGui::Spacing();
-            ImGui::Text("3D Region (OBJ/STL)");
-            ImGui::Separator();
-            ImGui::TextDisabled("Drop .obj or .stl onto preview, then use the gizmo to position it.");
+            ImGui::Checkbox("Show Void Polyhedra in Scene", &m_showVoidOverlay);
 
-            if (m_meshLoaded)
-                ImGui::Text("Loaded: %s", m_meshLabel.c_str());
-            else
-                ImGui::TextDisabled("Drop an OBJ/STL mesh onto the preview.");
-
-            // Gizmo mode toggle
-            ImGui::Text("Gizmo Mode");
-            if (ImGui::RadioButton("Translate (T)", m_meshGizmoMode == MeshGizmoMode::Translate))
-                m_meshGizmoMode = MeshGizmoMode::Translate;
+            if (responsive::button("Select Element"))
+                openPeriodicTable();
+            std::vector<ElementSelection> pick;
+            if (drawPeriodicTable(pick) && !pick.empty())
+                m_selectedElement = pick.front().atomicNumber;
             ImGui::SameLine();
-            if (ImGui::RadioButton("Rotate (R)", m_meshGizmoMode == MeshGizmoMode::Rotate))
-                m_meshGizmoMode = MeshGizmoMode::Rotate;
-            ImGui::SameLine();
-            if (ImGui::RadioButton("Scale (S)", m_meshGizmoMode == MeshGizmoMode::Scale))
-                m_meshGizmoMode = MeshGizmoMode::Scale;
+            ImGui::Text("%s", elementSymbol(std::max(1, std::min(118, m_selectedElement))));
 
-            // Keyboard shortcuts for gizmo mode
-            if (!ImGui::GetIO().WantTextInput)
+            const char* placementItems[] = {
+                "Random distribution",
+                "Inside OBJ/STL mesh region",
+                "Manual (selected voids only)"
+            };
+            int placement = (m_placementMode == PlacementMode::Random) ? 0
+                          : (m_placementMode == PlacementMode::MeshRegion) ? 1 : 2;
+            ImGui::SetNextItemWidth(responsive::dp(280.0f));
+            if (ImGui::Combo("Mode", &placement, placementItems, 3))
             {
-                if (ImGui::IsKeyPressed(ImGuiKey_T, false)) m_meshGizmoMode = MeshGizmoMode::Translate;
-                if (ImGui::IsKeyPressed(ImGuiKey_R, false)) m_meshGizmoMode = MeshGizmoMode::Rotate;
-                if (ImGui::IsKeyPressed(ImGuiKey_S, false)) m_meshGizmoMode = MeshGizmoMode::Scale;
+                if (placement == 0)
+                    m_placementMode = PlacementMode::Random;
+                else if (placement == 1)
+                    m_placementMode = PlacementMode::MeshRegion;
+                else
+                    m_placementMode = PlacementMode::ManualSelection;
             }
 
-            ImGui::Spacing();
-            ImGui::TextDisabled("Fine-tune with numeric controls:");
+            const bool manualMode = (m_placementMode == PlacementMode::ManualSelection);
+            if (manualMode)
+            {
+                ImGui::TextDisabled("Manual mode inserts atoms into the currently selected void centers.");
+                ImGui::TextDisabled("Selected centers: %d", (int)m_selectedVoidIndices.size());
+            }
+            else
+            {
+                const char* targetItems[] = {"By percentage", "By atom count"};
+                int target = (m_targetMode == TargetMode::Percent) ? 0 : 1;
+                ImGui::SetNextItemWidth(responsive::dp(160.0f));
+                if (ImGui::Combo("Target", &target, targetItems, 2))
+                    m_targetMode = (target == 0) ? TargetMode::Percent : TargetMode::Count;
+
+                if (m_targetMode == TargetMode::Percent)
+                {
+                    ImGui::SetNextItemWidth(responsive::dp(160.0f));
+                    ImGui::SliderFloat("Percent", &m_targetPercent, 0.0f, 100.0f, "%.1f%%");
+                }
+                else
+                {
+                    ImGui::SetNextItemWidth(responsive::dp(160.0f));
+                    ImGui::InputInt("Atom Count", &m_targetCount);
+                    m_targetCount = std::max(0, m_targetCount);
+                }
+            }
+
             ImGui::SetNextItemWidth(responsive::dp(160.0f));
-            ImGui::DragFloat("Scale", &m_meshScale, 0.01f, 1e-4f, 1000.0f, "%.3f");
-            ImGui::DragFloat3("Translate", &m_meshTranslation.x, 0.05f, -10000.0f, 10000.0f, "%.2f");
-            ImGui::DragFloat3("Rotate (deg)", &m_meshRotationDeg.x, 0.5f, -360.0f, 360.0f, "%.1f");
+            ImGui::InputInt("Seed", &m_seed);
+            ImGui::SetNextItemWidth(responsive::dp(180.0f));
+            ImGui::DragFloat("Min Insert Distance (A)", &m_minInsertDistance, 0.02f, 0.0f, 5.0f, "%.2f");
 
-            if (responsive::button("Reset Transform"))
+            // Mesh Region
+            if (m_placementMode == PlacementMode::MeshRegion)
             {
-                m_meshTranslation = glm::vec3(0.0f);
-                m_meshRotationDeg = glm::vec3(0.0f);
-                m_meshScale       = 1.0f;
+                ImGui::Spacing();
+                ImGui::Text("3D Region (OBJ/STL)");
+                ImGui::Separator();
+                ImGui::TextDisabled("Drop .obj or .stl onto preview, then use the gizmo to position it.");
+
+                if (m_meshLoaded)
+                    ImGui::Text("Loaded: %s", m_meshLabel.c_str());
+                else
+                    ImGui::TextDisabled("Drop an OBJ/STL mesh onto the preview.");
+
+                // Gizmo mode toggle
+                ImGui::Text("Gizmo Mode");
+                if (ImGui::RadioButton("Translate (T)", m_meshGizmoMode == MeshGizmoMode::Translate))
+                    m_meshGizmoMode = MeshGizmoMode::Translate;
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Rotate (R)", m_meshGizmoMode == MeshGizmoMode::Rotate))
+                    m_meshGizmoMode = MeshGizmoMode::Rotate;
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Scale (S)", m_meshGizmoMode == MeshGizmoMode::Scale))
+                    m_meshGizmoMode = MeshGizmoMode::Scale;
+
+                // Keyboard shortcuts for gizmo mode
+                if (!ImGui::GetIO().WantTextInput)
+                {
+                    if (ImGui::IsKeyPressed(ImGuiKey_T, false)) m_meshGizmoMode = MeshGizmoMode::Translate;
+                    if (ImGui::IsKeyPressed(ImGuiKey_R, false)) m_meshGizmoMode = MeshGizmoMode::Rotate;
+                    if (ImGui::IsKeyPressed(ImGuiKey_S, false)) m_meshGizmoMode = MeshGizmoMode::Scale;
+                }
+
+                ImGui::Spacing();
+                ImGui::TextDisabled("Fine-tune with numeric controls:");
+                ImGui::SetNextItemWidth(responsive::dp(160.0f));
+                ImGui::DragFloat("Scale", &m_meshScale, 0.01f, 1e-4f, 1000.0f, "%.3f");
+                ImGui::DragFloat3("Translate", &m_meshTranslation.x, 0.05f, -10000.0f, 10000.0f, "%.2f");
+                ImGui::DragFloat3("Rotate (deg)", &m_meshRotationDeg.x, 0.5f, -360.0f, 360.0f, "%.1f");
+
+                if (responsive::button("Reset Transform"))
+                {
+                    m_meshTranslation = glm::vec3(0.0f);
+                    m_meshRotationDeg = glm::vec3(0.0f);
+                    m_meshScale       = 1.0f;
+                }
             }
-        }
+        } // menu-path placement controls
     }
     ImGui::EndChild();
 
@@ -1484,39 +1605,53 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
     const bool canApply = m_sourceLoaded && !m_voids.empty() &&
                           (m_placementMode != PlacementMode::MeshRegion || m_meshLoaded) &&
                           (m_placementMode != PlacementMode::ManualSelection || hasManualSelection);
-    if (!canApply)
-        ImGui::BeginDisabled();
-
-    if (responsive::button("Apply Interstitials", responsive::size(180.0f,0.0f)))
+    if (editingStep)
     {
-        Structure out;
-        const int added = applyPlacement(out, elementColors);
-        if (added > 0)
+        if (responsive::button("Update step", responsive::size(180.0f,0.0f)))
         {
-            structure = std::move(out);
-            updateBuffers(structure);
-
-            m_source       = structure;
-            m_sourceLoaded = true;
-            m_previewBufDirty = true;
-            rebuildPreviewBuffers(elementRadii, elementShininess);
-            m_statusIsError = false;
-            m_statusMsg = "Added " + std::to_string(added) + " interstitial atom(s).";
-        }
-        else
-        {
-            m_statusIsError = true;
-            m_statusMsg = "No interstitials placed. Check target, type filter, or mesh transform.";
+            m_step.commitParameters(stepParameters());
+            ImGui::CloseCurrentPopup();
+            m_isOpen = false;
+            m_step.finish();
         }
     }
-    if (!canApply)
-        ImGui::EndDisabled();
+    else
+    {
+        if (!canApply)
+            ImGui::BeginDisabled();
+
+        if (responsive::button("Apply Interstitials", responsive::size(180.0f,0.0f)))
+        {
+            Structure out;
+            const int added = applyPlacement(out, elementColors);
+            if (added > 0)
+            {
+                structure = std::move(out);
+                updateBuffers(structure);
+
+                m_source       = structure;
+                m_sourceLoaded = true;
+                m_previewBufDirty = true;
+                rebuildPreviewBuffers(elementRadii, elementShininess);
+                m_statusIsError = false;
+                m_statusMsg = "Added " + std::to_string(added) + " interstitial atom(s).";
+            }
+            else
+            {
+                m_statusIsError = true;
+                m_statusMsg = "No interstitials placed. Check target, type filter, or mesh transform.";
+            }
+        }
+        if (!canApply)
+            ImGui::EndDisabled();
+    }
 
     ImGui::SameLine();
     if (responsive::button("Close", responsive::size(120.0f,0.0f)))
     {
         ImGui::CloseCurrentPopup();
         m_isOpen = false;
+        m_step.finish();
     }
 
     if (!m_statusMsg.empty())

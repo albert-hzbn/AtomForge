@@ -10,11 +10,13 @@
 #include "ui/PeriodicTableDialog.h"
 #include "ui/ThemeUtils.h"
 #include "util/ElementData.h"
+#include "util/PathUtils.h"
 #include "imgui.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstring>
 #include <map>
@@ -60,7 +62,102 @@ void SubstitutionalSolidSolutionDialog::initRenderResources(Renderer& renderer)
 void SubstitutionalSolidSolutionDialog::drawMenuItem(bool enabled)
 {
     if (ImGui::MenuItem("Substitutional Solid Solution", nullptr, false, enabled))
+    {
+        m_step.finish();
         m_openRequested = true;
+    }
+}
+
+bool SubstitutionalSolidSolutionDialog::editStep(StepEdit edit)
+{
+    m_step = std::move(edit);
+    const auto reader = m_step.reader();
+    m_statusMsg.clear();
+    m_statusIsError = false;
+
+    // Host: --input FILE, else the structure entering the step.
+    m_source       = Structure();
+    m_sourceLoaded = false;
+    m_sourceLabel.clear();
+    m_sourcePath.clear();
+    if (reader.has("--input"))
+    {
+        const std::string path = reader.text("--input");
+        std::string err;
+        if (loadStructureFromFile(path, m_source, err))
+        {
+            m_sourceLoaded = true;
+            m_sourcePath   = path;
+            const auto slash = path.find_last_of("/\\");
+            m_sourceLabel  = (slash == std::string::npos) ? path : path.substr(slash + 1);
+        }
+        else
+        {
+            m_source        = Structure();
+            m_statusMsg     = std::string("Load failed: ") + (err.empty() ? path : err);
+            m_statusIsError = true;
+        }
+    }
+    else if (!m_step.input.atoms.empty())
+    {
+        m_source       = m_step.input;
+        m_sourceLoaded = true;
+        m_sourceLabel  = "pipeline step input";
+    }
+    initCompositionFromSource();
+    m_previewDirty = true;
+    m_refitCamera  = true;
+
+    // --frac "Cu=0.7,Zn=0.3" sets the composition (as atomic percents).
+    const std::string frac = reader.text("--frac");
+    std::vector<CompositionEntry> entries;
+    std::istringstream stream(frac);
+    for (std::string token; std::getline(stream, token, ',');)
+    {
+        const auto eq = token.find('=');
+        if (eq == std::string::npos) continue;
+        std::string symbol = token.substr(0, eq);
+        symbol.erase(std::remove_if(symbol.begin(), symbol.end(), [](unsigned char c) { return std::isspace(c); }), symbol.end());
+        const int z = atomicNumberFromSymbol(symbol);
+        if (z <= 0) continue;
+        CompositionEntry entry;
+        entry.atomicNumber = z;
+        try { entry.percent = std::stof(token.substr(eq + 1)) * 100.0f; }
+        catch (const std::exception&) { continue; }
+        entries.push_back(entry);
+    }
+    if (!entries.empty())
+    {
+        m_entries = entries;
+        recomputeCountsFromPercents();
+    }
+    m_seed = std::max(0, reader.integer("--seed", 12345));
+
+    m_openRequested = true;
+    return true;
+}
+
+std::string SubstitutionalSolidSolutionDialog::stepOptions() const
+{
+    // The fractions the build uses: each element's atom count over the total.
+    const int totalAtoms = (int)m_source.atoms.size();
+    float percentSum = 0.0f;
+    for (const auto& e : m_entries) percentSum += std::max(0.0f, e.percent);
+    std::string frac;
+    for (const auto& e : m_entries)
+    {
+        const double fraction = totalAtoms > 0 ? (double)e.count / (double)totalAtoms
+                              : percentSum > 0.0f ? (double)std::max(0.0f, e.percent) / percentSum : 0.0;
+        frac += (frac.empty() ? "" : ",") + std::string(elementSymbol(e.atomicNumber)) + "="
+              + atomforge::pipeline::options::Writer::number(fraction);
+    }
+    atomforge::pipeline::options::Writer out;
+    if (!m_sourcePath.empty())
+        out.add("--input", m_sourcePath);
+    if (!frac.empty())
+        out.add("--frac", frac);
+    out.add("--seed", m_seed);
+    return out.str();
 }
 
 void SubstitutionalSolidSolutionDialog::feedDroppedFile(const std::string& path)
@@ -88,6 +185,7 @@ bool SubstitutionalSolidSolutionDialog::loadFromPath(
 
     m_source       = std::move(loaded);
     m_sourceLoaded = true;
+    m_sourcePath   = path;
 
     const auto slash = path.find_last_of("/\\");
     m_sourceLabel    = (slash == std::string::npos) ? path : path.substr(slash + 1);
@@ -111,6 +209,7 @@ void SubstitutionalSolidSolutionDialog::loadFromScene(
     m_source       = scene;
     m_sourceLoaded = true;
     m_sourceLabel  = "scene";
+    m_sourcePath.clear();
 
     onStructureLoaded(radii, shininess);
 }
@@ -570,9 +669,15 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
                                  ImGuiWindowFlags_NoCollapse))
     {
         m_isOpen = false;
+        // Closed with the X (or by another popup): the next menu build is normal.
+        if (m_step.active() && !m_openRequested)
+            m_step.finish();
         return;
     }
     m_isOpen = true;
+
+    if (m_step.active())
+        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
 
     // -----------------------------------------------------------------------
     // Description bar
@@ -596,7 +701,17 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
         // Compact header row: label + button on the same line.
         ImGui::Text("Host Structure");
         ImGui::SameLine();
-        if (ImGui::SmallButton("Use Current Scene"))
+        if (m_step.active())
+        {
+            // The step's host is the structure entering it, not the scene.
+            if (ImGui::SmallButton("Use Step Input"))
+            {
+                loadFromScene(m_step.input, elementRadii, elementShininess);
+                if (m_sourceLoaded && m_sourcePath.empty())
+                    m_sourceLabel = "pipeline step input";
+            }
+        }
+        else if (ImGui::SmallButton("Use Current Scene"))
             loadFromScene(structure, elementRadii, elementShininess);
         ImGui::Spacing();
 
@@ -659,6 +774,11 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
             {
                 if (m_previewDirty)
                     rebuildPreviewBuffers(elementRadii, elementShininess);
+                if (m_refitCamera)
+                {
+                    autoFitPreviewCamera();
+                    m_refitCamera = false;
+                }
 
                 const int pw = std::max(1, (int)previewAreaW);
                 const int ph = std::max(1, (int)previewAreaH);
@@ -851,7 +971,16 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
             // ------------------------------------------------------------------
             // Build button
             // ------------------------------------------------------------------
-            if (responsive::button("Build Solid Solution", responsive::size(-1.0f,0.0f)))
+            if (m_step.active())
+            {
+                if (responsive::button("Update step", responsive::size(-1.0f,0.0f)))
+                {
+                    m_step.commitOptions(stepOptions());
+                    m_step.finish();
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            else if (responsive::button("Build Solid Solution", responsive::size(-1.0f,0.0f)))
             {
                 SSSParams params;
                 params.seed = (unsigned int)m_seed;
@@ -906,7 +1035,10 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
     ImGui::SetCursorPosX(ImGui::GetCursorPosX()
                          + ImGui::GetContentRegionAvail().x - btnW);
     if (responsive::button("Close", ImVec2(btnW, 0.0f)))
+    {
+        m_step.finish();
         ImGui::CloseCurrentPopup();
+    }
 
     ImGui::EndPopup();
 }

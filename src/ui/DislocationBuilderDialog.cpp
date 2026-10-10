@@ -8,14 +8,17 @@
 #include "graphics/SphereMesh.h"
 #include "graphics/StructureInstanceBuilder.h"
 #include "io/StructureLoader.h"
+#include "pipeline/Options.h"
 
 #include "imgui.h"
 
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cctype>
 #include <cmath>
 #include <future>
+#include <sstream>
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -138,7 +141,153 @@ void DislocationBuilderDialog::initRenderResources(Renderer& renderer)
 void DislocationBuilderDialog::drawMenuItem(bool enabled)
 {
     if (ImGui::MenuItem("Insert Dislocation", nullptr, false, enabled))
+    {
+        m_step.finish();  // from the menu: build normally
+        m_stepLoadInput = false;
         m_openRequested = true;
+    }
+}
+
+bool DislocationBuilderDialog::editStep(StepEdit edit)
+{
+    m_step = std::move(edit);
+    const auto options = m_step.reader();
+    const auto lower = [](std::string text) {
+        for (char& c : text) c = (char)std::tolower((unsigned char)c);
+        return text;
+    };
+    const auto ivec3 = [&](const char* flag, glm::ivec3 fallback) {
+        const auto v = options.numbers(flag);
+        return v.size() == 3 ? glm::ivec3((int)std::lround(v[0]), (int)std::lround(v[1]), (int)std::lround(v[2])) : fallback;
+    };
+    const auto vec3 = [&](const char* flag, glm::vec3 fallback) {
+        const auto v = options.numbers(flag);
+        return v.size() == 3 ? glm::vec3((float)v[0], (float)v[1], (float)v[2]) : fallback;
+    };
+
+    // Missing flags take the defaults of AtomForge --build dislocation.
+    DislocationParams p;
+    const std::string character = lower(options.text("--character", "edge"));
+    p.character = character == "screw" ? DislocationCharacter::Screw
+                : character == "mixed" ? DislocationCharacter::Mixed : DislocationCharacter::Edge;
+    const std::string shape = lower(options.text("--shape", "halfplane"));
+    p.shape = shape == "cylinder" ? DislocationShape::Cylinder
+            : shape == "sphere" ? DislocationShape::Sphere
+            : shape == "ellipsoid" ? DislocationShape::Ellipsoid
+            : shape == "freeform" ? DislocationShape::Freeform2D : DislocationShape::HalfPlane;
+    p.autoDirections = !options.has("--manual-vectors");
+    p.planeHkl = ivec3("--plane", p.planeHkl);
+    p.burgersUvw = ivec3("--burgers", p.burgersUvw);
+    p.lineUvw = ivec3("--line", p.lineUvw);
+    p.linePointFractional = vec3("--line-frac", p.linePointFractional);
+    p.useFractionalLinePoint = !options.has("--line-center");
+    p.linePointCartesianOffset = vec3("--line-offset", p.linePointCartesianOffset);
+    p.burgersScale = (float)options.number("--bscale", p.burgersScale);
+    p.burgersOverrideMagnitude = (float)options.number("--bmag", p.burgersOverrideMagnitude);
+    p.mixedCharacterAngleDeg = (float)options.number("--mixed-angle", p.mixedCharacterAngleDeg);
+    p.poissonRatio = (float)options.number("--nu", p.poissonRatio);
+    p.coreRadius = (float)options.number("--core", p.coreRadius);
+    p.cutoffRadius = (float)options.number("--cutoff", p.cutoffRadius);
+    p.lineHalfLength = (float)options.number("--line-half", p.lineHalfLength);
+    p.cylinderRadius = (float)options.number("--cyl-radius", p.cylinderRadius);
+    p.sphereRadius = (float)options.number("--sphere-radius", p.sphereRadius);
+    p.ellipsoidRadii = vec3("--ellipsoid", p.ellipsoidRadii);
+    if (options.has("--poly2d"))
+    {
+        // "x1 y1;x2 y2;..."
+        std::vector<glm::vec2> points;
+        std::stringstream all(options.text("--poly2d"));
+        for (std::string point; std::getline(all, point, ';');)
+        {
+            std::istringstream xy(point);
+            float x = 0.0f, y = 0.0f;
+            if (xy >> x >> y) points.push_back(glm::vec2(x, y));
+        }
+        if (points.size() >= 3) p.freeformPoints = points;
+    }
+    p.dipole = options.has("--dipole");
+    {
+        const auto offset = options.numbers("--dipole-offset");
+        if (offset.size() == 2) p.dipoleOffset = glm::vec2((float)offset[0], (float)offset[1]);
+    }
+    p.anisotropicElasticity = options.has("--anisotropic");
+    p.elasticSymmetry = lower(options.text("--elastic-symmetry", "cubic")) == "hexagonal"
+        ? DislocationParams::ElasticSymmetry::Hexagonal : DislocationParams::ElasticSymmetry::Cubic;
+    p.elasticC11 = options.number("--elastic-c11", 0.0);
+    p.elasticC12 = options.number("--elastic-c12", 0.0);
+    p.elasticC44 = options.number("--elastic-c44", 0.0);
+    p.elasticC13 = options.number("--elastic-c13", 0.0);
+    p.elasticC33 = options.number("--elastic-c33", 0.0);
+    p.elasticNoiseAmplitude = options.number("--elastic-noise", p.elasticNoiseAmplitude);
+    m_params = p;
+
+    // Source: a file named in the options, else the structure entering the step
+    // (both are loaded by drawDialog, which has the element radii for the preview).
+    m_source = Structure();
+    m_sourceLoaded = false;
+    m_useCurrentSceneSource = false;
+    m_sourceLabel.clear();
+    m_detection = {};
+    m_result = {};
+    m_statusMsg.clear();
+    m_statusIsError = false;
+    m_sourcePath = options.text("--input");
+    const auto* useInput = m_step.parameters.find("use_input");
+    m_stepLoadInput = m_sourcePath.empty() && (!useInput || !useInput->isBool() || useInput->boolean())
+                      && !m_step.input.atoms.empty();
+    if (!m_sourcePath.empty())
+        m_pendingDropPath = m_sourcePath;
+    m_openRequested = true;
+    return true;
+}
+
+std::string DislocationBuilderDialog::stepOptions() const
+{
+    const DislocationParams& p = m_params;
+    const auto ivec3 = [](const glm::ivec3& v) { return std::vector<double>{(double)v.x, (double)v.y, (double)v.z}; };
+    const auto vec3 = [](const glm::vec3& v) { return std::vector<double>{v.x, v.y, v.z}; };
+    atomforge::pipeline::options::Writer out;
+    if (!m_sourcePath.empty()) out.add("--input", m_sourcePath);
+    out.add("--character", p.character == DislocationCharacter::Screw ? "screw"
+                         : p.character == DislocationCharacter::Mixed ? "mixed" : "edge");
+    out.add("--shape", p.shape == DislocationShape::Cylinder ? "cylinder"
+                     : p.shape == DislocationShape::Sphere ? "sphere"
+                     : p.shape == DislocationShape::Ellipsoid ? "ellipsoid"
+                     : p.shape == DislocationShape::Freeform2D ? "freeform" : "halfplane");
+    if (!p.autoDirections) out.flag("--manual-vectors");
+    out.add("--plane", ivec3(p.planeHkl)).add("--burgers", ivec3(p.burgersUvw)).add("--line", ivec3(p.lineUvw));
+    if (p.useFractionalLinePoint) out.add("--line-frac", vec3(p.linePointFractional));
+    else out.flag("--line-center");
+    out.add("--line-offset", vec3(p.linePointCartesianOffset));
+    out.add("--bscale", p.burgersScale);
+    if (p.burgersOverrideMagnitude > 0.0f) out.add("--bmag", p.burgersOverrideMagnitude);
+    if (p.character == DislocationCharacter::Mixed) out.add("--mixed-angle", p.mixedCharacterAngleDeg);
+    out.add("--nu", p.poissonRatio).add("--core", p.coreRadius).add("--cutoff", p.cutoffRadius);
+    out.add("--line-half", p.lineHalfLength);
+
+    // Region parameters of the chosen shape.
+    if (p.shape == DislocationShape::Cylinder) out.add("--cyl-radius", p.cylinderRadius);
+    else if (p.shape == DislocationShape::Sphere) out.add("--sphere-radius", p.sphereRadius);
+    else if (p.shape == DislocationShape::Ellipsoid) out.add("--ellipsoid", vec3(p.ellipsoidRadii));
+    else if (p.shape == DislocationShape::Freeform2D && p.freeformPoints.size() >= 3)
+    {
+        std::string polygon;
+        for (const glm::vec2& point : p.freeformPoints)
+            polygon += (polygon.empty() ? "" : ";") + out.number(point.x) + " " + out.number(point.y);
+        out.add("--poly2d", polygon);
+    }
+
+    if (p.dipole)
+        out.flag("--dipole").add("--dipole-offset", std::vector<double>{p.dipoleOffset.x, p.dipoleOffset.y});
+    if (p.anisotropicElasticity)
+    {
+        const bool hexagonal = p.elasticSymmetry == DislocationParams::ElasticSymmetry::Hexagonal;
+        out.flag("--anisotropic").add("--elastic-symmetry", hexagonal ? "hexagonal" : "cubic");
+        out.add("--elastic-c11", p.elasticC11).add("--elastic-c12", p.elasticC12).add("--elastic-c44", p.elasticC44);
+        if (hexagonal) out.add("--elastic-c13", p.elasticC13).add("--elastic-c33", p.elasticC33);
+        out.add("--elastic-noise", p.elasticNoiseAmplitude);
+    }
+    return out.str();
 }
 
 void DislocationBuilderDialog::feedDroppedFile(const std::string& path)
@@ -169,6 +318,7 @@ bool DislocationBuilderDialog::tryLoadFile(const std::string& path,
     m_source = std::move(loaded);
     m_sourceLoaded = true;
     m_useCurrentSceneSource = false;
+    m_sourcePath = path;
 
     const std::string::size_type slash = path.find_last_of("\\/");
     m_sourceLabel = (slash == std::string::npos) ? path : path.substr(slash + 1);
@@ -203,6 +353,7 @@ void DislocationBuilderDialog::loadFromScene(const Structure& scene,
 
     m_sourceLoaded = true;
     m_useCurrentSceneSource = true;
+    m_sourcePath.clear();
     m_sourceLabel = "scene";
 
     analyzeSource(scene);
@@ -211,6 +362,17 @@ void DislocationBuilderDialog::loadFromScene(const Structure& scene,
 
     m_result = {};
     m_outputPreview.dirty = true;
+}
+
+void DislocationBuilderDialog::useStepInput(const std::vector<float>& radii,
+                                            const std::vector<float>& shininess)
+{
+    loadFromScene(m_step.input, radii, shininess);  // checks it and shows the preview
+    if (m_step.input.atoms.empty() || !m_step.input.hasUnitCell)
+        return;
+    m_source = m_step.input;  // a copy: the dialog's scene argument is not the step input
+    m_useCurrentSceneSource = false;
+    m_sourceLabel = "step input";
 }
 
 void DislocationBuilderDialog::analyzeSource(const Structure& source)
@@ -469,6 +631,11 @@ void DislocationBuilderDialog::drawDialog(
         tryLoadFile(m_pendingDropPath, elementRadii, elementShininess);
         m_pendingDropPath.clear();
     }
+    if (m_stepLoadInput)
+    {
+        m_stepLoadInput = false;
+        useStepInput(elementRadii, elementShininess);
+    }
 
     if (m_openRequested)
     {
@@ -485,9 +652,14 @@ void DislocationBuilderDialog::drawDialog(
     if (!responsive::beginModal("Insert Dislocation", &keepOpen, ImGuiWindowFlags_NoCollapse))
     {
         m_isOpen = false;
+        m_step.finish();
         return;
     }
     m_isOpen = true;
+
+    if (m_step.active())
+        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f),
+                           "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
 
     ImGui::TextDisabled("Isotropic-elastic dislocation insertion with automatic FCC/HCP/BCC detection and shape-controlled application region.");
     ImGui::SameLine();
@@ -515,7 +687,15 @@ void DislocationBuilderDialog::drawDialog(
             ImGui::Text("Input Preview");
             ImGui::SameLine();
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, responsive::size(10.0f,6.0f));
-            if (responsive::button("Use Current Scene"))
+            if (m_step.active())
+            {
+                if (responsive::button("Use Step Input"))
+                {
+                    useStepInput(elementRadii, elementShininess);
+                    if (m_sourceLoaded) activeSource = &m_source;
+                }
+            }
+            else if (responsive::button("Use Current Scene"))
             {
                 loadFromScene(structure, elementRadii, elementShininess);
                 activeSource = &structure;
@@ -849,6 +1029,17 @@ void DislocationBuilderDialog::drawDialog(
         if (!canGenerate)
             ImGui::EndDisabled();
 
+        // Editing a step: the settings go into the pipeline, the scene is left alone.
+        if (m_step.active() && responsive::button("Update step", responsive::size(-1.0f,0.0f)))
+        {
+            atomforge::pipeline::Json parameters = m_step.parameters;
+            parameters["options"] = stepOptions();
+            parameters["use_input"] = m_sourcePath.empty();  // the step input, unless a file was loaded
+            m_step.commitParameters(parameters);
+            m_step.finish();
+            ImGui::CloseCurrentPopup();
+        }
+
         if (m_result.success)
         {
             ImGui::Separator();
@@ -862,7 +1053,7 @@ void DislocationBuilderDialog::drawDialog(
                                 dislocationLatticeFamilyName(m_result.validation.familyBefore),
                                 dislocationLatticeFamilyName(m_result.validation.familyAfter));
 
-            if (responsive::button("Replace Main Scene", responsive::size(-1.0f,0.0f)))
+            if (!m_step.active() && responsive::button("Replace Main Scene", responsive::size(-1.0f,0.0f)))
             {
                 structure = m_result.output;
                 structure.dislocationLoopPoints = m_result.loopPoints;
@@ -887,7 +1078,10 @@ void DislocationBuilderDialog::drawDialog(
     const float buttonWidth = 100.0f;
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonWidth);
     if (responsive::button("Close", ImVec2(buttonWidth, 0.0f)))
+    {
+        m_step.finish();
         ImGui::CloseCurrentPopup();
+    }
 
     ImGui::EndPopup();
 }

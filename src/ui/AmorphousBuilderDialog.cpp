@@ -5,6 +5,7 @@
 #include "io/StructureLoader.h"
 #include "ui/PeriodicTableDialog.h"
 #include "util/ElementData.h"
+#include "util/PathUtils.h"
 
 #include "imgui.h"
 
@@ -29,7 +30,90 @@ AmorphousBuilderDialog::AmorphousBuilderDialog()
 void AmorphousBuilderDialog::drawMenuItem(bool enabled)
 {
     if (ImGui::MenuItem("Amorphous Structure", nullptr, false, enabled))
+    {
+        m_step.finish();  // from the menu: build, not edit a step
         m_openRequested = true;
+    }
+}
+
+// ===========================================================================
+// Pipeline step editing
+// ===========================================================================
+
+bool AmorphousBuilderDialog::editStep(StepEdit edit)
+{
+    m_step = std::move(edit);
+    const auto r = m_step.reader();
+
+    // Composition: "SYMBOL N" per --element (the dialog's default if none).
+    m_elements.clear();
+    for (const auto& text : r.values("--element"))
+    {
+        std::istringstream in(text);
+        std::string symbol;
+        int count = 0;
+        if (!(in >> symbol >> count)) continue;
+        const int z = atomicNumberFromSymbol(symbol);
+        if (z > 0) m_elements.push_back({ z, count });
+    }
+    if (m_elements.empty())
+        m_elements.push_back({ 14, 100 });
+
+    // Missing flags take runAmorphous's defaults.
+    const bool manual = r.has("--boxa") || r.has("--boxb") || r.has("--boxc");
+    m_boxMode         = manual ? 0 : 1;
+    m_boxA            = static_cast<float>(r.number("--boxa", 20.0));
+    m_boxB            = static_cast<float>(r.number("--boxb", 20.0));
+    m_boxC            = static_cast<float>(r.number("--boxc", 20.0));
+    m_targetDensity   = static_cast<float>(r.number("--density", 2.0));
+    m_cellScaleFactor = static_cast<float>(r.number("--scale", 1.0));
+    m_covTolerance    = static_cast<float>(r.number("--covtol", 0.75));
+    m_seed            = r.integer("--seed", 42);
+    m_maxAttempts     = r.integer("--attempts", 1000);
+    m_periodic        = !r.has("--no-periodic");
+
+    // Pair overrides become enabled rows; rebuildPairRows keeps them on open.
+    m_pairRows.clear();
+    for (const auto& text : r.values("--mindist"))
+    {
+        std::istringstream in(text);
+        std::string s1, s2;
+        float dist = 0.0f;
+        if (!(in >> s1 >> s2 >> dist)) continue;
+        const int z1 = atomicNumberFromSymbol(s1), z2 = atomicNumberFromSymbol(s2);
+        if (z1 <= 0 || z2 <= 0) continue;
+        PairRow pr;
+        pr.z1      = std::min(z1, z2);
+        pr.z2      = std::max(z1, z2);
+        pr.minDist = dist;
+        pr.enabled = true;
+        m_pairRows.push_back(pr);
+    }
+    m_openRequested = true;
+    return true;
+}
+
+std::string AmorphousBuilderDialog::stepOptions() const
+{
+    atomforge::pipeline::options::Writer w;
+    for (const auto& e : m_elements)
+        if (e.count > 0)
+            w.add("--element", std::string(elementSymbol(e.atomicNumber)) + " " + std::to_string(e.count));
+    if (m_boxMode == 0)
+        w.add("--boxa", m_boxA).add("--boxb", m_boxB).add("--boxc", m_boxC);
+    else
+        w.add("--density", m_targetDensity);
+    w.add("--scale", m_cellScaleFactor);
+    w.add("--covtol", m_covTolerance);
+    w.add("--seed", std::max(0, m_seed));
+    w.add("--attempts", std::max(1, m_maxAttempts));
+    for (const auto& pr : m_pairRows)
+        if (pr.enabled)
+            w.add("--mindist", std::string(elementSymbol(pr.z1)) + " " + elementSymbol(pr.z2) + " "
+                               + atomforge::pipeline::options::Writer::number(pr.minDist));
+    if (!m_periodic)
+        w.flag("--no-periodic");
+    return w.str();
 }
 
 // ===========================================================================
@@ -113,6 +197,7 @@ void AmorphousBuilderDialog::drawDialog(
     // -----------------------------------------------------------------------
     // Open the modal when requested.
     // -----------------------------------------------------------------------
+    const bool openedNow = m_openRequested;
     if (m_openRequested)
     {
         ImGui::OpenPopup("Amorphous Structure Builder");
@@ -139,8 +224,15 @@ void AmorphousBuilderDialog::drawDialog(
     {
         if (!open)
             m_isOpen = false;
+        if (!openedNow)
+            m_step.finish();  // closed with X
         return;
     }
+
+    if (m_step.active())
+        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f),
+                           "Editing pipeline step %s: Update step writes these settings into the pipeline.",
+                           m_step.step.c_str());
 
     // =========================================================================
     // SECTION 1 – Composition
@@ -407,7 +499,17 @@ void AmorphousBuilderDialog::drawDialog(
     if (!canBuild)
         ImGui::BeginDisabled();
 
-    if (responsive::button("Build", responsive::size(120.0f,0.0f)))
+    if (m_step.active())
+    {
+        if (responsive::button("Update step", responsive::size(120.0f,0.0f)))
+        {
+            m_step.commitOptions(stepOptions());
+            m_step.finish();
+            ImGui::CloseCurrentPopup();
+            m_isOpen = false;
+        }
+    }
+    else if (responsive::button("Build", responsive::size(120.0f,0.0f)))
     {
         // Assemble AmorphousParams from dialog state.
         AmorphousParams params;
@@ -462,6 +564,7 @@ void AmorphousBuilderDialog::drawDialog(
     {
         ImGui::CloseCurrentPopup();
         m_isOpen = false;
+        m_step.finish();
     }
 
     // Status line.

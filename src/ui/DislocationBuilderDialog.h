@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ui/StepEditing.h"
+
 #include "algorithms/DislocationBuilder.h"
 #include "graphics/SceneBuffers.h"
 #include "graphics/ShadowMap.h"
@@ -34,6 +36,13 @@ struct DislocationBuilderDialog
     bool isOpen() const { return m_isOpen; }
     void feedDroppedFile(const std::string& path);
 
+    // Opens the dialog on a pipeline step: filled from the step's settings, with
+    // "Update step" writing them back instead of building.
+    bool editStep(StepEdit edit);
+    // The dialog's current settings as the step's options (command-line flags of
+    // AtomForge --build dislocation).
+    std::string stepOptions() const;
+
 private:
     struct PreviewState
     {
@@ -64,6 +73,8 @@ private:
     void loadFromScene(const Structure& scene,
                        const std::vector<float>& radii,
                        const std::vector<float>& shininess);
+    void useStepInput(const std::vector<float>& radii,
+                      const std::vector<float>& shininess);
     void analyzeSource(const Structure& source);
     void generateDislocation(const Structure& source);
     void pollGenerationResult(const std::vector<float>& radii,
@@ -86,7 +97,12 @@ private:
     bool m_useCurrentSceneSource = false;
 
     Structure m_source;
+    std::string m_sourcePath;         // file the source came from ("" = scene or step input)
     std::string m_sourceLabel;
+
+    // Editing a pipeline step
+    StepEdit m_step;
+    bool m_stepLoadInput = false;     // load the step input as the source
     std::string m_pendingDropPath;
 
     DislocationDetectionResult m_detection;
