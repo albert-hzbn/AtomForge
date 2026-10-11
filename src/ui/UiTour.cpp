@@ -153,6 +153,7 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
             selectionRequested = true;
             requestMeasureAngle = true;
         }});
+        t.steps.push_back({"menu-open-recent", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { tourMenu = "File"; tourSubmenu = "Open Recent"; }});
         t.steps.push_back({"hover-atom", [](Structure&, EditMenuDialogs&, const UiTour::Update&) {
             ImGui::GetIO().AddMousePosEvent(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f);
         }});

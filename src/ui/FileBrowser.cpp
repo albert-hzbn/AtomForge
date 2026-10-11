@@ -551,11 +551,24 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
 
         loadSharedRecentFilesIfNeeded();
         const auto& recent = sharedRecentFiles();
+        forceTourSubmenu("Open Recent");
         if (ImGui::BeginMenu("Open Recent", !recent.empty()))
         {
             for (const std::string& recentPath : recent)
             {
-                if (ImGui::MenuItem(recentPath.c_str()))
+                // The name, with its folder (shortened from the left) muted beside it.
+                const std::size_t slash = recentPath.find_last_of("/\\");
+                const std::string name = slash == std::string::npos ? recentPath : recentPath.substr(slash + 1);
+                std::string folder = slash == std::string::npos ? std::string() : recentPath.substr(0, slash + 1);
+                if (folder.size() > 48) folder = "\xe2\x80\xa6" + folder.substr(folder.size() - 47);
+                std::error_code missing;
+                const bool exists = std::filesystem::is_regular_file(std::filesystem::u8path(recentPath), missing);
+                ImGui::PushID(recentPath.c_str());
+                const bool chosen = ImGui::MenuItem(name.c_str(), folder.c_str(), false, exists);
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("%s%s", recentPath.c_str(), exists ? "" : "\n(the file is no longer there)");
+                ImGui::PopID();
+                if (chosen)
                 {
                     pendingOpenPath = recentPath;
                     openStatusMsg[0] = '\0';
