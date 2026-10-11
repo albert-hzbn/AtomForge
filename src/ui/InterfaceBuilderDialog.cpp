@@ -906,7 +906,8 @@ void InterfaceBuilderDialog::drawDialog(
     // =========================================================================
     // TOP ROW: Struct A | Struct B | OR | Params | Stiffness
     // =========================================================================
-    float topH = 300.0f;
+    // Tall enough for the panels' controls, leaving the rest for the results.
+    const float topH = std::clamp(ImGui::GetContentRegionAvail().y * 0.45f, responsive::dp(300.0f), responsive::dp(460.0f));
     float structW = totalW * 0.16f;
     float orW     = totalW * 0.17f;
     float paramW  = totalW * 0.26f;
@@ -1165,7 +1166,7 @@ void InterfaceBuilderDialog::drawDialog(
     float previewW = totalW - plotW - gap;
 
     // --- Left: 2D scatter plot ---
-    responsive::beginChild("##bottomLeftPlot", ImVec2(plotW, bottomH), false);
+    responsive::beginChild("##bottomLeftPlot", ImVec2(plotW, bottomH), true);
     {
         if (m_searchDone && !m_candidates.empty())
         {
@@ -1174,7 +1175,8 @@ void InterfaceBuilderDialog::drawDialog(
         }
         else
         {
-            ImGui::TextDisabled("Results will appear here after search.");
+            dialogLayout::emptyState(m_searchDone ? "No matching interfaces. Relax the strain or rotation limits, or allow larger supercells."
+                                                  : "Candidate interfaces appear here after Find Matches.");
         }
     }
     ImGui::EndChild();
@@ -1182,7 +1184,7 @@ void InterfaceBuilderDialog::drawDialog(
     ImGui::SameLine(responsive::dp(0.0f), gap);
 
     // --- Right: Interface structure 3D preview ---
-    responsive::beginChild("##bottomRightPreview", ImVec2(previewW, bottomH), false);
+    responsive::beginChild("##bottomRightPreview", ImVec2(previewW, bottomH), true);
     {
         if (m_selectedIdx >= 0 && m_selectedIdx < (int)m_interfaceStructures.size())
         {
@@ -1249,7 +1251,7 @@ void InterfaceBuilderDialog::drawDialog(
         }
         else
         {
-            ImGui::TextDisabled("Select a candidate from the plot to preview.");
+            dialogLayout::emptyState("Select a candidate in the plot to preview the interface.");
         }
     }
     ImGui::EndChild();

@@ -1301,8 +1301,9 @@ void FileBrowser::drawExportImageDialog(Structure& structure)
 
         ImGui::Separator();
 
-        // --- Sidebar + file list ---
-        const float listH = 200.0f;
+        // --- Sidebar + file list (taking the height the fields below leave) ---
+        const float listH = std::max(responsive::dp(200.0f),
+                                     ImGui::GetContentRegionAvail().y - 6.0f * ImGui::GetFrameHeightWithSpacing() - responsive::dp(28.0f));
 
         if (responsive::beginChild("##exportsidebar", ImVec2(s_sidebarW, listH), true))
         {
