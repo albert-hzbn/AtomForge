@@ -324,7 +324,17 @@ void PipelineDialog::drawList()
         record("down " + std::to_string(i));
         ImGui::EndDisabled();
         ImGui::SameLine();
-        if (ImGui::Button("X")) remove = static_cast<int>(i);
+        // A square button with a drawn cross (the same in every font).
+        if (ImGui::Button("##remove", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight()))) remove = static_cast<int>(i);
+        {
+            const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+            const ImVec2 c((a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f);
+            const float r = (b.x - a.x) * 0.2f;
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            const ImU32 colour = ImGui::GetColorU32(ImGuiCol_Text);
+            dl->AddLine(ImVec2(c.x - r, c.y - r), ImVec2(c.x + r, c.y + r), colour, 1.5f);
+            dl->AddLine(ImVec2(c.x - r, c.y + r), ImVec2(c.x + r, c.y - r), colour, 1.5f);
+        }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Remove this step");
         record("remove " + std::to_string(i));
         right = ImGui::GetItemRectMax().x;
@@ -562,7 +572,12 @@ void PipelineDialog::draw(Structure& structure, const std::function<void(Structu
         }
         {
             ImGui::Separator();
-            const float listHeight = std::max(responsive::dp(160), ImGui::GetContentRegionAvail().y * 0.42f);
+            // Tall enough for the input and every step (two lines each), up to
+            // 60% of the panel; it scrolls beyond that.
+            const ImGuiStyle& style = ImGui::GetStyle();
+            const float row = ImGui::GetFrameHeight() + ImGui::GetTextLineHeight() + 2.0f * style.ItemSpacing.y;
+            const float wanted = static_cast<float>(m_editor.size()) * row + ImGui::GetTextLineHeightWithSpacing() + 2.0f * style.WindowPadding.y + row * 0.5f;
+            const float listHeight = std::clamp(wanted, responsive::dp(160), std::max(responsive::dp(160), ImGui::GetContentRegionAvail().y * 0.6f));
             responsive::beginChild("Pipeline steps", ImVec2(0, listHeight), true);
             drawList();
             ImGui::EndChild();
