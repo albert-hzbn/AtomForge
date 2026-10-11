@@ -1437,6 +1437,17 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             requests.requestAtomInfo,
             activeState.selectedInstanceIndices, activeState.sceneBuffers,
             activeState.structure, activeState.editMenuDialogs.elementRadii);
+        {
+            // Results refer to the structure they were measured on: an edit of
+            // its content (not a display change) closes them.
+            auto& measurement = activeState.measurementState;
+            if (requests.requestMeasureDistance || requests.requestMeasureAngle)
+                measurement.revision = activeState.undoRedo.currentId();
+            else if (measurement.revision != activeState.undoRedo.currentId()) {
+                measurement.distanceCardOpen = measurement.angleCardOpen = false;
+                measurement.clearVisuals();
+            }
+        }
         drawMeasurementPopups(activeState.measurementState);
         drawStructureInfoDialog(activeState.structureInfoDialog,
                                 requests.requestStructureInfo, activeState.structure);

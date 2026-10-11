@@ -157,16 +157,19 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
             selectionRequested = true;
         }});
         t.steps.push_back({"measure-distance", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
-            requestedSelection = {100, 101};
+            requestedSelection = {0, 1};
             selectionRequested = true;
             requestMeasureDistance = true;
         }});
         t.steps.push_back({"measure-angle", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
-            requestedSelection = {100, 101, 102};
+            requestedSelection = {0, 1, 2};
             selectionRequested = true;
             requestMeasureAngle = true;
         }});
         t.steps.push_back({"menu-open-recent", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { tourMenu = "File"; tourSubmenu = "Open Recent"; }});
+        t.steps.push_back({"overlay-polyhedra", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showPolyhedralViewer = true; }});
+        t.steps.push_back({"overlay-voronoi", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showPolyhedralViewer = false; showVoronoi = true; }});
+        t.steps.push_back({"overlay-off", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showVoronoi = false; }});
         t.steps.push_back({"hover-atom", [](Structure&, EditMenuDialogs&, const UiTour::Update&) {
             ImGui::GetIO().AddMousePosEvent(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f);
         }});

@@ -1,4 +1,6 @@
 #pragma once
+
+#include <cstdint>
 #include <string>
 
 #include <vector>
@@ -31,6 +33,7 @@ struct MeasurementOverlayState
     char atomInfoMessage[512] = {0};
 
     bool distanceCardOpen = false, angleCardOpen = false;  // the result cards
+    std::uint64_t revision = 0;  // the structure's content id when measured
     void clearVisuals();
 };
 
