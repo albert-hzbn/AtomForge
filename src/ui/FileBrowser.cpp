@@ -2480,37 +2480,35 @@ void FileBrowser::drawNotifications()
     if (notifications.empty())
         return;
 
+    // Cards in the theme's popup colours, stacked upwards from above the
+    // status bar, with a status-coloured accent bar; each fades in and out.
     ImDrawList* drawList = ImGui::GetForegroundDrawList();
-    ImGuiIO& io = ImGui::GetIO();
-    const float margin = 16.0f;
-    const float boxPadX = 10.0f;
-    const float boxPadY = 8.0f;
-    const float gap = 10.0f;
-    const float wrapWidth = 360.0f;
-    float y = 48.0f;
-
-    for (size_t i = 0; i < notifications.size(); ++i)
+    const ImGuiIO& io = ImGui::GetIO();
+    const float margin = responsive::dp(16.0f);
+    const float padX = responsive::dp(14.0f), padY = responsive::dp(10.0f), accentW = responsive::dp(4.0f);
+    const float gap = responsive::dp(8.0f);
+    const float wrapWidth = responsive::dp(380.0f);
+    const float rounding = responsive::dp(8.0f);
+    float bottom = io.DisplaySize.y - ImGui::GetFrameHeight() - margin;
+    for (auto it = notifications.rbegin(); it != notifications.rend(); ++it)
     {
-        const ToastNotification& notification = notifications[i];
+        const ToastNotification& notification = *it;
+        const double age = kNotificationLifetimeSeconds - (notification.expiresAt - now);
+        const float alpha = static_cast<float>(std::clamp(std::min(age / 0.15, (notification.expiresAt - now) / 0.4), 0.0, 1.0));
         const ImVec2 textSize = ImGui::CalcTextSize(notification.message.c_str(), nullptr, false, wrapWidth);
-        const float boxW = std::min(wrapWidth, textSize.x) + boxPadX * 2.0f;
-        const float boxH = textSize.y + boxPadY * 2.0f;
+        const float boxW = textSize.x + accentW + padX * 2.0f;
+        const float boxH = textSize.y + padY * 2.0f;
         const float x = io.DisplaySize.x - margin - boxW;
-
-        const ImU32 bg = notification.isError
-            ? IM_COL32(115, 34, 38, 230)
-            : IM_COL32(28, 42, 57, 230);
-        const ImU32 border = notification.isError
-            ? IM_COL32(230, 111, 114, 255)
-            : IM_COL32(120, 200, 255, 255);
-
-        drawList->AddRectFilled(ImVec2(x, y), ImVec2(x + boxW, y + boxH), bg, 6.0f);
-        drawList->AddRect(ImVec2(x, y), ImVec2(x + boxW, y + boxH), border, 6.0f, 0, 1.5f);
-        drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
-                  ImVec2(x + boxPadX, y + boxPadY),
-                  IM_COL32(245, 245, 245, 255),
-                  notification.message.c_str(), nullptr, wrapWidth);
-        y += boxH + gap;
+        const float y = bottom - boxH;
+        const auto colour = [alpha](ImVec4 c, float a = 1.0f) { c.w *= a * alpha; return ImGui::ColorConvertFloat4ToU32(c); };
+        const ImVec4 accent = notification.isError ? themeStatusError() : themeStatusGood();
+        drawList->AddRectFilled(ImVec2(x + 2, y + 3), ImVec2(x + boxW + 2, y + boxH + 3), colour(ImVec4(0, 0, 0, 1), 0.12f), rounding);
+        drawList->AddRectFilled(ImVec2(x, y), ImVec2(x + boxW, y + boxH), colour(ImGui::GetStyleColorVec4(ImGuiCol_PopupBg)), rounding);
+        drawList->AddRectFilled(ImVec2(x, y), ImVec2(x + accentW, y + boxH), colour(accent), rounding, ImDrawFlags_RoundCornersLeft);
+        drawList->AddRect(ImVec2(x, y), ImVec2(x + boxW, y + boxH), colour(ImGui::GetStyleColorVec4(ImGuiCol_Border)), rounding);
+        drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(x + accentW + padX, y + padY),
+                          colour(ImGui::GetStyleColorVec4(ImGuiCol_Text)), notification.message.c_str(), nullptr, wrapWidth);
+        bottom = y - gap;
     }
 }
 

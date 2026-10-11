@@ -133,6 +133,10 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         t.steps.push_back({"polyhedral-settings", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showPolyhedralSettingsDialog = true; }});
         t.steps.push_back({"about", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showAbout = true; }});
         t.steps.push_back({"shortcuts", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showShortcuts = true; }});
+        t.steps.push_back({"notifications", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            showNotification("Saved cu_host.cif (500 atoms).");
+            showNotification("Error: failed to save (format may not support this structure).", true);
+        }});
         // ATOMFORGE_UI_TOUR_ALL=1 adds every remaining dialog: the other
         // builders, every operation and every scientific tool.
         if (const char* all = std::getenv("ATOMFORGE_UI_TOUR_ALL"); all && *all == '1') {
@@ -151,6 +155,10 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         t.steps.push_back({"dark-builder-bulk", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { bulkCrystalDialog.open(); }});
         t.steps.push_back({"dark-operation-replicate", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { operationDialog.open("replicate"); }});
         t.steps.push_back({"dark-science-plot", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { scientificToolsDialog.open("powder-xrd"); }});
+        t.steps.push_back({"dark-notifications", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            showNotification("Saved cu_host.cif (500 atoms).");
+            showNotification("Error: failed to save (format may not support this structure).", true);
+        }});
         t.steps.push_back({"dark-welcome", [this](Structure& structure, EditMenuDialogs&, const UiTour::Update& updateBuffers) {
             pipelineDialog.restore(R"({"format":"atomforge-pipeline","version":1,"active":false,"open":false,"modifiers":[]})", nullptr);
             structure = Structure();
