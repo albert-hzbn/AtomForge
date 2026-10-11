@@ -3923,7 +3923,7 @@
     },
     {
       "source": "src/ui/MainWindowChrome.cpp",
-      "sha256": "512728b58f58d475c5ed1cec00de1cd15ff48b04799e4c4ab9920ac9812cd42e",
+      "sha256": "95fb8457ac0fe6d23a5c57a2712a10a4cb6c26774a18fe6580aa61b00133a6d0",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3932,7 +3932,7 @@
       ],
       "literal_controls": [
         {
-          "line": 120,
+          "line": 121,
           "declaration_label": "##rotangle"
         }
       ]
@@ -5376,7 +5376,7 @@
     },
     {
       "source": "src/ui/UiTour.cpp",
-      "sha256": "55a1e23911fcfbf3068c451ca338689e621b41fd925ae8657633a6fbd8084cd9",
+      "sha256": "6887360fd825d1bbbc309a9fe9e96e591aa6b78586cece50c8afa22ef1ea0e87",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

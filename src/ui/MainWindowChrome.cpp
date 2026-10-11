@@ -15,6 +15,7 @@
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -199,8 +200,31 @@ void FileBrowser::drawStatusBar(const Structure& structure)
             field(name.c_str(), normal);
             std::snprintf(text, sizeof(text), "%zu atoms", structure.atoms.size());
             field(text, muted);
-            if (!viewSelectionAtoms.empty()) {
-                std::snprintf(text, sizeof(text), "%zu selected", viewSelectionAtoms.size());
+            if (viewSelectionAtoms.size() == 1 && viewSelectionAtoms[0] >= 0 &&
+                static_cast<std::size_t>(viewSelectionAtoms[0]) < structure.atoms.size()) {
+                // One atom: which, and where.
+                const AtomSite& atom = structure.atoms[static_cast<std::size_t>(viewSelectionAtoms[0])];
+                std::snprintf(text, sizeof(text), "Selected %s #%d at (%.3f, %.3f, %.3f) \xc3\x85", atom.symbol.c_str(), viewSelectionAtoms[0],
+                              atom.x, atom.y, atom.z);
+                field(text, dialogLayout::accent());
+            } else if (!viewSelectionAtoms.empty()) {
+                // Several: how many of each element (the three most common).
+                std::string composition;
+                if (viewSelectionAtoms.size() <= 200000) {
+                    std::vector<std::pair<std::string, int>> counts;
+                    for (const int index : viewSelectionAtoms) {
+                        if (index < 0 || static_cast<std::size_t>(index) >= structure.atoms.size()) continue;
+                        const std::string& symbol = structure.atoms[static_cast<std::size_t>(index)].symbol;
+                        auto it = std::find_if(counts.begin(), counts.end(), [&](const auto& c) { return c.first == symbol; });
+                        if (it == counts.end()) counts.push_back({symbol, 1});
+                        else ++it->second;
+                    }
+                    std::sort(counts.begin(), counts.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
+                    for (std::size_t i = 0; i < counts.size() && i < 3; ++i)
+                        composition += (i ? ", " : " (") + counts[i].first + " " + std::to_string(counts[i].second);
+                    if (!composition.empty()) composition += counts.size() > 3 ? ", ...)" : ")";
+                }
+                std::snprintf(text, sizeof(text), "%zu selected%s", viewSelectionAtoms.size(), composition.c_str());
                 field(text, dialogLayout::accent());
             }
             if (structure.hasUnitCell) {
