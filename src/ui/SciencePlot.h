@@ -80,7 +80,23 @@ inline void drawSciencePlot(const char* id, const atomforge::science::PlotSpec& 
         draw->AddText(ImVec2(gMin.x - ImGui::CalcTextSize(label).x - 4, py(t) - lineHeight / 2), text, label);
     }
     draw->AddRect(gMin, gMax, frame);
-    draw->AddText(ImVec2(gMin.x, origin.y + 2), text, (spec.title + "   [" + unitText::display(spec.yLabel) + "]").c_str());
+    {
+        // The title with the y unit, shortened with an ellipsis when it would
+        // run past the plot (the full text is the tooltip).
+        const std::string full = spec.title + "   [" + unitText::display(spec.yLabel) + "]";
+        std::string shown = full;
+        const float room = gMax.x - gMin.x;
+        if (ImGui::CalcTextSize(shown.c_str()).x > room) {
+            while (shown.size() > 4 && ImGui::CalcTextSize((shown + "\xe2\x80\xa6").c_str()).x > room) {
+                shown.pop_back();
+                while (!shown.empty() && (static_cast<unsigned char>(shown.back()) & 0xC0) == 0x80) shown.pop_back();  // whole UTF-8 characters
+            }
+            shown += "\xe2\x80\xa6";
+            if (ImGui::IsMouseHoveringRect(ImVec2(gMin.x, origin.y), ImVec2(gMax.x, origin.y + lineHeight + 2)))
+                ImGui::SetTooltip("%s", full.c_str());
+        }
+        draw->AddText(ImVec2(gMin.x, origin.y + 2), text, shown.c_str());
+    }
     const std::string xLabel = unitText::display(spec.xLabel);
     draw->AddText(ImVec2((gMin.x + gMax.x) / 2 - ImGui::CalcTextSize(xLabel.c_str()).x / 2, gMax.y + lineHeight + 4), text, xLabel.c_str());
     draw->PushClipRect(gMin, gMax, true);

@@ -1013,11 +1013,28 @@ void drawAtomPropertyLegend(ImDrawList* drawList,
 {
     if (!drawList || viewportWidth < 200 || viewportHeight < 200)
         return;
-    const float margin = 20.0f, barWidth = 18.0f, barHeight = 160.0f;
-    const float fontSize = ImGui::GetFontSize();
-    const float x1 = static_cast<float>(viewportWidth) - margin - 70.0f;
-    const float y1 = static_cast<float>(viewportHeight) - margin - barHeight;
-    const float x0 = x1 - barWidth;
+    // A card at the bottom right (above the status bar): the property name,
+    // then the viridis bar with its high and low values beside it.
+    const float scale = ImGui::GetFontSize() / 16.0f;
+    const float margin = 16.0f * scale, pad = 10.0f * scale, barWidth = 16.0f * scale, barHeight = 150.0f * scale;
+    const float wrap = 240.0f * scale;
+    const ImVec2 titleSize = ImGui::CalcTextSize(name.c_str(), nullptr, false, wrap);
+    char highText[32], lowText[32];
+    std::snprintf(highText, sizeof(highText), "%.4g", high);
+    std::snprintf(lowText, sizeof(lowText), "%.4g", low);
+    const float valueWidth = std::max(ImGui::CalcTextSize(highText).x, ImGui::CalcTextSize(lowText).x);
+    const float width = std::max(titleSize.x, barWidth + 8.0f * scale + valueWidth) + 2 * pad;
+    const float height = pad * 2 + titleSize.y + 8.0f * scale + barHeight;
+    const ImVec2 max(static_cast<float>(viewportWidth) - margin, static_cast<float>(viewportHeight) - margin - ImGui::GetFrameHeight());
+    const ImVec2 min(max.x - width, max.y - height);
+    ImVec4 background = ImGui::GetStyleColorVec4(ImGuiCol_PopupBg);
+    background.w = 0.9f;
+    drawList->AddRectFilled(min, max, ImGui::ColorConvertFloat4ToU32(background), 8.0f * scale);
+    drawList->AddRect(min, max, ImGui::GetColorU32(ImGuiCol_Border), 8.0f * scale);
+    const ImU32 text = ImGui::GetColorU32(ImGuiCol_Text), muted = ImGui::GetColorU32(ImGuiCol_TextDisabled);
+    drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(min.x + pad, min.y + pad), text, name.c_str(), nullptr, wrap);
+    const float x0 = min.x + pad, x1 = x0 + barWidth;
+    const float y1 = min.y + pad + titleSize.y + 8.0f * scale;
     const int steps = 48;
     for (int i = 0; i < steps; ++i) {
         const auto top = atomforge::science::viridis(1.0 - static_cast<double>(i) / steps);
@@ -1027,14 +1044,9 @@ void drawAtomPropertyLegend(ImDrawList* drawList,
         const ImU32 cb = ImGui::ColorConvertFloat4ToU32(ImVec4(bottom[0], bottom[1], bottom[2], 1.0f));
         drawList->AddRectFilledMultiColor(ImVec2(x0, ya), ImVec2(x1, yb), ct, ct, cb, cb);
     }
-    drawList->AddRect(ImVec2(x0, y1), ImVec2(x1, y1 + barHeight), IM_COL32(230, 230, 230, 220));
-    char label[32];
-    std::snprintf(label, sizeof(label), "%.4g", high);
-    drawList->AddText(ImVec2(x1 + 6, y1 - fontSize / 2), IM_COL32(240, 240, 240, 255), label);
-    std::snprintf(label, sizeof(label), "%.4g", low);
-    drawList->AddText(ImVec2(x1 + 6, y1 + barHeight - fontSize / 2), IM_COL32(240, 240, 240, 255), label);
-    const float titleWidth = ImGui::CalcTextSize(name.c_str()).x;
-    drawList->AddText(ImVec2(std::max(4.0f, x1 + 40.0f - titleWidth), y1 - fontSize * 2.0f), IM_COL32(240, 240, 240, 255), name.c_str());
+    drawList->AddRect(ImVec2(x0, y1), ImVec2(x1, y1 + barHeight), muted);
+    drawList->AddText(ImVec2(x1 + 8.0f * scale, y1), muted, highText);
+    drawList->AddText(ImVec2(x1 + 8.0f * scale, y1 + barHeight - ImGui::GetTextLineHeight()), muted, lowText);
 }
 
 void drawElementLegend(ImDrawList* drawList, float top, const Structure& structure, std::uint64_t revision)

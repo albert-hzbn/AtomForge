@@ -4,6 +4,7 @@
 #include "ui/ScientificToolsDialog.h"
 #include "science/ScienceData.h"
 #include "ui/DialogLayout.h"
+#include "ui/UiScript.h"
 #include "ui/ResponsiveLayout.h"
 #include "ui/SciencePlot.h"
 #include "imgui.h"
@@ -235,7 +236,8 @@ void ScientificToolsDialog::drawStatus()
 bool ScientificToolsDialog::drawRunButton(const char* label, const Structure& structure, float width)
 {
     ImGui::BeginDisabled(m_task.running());
-    const bool pressed = dialogLayout::primaryButton(m_step.active() ? "Update step" : label, ImVec2(width, responsive::dp(34)));
+    const bool pressed = dialogLayout::primaryButton(m_step.active() ? "Update step" : label, ImVec2(width, responsive::dp(34)))
+                         || (!m_task.running() && uiScript::take("science.run"));
     ImGui::EndDisabled();
     if (!pressed) return false;
     if (!m_step.active()) { startCalculation(structure); return true; }

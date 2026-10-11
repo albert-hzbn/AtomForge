@@ -121,6 +121,10 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         t.steps.push_back({"edit-structure", [](Structure&, EditMenuDialogs& editMenuDialogs, const UiTour::Update&) { editMenuDialogs.openEditStructure(); }});
         t.steps.push_back({"structure-info", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { requestStructureInfo = true; }});
         t.steps.push_back({"science-atoms", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { scientificToolsDialog.open("structure-type"); }});
+        t.steps.push_back({"science-atoms-result", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            scientificToolsDialog.open("structure-type");
+            uiScript::request("science.run");
+        }});
         t.steps.push_back({"science-plot", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { scientificToolsDialog.open("powder-xrd"); }});
         t.steps.push_back({"science-simulation", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { scientificToolsDialog.open("relax"); }});
         t.steps.push_back({"analysis-cna", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { cnaDialog.open(); }});
@@ -220,7 +224,8 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         return;
     }
     if (t.frame == 0) t.steps[t.index].setup(current, dialogs, update);
-    if (++t.frame < (t.steps[t.index].name == "hover-atom" ? 40 : 12)) return;  // hover tooltips wait for the mouse to rest
+    const std::string& stepName = t.steps[t.index].name;
+    if (++t.frame < (stepName == "hover-atom" || stepName.find("-result") != std::string::npos ? 60 : 12)) return;  // hover tooltips wait for the mouse to rest
     char name[256];
     std::snprintf(name, sizeof(name), "%02zu-%s.png", t.index + 1, t.steps[t.index].name.c_str());
     screenshotFrontBuffer(t.folder / name);
