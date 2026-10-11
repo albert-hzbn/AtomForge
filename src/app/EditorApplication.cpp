@@ -24,6 +24,7 @@
 #include "SphereMesh.h"
 #include "LowPolyMesh.h"
 #include "BillboardMesh.h"
+#include "ui/DialogLayout.h"
 #include "ui/ImGuiSetup.h"
 #include "ui/UiScript.h"
 #include "ui/LatticePlaneOverlay.h"
@@ -165,7 +166,12 @@ struct StructureTab
     AdaptiveRenderState adaptiveRender;
     char                title[256] = "Untitled";
     bool                pendingClose = false;
+    int                 closeAfterSaveFrames = 0;  // > 0: close once saved (Save in the close prompt)
 };
+
+// Closing the window: the close button only asks; the main loop confirms
+// unsaved changes first (programmatic closes, e.g. the UI tour, still quit).
+bool g_userCloseRequested = false;
 
 void saveCameraToTab(const Camera& cam, StructureTab& tab)
 {
@@ -185,9 +191,113 @@ void restoreCameraFromTab(Camera& cam, const StructureTab& tab)
     cam.panOffset = tab.cameraState.panOffset;
 }
 
+// Called after every load and save: the tab now shows that file, unmodified.
+// Three right-aligned buttons for the unsaved-changes prompts.
+int unsavedPromptButtons(const char* danger, const char* primary)
+{
+    const float minimum = ImGui::GetFontSize() * 5.5f;
+    dialogLayout::beginFooter(primary ? dialogLayout::buttonRowWidth({danger, "Cancel", primary}, minimum)
+                                      : dialogLayout::buttonRowWidth({danger, "Cancel"}, minimum));
+    const auto width = [minimum](const char* label) {
+        return ImVec2(std::max(minimum, ImGui::CalcTextSize(label).x + 2 * ImGui::GetStyle().FramePadding.x), 0);
+    };
+    int result = 0;
+    if (dialogLayout::dangerButton(danger, width(danger))) result = 1;
+    ImGui::SameLine();
+    if (dialogLayout::secondaryButton("Cancel", width("Cancel")) || ImGui::IsKeyPressed(ImGuiKey_Escape)) result = 2;
+    if (primary) {
+        ImGui::SameLine();
+        if (dialogLayout::primaryButton(primary, width(primary))) result = 3;
+    }
+    return result;
+}
+
+void drawUnsavedChangesPrompts(GLFWwindow* window, std::vector<std::unique_ptr<StructureTab>>& tabs, int activeTabIdx,
+                               int& pendingTabSwitch, int& closePromptTab, bool& quitPrompt)
+{
+    // "file.cif \u2022 \u2014 AtomForge" (bullet: unsaved changes).
+    {
+        static std::string shownTitle;
+        const StructureTab& active = *tabs[activeTabIdx];
+        std::string title = "AtomForge";
+        if (active.state.hasContent())
+            title = std::string(active.title) + (active.state.isModified() ? " \xe2\x80\xa2" : "") + " \xe2\x80\x94 AtomForge";
+        if (title != shownTitle) {
+            glfwSetWindowTitle(window, title.c_str());
+            shownTitle = title;
+        }
+    }
+
+    // Save in the close prompt: close once saved; give up when the save
+    // dialog closes without saving.
+    for (auto& tab : tabs) {
+        if (tab->closeAfterSaveFrames <= 0) continue;
+        if (!tab->state.isModified()) { tab->pendingClose = true; tab->closeAfterSaveFrames = 0; }
+        else if (tab->state.fileBrowser.isAnyDialogOpen()) tab->closeAfterSaveFrames = 30;
+        else --tab->closeAfterSaveFrames;
+    }
+
+    if (uiScript::take("app.quit")) g_userCloseRequested = true;  // the UI tour's stand-in for the close button
+    if (g_userCloseRequested) {
+        g_userCloseRequested = false;
+        bool modified = false;
+        for (const auto& tab : tabs) modified |= tab->state.isModified();
+        if (modified) quitPrompt = true;
+        else glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
+
+    if (closePromptTab >= static_cast<int>(tabs.size())) closePromptTab = -1;
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings;
+    // Each prompt opens once per request; closed any other way, it is cancelled.
+    static bool closeShown = false, quitShown = false;
+    if (closePromptTab >= 0 && !closeShown) { ImGui::OpenPopup("Unsaved changes##close"); closeShown = true; }
+    if (!ImGui::IsPopupOpen("Unsaved changes##close") && closeShown) { closeShown = false; closePromptTab = -1; }
+    if (ImGui::BeginPopupModal("Unsaved changes##close", nullptr, flags)) {
+        if (closePromptTab < 0) ImGui::CloseCurrentPopup();
+        else {
+            StructureTab& tab = *tabs[closePromptTab];
+            ImGui::Text("Save the changes to %s before closing it?", tab.title);
+            ImGui::TextDisabled("Changes that are not saved are lost.");
+            ImGui::Spacing();
+            switch (unsavedPromptButtons("Don't save", "Save")) {
+            case 1: tab.pendingClose = true; closePromptTab = -1; ImGui::CloseCurrentPopup(); break;
+            case 2: closePromptTab = -1; ImGui::CloseCurrentPopup(); break;
+            case 3:
+                if (closePromptTab != activeTabIdx) pendingTabSwitch = closePromptTab;
+                tab.state.fileBrowser.saveFile();  // Save As when it has no file yet
+                tab.closeAfterSaveFrames = 30;
+                closePromptTab = -1;
+                ImGui::CloseCurrentPopup();
+                break;
+            default: break;
+            }
+        }
+        ImGui::EndPopup();
+    }
+
+    if (quitPrompt && !quitShown) { ImGui::OpenPopup("Unsaved changes##quit"); quitShown = true; }
+    if (!ImGui::IsPopupOpen("Unsaved changes##quit") && quitShown) { quitShown = false; quitPrompt = false; }
+    if (ImGui::BeginPopupModal("Unsaved changes##quit", nullptr, flags)) {
+        std::string names;
+        int count = 0;
+        for (const auto& tab : tabs)
+            if (tab->state.isModified()) { names += (count++ ? ", " : "") + std::string(tab->title); }
+        ImGui::Text("%s unsaved changes: %s", count == 1 ? "One structure has" : (std::to_string(count) + " structures have").c_str(), names.c_str());
+        ImGui::TextDisabled("Quit anyway and lose them, or cancel and save them first.");
+        ImGui::Spacing();
+        switch (unsavedPromptButtons("Quit without saving", nullptr)) {
+        case 1: quitPrompt = false; glfwSetWindowShouldClose(window, GLFW_TRUE); ImGui::CloseCurrentPopup(); break;
+        case 2: quitPrompt = false; ImGui::CloseCurrentPopup(); break;
+        default: break;
+        }
+        ImGui::EndPopup();
+    }
+}
+
 void setTabTitleFromPath(StructureTab& tab, const std::string& path)
 {
     if (path.empty()) { std::snprintf(tab.title, sizeof(tab.title), "Untitled"); return; }
+    tab.state.markSaved();
     const auto sep = path.find_last_of("/\\");
     const std::string fn = (sep == std::string::npos) ? path : path.substr(sep + 1);
     std::snprintf(tab.title, sizeof(tab.title), "%s", fn.c_str());
@@ -727,6 +837,10 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
 
     Camera camera;
     configureCameraCallbacks(window, camera);
+    glfwSetWindowCloseCallback(window, [](GLFWwindow* w) {
+        g_userCloseRequested = true;
+        glfwSetWindowShouldClose(w, GLFW_FALSE);
+    });
     updateSplashScreen(splash, 0.28f, "Initializing UI");
 
     initImGui(window);
@@ -746,6 +860,8 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
     tabs.push_back(std::make_unique<StructureTab>());
     int activeTabIdx     = 0;
     int pendingTabSwitch = -1;
+    int closePromptTab = -1;   // tab whose close waits for the unsaved-changes prompt
+    bool quitPrompt = false;   // the window close waits for it
 
     // Pending file drops (shared; routed to active tab each frame)
     std::vector<std::string> appPendingDrops;
@@ -1058,6 +1174,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         try {
             if (projectRequest.action==2) {
                 atomforge::saveWorkspace(captureProject(),projectRequest.path);
+                for (auto& tab:tabs) tab->state.markSaved();
                 state.fileBrowser.showNotification("Project saved: "+projectRequest.path);
             } else if (projectRequest.action==1 || projectRequest.action==3) {
                 const auto path=projectRequest.action==3 ? autosavePath : projectRequest.path;
@@ -1077,6 +1194,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                     std::snprintf(tab->title,sizeof(tab->title),"%s",item.title.empty() ? "Restored project" : item.title.c_str());
                     updateBuffers(tab->state); tab->state.pendingDefaultViewReset=false;
                     tab->state.undoRedo.reset(captureSnapshot(tab->state));
+                    tab->state.markSaved();
                     restored.push_back(std::move(tab));
                 }
                 saveCameraToTab(camera,*tabs[activeTabIdx]);
@@ -1163,6 +1281,8 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                     {
                         bool tabOpen = true;
                         ImGuiTabItemFlags itemFlags = 0;
+                        if (tabs[i]->state.isModified())
+                            itemFlags |= ImGuiTabItemFlags_UnsavedDocument;
                         if (pendingTabSwitch == i)
                         {
                             itemFlags |= ImGuiTabItemFlags_SetSelected;
@@ -1187,7 +1307,10 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                         }
 
                         if (!tabOpen)
-                            tabs[i]->pendingClose = true;
+                        {
+                            if (tabs[i]->state.isModified()) closePromptTab = i;
+                            else tabs[i]->pendingClose = true;
+                        }
                     }
 
                     ImGui::EndTabBar();
@@ -1197,6 +1320,9 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             ImGui::PopStyleVar(2);
             } // if (showTabBar)
         }
+
+        // Unsaved changes: the window title, the close-tab and quit prompts.
+        drawUnsavedChangesPrompts(window, tabs, activeTabIdx, pendingTabSwitch, closePromptTab, quitPrompt);
 
         // Remove closed tabs
         {
@@ -1232,7 +1358,14 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         mergeFileBrowserRequests(activeState, requests, imageExportRequest, hasImageExportRequest);
 
         // Close-structure: close tab if multiple, else clear structure
-        if (activeState.fileBrowser.consumeCloseStructureRequest())
+        // (unsaved changes are confirmed first).
+        bool closeStructure = activeState.fileBrowser.consumeCloseStructureRequest();
+        if (closeStructure && activeState.isModified())
+        {
+            closePromptTab = activeTabIdx;
+            closeStructure = false;
+        }
+        if (closeStructure)
         {
             if ((int)tabs.size() > 1)
             {

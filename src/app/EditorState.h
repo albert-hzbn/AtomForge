@@ -81,4 +81,9 @@ struct EditorState
     bool pendingCloudFit = false;
     bool hasCloud() const { return cloud && cloud->active(); }
     bool hasContent() const { return !structure.atoms.empty() || hasCloud(); }
+    // Unsaved edits: the history moved away from the state last loaded or
+    // saved (large datasets are view-only and never modified).
+    std::uint64_t savedRevision = 0;
+    bool isModified() const { return !structure.atoms.empty() && !hasCloud() && undoRedo.currentId() != savedRevision; }
+    void markSaved() { savedRevision = undoRedo.currentId(); }
 };

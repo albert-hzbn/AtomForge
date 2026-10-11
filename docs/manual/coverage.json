@@ -730,7 +730,7 @@
     },
     {
       "source": "src/app/EditorApplication.cpp",
-      "sha256": "fd4b4e2b427a2ee20c86c3d0c80c58804358e0d956b24b7dee523a2c026ab874",
+      "sha256": "51e7f53133e039f21087546c79ffffc72e4e06db762be49e90a0b052093ce578",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2937,7 +2937,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "9f9b9828d5c571253a91b9634110f82b0e971db5bd40372780b176e4adcbd23c",
+      "sha256": "3d3eb957a16d8e19a364fbde8edcb0fb58d57823efa34e18b166b48438b5006e",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5348,7 +5348,7 @@
     },
     {
       "source": "src/ui/UiTour.cpp",
-      "sha256": "47c9b772ffdce4423c949486ddb50b2c9e5996abc86681773c97dfc3bbd644a3",
+      "sha256": "17cca8b2ea106be518116196346b3e18c6b32c035c07f6abf9c6c6cd57949526",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

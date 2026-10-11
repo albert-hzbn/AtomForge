@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "model/Structure.h"
 
 #include <glm/glm.hpp>
@@ -65,6 +67,7 @@ public:
         m_history.clear();
         m_history.resize(1);
         m_history[0] = initialSnapshot;
+        m_ids.assign(1, ++m_nextId);
         m_index = 0;
     }
 
@@ -83,12 +86,17 @@ public:
         }
 
         if (m_index + 1 < m_history.size())
+        {
             m_history.erase(m_history.begin() + (std::ptrdiff_t)m_index + 1, m_history.end());
+            m_ids.erase(m_ids.begin() + (std::ptrdiff_t)m_index + 1, m_ids.end());
+        }
 
         m_history.push_back(snapshot);
+        m_ids.push_back(++m_nextId);
         if (m_history.size() > kMaxEntries)
         {
             m_history.erase(m_history.begin());
+            m_ids.erase(m_ids.begin());
         }
         else
         {
@@ -100,6 +108,9 @@ public:
     }
 
     bool canUndo() const { return !m_history.empty() && m_index > 0; }
+    // Identifies the current state: unchanged by undo/redo back to it, so a
+    // document is unmodified while this equals the id recorded when saved.
+    std::uint64_t currentId() const { return m_ids.empty() ? 0 : m_ids[std::min(m_index, m_ids.size() - 1)]; }
     bool canRedo() const { return !m_history.empty() && m_index + 1 < m_history.size(); }
 
     const EditorSnapshot& undo()
@@ -120,5 +131,7 @@ private:
     static const size_t kMaxEntries = 128;
 
     std::vector<EditorSnapshot> m_history;
+    std::vector<std::uint64_t> m_ids;  // one per history entry
+    std::uint64_t m_nextId = 0;
     size_t m_index = 0;
 };

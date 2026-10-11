@@ -4,6 +4,7 @@
 // the interface as a whole.
 #include "FileBrowser.h"
 #include "ImGuiSetup.h"
+#include "ui/UiScript.h"
 #include "ui/MenuParity.h"
 #include "science/ScienceCatalog.h"
 
@@ -134,6 +135,8 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         t.steps.push_back({"miller-directions", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showMillerDirectionsDialog = true; }});
         t.steps.push_back({"polyhedral-settings", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showPolyhedralSettingsDialog = true; }});
         t.steps.push_back({"about", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showAbout = true; }});
+        t.steps.push_back({"unsaved-close", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { closeStructure(); }});
+        t.steps.push_back({"unsaved-quit", [](Structure&, EditMenuDialogs&, const UiTour::Update&) { uiScript::request("app.quit"); }});
         t.steps.push_back({"shortcuts", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showShortcuts = true; }});
         t.steps.push_back({"notifications", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
             showNotification("Saved cu_host.cif (500 atoms).");
