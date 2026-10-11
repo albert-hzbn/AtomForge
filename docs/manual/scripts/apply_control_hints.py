@@ -1,8 +1,8 @@
 """Proposes (and with --apply, inserts) tooltips for dialog widgets from the
 manual's control reference (\\item[Label.] description).
 
-python manualhints.py            # print the proposed mapping
-python manualhints.py --apply    # wrap the widgets with dialogLayout::hinted
+python docs/manual/scripts/apply_control_hints.py            # print the proposed mapping
+python docs/manual/scripts/apply_control_hints.py --apply    # wrap the widgets with dialogLayout::hinted
 """
 import re
 import sys
