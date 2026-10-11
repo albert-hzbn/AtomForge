@@ -1163,7 +1163,6 @@ void NanoCrystalBuilderDialog::drawDialog(
     const float kColumnH = responsive::panelHeight(700);
     const float kTopPanelH = kColumnH * .52f;
     const float     kBottomPanelH   = kColumnH - kTopPanelH - ImGui::GetStyle().ItemSpacing.y;
-    const float kStructureViewH = std::max(responsive::dp(100), kTopPanelH - ImGui::GetFrameHeightWithSpacing() * 2);
     const float kWulffViewH = std::max(responsive::dp(80), kBottomPanelH - ImGui::GetFrameHeightWithSpacing() * 2);
 
     ImGui::BeginGroup();
@@ -1174,11 +1173,7 @@ void NanoCrystalBuilderDialog::drawDialog(
     ImGui::Text("Reference Structure");
     ImGui::Separator();
 
-    if (m_reference.atoms.empty())
-    {
-        ImGui::TextWrapped("Drop a supported structure file into this panel.");
-    }
-    else
+    if (!m_reference.atoms.empty())
     {
         if (m_browsStatusMsg[0] != '\0')
             ImGui::TextWrapped("%s", m_browsStatusMsg);
@@ -1200,7 +1195,9 @@ void NanoCrystalBuilderDialog::drawDialog(
     ImGui::Spacing();
 
     // Drag-and-drop target using InvisibleButton
-    const float dropH = kStructureViewH - ImGui::GetCursorPosY() + ImGui::GetStyle().WindowPadding.y + 6.0f;
+    // Leave room for the two lines under the preview (controls hint, cell).
+    const float dropH = kTopPanelH - ImGui::GetCursorPosY() - 2.0f * ImGui::GetTextLineHeightWithSpacing()
+                        - ImGui::GetStyle().WindowPadding.y - ImGui::GetStyle().ItemSpacing.y;
     ImGui::InvisibleButton("##nanoRefDropZone", ImVec2(-1.0f, dropH > 60.0f ? dropH : 60.0f));
 
     ImDrawList* dl = ImGui::GetWindowDrawList();

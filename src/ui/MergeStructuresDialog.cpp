@@ -981,8 +981,13 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
         }
         else
         {
+            // The placeholder sits centred in the empty preview area.
             ImGui::Dummy(ImVec2(pw, ph));
-            ImGui::TextDisabled("3D preview will appear after loading structures.");
+            const char* hint = "The 3D arrangement appears here once structures are added.";
+            const ImVec2 size = ImGui::CalcTextSize(hint);
+            const ImVec2 min = ImGui::GetItemRectMin(), max = ImGui::GetItemRectMax();
+            ImGui::GetWindowDrawList()->AddText(ImVec2((min.x + max.x - size.x) * 0.5f, (min.y + max.y - size.y) * 0.5f),
+                                                ImGui::GetColorU32(ImGuiCol_TextDisabled), hint);
         }
 
         // ---- Below-preview controls ----
