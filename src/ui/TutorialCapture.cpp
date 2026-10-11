@@ -5,7 +5,6 @@
 // it to settle, saves a full-window JPEG and records the rectangle of the
 // window it shows; FOLDER/bounds-*.json then hold every image's crop bounds
 // (docs/manual/scripts/update_tutorial_captures.py applies them).
-// The mouse cursor is moved while it runs (for the atom context menu).
 #include "FileBrowser.h"
 #include "ImGuiSetup.h"
 #include "ui/UiScript.h"
@@ -239,13 +238,7 @@ void FileBrowser::runTutorialCapture(Structure& current, EditMenuDialogs& dialog
         s.push_back(Shot{"tutorials/structure-info.jpg", {{0, main(alloy)}, {4, [this](Context&) { requestStructureInfo = true; }}}, 30, popups});
         s.push_back(Shot{"tutorials/atom-info.jpg", {{0, main(host)}, {4, selectCentral},
                                                     {8, [this](Context&) { requestAtomInfo = true; }}}, 20, topPopup});
-        s.push_back(Shot{"tutorials/atom-context.jpg", {{0, selectCentral},
-                                                       {6, [](Context&) {
-                                                           const ImVec2 at(ImGui::GetIO().DisplaySize.x * 0.55f, ImGui::GetIO().DisplaySize.y * 0.62f);
-                                                           glfwSetCursorPos(glfwGetCurrentContext(), at.x, at.y);
-                                                           ImGui::GetIO().AddMousePosEvent(at.x, at.y);
-                                                       }},
-                                                       {8, script("atom.context")}}, 14, topPopup});
+        s.push_back(Shot{"tutorials/atom-context.jpg", {{0, selectCentral}, {8, script("atom.context")}}, 14, topPopup});
         s.push_back(Shot{"tutorials/rdf-analysis.jpg", {{0, main(alloy)}, {2, [this](Context&) { rdfDialog.open(); }}, {6, script("rdf.run")}}, 180, popups});
         s.push_back(Shot{"tutorials/sro-warren.jpg", {{0, [this](Context&) { shortRangeOrderDialog.openRequested = true; }}, {6, script("sro.run")}}, 240, popups});
         s.push_back(Shot{"tutorials/sro-rao.jpg", {{0, [this](Context&) { shortRangeOrderDialog.openRequested = true; }}, {6, script("sro.rao")}}, 20, popups});

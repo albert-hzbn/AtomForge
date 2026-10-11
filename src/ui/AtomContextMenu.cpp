@@ -203,6 +203,15 @@ void AtomContextMenu::draw(Structure& structure,
 
     if (m_openRequested)
     {
+        // At the mouse; at the centre of the view when the mouse position is
+        // unknown (outside the window), instead of the top-left corner.
+        if (m_openAt[0] >= 0.0f) {
+            ImGui::SetNextWindowPos(ImVec2(m_openAt[0], m_openAt[1]), ImGuiCond_Always);
+            m_openAt[0] = m_openAt[1] = -1.0f;
+        } else if (!ImGui::IsMousePosValid()) {
+            const ImVec2 size = ImGui::GetIO().DisplaySize;
+            ImGui::SetNextWindowPos(ImVec2(size.x * 0.5f, size.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        }
         ImGui::OpenPopup("##atomCtx");
         m_openRequested = false;
     }

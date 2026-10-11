@@ -5,6 +5,8 @@
 #include "ElementData.h"
 #include "math/StructureMath.h"
 #include "ui/ThemeUtils.h"
+#include "ui/Fonts.h"
+#include "ui/DialogLayout.h"
 #include "imgui.h"
 
 #include <algorithm>
@@ -12,6 +14,8 @@
 #include <cmath>
 #include <cstring>
 #include <cstdio>
+#include <string>
+#include <cfloat>
 #include <limits>
 
 namespace
@@ -351,6 +355,7 @@ void processMeasurementRequests(MeasurementOverlayState& state,
 
     if (requestMeasureDistance)
     {
+        state.distanceValue[0] = '\0';
         if (selectedInstanceIndices.size() != 2)
         {
             std::snprintf(state.distanceMessage, sizeof(state.distanceMessage),
@@ -382,7 +387,8 @@ void processMeasurementRequests(MeasurementOverlayState& state,
                 const char* symB = (baseB >= 0 && baseB < (int)structure.atoms.size()) ? structure.atoms[baseB].symbol.c_str() : "B";
 
                 std::snprintf(state.distanceMessage, sizeof(state.distanceMessage),
-                              "Distance %s-%s: %.4f", symA, symB, distance);
+                              "%s #%d  to  %s #%d", symA, baseA, symB, baseB);
+                std::snprintf(state.distanceValue, sizeof(state.distanceValue), "%.4f \xc3\x85", distance);
                 state.showDistanceLine = true;
                 state.distanceLineIdx0 = idxA;
                 state.distanceLineIdx1 = idxB;
@@ -393,6 +399,7 @@ void processMeasurementRequests(MeasurementOverlayState& state,
 
     if (requestMeasureAngle)
     {
+        state.angleValue[0] = '\0';
         if (selectedInstanceIndices.size() != 3)
         {
             std::snprintf(state.angleMessage, sizeof(state.angleMessage),
@@ -433,7 +440,8 @@ void processMeasurementRequests(MeasurementOverlayState& state,
                 const char* s2 = (b2 >= 0 && b2 < (int)structure.atoms.size()) ? structure.atoms[b2].symbol.c_str() : "C";
 
                 std::snprintf(state.angleMessage, sizeof(state.angleMessage),
-                              "Angle %s-%s-%s: %.2f deg", s0, s1, s2, angleDeg);
+                              "%s #%d, %s #%d (vertex), %s #%d", s0, b0, s1, b1, s2, b2);
+                std::snprintf(state.angleValue, sizeof(state.angleValue), "%.2f\xc2\xb0", angleDeg);
                 state.showAngleLines = true;
                 state.angleLineIdx0 = idx0;
                 state.angleLineIdx1 = idx1;
@@ -477,7 +485,7 @@ void processMeasurementRequests(MeasurementOverlayState& state,
                 }
 
                 len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
-                                     "Cartesian:  (%.6f, %.6f, %.6f) A\n",
+                                     "Cartesian:  (%.6f, %.6f, %.6f) \xc3\x85\n",
                                      pos.x, pos.y, pos.z);
 
                 if (structure.hasUnitCell)
@@ -505,13 +513,13 @@ void processMeasurementRequests(MeasurementOverlayState& state,
                 if (stats.coordinationNumber > 0)
                 {
                     len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
-                                         "Avg bond length:  %.4f A\n",
+                                         "Avg bond length:  %.4f \xc3\x85\n",
                                          stats.averageDistance);
                     len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
-                                         "Min bond length:  %.4f A\n",
+                                         "Min bond length:  %.4f \xc3\x85\n",
                                          stats.minDistance);
                     len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
-                                         "Max bond length:  %.4f A",
+                                         "Max bond length:  %.4f \xc3\x85",
                                          stats.maxDistance);
                 }
                 else
@@ -529,61 +537,69 @@ void processMeasurementRequests(MeasurementOverlayState& state,
     }
 }
 
+namespace
+{
+// A measurement result beside the view (not modal, so the measured atoms stay
+// in sight): the value large, the atoms below, Copy and Close.
+// Cards stack downwards from `top` at the right edge; returns the next top.
+float drawResultCard(const char* title, const char* id, bool& open, bool& showLines, const char* value, const char* detail, float top)
+{
+    if (!open) return top;
+    const ImGuiIO& io = ImGui::GetIO();
+    const float margin = responsive::dp(16.0f);
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - margin, top), ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+    ImGui::SetNextWindowSizeConstraints(ImVec2(responsive::dp(280.0f), 0), ImVec2(responsive::dp(420.0f), FLT_MAX));
+    std::string name = std::string(title) + "###" + id;
+    if (ImGui::Begin(name.c_str(), &open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings)) {
+        if (value[0]) {
+            uiFonts::pushHeading(1.5f);
+            ImGui::TextUnformatted(value);
+            uiFonts::popHeading();
+            ImGui::TextDisabled("%s", detail);
+        } else {
+            dialogLayout::note(dialogLayout::Note::Warning, detail);
+        }
+        const int pressed = dialogLayout::footer("Close", value[0] ? "Copy" : nullptr);
+        if (pressed == 2) {
+            // The number alone, for pasting into a spreadsheet or report.
+            const std::string copied = value;
+            ImGui::SetClipboardText(copied.substr(0, copied.find(' ')).c_str());
+        }
+        if (pressed == 1 || (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) && ImGui::IsKeyPressed(ImGuiKey_Escape, false)))
+            open = false;
+    }
+    const float bottom = ImGui::GetWindowPos().y + ImGui::GetWindowSize().y;
+    ImGui::End();
+    if (!open) showLines = false;
+    return bottom + margin * 0.5f;
+}
+}
+
 void drawMeasurementPopups(MeasurementOverlayState& state)
 {
-    if (state.showAnglePopup)
-    {
-        ImGui::OpenPopup("Measure Angle");
-        state.showAnglePopup = false;
-    }
-
-    responsive::windowSize(ImVec2(540.0f, 0.0f), ImGuiCond_Appearing);
-    bool measureAngleOpen = true;
-    if (responsive::beginModal("Measure Angle", &measureAngleOpen))
-    {
-        ImGui::TextWrapped("%s", state.angleMessage);
-        ImGui::EndPopup();
-    }
-    if (!measureAngleOpen)
-    {
-        state.showAngleLines = false;
-        ImGui::CloseCurrentPopup();
-    }
-
-    if (state.showDistancePopup)
-    {
-        ImGui::OpenPopup("Measure Distance");
-        state.showDistancePopup = false;
-    }
-
-    responsive::windowSize(ImVec2(540.0f, 0.0f), ImGuiCond_Appearing);
-    bool measureDistanceOpen = true;
-    if (responsive::beginModal("Measure Distance", &measureDistanceOpen))
-    {
-        ImGui::TextWrapped("%s", state.distanceMessage);
-        ImGui::EndPopup();
-    }
-    if (!measureDistanceOpen)
-    {
-        state.showDistanceLine = false;
-        ImGui::CloseCurrentPopup();
-    }
+    if (state.showDistancePopup) { state.distanceCardOpen = true; state.showDistancePopup = false; }
+    if (state.showAnglePopup) { state.angleCardOpen = true; state.showAnglePopup = false; }
+    float top = ImGui::GetFrameHeight() * 4.5f + responsive::dp(16.0f);
+    top = drawResultCard("Distance", "measureDistance", state.distanceCardOpen, state.showDistanceLine, state.distanceValue, state.distanceMessage, top);
+    drawResultCard("Angle", "measureAngle", state.angleCardOpen, state.showAngleLines, state.angleValue, state.angleMessage, top);
 
     if (state.showAtomInfoPopup)
     {
         ImGui::OpenPopup("Atom Info");
         state.showAtomInfoPopup = false;
     }
-
-    responsive::windowSize(ImVec2(480.0f, 0.0f), ImGuiCond_Appearing);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(responsive::dp(360.0f), 0), ImVec2(responsive::dp(520.0f), FLT_MAX));
     bool atomInfoOpen = true;
-    if (responsive::beginModal("Atom Info", &atomInfoOpen))
+    if (responsive::beginModal("Atom Info", &atomInfoOpen, ImGuiWindowFlags_AlwaysAutoResize))
     {
-        ImGui::TextWrapped("%s", state.atomInfoMessage);
+        ImGui::TextUnformatted(state.atomInfoMessage);
+        switch (dialogLayout::footer("Close", "Copy")) {
+        case 1: ImGui::CloseCurrentPopup(); break;
+        case 2: ImGui::SetClipboardText(state.atomInfoMessage); break;
+        default: break;
+        }
         ImGui::EndPopup();
     }
-    if (!atomInfoOpen)
-        ImGui::CloseCurrentPopup();
 }
 
 void drawMeasurementOverlays(const MeasurementOverlayState& state,

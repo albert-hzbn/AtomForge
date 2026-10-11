@@ -13,13 +13,15 @@ struct ImDrawList;
 struct MeasurementOverlayState
 {
     bool showDistancePopup = false;
-    char distanceMessage[256] = {0};
+    char distanceMessage[256] = {0};  // the atoms measured, or why it failed
+    char distanceValue[64] = {0};     // "2.5456 \xc3\x85" ("" when it failed)
     bool showDistanceLine = false;
     int distanceLineIdx0 = -1;
     int distanceLineIdx1 = -1;
 
     bool showAnglePopup = false;
     char angleMessage[256] = {0};
+    char angleValue[64] = {0};
     bool showAngleLines = false;
     int angleLineIdx0 = -1; // first atom
     int angleLineIdx1 = -1; // vertex atom
@@ -28,6 +30,7 @@ struct MeasurementOverlayState
     bool showAtomInfoPopup = false;
     char atomInfoMessage[512] = {0};
 
+    bool distanceCardOpen = false, angleCardOpen = false;  // the result cards
     void clearVisuals();
 };
 

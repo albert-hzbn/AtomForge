@@ -730,7 +730,7 @@
     },
     {
       "source": "src/app/EditorApplication.cpp",
-      "sha256": "65d7970858f43b6698d2e74c3c468a64f92b17901dfccd1a8a6d6ad3dc244350",
+      "sha256": "099010d97b52c81babf66105947ba609b1583189a80fe344069e6d11395eb17f",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -1511,7 +1511,7 @@
     },
     {
       "source": "src/ui/AtomContextMenu.cpp",
-      "sha256": "621b6d02742db072a7161af4485eed56ad481a3b49e94a3d5045061cc6f03b7b",
+      "sha256": "3213468929ca65065f57bbd66ac9b7f7129393e81ab44f630a1c35295ca5414a",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -1519,38 +1519,38 @@
       ],
       "literal_controls": [
         {
-          "line": 212,
+          "line": 221,
           "declaration_label": "Substitute Atom"
         },
         {
-          "line": 220,
+          "line": 229,
           "declaration_label": "Insert Atom at Midpoint"
         },
         {
-          "line": 229,
+          "line": 238,
           "declaration_label": "Measure Distance"
         },
         {
-          "line": 235,
+          "line": 244,
           "declaration_label": "Measure Angle"
         },
         {
-          "line": 241,
+          "line": 250,
           "declaration_label": "Atom Info"
         },
         {
-          "line": 245,
+          "line": 254,
           "declaration_label": "Delete"
         },
         {
-          "line": 248,
+          "line": 257,
           "declaration_label": "Deselect"
         }
       ]
     },
     {
       "source": "src/ui/AtomContextMenu.h",
-      "sha256": "0bf3ca51b37496baa95a971af2167d141e9794d7963dd5abfa6aadfeff458a9c",
+      "sha256": "635d2f19f732003bae7229665b2e965a92c660df6ace1d156ddd2de11aa29bd1",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -1848,7 +1848,7 @@
     },
     {
       "source": "src/ui/CommonNeighbourAnalysis.cpp",
-      "sha256": "41a7e9a36a62026685a0e876d1db1e41be17f326eeb741366c30027b7089c5d9",
+      "sha256": "72022362fe8eddb440daa56642357cab1b135898a47421b7db5ad70a8369ee4d",
       "documentation": [
         "11-coverage.tex"
       ],
@@ -3931,7 +3931,7 @@
     },
     {
       "source": "src/ui/MeasurementOverlay.cpp",
-      "sha256": "68ed22b703796ec354214ca061c9d15bb7f11ddee2cf1a911fb67fbee52016f9",
+      "sha256": "06ed590441ff5576af73f19f68d6f2fc9142ddcc5e0652340e7b1524583d8f1c",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3942,7 +3942,7 @@
     },
     {
       "source": "src/ui/MeasurementOverlay.h",
-      "sha256": "74b793ac21daa1304de666608ab18a2fa39a32935dd975dacc584ef30c58be29",
+      "sha256": "0863fd4be7b9151b485ca1c1d87b83a6f7ba2cac3df85c83ac16b04c8c04db33",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4673,7 +4673,7 @@
     },
     {
       "source": "src/ui/RadialDistributionAnalysis.cpp",
-      "sha256": "c95a820ad3b0bdf30012e5471c4f7369e469edca248a4b0bf8d5d2a735cccade",
+      "sha256": "1ce24fa8b408ba446d8c10133114800653e6c181a3697b7ed160ab7740291e01",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5346,7 +5346,7 @@
     },
     {
       "source": "src/ui/TutorialCapture.cpp",
-      "sha256": "226c165f12695476e2905f86c66edfd3b6fe49f6174d6a6d5a36f92538aa9d7e",
+      "sha256": "d6f7fece5f4065f8e91bcf6d264c7974524887ab0ca79610161fec6b5021f638",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5368,7 +5368,7 @@
     },
     {
       "source": "src/ui/UiTour.cpp",
-      "sha256": "6887360fd825d1bbbc309a9fe9e96e591aa6b78586cece50c8afa22ef1ea0e87",
+      "sha256": "6a0e043f63c2e51884e5b555b837a6e95570405c2fe01ab352dddea768d4a693",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

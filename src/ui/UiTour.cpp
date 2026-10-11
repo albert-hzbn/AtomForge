@@ -143,6 +143,16 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
             for (int i = 0; i <= 20; ++i) requestedSelection.push_back(i);
             selectionRequested = true;
         }});
+        t.steps.push_back({"measure-distance", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            requestedSelection = {100, 101};
+            selectionRequested = true;
+            requestMeasureDistance = true;
+        }});
+        t.steps.push_back({"measure-angle", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            requestedSelection = {100, 101, 102};
+            selectionRequested = true;
+            requestMeasureAngle = true;
+        }});
         t.steps.push_back({"command-palette", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showCommandPalette = true; }});
         t.steps.push_back({"command-palette-search", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
             showCommandPalette = true;

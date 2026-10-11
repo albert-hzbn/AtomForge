@@ -30,6 +30,8 @@ struct AtomContextMenu
 {
     // Signal that the menu should open on the next draw() call.
     void open();
+    // Opens it at a given screen position instead of the mouse.
+    void openAt(float x, float y) { m_openRequested = true; m_openAt[0] = x; m_openAt[1] = y; }
 
     // Directly open the periodic table for atom substitution (S shortcut).
     void openSubstitute();
@@ -49,6 +51,7 @@ struct AtomContextMenu
 
 private:
     bool           m_openRequested = false;
+    float          m_openAt[2] = {-1.0f, -1.0f};  // < 0: at the mouse
     bool           m_ownsPeriodicPopup = false;
     PeriodicAction m_pendingAction = PeriodicAction::None;
 };

@@ -1,6 +1,6 @@
 {
   "capture_date": "2026-10-12",
-  "application_source_baseline": "411b1db",
+  "application_source_baseline": "a325f99",
   "notes": "Real AtomForge screenshots and native shape examples. Captions distinguish input previews and completed results; paired scientific 3D/projection plots have been removed.",
   "required_tutorials": [
     "build-menu",
@@ -733,10 +733,10 @@
             {
               "file": "tutorials/atom-context.jpg",
               "bounds": [
-                0,
-                0,
-                212,
-                210
+                1318,
+                619,
+                1535,
+                833
               ],
               "caption": "Context menu for one selected atom. Midpoint, distance, and angle require larger selections and are disabled here."
             }
@@ -757,10 +757,10 @@
             {
               "file": "tutorials/atom-info.jpg",
               "bounds": [
-                714,
-                472,
-                1206,
-                686
+                1018,
+                384,
+                1390,
+                655
               ],
               "caption": "Atom Info on the ideal copper host: coordination 12 and nearest-neighbour length about 2.5527 Angstrom."
             }
@@ -1390,10 +1390,10 @@
             {
               "file": "tutorials/structure-info.jpg",
               "bounds": [
-                464,
-                223,
-                1456,
-                935
+                708,
+                163,
+                1700,
+                875
               ],
               "caption": "Structure Info for the supplied 70:30 Cu--Ni alloy, showing 500 atoms and a cubic 18.05 Angstrom cell."
             }
