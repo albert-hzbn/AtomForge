@@ -150,6 +150,7 @@ ScientificToolsDialog::Field::Field()
 void ScientificToolsDialog::selectTool(int index)
 {
     m_tool = index;
+    m_activeDefaultsPending = true;
     m_fields.clear();
     for (const auto& parameter : scienceToolCatalog()[static_cast<std::size_t>(index)].parameters) {
         Field field;
@@ -601,6 +602,7 @@ void ScientificToolsDialog::useActiveStructure(std::size_t index, const Structur
     const auto& tool = currentTool();
     auto& field = m_fields[index];
     field.path = saveActiveStructure(structure);
+    field.activeLabel = "Active structure (" + std::to_string(structure.atoms.size()) + " atoms)";
     field.useFile = true;
     field.enabled = true;
     field.field[0] = '\0';
@@ -700,6 +702,18 @@ void ScientificToolsDialog::startCalculation(const Structure& structure)
 void ScientificToolsDialog::draw(const Structure& structure, const std::function<void(Structure&)>& loadResult,
                                  const ColourAtoms& colourAtoms)
 {
+    // A tool just opened takes the active structure for its structure
+    // inputs that have no file yet (once; the user can still pick a file).
+    if (m_activeDefaultsPending && m_open && m_tool >= 0 && !structure.atoms.empty()) {
+        m_activeDefaultsPending = false;
+        if (!m_step.active()) {
+            const auto& parameters = currentTool().parameters;
+            for (std::size_t i = 0; i < parameters.size() && i < m_fields.size(); ++i)
+                if (std::string(parameters[i].kind) == "structure" && m_fields[i].useFile && m_fields[i].path.empty()) {
+                    try { useActiveStructure(i, structure); } catch (const std::exception&) {}
+                }
+        }
+    }
     if (m_task.poll()) {
         m_error = m_task.error();
         if (m_task.result()) {
@@ -764,7 +778,7 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
                 else if (m_pickerTarget <= -100 && static_cast<std::size_t>(-100 - m_pickerTarget) < m_fields.size())
                     m_fields[static_cast<std::size_t>(-100 - m_pickerTarget)].potentialFile = *path;
                 else if (m_pickerTarget >= 0 && static_cast<std::size_t>(m_pickerTarget) < m_fields.size()) {
-                    auto& field = m_fields[static_cast<std::size_t>(m_pickerTarget)]; field.path = *path; field.useFile = true;
+                    auto& field = m_fields[static_cast<std::size_t>(m_pickerTarget)]; field.path = *path; field.activeLabel.clear(); field.useFile = true;
                 }
             } catch (const std::exception& error) { m_error = error.what(); }
         }

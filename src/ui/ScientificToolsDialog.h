@@ -62,6 +62,7 @@ private:
         std::array<char, 8192> value{};
         bool enabled = true;
         std::string path;
+        std::string activeLabel;  // shown instead of `path` when it holds the active structure
         bool useFile = false;
         bool selectColumn = false;
         int column = 0;
@@ -128,6 +129,7 @@ private:
     bool m_overlay = true;
     int m_file = 0;
     bool m_useActive = true;
+    bool m_activeDefaultsPending = false;  // apply the active structure to the inputs on the next draw
     bool m_autoColour = true;
     std::string m_trajectory;
     std::vector<Field> m_fields;

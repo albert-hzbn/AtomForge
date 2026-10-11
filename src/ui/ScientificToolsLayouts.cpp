@@ -101,7 +101,8 @@ void ScientificToolsDialog::drawField(std::size_t i, const Structure& structure)
             if (field.useFile) {
                 if (ImGui::GetContentRegionAvail().x > responsive::dp(320)) ImGui::SameLine();
                 if (responsive::button("Browse")) { m_pickerTarget = static_cast<int>(i); m_picker.open(parameter.label, false, field.path); }
-                ImGui::TextWrapped("%s", field.path.empty() ? "Choose a file" : field.path.c_str());
+                if (!field.activeLabel.empty()) ImGui::TextColored(dialogLayout::accent(), "%s", field.activeLabel.c_str());
+                else ImGui::TextWrapped("%s", field.path.empty() ? "Choose a file" : field.path.c_str());
                 if (kind == "data" && ImGui::TreeNode("File options")) {
                     ImGui::SetNextItemWidth(-1);
                     ImGui::InputTextWithHint("##field", "JSON field, e.g. result.msd_A2 (optional)", field.field.data(), field.field.size());

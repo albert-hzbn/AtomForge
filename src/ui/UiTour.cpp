@@ -125,6 +125,10 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
             scientificToolsDialog.open("structure-type");
             uiScript::request("science.run");
         }});
+        t.steps.push_back({"science-plot-result", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            scientificToolsDialog.open("powder-xrd");
+            uiScript::request("science.run");
+        }});
         t.steps.push_back({"science-plot", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { scientificToolsDialog.open("powder-xrd"); }});
         t.steps.push_back({"science-simulation", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { scientificToolsDialog.open("relax"); }});
         t.steps.push_back({"analysis-cna", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { cnaDialog.open(); }});

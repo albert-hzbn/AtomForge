@@ -2953,7 +2953,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "b81a5f3b9cf75802292dd7e8b24c623ee43e62ae69a7f5d26c124d8f798aba12",
+      "sha256": "4ea88d90c7923f646c09942907ce58eecadab7093ee280e2bc64ecc73ae50035",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3462,27 +3462,27 @@
           "declaration_label": "Color"
         },
         {
-          "line": 2250,
+          "line": 2252,
           "declaration_label": "Automatic colour range"
         },
         {
-          "line": 2253,
+          "line": 2255,
           "declaration_label": "Minimum"
         },
         {
-          "line": 2254,
+          "line": 2256,
           "declaration_label": "Maximum"
         },
         {
-          "line": 2256,
+          "line": 2258,
           "declaration_label": "Hide atoms outside the range"
         },
         {
-          "line": 2257,
+          "line": 2259,
           "declaration_label": "Hide atoms without a value"
         },
         {
-          "line": 2258,
+          "line": 2260,
           "declaration_label": "Show element colours"
         }
       ]
@@ -3935,7 +3935,7 @@
     },
     {
       "source": "src/ui/MeasurementOverlay.cpp",
-      "sha256": "70ff144776c2dab36fa1e5fa0229e274b6f9cc149011abbb4295500181bb33ec",
+      "sha256": "77a3fd893e9fdd2b2864f5554484cdc338673fe8139725679c9b029f2ca83eee",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4782,7 +4782,7 @@
     },
     {
       "source": "src/ui/SciencePlot.h",
-      "sha256": "cd26dba0d1f57e1b60744fbf95bd3bdaeb13b1c84aff2de8bf2a67a75820a80e",
+      "sha256": "36d784a4fc0884323ab9d30b89ffd82d7a5db23f4e6c92702f23f18ff773cbff",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4793,21 +4793,21 @@
     },
     {
       "source": "src/ui/ScientificToolsDialog.cpp",
-      "sha256": "7bffa6c2e943202ea0d371ae16aea0a53b78d9ec6092aa48f75ec9f1e11b0d1e",
+      "sha256": "8946b0af532e7aeb138bba6a4fb63d43c88f1010f62b60e76f60f47d34b83279",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": [
         {
-          "line": 738,
+          "line": 752,
           "declaration_label": "Cell to keep"
         }
       ]
     },
     {
       "source": "src/ui/ScientificToolsDialog.h",
-      "sha256": "64da848fd2793079bd56c19ac43c1fc67f0034a26a0ecffe72d2e826f72d0577",
+      "sha256": "b710a0ef80a51ebf6e4abb5ae454af78c302ac4062a2a82c3642fe77a86bae69",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -4816,174 +4816,174 @@
     },
     {
       "source": "src/ui/ScientificToolsLayouts.cpp",
-      "sha256": "4caf4de07fc6189b96b7ee8992e605b3ced6293d8c89f3c3110e983dc3188c4e",
+      "sha256": "441fcd5c8c4c9956d46496a85a6896cfb008cdf78fadb1144645fff7fab96e59",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": [
         {
-          "line": 74,
+          "line": 75,
           "declaration_label": "##components"
         },
         {
-          "line": 88,
+          "line": 89,
           "declaration_label": "##window"
         },
         {
-          "line": 92,
+          "line": 93,
           "declaration_label": "##number"
         },
         {
-          "line": 98,
+          "line": 99,
           "declaration_label": "##source"
         },
         {
-          "line": 102,
+          "line": 103,
           "declaration_label": "Browse"
         },
         {
-          "line": 106,
+          "line": 108,
           "declaration_label": "##field"
         },
         {
-          "line": 107,
+          "line": 109,
           "declaration_label": "Select numeric column"
         },
         {
-          "line": 108,
+          "line": 110,
           "declaration_label": "##column"
         },
         {
-          "line": 114,
+          "line": 116,
           "declaration_label": "Use active cell"
         },
         {
-          "line": 118,
+          "line": 120,
           "declaration_label": "Use active structure"
         },
         {
-          "line": 123,
+          "line": 125,
           "declaration_label": "Use loaded trajectory"
         },
         {
-          "line": 134,
+          "line": 136,
           "declaration_label": "##potential"
         },
         {
-          "line": 139,
+          "line": 141,
           "declaration_label": "Browse parameter file"
         },
         {
-          "line": 142,
+          "line": 144,
           "declaration_label": "Use built-in Si"
         },
         {
-          "line": 150,
+          "line": 152,
           "declaration_label": "##buckingham"
         },
         {
-          "line": 153,
+          "line": 155,
           "declaration_label": "Browse potential"
         },
         {
-          "line": 156,
+          "line": 158,
           "declaration_label": "Table format"
         },
         {
-          "line": 162,
+          "line": 164,
           "declaration_label": "Well depth epsilon (eV)"
         },
         {
-          "line": 163,
+          "line": 165,
           "declaration_label": "Zero-crossing sigma (Angstrom)"
         },
         {
-          "line": 164,
+          "line": 166,
           "declaration_label": "Cutoff (Angstrom)"
         },
         {
-          "line": 169,
+          "line": 171,
           "declaration_label": "##value"
         },
         {
-          "line": 226,
+          "line": 228,
           "declaration_label": "Cancel"
         },
         {
-          "line": 296,
+          "line": 299,
           "declaration_label": "Colour atoms in the view"
         },
         {
-          "line": 312,
+          "line": 315,
           "declaration_label": "Export plot data"
         },
         {
-          "line": 360,
+          "line": 363,
           "declaration_label": "Clear kept runs"
         },
         {
-          "line": 366,
+          "line": 369,
           "declaration_label": "Keep for comparison"
         },
         {
-          "line": 369,
+          "line": 372,
           "declaration_label": "Save results"
         },
         {
-          "line": 372,
+          "line": 375,
           "declaration_label": "Save structures"
         },
         {
-          "line": 374,
+          "line": 377,
           "declaration_label": "Open final structure in a new tab"
         },
         {
-          "line": 386,
+          "line": 389,
           "declaration_label": "Full report"
         },
         {
-          "line": 401,
+          "line": 404,
           "declaration_label": "Analyse the active structure"
         },
         {
-          "line": 410,
+          "line": 413,
           "declaration_label": "More options"
         },
         {
-          "line": 421,
+          "line": 424,
           "declaration_label": "Colour automatically after each analysis"
         },
         {
-          "line": 423,
+          "line": 426,
           "declaration_label": "Plots"
         },
         {
-          "line": 439,
+          "line": 442,
           "declaration_label": "Optional inputs"
         },
         {
-          "line": 534,
+          "line": 537,
           "declaration_label": "Plots"
         },
         {
-          "line": 617,
+          "line": 620,
           "declaration_label": "##preview"
         },
         {
-          "line": 618,
+          "line": 621,
           "declaration_label": "Save this file"
         },
         {
-          "line": 620,
+          "line": 623,
           "declaration_label": "Save all files"
         },
         {
-          "line": 622,
+          "line": 625,
           "declaration_label": "Copy to clipboard"
         },
         {
-          "line": 624,
+          "line": 627,
           "declaration_label": "Save results"
         }
       ]
@@ -5376,7 +5376,7 @@
     },
     {
       "source": "src/ui/UiTour.cpp",
-      "sha256": "c5253fe914f954fbb4516f5ade1876bc47a8c0b9b5809d3e015d7cb9c2da0eb0",
+      "sha256": "48b94afbd7e29286c829cd6aff75e81ef5a8be4b624648e870d337032229e0e2",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
