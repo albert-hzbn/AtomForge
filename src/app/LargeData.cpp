@@ -3,6 +3,9 @@
 
 #include "Camera.h"
 #include "graphics/CloudRenderer.h"
+#include "ui/ThemeUtils.h"
+#include "ui/ResponsiveLayout.h"
+#include "ui/DialogLayout.h"
 #include "third_party/stb_image_write.h"
 
 #include "imgui.h"
@@ -198,34 +201,46 @@ void drawCloudPanel(CloudRenderer& cloudRenderer, float frameMilliseconds)
     const auto& stats = cloudRenderer.stats();
     const auto& info = cloudRenderer.info();
     ImGui::SetNextWindowPos(ImVec2(12, ImGui::GetIO().DisplaySize.y - ImGui::GetFrameHeight() - 20), ImGuiCond_FirstUseEver, ImVec2(0, 1));
-    ImGui::SetNextWindowSize(ImVec2(400, 0), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(responsive::dp(430), 0), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Large dataset", nullptr, ImGuiWindowFlags_NoCollapse)) {
         ImGui::TextUnformatted(cloudRenderer.path().filename().u8string().c_str());
         if (!info.source.empty()) ImGui::TextDisabled("%s", info.source.c_str());
         ImGui::Text("%s atoms in %zu chunks", count(stats.totalAtoms).c_str(), stats.chunks);
-        ImGui::Text("Drawn: %s atoms, %zu chunks visible, %zu hidden", count(stats.drawnAtoms).c_str(), stats.visibleChunks, stats.occludedChunks);
-        ImGui::Text("GPU: %.1f ms (frame %.1f ms), %.0f MB resident", stats.gpuMilliseconds, frameMilliseconds, stats.residentMB);
-        if (!stats.complete) ImGui::TextColored(ImVec4(0.95f, 0.75f, 0.3f, 1), "Streaming (%zu loads pending)", stats.loadingChunks);
-        else ImGui::TextColored(ImVec4(0.45f, 0.8f, 0.45f, 1), "Up to date");
-        ImGui::Separator();
+        ImGui::TextDisabled("Drawn: %s atoms, %zu chunks visible, %zu hidden", count(stats.drawnAtoms).c_str(), stats.visibleChunks, stats.occludedChunks);
+        ImGui::TextDisabled("GPU %.1f ms (frame %.1f ms), %.0f MB resident", stats.gpuMilliseconds, frameMilliseconds, stats.residentMB);
+        if (!stats.complete) ImGui::TextColored(themeStatusWarn(), "Streaming (%zu loads pending)", stats.loadingChunks);
+        else ImGui::TextColored(themeStatusGood(), "Up to date");
+
+        dialogLayout::section("Rendering");
+        // Sliders take half the width, so their labels fit beside them.
+        ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.5f);
         auto& s = cloudRenderer.settings;
         float budget = static_cast<float>(s.pointBudget / 1e6);
         if (ImGui::SliderFloat("Atoms per frame (M)", &budget, 1.0f, 500.0f, "%.0f", ImGuiSliderFlags_Logarithmic)) s.pointBudget = budget * 1e6;
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The most atoms drawn in one frame; lower it for a faster view.");
+        dialogLayout::hint("The most atoms drawn in one frame; lower it for a faster view.");
         float memory = static_cast<float>(s.memoryBudgetMB);
         if (ImGui::SliderFloat("GPU memory (MB)", &memory, 256.0f, 16384.0f, "%.0f", ImGuiSliderFlags_Logarithmic)) s.memoryBudgetMB = memory;
+        dialogLayout::hint("Graphics memory for loaded chunks; the least recently seen are released beyond it.");
         ImGui::Checkbox("Level of detail", &s.levelOfDetail);
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Draw distant regions with a random subsample of their atoms (as many as the screen resolves).");
+        dialogLayout::hint("Draw distant regions with a random subsample of their atoms (as many as the screen resolves).");
         ImGui::BeginDisabled(!s.levelOfDetail);
         ImGui::SliderFloat("Detail", &s.density, 0.5f, 20.0f, "%.1f", ImGuiSliderFlags_Logarithmic);
+        dialogLayout::hint("Atoms drawn per screen area at a distance; higher is denser and slower.");
         ImGui::EndDisabled();
         ImGui::SliderFloat("Atom size", &s.radiusScale, 0.2f, 3.0f, "%.2f");
+        dialogLayout::hint("Scales the drawn atom radius.");
         const char* colours[] = {"Species", "Height along x", "Height along y", "Height along z"};
         ImGui::Combo("Colour", &cloudRenderer.colourAxis, colours, 4);
+        dialogLayout::hint("Colour atoms by element, or by their position along an axis.");
+        ImGui::PopItemWidth();
         ImGui::Checkbox("Show box", &s.showBox);
         ImGui::SameLine();
         ImGui::Checkbox("Occlusion culling", &s.occlusionCulling);
+        dialogLayout::hint("Skip chunks hidden behind nearer ones.");
+        ImGui::Spacing();
+        ImGui::PushTextWrapPos(0.0f);
         ImGui::TextDisabled("Large datasets are view-only; File > Open a smaller file to edit.");
+        ImGui::PopTextWrapPos();
     }
     ImGui::End();
 }
