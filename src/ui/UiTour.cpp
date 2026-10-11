@@ -86,7 +86,9 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         const auto load = [this](Structure& structure, EditMenuDialogs&, const UiTour::Update& updateBuffers) {
             if (structure.atoms.empty()) { structure = tourCrystal(); currentStructurePath = "CuNi-L12.cif"; updateBuffers(structure); requestResetDefaultView = true; }
         };
-        const auto theme = [this](bool light) { useLightTheme = light; if (light) applyLightTheme(); else applyDarkTheme(); };
+        // ATOMFORGE_UI_TOUR_DARK=1 takes the whole tour in the dark theme.
+        const bool allDark = std::getenv("ATOMFORGE_UI_TOUR_DARK") && *std::getenv("ATOMFORGE_UI_TOUR_DARK") == '1';
+        const auto theme = [this, allDark](bool light) { light = light && !allDark; useLightTheme = light; if (light) applyLightTheme(); else applyDarkTheme(); };
         t.steps = {
             {"welcome", [theme](Structure&, EditMenuDialogs&, const UiTour::Update&) { theme(true); }},
             {"main-window", load},
