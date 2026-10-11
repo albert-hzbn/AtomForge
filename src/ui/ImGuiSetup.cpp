@@ -165,7 +165,7 @@ void applyCommonStyle()
     style.TouchExtraPadding = ImVec2(0.0f, 0.0f);
     style.IndentSpacing = 18.0f;
     style.ScrollbarSize = 12.0f;
-    style.GrabMinSize = 12.0f;
+    style.GrabMinSize = 8.0f;
     style.SeparatorTextBorderSize = 1.0f;
     style.SeparatorTextPadding = ImVec2(0.0f, 4.0f);
 
@@ -219,7 +219,7 @@ void applyPalette(const Palette& p, bool light)
     c[ImGuiCol_ScrollbarGrabHovered] = withAlpha(p.textMuted, 0.55f);
     c[ImGuiCol_ScrollbarGrabActive] = withAlpha(p.textMuted, 0.75f);
     c[ImGuiCol_CheckMark] = p.accent;
-    c[ImGuiCol_SliderGrab] = p.accent;
+    c[ImGuiCol_SliderGrab] = withAlpha(p.accent, 0.65f);  // the value text stays readable over it
     c[ImGuiCol_SliderGrabActive] = p.accentStrong;
     c[ImGuiCol_Button] = p.button;
     c[ImGuiCol_ButtonHovered] = p.buttonHover;
