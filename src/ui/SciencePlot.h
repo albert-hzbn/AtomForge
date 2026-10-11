@@ -1,4 +1,5 @@
 #pragma once
+#include "ui/UnitText.h"
 
 #include "science/ResultPlots.h"
 #include "ui/ResponsiveLayout.h"
@@ -79,8 +80,9 @@ inline void drawSciencePlot(const char* id, const atomforge::science::PlotSpec& 
         draw->AddText(ImVec2(gMin.x - ImGui::CalcTextSize(label).x - 4, py(t) - lineHeight / 2), text, label);
     }
     draw->AddRect(gMin, gMax, frame);
-    draw->AddText(ImVec2(gMin.x, origin.y + 2), text, (spec.title + "   [" + spec.yLabel + "]").c_str());
-    draw->AddText(ImVec2((gMin.x + gMax.x) / 2 - ImGui::CalcTextSize(spec.xLabel.c_str()).x / 2, gMax.y + lineHeight + 4), text, spec.xLabel.c_str());
+    draw->AddText(ImVec2(gMin.x, origin.y + 2), text, (spec.title + "   [" + unitText::display(spec.yLabel) + "]").c_str());
+    const std::string xLabel = unitText::display(spec.xLabel);
+    draw->AddText(ImVec2((gMin.x + gMax.x) / 2 - ImGui::CalcTextSize(xLabel.c_str()).x / 2, gMax.y + lineHeight + 4), text, xLabel.c_str());
     draw->PushClipRect(gMin, gMax, true);
     for (double h : spec.horizontal) {
         const double y = transform(h);
@@ -123,7 +125,7 @@ inline void drawSciencePlot(const char* id, const atomforge::science::PlotSpec& 
             y += lineHeight;
         }
     }
-    if (!bestName.empty()) ImGui::SetTooltip("%s\n%s = %.6g\n%s = %.6g", bestName.c_str(), spec.xLabel.c_str(), bestX, spec.yLabel.c_str(), bestY);
+    if (!bestName.empty()) ImGui::SetTooltip("%s\n%s = %.6g\n%s = %.6g", bestName.c_str(), unitText::display(spec.xLabel).c_str(), bestX, unitText::display(spec.yLabel).c_str(), bestY);
     ImGui::EndChild();
 }
 }

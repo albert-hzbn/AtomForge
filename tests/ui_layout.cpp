@@ -1,5 +1,6 @@
 #include "ui/ResponsiveLayout.h"
 #include "ui/ImGuiSetup.h"
+#include "ui/UnitText.h"
 #include "imgui_internal.h"
 
 #include <cmath>
@@ -110,6 +111,11 @@ int main()
             require(std::abs(ImGui::GetStyle().FramePadding.y - 6 * multiplier) <= 1.0f,
                     "Switching themes accumulated scaling");
         }
+        // Units for display.
+        require(unitText::display("e/A^3") == "e/\xc3\x85\xc2\xb3", "Density unit");
+        require(unitText::display("(e/A^3)^2*A^3") == "(e/\xc3\x85\xc2\xb3)^2*\xc3\x85\xc2\xb3", "Nested unit");
+        require(unitText::display("A^-1") == "\xc3\x85\xe2\x81\xbb\xc2\xb9", "Inverse length");
+        require(unitText::display("DATA^3 and MSD (A^2)") == "DATA^3 and MSD (\xc3\x85\xc2\xb2)", "Only a lone A is an Angstrom sign");
         // Appearance preferences: read from, and written back to, the home folder.
         {
             const auto home = std::filesystem::temp_directory_path() / "atomforge-ui-layout-home";

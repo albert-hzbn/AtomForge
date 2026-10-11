@@ -1,4 +1,5 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UnitText.h"
 #include "ui/ElectronicPostProcessing.h"
 #include "electronic/DisplayRange.h"
 #include "electronic/ChargeAnalysis.h"
@@ -423,11 +424,11 @@ void ElectronicPostProcessingDialog::drawDialog()
         const auto& referenceVolume = m_referenceVolume.fields.empty() || m_localReference ? m_volume : m_referenceVolume;
         m_reference = std::clamp(m_reference,0,static_cast<int>(referenceVolume.fields.size())-1);
         const Grid& g = m_volume.fields[m_selected];
-        ImGui::TextDisabled("%d x %d x %d | %s",g.shape[0],g.shape[1],g.shape[2],g.unit.c_str());
+        ImGui::TextDisabled("%d x %d x %d | %s",g.shape[0],g.shape[1],g.shape[2],unitText::display(g.unit).c_str());
         if ((m_operation >= 1 && m_operation <= 4) || m_operation == 23 || m_operation == 22) selectField("Reference",m_reference,referenceVolume);
         if (m_operation == 5) inputFloat("Scale factor",&m_scalar);
         if (m_operation == 6) { inputFloat("Sigma (A)",&m_sigma); inputInt("Radius (steps)",&m_radius); }
-        if (m_operation == 9) ImGui::TextWrapped("Gradient-expansion kinetic and local-virial energy densities (eV/A^3). Requires nonnegative e/A^3. Samples <= 1e-12 e/A^3 are masked to zero.");
+        if (m_operation == 9) ImGui::TextWrapped("Gradient-expansion kinetic and local-virial energy densities (eV/\xc3\x85\xc2\xb3). Requires nonnegative e/\xc3\x85\xc2\xb3. Samples <= 1e-12 e/\xc3\x85\xc2\xb3 are masked to zero.");
         if (m_operation == 10 || m_operation == 13 || m_operation == 17) inputVector("Origin (A)",m_start);
         if (m_operation == 10) inputVector("End (A)",m_end);
         if (m_operation == 10 || m_operation == 13) inputInt("Sample count",&m_count);
@@ -471,7 +472,7 @@ void ElectronicPostProcessingDialog::drawDialog()
         }
         if (m_operation==27) combo("Boolean operation",&m_booleanOperation,"Union\0Intersection\0Difference (field minus operand)\0XOR\0");
         if (m_operation==28) ImGui::TextWrapped("The operand must be a binary mask. Keeps field values inside the mask; integrate the result to measure regional charge.");
-        if (m_operation==29 || m_operation==30) ImGui::TextWrapped("Apply to a difference density in e/A^3. Accumulation and depletion are positive electron counts, not atom-assigned transfer charges.");
+        if (m_operation==29 || m_operation==30) ImGui::TextWrapped("Apply to a difference density in e/\xc3\x85\xc2\xb3. Accumulation and depletion are positive electron counts, not atom-assigned transfer charges.");
         if (m_operation==31)
         {
             combo("Plane normal",&m_axis,"a*\0b*\0c*\0");
@@ -479,17 +480,17 @@ void ElectronicPostProcessingDialog::drawDialog()
         }
         if (m_operation>=33 && m_operation<=35)
         {
-            inputFloat("Density floor (e/A^3)",&m_bondingFloor,0,0,"%.3g");
-            ImGui::TextWrapped("Requires nonnegative electron density in e/A^3. Samples at or below the floor are masked to zero, avoiding the divergent gradient/density ratio near vacuum.");
+            inputFloat("Density floor (e/\xc3\x85\xc2\xb3)",&m_bondingFloor,0,0,"%.3g");
+            ImGui::TextWrapped("Requires nonnegative electron density in e/\xc3\x85\xc2\xb3. Samples at or below the floor are masked to zero, avoiding the divergent gradient/density ratio near vacuum.");
             if (m_operation==34) ImGui::TextWrapped("Sign(lambda_2)*rho: negative values mark bonding/hydrogen-bonding accumulation, positive values mark steric repulsion.");
             if (m_operation==35) ImGui::TextWrapped("Density Overlap Regions Indicator, in [0,1); values approaching 1 mark boundaries between density basins.");
         }
         if (m_operation==36)
         {
-            ImGui::TextWrapped("One density threshold per line (e/A^3). Finite (non-periodic) grids only.");
+            ImGui::TextWrapped("One density threshold per line (e/\xc3\x85\xc2\xb3). Finite (non-periodic) grids only.");
             ImGui::InputTextMultiline("##thresholds",m_thresholds,sizeof(m_thresholds),ImVec2(-1,80));
         }
-        if (m_operation==37) ImGui::TextWrapped("Native QTAIM/Bader on-grid steepest-ascent partitioning (requires nonnegative e/A^3). Adds a basin-index field and a per-basin charge/volume/maximum table.");
+        if (m_operation==37) ImGui::TextWrapped("Native QTAIM/Bader on-grid steepest-ascent partitioning (requires nonnegative e/\xc3\x85\xc2\xb3). Adds a basin-index field and a per-basin charge/volume/maximum table.");
         ImGui::Spacing();
         if (dialogLayout::primaryButton("Calculate",ImVec2(-FLT_MIN,0)) || (m_generateSurface && !m_task.running()))
         {
@@ -847,7 +848,7 @@ void ElectronicPostProcessingDialog::drawPreview()
         ImGui::SetNextItemWidth(responsive::dp(-1));
         ImGui::InputFloat("##surface level",&m_surfaceLevel,0,0,"%.5g");
         if (responsive::button("Estimate level")) m_surfaceLevel=m_suggestedLevel;
-        ImGui::TextWrapped("Field range: %.5g to %.5g %s",m_sliceLow,m_sliceHigh,grid.unit.c_str());
+        ImGui::TextWrapped("Field range: %.5g to %.5g %s",m_sliceLow,m_sliceHigh,unitText::display(grid.unit).c_str());
         const bool invalid=!std::isfinite(m_surfaceLevel) || m_surfaceLevel<m_sliceLow || m_surfaceLevel>m_sliceHigh;
         if (invalid)
         {
@@ -972,6 +973,6 @@ void ElectronicPostProcessingDialog::draw3DPreview()
     }
     ImGui::Dummy(ImVec2(width,12));
     ImGui::Text("%.5g",m_renderMode==0 ? m_sliceLow : m_colorLow); ImGui::SameLine(width*.4f);
-    ImGui::TextUnformatted(m_renderMode==0 ? m_volume.fields[m_selected].unit.c_str() : m_colorUnit.c_str());
+    ImGui::TextUnformatted(unitText::display(m_renderMode==0 ? m_volume.fields[m_selected].unit : m_colorUnit).c_str());
     ImGui::SameLine(std::max(width-85.0f,150.0f)); ImGui::Text("%.5g",m_renderMode==0 ? m_sliceHigh : m_colorHigh);
 }

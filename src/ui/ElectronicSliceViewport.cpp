@@ -1,3 +1,4 @@
+#include "ui/UnitText.h"
 #include "ui/ResponsiveLayout.h"
 #include "ui/UiScript.h"
 #include "ui/ElectronicSliceViewport.h"
@@ -161,11 +162,11 @@ void ElectronicSliceViewport::draw(const Grid& grid, float low, float high, int 
     if (m_level<*bounds.first || m_level>*bounds.second)
     {
         ImGui::PushStyleColor(ImGuiCol_Text,ImVec4(.85f,.32f,.08f,1));
-        ImGui::TextWrapped("Warning: contour value is outside this slice's range (%.5g to %.5g %s).",*bounds.first,*bounds.second,grid.unit.c_str());
+        ImGui::TextWrapped("Warning: contour value is outside this slice's range (%.5g to %.5g %s).",*bounds.first,*bounds.second,unitText::display(grid.unit).c_str());
         ImGui::PopStyleColor();
     }
     else if (*bounds.first==*bounds.second) ImGui::TextWrapped("Constant slice: no distinct contour exists.");
-    ImGui::TextWrapped("Range: %.5g to %.5g %s",low,high,grid.unit.c_str());
+    ImGui::TextWrapped("Range: %.5g to %.5g %s",low,high,unitText::display(grid.unit).c_str());
 
     const auto pos=ImGui::GetCursorScreenPos();
     const ImVec2 size(std::max(80.0f,ImGui::GetContentRegionAvail().x),std::max(80.0f,ImGui::GetContentRegionAvail().y));

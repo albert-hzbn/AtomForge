@@ -2575,7 +2575,7 @@
     },
     {
       "source": "src/ui/ElectronicPostProcessing.cpp",
-      "sha256": "18a99180bb47bbb7865b6b6a408b23d3129324d97b35a06fa0cdf6caa72b7bc1",
+      "sha256": "3a9ea2d6f12fc604f292fe708b43dd1aab9404eb8d558c1c9e90d50554f5d922",
       "documentation": [
         "05-electronic.tex",
         "06-charge.tex",
@@ -2585,295 +2585,295 @@
       ],
       "literal_controls": [
         {
-          "line": 53,
+          "line": 54,
           "declaration_label": "##value"
         },
         {
-          "line": 58,
+          "line": 59,
           "declaration_label": "##value"
         },
         {
-          "line": 63,
+          "line": 64,
           "declaration_label": "##value"
         },
         {
-          "line": 68,
+          "line": 69,
           "declaration_label": "##value"
         },
         {
-          "line": 73,
+          "line": 74,
           "declaration_label": "##value"
         },
         {
-          "line": 256,
+          "line": 257,
           "declaration_label": "Electronic Post-processing"
         },
         {
-          "line": 319,
+          "line": 320,
           "declaration_label": "Open workspace"
         },
         {
-          "line": 321,
+          "line": 322,
           "declaration_label": "Save workspace"
         },
         {
-          "line": 323,
+          "line": 324,
           "declaration_label": "Undo calculation"
         },
         {
-          "line": 327,
+          "line": 328,
           "declaration_label": "Redo"
         },
         {
-          "line": 332,
+          "line": 333,
           "declaration_label": "Operation history"
         },
         {
-          "line": 335,
+          "line": 336,
           "declaration_label": "Charge transfer"
         },
         {
-          "line": 337,
+          "line": 338,
           "declaration_label": "General analysis"
         },
         {
-          "line": 339,
+          "line": 340,
           "declaration_label": "Bonding & topology"
         },
         {
-          "line": 373,
+          "line": 374,
           "declaration_label": "Tool"
         },
         {
-          "line": 377,
+          "line": 378,
           "declaration_label": "Open volume"
         },
         {
-          "line": 379,
+          "line": 380,
           "declaration_label": "Reference"
         },
         {
-          "line": 381,
+          "line": 382,
           "declaration_label": "Reload volume"
         },
         {
-          "line": 384,
+          "line": 385,
           "declaration_label": "Clear"
         },
         {
-          "line": 391,
+          "line": 392,
           "declaration_label": "Drop files as reference"
         },
         {
-          "line": 394,
+          "line": 395,
           "declaration_label": "Import options"
         },
         {
-          "line": 396,
+          "line": 397,
           "declaration_label": "Quantity"
         },
         {
-          "line": 397,
+          "line": 398,
           "declaration_label": "Cube units"
         },
         {
-          "line": 407,
+          "line": 408,
           "declaration_label": "##value"
         },
         {
-          "line": 422,
+          "line": 423,
           "declaration_label": "Use loaded/result field as reference"
         },
         {
-          "line": 428,
+          "line": 429,
           "declaration_label": "Scale factor"
         },
         {
-          "line": 429,
+          "line": 430,
           "declaration_label": "Sigma (A)"
         },
         {
-          "line": 429,
+          "line": 430,
           "declaration_label": "Radius (steps)"
         },
         {
-          "line": 431,
+          "line": 432,
           "declaration_label": "Origin (A)"
         },
         {
-          "line": 432,
+          "line": 433,
           "declaration_label": "End (A)"
         },
         {
-          "line": 433,
+          "line": 434,
           "declaration_label": "Sample count"
         },
         {
-          "line": 434,
+          "line": 435,
           "declaration_label": "Plane normal"
         },
         {
-          "line": 435,
+          "line": 436,
           "declaration_label": "Window (odd)"
         },
         {
-          "line": 436,
+          "line": 437,
           "declaration_label": "Plane span u (A)"
         },
         {
-          "line": 436,
+          "line": 437,
           "declaration_label": "Plane span v (A)"
         },
         {
-          "line": 437,
+          "line": 438,
           "declaration_label": "Isovalue"
         },
         {
-          "line": 438,
+          "line": 439,
           "declaration_label": "Sphere radius (A)"
         },
         {
-          "line": 444,
+          "line": 445,
           "declaration_label": "##reflections"
         },
         {
-          "line": 450,
+          "line": 451,
           "declaration_label": "##charges"
         },
         {
-          "line": 451,
+          "line": 452,
           "declaration_label": "Ewald alpha (1/A)"
         },
         {
-          "line": 452,
+          "line": 453,
           "declaration_label": "Real cutoff (A)"
         },
         {
-          "line": 453,
+          "line": 454,
           "declaration_label": "Reciprocal cutoff (1/A, includes 2*pi)"
         },
         {
-          "line": 457,
+          "line": 458,
           "declaration_label": "Color from reference"
         },
         {
-          "line": 458,
+          "line": 459,
           "declaration_label": "Append surface level"
         },
         {
-          "line": 464,
+          "line": 465,
           "declaration_label": "Reference weight"
         },
         {
-          "line": 469,
+          "line": 470,
           "declaration_label": "Lower bound"
         },
         {
-          "line": 469,
+          "line": 470,
           "declaration_label": "Upper bound"
         },
         {
-          "line": 472,
+          "line": 473,
           "declaration_label": "Boolean operation"
         },
         {
-          "line": 477,
+          "line": 478,
           "declaration_label": "Plane normal"
         },
         {
-          "line": 482,
-          "declaration_label": "Density floor (e/A^3)"
+          "line": 483,
+          "declaration_label": "Density floor (e/\\xc3\\x85\\xc2\\xb3)"
         },
         {
-          "line": 490,
+          "line": 491,
           "declaration_label": "##thresholds"
         },
         {
-          "line": 494,
+          "line": 495,
           "declaration_label": "Calculate"
         },
         {
-          "line": 649,
+          "line": 650,
           "declaration_label": "Export"
         },
         {
-          "line": 651,
+          "line": 652,
           "declaration_label": "Format"
         },
         {
-          "line": 657,
+          "line": 658,
           "declaration_label": "Save as"
         },
         {
-          "line": 672,
+          "line": 673,
           "declaration_label": "Cancel calculation"
         },
         {
-          "line": 677,
+          "line": 678,
           "declaration_label": "Appearance"
         },
         {
-          "line": 679,
+          "line": 680,
           "declaration_label": "Preview quality"
         },
         {
-          "line": 685,
+          "line": 686,
           "declaration_label": "Colors"
         },
         {
-          "line": 686,
+          "line": 687,
           "declaration_label": "Automatic range"
         },
         {
-          "line": 689,
+          "line": 690,
           "declaration_label": "Minimum"
         },
         {
-          "line": 690,
+          "line": 691,
           "declaration_label": "Maximum"
         },
         {
-          "line": 694,
+          "line": 695,
           "declaration_label": "Specular"
         },
         {
-          "line": 695,
+          "line": 696,
           "declaration_label": "Shininess"
         },
         {
-          "line": 702,
+          "line": 703,
           "declaration_label": "Results table"
         },
         {
-          "line": 815,
+          "line": 816,
           "declaration_label": "##view layout"
         },
         {
-          "line": 844,
+          "line": 845,
           "declaration_label": "##render mode"
         },
         {
-          "line": 848,
+          "line": 849,
           "declaration_label": "##surface level"
         },
         {
-          "line": 849,
+          "line": 850,
           "declaration_label": "Estimate level"
         },
         {
-          "line": 862,
+          "line": 863,
           "declaration_label": "Update surface"
         },
         {
-          "line": 869,
+          "line": 870,
           "declaration_label": "##transparency"
         },
         {
-          "line": 870,
+          "line": 871,
           "declaration_label": "Show slice plane"
         },
         {
-          "line": 891,
+          "line": 892,
           "declaration_label": "Fit view"
         }
       ]
@@ -2892,7 +2892,7 @@
     },
     {
       "source": "src/ui/ElectronicSliceViewport.cpp",
-      "sha256": "1742011d0f39d4cf1023066dd87a29e99175e16dc7ea76825c17bdf1fe64083c",
+      "sha256": "99d86a0c887b88d554e73165e82ea1d8557185d851c60667780a544b666fafbf",
       "documentation": [
         "05-electronic.tex",
         "06-charge.tex",
@@ -2902,39 +2902,39 @@
       ],
       "literal_controls": [
         {
-          "line": 95,
+          "line": 96,
           "declaration_label": "##plane"
         },
         {
-          "line": 100,
+          "line": 101,
           "declaration_label": "##plane point"
         },
         {
-          "line": 103,
+          "line": 104,
           "declaration_label": "##plane normal"
         },
         {
-          "line": 109,
+          "line": 110,
           "declaration_label": "##position"
         },
         {
-          "line": 138,
+          "line": 139,
           "declaration_label": "Show contour line"
         },
         {
-          "line": 141,
+          "line": 142,
           "declaration_label": "##level"
         },
         {
-          "line": 142,
+          "line": 143,
           "declaration_label": "Estimate 2D level"
         },
         {
-          "line": 147,
+          "line": 148,
           "declaration_label": "Reset 2D"
         },
         {
-          "line": 150,
+          "line": 151,
           "declaration_label": "##angle"
         }
       ]
@@ -4778,7 +4778,7 @@
     },
     {
       "source": "src/ui/SciencePlot.h",
-      "sha256": "f98a73303f040eb718f626501c37c919930bfe0c3b10c91ae6e6951f7ef8a632",
+      "sha256": "cd26dba0d1f57e1b60744fbf95bd3bdaeb13b1c84aff2de8bf2a67a75820a80e",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5369,6 +5369,17 @@
     {
       "source": "src/ui/UiTour.cpp",
       "sha256": "6a0e043f63c2e51884e5b555b837a6e95570405c2fe01ab352dddea768d4a693",
+      "documentation": [
+        "01-start.tex",
+        "04-analysis.tex",
+        "04-display-controls.tex",
+        "09-installation.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/ui/UnitText.h",
+      "sha256": "660f0c57fc22629b2e9f23dc3ef3a37a9aac61312f8c6ab82ecd7235d053cf3a",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
