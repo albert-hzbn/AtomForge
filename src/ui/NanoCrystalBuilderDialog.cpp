@@ -266,7 +266,7 @@ static const char* kWulffPlaneFS = R"(
 void drawWulffParameters(NanoParams& params, std::vector<glm::vec3>& familyColors, bool& wulffPreviewDirty)
 {
     ImGui::SetNextItemWidth(responsive::dp(180.0f));
-    ImGui::DragFloat("Max radius (A)##wulffRadius", &params.wulffMaxRadius, 0.25f, 0.1f, 1000.0f, "%.2f");
+    dialogLayout::hinted(ImGui::DragFloat("Max radius (A)##wulffRadius", &params.wulffMaxRadius, 0.25f, 0.1f, 1000.0f, "%.2f"), "Max radius sets the distance of the highest-energy family, with others proportional to energy. Family colour changes the plane preview, not surface energy. Build the atoms again after changing family energies or geometry.");
     if (params.wulffMaxRadius < 0.1f)
         params.wulffMaxRadius = 0.1f;
 
@@ -1422,21 +1422,21 @@ void NanoCrystalBuilderDialog::drawDialog(
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Text("Carving center");
-    ImGui::Checkbox("Auto-center from atoms##nano", &params.autoCenterFromAtoms);
+    dialogLayout::hinted(ImGui::Checkbox("Auto-center from atoms##nano", &params.autoCenterFromAtoms), "Automatic centring follows the reference atoms. Disable it to specify a Cartesian centre in Angstrom. A shift smaller than a lattice spacing can still change the surface termination.");
     if (!params.autoCenterFromAtoms) {
         ImGui::SetNextItemWidth(responsive::dp(130.0f));
         ImGui::DragFloat("X (A)##cnano", &params.cx, 0.1f, -1000.f, 1000.f, "%.3f");
         ImGui::SetNextItemWidth(responsive::dp(130.0f));
-        ImGui::DragFloat("Y (A)##cnano", &params.cy, 0.1f, -1000.f, 1000.f, "%.3f");
+        dialogLayout::hinted(ImGui::DragFloat("Y (A)##cnano", &params.cy, 0.1f, -1000.f, 1000.f, "%.3f"), "Automatic centring follows the reference atoms. Disable it to specify a Cartesian centre in Angstrom. A shift smaller than a lattice spacing can still change the surface termination.");
         ImGui::SetNextItemWidth(responsive::dp(130.0f));
-        ImGui::DragFloat("Z (A)##cnano", &params.cz, 0.1f, -1000.f, 1000.f, "%.3f");
+        dialogLayout::hinted(ImGui::DragFloat("Z (A)##cnano", &params.cz, 0.1f, -1000.f, 1000.f, "%.3f"), "Automatic centring follows the reference atoms. Disable it to specify a Cartesian centre in Angstrom. A shift smaller than a lattice spacing can still change the surface termination.");
     }
 
     if (m_reference.hasUnitCell) {
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Text("Supercell replication");
-        ImGui::Checkbox("Auto-replicate##nano", &params.autoReplicate);
+        dialogLayout::hinted(ImGui::Checkbox("Auto-replicate##nano", &params.autoReplicate), "Automatic mode sizes the source coverage. Manual mode uses the three integer repetitions; increase all necessary directions if the shape is clipped by insufficient source coverage.");
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Automatically tile the unit cell to fully cover the generated shape");
         if (!params.autoReplicate) {
@@ -1456,11 +1456,11 @@ void NanoCrystalBuilderDialog::drawDialog(
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Text("Output cell");
-    ImGui::Checkbox("Rectangular cell##nano", &params.setOutputCell);
+    dialogLayout::hinted(ImGui::Checkbox("Rectangular cell##nano", &params.setOutputCell), "Choose a rectangular enclosing output cell where needed and add the requested surrounding vacuum in Angstrom. Inspect the saved cell in a periodic format; a plain XYZ consumer may ignore the cell.");
     if (params.setOutputCell) {
         ImGui::SetNextItemWidth(responsive::dp(100.0f));
-        ImGui::InputFloat("Vacuum (A)##nano",
-                          &params.vacuumPadding, 0.f, 0.f, "%.2f");
+        dialogLayout::hinted(ImGui::InputFloat("Vacuum (A)##nano",
+                          &params.vacuumPadding, 0.f, 0.f, "%.2f"), "Choose a rectangular enclosing output cell where needed and add the requested surrounding vacuum in Angstrom. Inspect the saved cell in a periodic format; a plain XYZ consumer may ignore the cell.");
         if (params.vacuumPadding < 0.f) params.vacuumPadding = 0.f;
 
         if (params.generationMode == NanoGenerationMode::Shape)

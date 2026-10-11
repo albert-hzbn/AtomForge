@@ -899,7 +899,7 @@ void DislocationBuilderDialog::drawDialog(
 
         ImGui::Separator();
         ImGui::TextDisabled("Crystallographic Directions");
-        ImGui::Checkbox("Auto lattice vectors", &m_params.autoDirections);
+        dialogLayout::hinted(ImGui::Checkbox("Auto lattice vectors", &m_params.autoDirections), "Derives the construction directions. Disable it to enter integer Plane (hkl), Burgers [uvw], and Line [uvw] triplets. A direction and a plane normal are different objects in a general lattice.");
         if (!m_params.autoDirections)
         {
             int plane[3] = {m_params.planeHkl.x, m_params.planeHkl.y, m_params.planeHkl.z};
@@ -915,7 +915,7 @@ void DislocationBuilderDialog::drawDialog(
             m_params.lineUvw = glm::ivec3(line[0], line[1], line[2]);
         }
 
-        ImGui::Checkbox("Line point in fractional coordinates", &m_params.useFractionalLinePoint);
+        dialogLayout::hinted(ImGui::Checkbox("Line point in fractional coordinates", &m_params.useFractionalLinePoint), "Enables Line point frac, a position relative to the cell. Line point offset adds a Cartesian offset in Angstrom. Use the preview to verify the final location rather than treating a fractional coefficient as a distance.");
         if (m_params.useFractionalLinePoint)
             ImGui::DragFloat3("Line point frac", &m_params.linePointFractional.x, 0.01f, -1.0f, 2.0f, "%.3f");
 
@@ -923,22 +923,22 @@ void DislocationBuilderDialog::drawDialog(
 
         ImGui::Separator();
         ImGui::TextDisabled("Elastic Parameters");
-        ImGui::DragFloat("Burgers scale", &m_params.burgersScale, 0.02f, 0.05f, 3.0f, "%.3f");
+        dialogLayout::hinted(ImGui::DragFloat("Burgers scale", &m_params.burgersScale, 0.02f, 0.05f, 3.0f, "%.3f"), "Multiplies the selected Burgers magnitude. A continuously adjustable value can produce a geometric displacement that is not a crystallographically allowed perfect dislocation.");
         if (m_params.anisotropicElasticity)
             ImGui::BeginDisabled();
-        ImGui::DragFloat("Poisson ratio", &m_params.poissonRatio, 0.005f, 0.05f, 0.49f, "%.3f");
+        dialogLayout::hinted(ImGui::DragFloat("Poisson ratio", &m_params.poissonRatio, 0.005f, 0.05f, 0.49f, "%.3f"), "Elastic input to the displacement model. The GUI restricts it to 0.05-0.49. This is not fitted automatically from the structure.");
         if (m_params.anisotropicElasticity)
             ImGui::EndDisabled();
-        ImGui::DragFloat("Core radius (A)", &m_params.coreRadius, 0.05f, 0.05f, 20.0f, "%.3f");
-        ImGui::DragFloat("Cutoff radius (A)", &m_params.cutoffRadius, 0.2f, 0.0f, 100.0f, "%.2f");
-        ImGui::DragFloat("Line half length (A)", &m_params.lineHalfLength, 0.5f, 0.1f, 1000000.0f, "%.1f");
+        dialogLayout::hinted(ImGui::DragFloat("Core radius (A)", &m_params.coreRadius, 0.05f, 0.05f, 20.0f, "%.3f"), "Regularisation length in Angstrom near the line. Inspect core contacts and displacement maxima when changing it.");
+        dialogLayout::hinted(ImGui::DragFloat("Cutoff radius (A)", &m_params.cutoffRadius, 0.2f, 0.0f, 100.0f, "%.2f"), "Cutoff controls radial attenuation in Angstrom; zero turns attenuation off. Line half length limits the extent along the dislocation line. Use the preview and result summary to assess how much of the specimen is affected.");
+        dialogLayout::hinted(ImGui::DragFloat("Line half length (A)", &m_params.lineHalfLength, 0.5f, 0.1f, 1000000.0f, "%.1f"), "Cutoff controls radial attenuation in Angstrom; zero turns attenuation off. Line half length limits the extent along the dislocation line. Use the preview and result summary to assess how much of the specimen is affected.");
 
         if (m_params.character == DislocationCharacter::Mixed)
             ImGui::SliderFloat("Mixed angle (deg)", &m_params.mixedCharacterAngleDeg, 0.0f, 90.0f, "%.1f");
 
         ImGui::Separator();
         ImGui::TextDisabled("Anisotropic Elasticity (Stroh formalism)");
-        ImGui::Checkbox("Use anisotropic elasticity", &m_params.anisotropicElasticity);
+        dialogLayout::hinted(ImGui::Checkbox("Use anisotropic elasticity", &m_params.anisotropicElasticity), "Replaces the isotropic Poisson-ratio displacement field with the Stroh sextic formalism for a fully anisotropic elastic medium, given the crystal's elastic constants (C_11, C_12, C_44, and C_13/C_33 for hexagonal symmetry).");
         if (m_params.anisotropicElasticity)
         {
             static const char* kSymmetryLabels[] = {"Cubic", "Hexagonal"};
@@ -974,7 +974,7 @@ void DislocationBuilderDialog::drawDialog(
 
         ImGui::Separator();
         ImGui::TextDisabled("Dipole");
-        ImGui::Checkbox("Insert as dipole (adds an opposite-Burgers-vector partner)", &m_params.dipole);
+        dialogLayout::hinted(ImGui::Checkbox("Insert as dipole (adds an opposite-Burgers-vector partner)", &m_params.dipole), "Superposes a second dislocation of opposite Burgers vector at a specified offset, giving a net-zero-Burgers-vector configuration that is periodicity-compatible, unlike a single dislocation in a periodic cell.");
         if (m_params.dipole)
         {
             ImGui::DragFloat2("Dipole offset (A)", &m_params.dipoleOffset.x, 0.2f, -500.0f, 500.0f, "%.2f");

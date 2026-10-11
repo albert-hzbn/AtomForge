@@ -947,7 +947,7 @@ void InterfaceBuilderDialog::drawDialog(
         ImGui::Spacing();
         ImGui::AlignTextToFramePadding();
         ImGui::Text("Tolerance"); ImGui::SameLine();
-        ImGui::SetNextItemWidth(responsive::dp(50)); ImGui::InputFloat("##ortol", &m_orTolDeg, 0, 0, "%.2f");
+        ImGui::SetNextItemWidth(responsive::dp(50)); ImGui::InputFloat("##ortol", &m_orTolDeg, 0, 0, "%.2f"); dialogLayout::hint("Largest angle (degrees) accepted between the requested orientation relationship and a found match.");
         if (m_orTolDeg < 0.0f) m_orTolDeg = 0.0f;
         ImGui::SameLine(); ImGui::TextDisabled("deg");
 
@@ -956,7 +956,7 @@ void InterfaceBuilderDialog::drawDialog(
             ImGui::AlignTextToFramePadding();
             ImGui::Text("Angle"); ImGui::SameLine();
             ImGui::SetNextItemWidth(responsive::dp(60));
-            ImGui::InputFloat("##orangle", &m_orAngleDeg, 0, 0, "%.2f");
+            ImGui::InputFloat("##orangle", &m_orAngleDeg, 0, 0, "%.2f"); dialogLayout::hint("In-plane rotation (degrees) of crystal B relative to crystal A.");
             ImGui::SameLine(); ImGui::TextDisabled("deg");
         }
 
@@ -975,28 +975,28 @@ void InterfaceBuilderDialog::drawDialog(
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("A");
                 ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Plane (hkl)");
-                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##hA", &m_planeA[0], 0, 0, "%.0f");
+                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##hA", &m_planeA[0], 0, 0, "%.0f"); dialogLayout::hint("Miller indices (h k l) of the interface plane of crystal A.");
                 ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##kA", &m_planeA[1], 0, 0, "%.0f");
                 ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##lA", &m_planeA[2], 0, 0, "%.0f");
 
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Dir [uvw]");
-                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##uA", &m_dirA[0], 0, 0, "%.0f");
+                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##uA", &m_dirA[0], 0, 0, "%.0f"); dialogLayout::hint("In-plane direction [u v w] of crystal A, aligned with the direction given for B.");
                 ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##vA", &m_dirA[1], 0, 0, "%.0f");
                 ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##wA", &m_dirA[2], 0, 0, "%.0f");
 
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("B");
                 ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Plane (hkl)");
-                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##hB", &m_planeB[0], 0, 0, "%.0f");
+                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##hB", &m_planeB[0], 0, 0, "%.0f"); dialogLayout::hint("Miller indices (h k l) of the interface plane of crystal B.");
                 ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##kB", &m_planeB[1], 0, 0, "%.0f");
                 ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##lB", &m_planeB[2], 0, 0, "%.0f");
 
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Dir [uvw]");
-                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##uB", &m_dirB[0], 0, 0, "%.0f");
+                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##uB", &m_dirB[0], 0, 0, "%.0f"); dialogLayout::hint("In-plane direction [u v w] of crystal B, aligned with the direction given for A.");
                 ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##vB", &m_dirB[1], 0, 0, "%.0f");
                 ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fw); ImGui::InputFloat("##wB", &m_dirB[2], 0, 0, "%.0f");
 
@@ -1034,28 +1034,28 @@ void InterfaceBuilderDialog::drawDialog(
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("N max");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fieldW); ImGui::InputInt("##nmax", &m_nmax, 0, 0);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fieldW); ImGui::InputInt("##nmax", &m_nmax, 0, 0); dialogLayout::hint("Largest integer coefficient of the in-plane supercell vectors of A. Larger values find more matches but search longer.");
             if (m_nmax < 1) m_nmax = 1;
             if (m_nmax > 10) m_nmax = 10;
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("M max");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fieldW); ImGui::InputInt("##mmax", &m_mmax, 0, 0);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fieldW); ImGui::InputInt("##mmax", &m_mmax, 0, 0); dialogLayout::hint("Largest integer coefficient of the in-plane supercell vectors of B. Larger values find more matches but search longer.");
             if (m_mmax < 1) m_mmax = 1;
             if (m_mmax > 10) m_mmax = 10;
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Max cells A");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fieldW); ImGui::InputInt("##maxcellsA", &m_maxCellsA, 0, 0);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fieldW); ImGui::InputInt("##maxcellsA", &m_maxCellsA, 0, 0); dialogLayout::hint("Largest number of surface unit cells of A in the interface supercell.");
             if (m_maxCellsA < 1) m_maxCellsA = 1;
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Max cells B");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fieldW); ImGui::InputInt("##maxcellsB", &m_maxCellsB, 0, 0);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fieldW); ImGui::InputInt("##maxcellsB", &m_maxCellsB, 0, 0); dialogLayout::hint("Largest number of surface unit cells of B in the interface supercell.");
             if (m_maxCellsB < 1) m_maxCellsB = 1;
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Layers A");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fieldW); ImGui::InputInt("##layersA", &m_layersA, 0, 0);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fieldW); ImGui::InputInt("##layersA", &m_layersA, 0, 0); dialogLayout::hint("Number of layers of A stacked along the interface normal.");
             if (m_layersA < 1) m_layersA = 1;
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Layers B");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fieldW); ImGui::InputInt("##layersB", &m_layersB, 0, 0);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(fieldW); ImGui::InputInt("##layersB", &m_layersB, 0, 0); dialogLayout::hint("Number of layers of B stacked along the interface normal.");
             if (m_layersB < 1) m_layersB = 1;
 
             ImGui::EndTable();
@@ -1072,10 +1072,10 @@ void InterfaceBuilderDialog::drawDialog(
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Max strain");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(60.0f)); ImGui::InputFloat("##maxstrain", &m_maxMeanStrain, 0, 0, "%.4f");
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(60.0f)); ImGui::InputFloat("##maxstrain", &m_maxMeanStrain, 0, 0, "%.4f"); dialogLayout::hint("Largest mean absolute strain accepted for a match, as a fraction (0.1 = 10%). Small strain does not check chemistry or interface energy.");
             if (m_maxMeanStrain < 0.0001f) m_maxMeanStrain = 0.0001f;
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Max rotation");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(60.0f)); ImGui::InputFloat("##maxrot", &m_maxRotationDeg, 0, 0, "%.1f");
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(60.0f)); ImGui::InputFloat("##maxrot", &m_maxRotationDeg, 0, 0, "%.1f"); dialogLayout::hint("Largest rotation (degrees) between the matched lattices.");
             if (m_maxRotationDeg < 0.0f) m_maxRotationDeg = 0.0f;
 
             ImGui::EndTable();
@@ -1092,18 +1092,18 @@ void InterfaceBuilderDialog::drawDialog(
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Z gap");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputFloat("##zgap", &m_zGap, 0, 0, "%.2f");
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputFloat("##zgap", &m_zGap, 0, 0, "%.2f"); dialogLayout::hint("Distance (Angstrom) between the A and B slabs at the interface.");
             if (m_zGap < 0.0f) m_zGap = 0.0f;
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Vacuum");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputFloat("##vacuum", &m_vacuum, 0, 0, "%.2f");
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputFloat("##vacuum", &m_vacuum, 0, 0, "%.2f"); dialogLayout::hint("Vacuum (Angstrom) added along the interface normal.");
             if (m_vacuum < 0.0f) m_vacuum = 0.0f;
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Repeat X");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputInt("##repeatX", &m_repeatX, 0, 0);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputInt("##repeatX", &m_repeatX, 0, 0); dialogLayout::hint("Copies of the built interface along x.");
             if (m_repeatX < 1) m_repeatX = 1;
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Repeat Y");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputInt("##repeatY", &m_repeatY, 0, 0);
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputInt("##repeatY", &m_repeatY, 0, 0); dialogLayout::hint("Copies of the built interface along y.");
             if (m_repeatY < 1) m_repeatY = 1;
 
             ImGui::EndTable();
@@ -1118,9 +1118,9 @@ void InterfaceBuilderDialog::drawDialog(
     {
         ImGui::TextColored(themeAccentColor(), "Stiffness (GPa)");
         ImGui::SameLine(responsive::dp(0.0f), 10.0f);
-        ImGui::RadioButton("Structure A##stiff", &m_stiffnessTarget, 0);
+        ImGui::RadioButton("Structure A##stiff", &m_stiffnessTarget, 0); dialogLayout::hint("Edit the 6x6 stiffness matrix (GPa) of A. The matrices rank candidates by elastic energy; enter values for your materials, they are not inferred from the elements.");
         ImGui::SameLine();
-        ImGui::RadioButton("Structure B##stiff", &m_stiffnessTarget, 1);
+        ImGui::RadioButton("Structure B##stiff", &m_stiffnessTarget, 1); dialogLayout::hint("Edit the 6x6 stiffness matrix (GPa) of B. The matrices rank candidates by elastic energy; enter values for your materials, they are not inferred from the elements.");
         ImGui::Separator();
 
         float stiffInW = std::min(50.0f, std::max(35.0f, (stiffW - 30.0f) / 6.0f - 4.0f));

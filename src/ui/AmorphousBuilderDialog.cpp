@@ -347,9 +347,9 @@ void AmorphousBuilderDialog::drawDialog(
 
     if (uiScript::take("amorphous.manual")) m_boxMode = 0;
     uiScript::scrollToBottom("amorphous.scroll");
-    ImGui::RadioButton("Auto from target density", &m_boxMode, 1);
+    dialogLayout::hinted(ImGui::RadioButton("Auto from target density", &m_boxMode, 1), "Enter mass density in g cm^-3. The builder estimates a cubic box using the total atomic mass. The displayed side length includes the Cell scale factor.");
     ImGui::SameLine();
-    ImGui::RadioButton("Manual dimensions", &m_boxMode, 0);
+    dialogLayout::hinted(ImGui::RadioButton("Manual dimensions", &m_boxMode, 0), "Enter a,b,c in Angstrom to set box lengths explicitly. This mode replaces density-derived sizing.");
 
     if (m_boxMode == 1) // AutoFromDensity
     {
@@ -383,14 +383,14 @@ void AmorphousBuilderDialog::drawDialog(
 
     ImGui::Spacing();
     ImGui::SetNextItemWidth(responsive::dp(200.0f));
-    ImGui::DragFloat("Cell scale factor", &m_cellScaleFactor, 0.01f, 0.5f, 3.0f, "%.3f");
+    dialogLayout::hinted(ImGui::DragFloat("Cell scale factor", &m_cellScaleFactor, 0.01f, 0.5f, 3.0f, "%.3f"), "Multiplies box lengths before packing. Scaling lengths by s multiplies volume by s^3, so a density-derived box has effective density /s^3. For example, s=1.1 yields approximately 0.751.");
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip(
             "Values > 1 expand the box before packing (lower effective density).\n"
             "This mirrors the 1.1x cell-expansion trick used in MD melt-quench\n"
             "workflows to help the crystal disorder before quenching.");
 
-    ImGui::Checkbox("Periodic boundary conditions (attach unit cell)", &m_periodic);
+    dialogLayout::hinted(ImGui::Checkbox("Periodic boundary conditions (attach unit cell)", &m_periodic), "Controls whether the output carries the unit cell. The current packing implementation checks minimum-image separations across the box even when this output-cell option is off.");
 
     // =========================================================================
     // SECTION 3 – Advanced settings (collapsible)
@@ -402,7 +402,7 @@ void AmorphousBuilderDialog::drawDialog(
         // -- Placement parameters --
         ImGui::SeparatorText("Placement");
         ImGui::SetNextItemWidth(responsive::dp(120.0f));
-        ImGui::DragFloat("Covalent radius tolerance", &m_covTolerance, 0.01f, 0.3f, 2.0f, "%.2f");
+        dialogLayout::hinted(ImGui::DragFloat("Covalent radius tolerance", &m_covTolerance, 0.01f, 0.3f, 2.0f, "%.2f"), "The fallback minimum separation is (r_i^cov+r_j^cov)t. Smaller t permits closer contacts; it does not calculate bonding.");
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip(
                 "Default min separation = (r_cov1 + r_cov2) * tolerance.\n"
@@ -410,10 +410,10 @@ void AmorphousBuilderDialog::drawDialog(
                 "Decrease for denser random packings.");
 
         ImGui::SetNextItemWidth(responsive::dp(120.0f));
-        ImGui::InputInt("RNG seed (0 = time)", &m_seed);
+        dialogLayout::hinted(ImGui::InputInt("RNG seed (0 = time)", &m_seed), "Use a nonzero integer to repeat the random placement. Zero requests a time-dependent seed.");
 
         ImGui::SetNextItemWidth(responsive::dp(120.0f));
-        ImGui::DragInt("Max attempts per atom", &m_maxAttempts, 10.0f, 1, 100000);
+        dialogLayout::hinted(ImGui::DragInt("Max attempts per atom", &m_maxAttempts, 10.0f, 1, 100000), "Bounds trials for each requested atom. Raising it increases work but cannot guarantee a feasible packing.");
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip(
                 "Attempts to find a valid position for each atom.\n"

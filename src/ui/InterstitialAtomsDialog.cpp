@@ -1364,18 +1364,18 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
         ImGui::Separator();
 
         ImGui::SetNextItemWidth(responsive::dp(180.0f));
-        ImGui::SliderInt("Grid", &m_gridResolution, 8, 30);
+        dialogLayout::hinted(ImGui::SliderInt("Grid", &m_gridResolution, 8, 30), "Grid controls the search sampling (8-30 in the GUI); Max Voids caps the retained candidates. Increasing sampling can reveal sites missed by a coarse search and increases work.");
         if (!editingStep)
         {
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::InputInt("Max Voids", &m_maxVoids);
+            dialogLayout::hinted(ImGui::InputInt("Max Voids", &m_maxVoids), "Grid controls the search sampling (8-30 in the GUI); Max Voids caps the retained candidates. Increasing sampling can reveal sites missed by a coarse search and increases work.");
             m_maxVoids = std::max(0, m_maxVoids);
             ImGui::TextDisabled("0 = detect all voids");
         }
         ImGui::SetNextItemWidth(responsive::dp(180.0f));
-        ImGui::DragFloat("Min Clearance (A)", &m_minClearance, 0.02f, 0.05f, 5.0f, "%.2f");
+        dialogLayout::hinted(ImGui::DragFloat("Min Clearance (A)", &m_minClearance, 0.02f, 0.05f, 5.0f, "%.2f"), "These are distinct detection controls in Angstrom: clearance filters available space around a candidate; separation prevents retaining nearby duplicate candidates. They are not the requested number of inserted atoms.");
         ImGui::SetNextItemWidth(responsive::dp(180.0f));
-        ImGui::DragFloat("Min Separation (A)", &m_minSeparation, 0.02f, 0.05f, 5.0f, "%.2f");
+        dialogLayout::hinted(ImGui::DragFloat("Min Separation (A)", &m_minSeparation, 0.02f, 0.05f, 5.0f, "%.2f"), "These are distinct detection controls in Angstrom: clearance filters available space around a candidate; separation prevents retaining nearby duplicate candidates. They are not the requested number of inserted atoms.");
 
         if (!m_sourceLoaded)
             ImGui::BeginDisabled();
@@ -1458,7 +1458,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
             ImGui::TextDisabled("0 = fill every site of the kind");
             if (!m_stepRandom) ImGui::BeginDisabled();
             ImGui::SetNextItemWidth(responsive::dp(160.0f));
-            ImGui::InputInt("Seed", &m_seed);
+            dialogLayout::hinted(ImGui::InputInt("Seed", &m_seed), "Seed controls stochastic selection; zero is a deterministic seed in this tool, unlike builders where zero explicitly means time.");
             if (!m_stepRandom) ImGui::EndDisabled();
         }
         else
@@ -1549,9 +1549,9 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
             }
 
             ImGui::SetNextItemWidth(responsive::dp(160.0f));
-            ImGui::InputInt("Seed", &m_seed);
+            dialogLayout::hinted(ImGui::InputInt("Seed", &m_seed), "Seed controls stochastic selection; zero is a deterministic seed in this tool, unlike builders where zero explicitly means time.");
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::DragFloat("Min Insert Distance (A)", &m_minInsertDistance, 0.02f, 0.0f, 5.0f, "%.2f");
+            dialogLayout::hinted(ImGui::DragFloat("Min Insert Distance (A)", &m_minInsertDistance, 0.02f, 0.0f, 5.0f, "%.2f"), "Seed controls stochastic selection; zero is a deterministic seed in this tool, unlike builders where zero explicitly means time.");
 
             // Mesh Region
             if (m_placementMode == PlacementMode::MeshRegion)

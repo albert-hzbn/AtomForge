@@ -504,11 +504,11 @@ void PolyCrystalBuilderDialog::drawDialog(
     // --- Box size ---
     ImGui::Text("Simulation Box Size (Angstroms)");
     ImGui::SetNextItemWidth(responsive::dp(120.0f));
-    ImGui::InputFloat("X##polySize", &params.sizeX, 0.0f, 0.0f, "%.2f");
+    dialogLayout::hinted(ImGui::InputFloat("X##polySize", &params.sizeX, 0.0f, 0.0f, "%.2f"), "Supply a periodic reference and the three target box lengths in Angstrom. The dimensions define the total specimen, not the size of every grain.");
     ImGui::SetNextItemWidth(responsive::dp(120.0f));
-    ImGui::InputFloat("Y##polySize", &params.sizeY, 0.0f, 0.0f, "%.2f");
+    dialogLayout::hinted(ImGui::InputFloat("Y##polySize", &params.sizeY, 0.0f, 0.0f, "%.2f"), "Supply a periodic reference and the three target box lengths in Angstrom. The dimensions define the total specimen, not the size of every grain.");
     ImGui::SetNextItemWidth(responsive::dp(120.0f));
-    ImGui::InputFloat("Z##polySize", &params.sizeZ, 0.0f, 0.0f, "%.2f");
+    dialogLayout::hinted(ImGui::InputFloat("Z##polySize", &params.sizeZ, 0.0f, 0.0f, "%.2f"), "Supply a periodic reference and the three target box lengths in Angstrom. The dimensions define the total specimen, not the size of every grain.");
     if (params.sizeX < 1.0f) params.sizeX = 1.0f;
     if (params.sizeY < 1.0f) params.sizeY = 1.0f;
     if (params.sizeZ < 1.0f) params.sizeZ = 1.0f;

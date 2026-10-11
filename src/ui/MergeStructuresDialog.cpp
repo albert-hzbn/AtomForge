@@ -750,7 +750,7 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
     }
 
     ImGui::SameLine();
-    if (ImGui::Checkbox("Show Bounding Box", &m_showPreviewBoundingBox))
+    if (dialogLayout::hinted(ImGui::Checkbox("Show Bounding Box", &m_showPreviewBoundingBox), "Displays the assembly enclosure for inspection. This overlay is not a new periodic lattice definition."))
         m_previewDirty = true;
 
     // Keyboard shortcuts
@@ -802,10 +802,10 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
             ImGui::TextDisabled("atoms=%d", (int)entry.structure.atoms.size());
 
             bool changed = false;
-            changed |= ImGui::DragFloat3("Pos (A)", &entry.translation.x,
-                                          0.05f, -10000.0f, 10000.0f, "%.3f");
-            changed |= ImGui::DragFloat3("Rot (deg)", &entry.rotationDeg.x,
-                                          0.25f, -3600.0f, 3600.0f, "%.2f");
+            changed |= dialogLayout::hinted(ImGui::DragFloat3("Pos (A)", &entry.translation.x,
+                                          0.05f, -10000.0f, 10000.0f, "%.3f"), "The three values translate the selected component in Cartesian Angstrom. Use these fields for reproducible offsets after coarse gizmo placement.");
+            changed |= dialogLayout::hinted(ImGui::DragFloat3("Rot (deg)", &entry.rotationDeg.x,
+                                          0.25f, -3600.0f, 3600.0f, "%.2f"), "Three rotation values orient the selected component. The preview reflects its component transform; orbiting the camera changes the view of all components together.");
 
             if (ImGui::SmallButton("Reset"))
             {

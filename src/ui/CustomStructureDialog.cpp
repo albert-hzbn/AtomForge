@@ -895,7 +895,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
 
     // ========== Model Scale with Angstrom reference ==========
     ImGui::SetNextItemWidth(responsive::dp(140.0f));
-    ImGui::InputFloat("Scale (Angstrom per model unit)", &params.modelScale, 0.1f, 1.0f, "%.3f");
+    dialogLayout::hinted(ImGui::InputFloat("Scale (Angstrom per model unit)", &params.modelScale, 0.1f, 1.0f, "%.3f"), "Load the enclosing mesh and enter Angstrom per model unit. A unit-radius mesh at scale 12 represents a 12 Angstrom radius along the corresponding model axes. Verify the preview's physical extent before building.");
     if (params.modelScale <= 1e-4f)
         params.modelScale = 1e-4f;
     if (!m_modelVertices.empty())
@@ -907,11 +907,11 @@ void CustomStructureDialog::drawDialog(Structure& structure,
         ImGui::TextDisabled("-> %.1f x %.1f x %.1f A", sx, sy, sz);
     }
 
-    ImGui::Checkbox("Auto-center from reference atoms", &params.autoCenterFromAtoms);
+    dialogLayout::hinted(ImGui::Checkbox("Auto-center from reference atoms", &params.autoCenterFromAtoms), "Automatic centring derives placement from the reference; manual values specify the centre. Inspect reference and mesh together to avoid filling an unintended region.");
     if (!params.autoCenterFromAtoms)
     {
         ImGui::SetNextItemWidth(responsive::dp(110.0f));
-        ImGui::InputFloat("Center X", &params.cx, 0.0f, 0.0f, "%.3f");
+        dialogLayout::hinted(ImGui::InputFloat("Center X", &params.cx, 0.0f, 0.0f, "%.3f"), "Automatic centring derives placement from the reference; manual values specify the centre. Inspect reference and mesh together to avoid filling an unintended region.");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(responsive::dp(110.0f));
         ImGui::InputFloat("Center Y", &params.cy, 0.0f, 0.0f, "%.3f");
@@ -926,7 +926,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     if (uiScript::take("custom.plain")) params.applyCrystalOrientation = false;
     if (uiScript::take("custom.type2")) { params.applyCrystalOrientation = true; orientationType = 2; }
     uiScript::scrollToBottom("custom.scroll");
-    ImGui::Checkbox("Apply crystal orientation", &params.applyCrystalOrientation);
+    dialogLayout::hinted(ImGui::Checkbox("Apply crystal orientation", &params.applyCrystalOrientation), "Enables the orientation controls. The current radio labels 1 and 2 select Euler-angle and Miller-direction modes respectively. In mode 1 enter Rot X/Y/Z in degrees. In mode 2 enter h,k,l for direction alignment.");
     if (params.applyCrystalOrientation)
     {
         ImGui::TextUnformatted("Orientation Type");
@@ -963,7 +963,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
 
     if (m_reference.hasUnitCell)
     {
-        ImGui::Checkbox("Auto-replicate reference cell", &params.autoReplicate);
+        dialogLayout::hinted(ImGui::Checkbox("Auto-replicate reference cell", &params.autoReplicate), "Ensure enough periodic sites to cover the whole mesh. Manual undercoverage can look like a broken mesh cut.");
         if (!params.autoReplicate)
         {
             ImGui::SetNextItemWidth(responsive::dp(180.0f));

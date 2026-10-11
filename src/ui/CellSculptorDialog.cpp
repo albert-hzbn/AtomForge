@@ -1130,7 +1130,7 @@ void CellSculptorDialog::drawDialog(
                 slab.usePeriodic = false;
             }
             if (hasPeriodic && uiScript::take("sculptor.manual")) { slab.usePeriodic = false; changed = true; }
-            if (ImGui::Checkbox("Periodic##scper", &slab.usePeriodic))
+            if (dialogLayout::hinted(ImGui::Checkbox("Periodic##scper", &slab.usePeriodic), "Periodic mode uses a starting plane and an integer number of repeat intervals. Start can be negative; N is positive. Inspect the displayed spacing and retained sites because one crystallographic interval need not equal one chemically identical atomic layer."))
                 changed = true;
             if (!hasPeriodic)
             {
@@ -1149,11 +1149,11 @@ void CellSculptorDialog::drawDialog(
                 else
                     ImGui::TextDisabled("d=%g A", d_rep);
                 ImGui::SetNextItemWidth(responsive::dp(65.0f));
-                if (ImGui::DragInt("Start##scsp", &slab.startPlane, 0.1f, -200, 200))
+                if (dialogLayout::hinted(ImGui::DragInt("Start##scsp", &slab.startPlane, 0.1f, -200, 200), "Periodic mode uses a starting plane and an integer number of repeat intervals. Start can be negative; N is positive. Inspect the displayed spacing and retained sites because one crystallographic interval need not equal one chemically identical atomic layer."))
                     changed = true;
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(responsive::dp(50.0f));
-                if (ImGui::DragInt("N##scnp", &slab.nPeriods, 0.1f, 1, 200))
+                if (dialogLayout::hinted(ImGui::DragInt("N##scnp", &slab.nPeriods, 0.1f, 1, 200), "Periodic mode uses a starting plane and an integer number of repeat intervals. Start can be negative; N is positive. Inspect the displayed spacing and retained sites because one crystallographic interval need not equal one chemically identical atomic layer."))
                 { slab.nPeriods = std::max(1, slab.nPeriods); changed = true; }
                 const float eff1 = cscD1(slab, m_source), eff2 = cscD2(slab, m_source);
                 ImGui::TextDisabled("d1=%.3f A   d2=%.3f A   t=%.3f A", eff1, eff2, eff2-eff1);

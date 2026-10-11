@@ -587,7 +587,7 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
 
                 if (planeSelection >= 3) planeSelection = 0;
                 ImGui::SetNextItemWidth(responsive::dp(260.0f));
-                ImGui::Combo("GB plane", &planeSelection, planeLabelGetter, planeLabels, 3);
+                dialogLayout::hinted(ImGui::Combo("GB plane", &planeSelection, planeLabelGetter, planeLabels, 3), "Select a coincidence candidate, then a boundary plane from the generated choices. The plane selector contains candidate planes; the CLI index 0, 1, or 2 selects one of these choices. It is not the value of h, k, or l.");
 
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("GB plane normals derived from CSL matrix columns.\n"
@@ -610,11 +610,11 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
             }
 
             ImGui::SetNextItemWidth(responsive::dp(110.0f));
-            ImGui::InputInt("Grain A (uc)", &ucA);
+            dialogLayout::hinted(ImGui::InputInt("Grain A (uc)", &ucA), "Set repetitions used to thicken each grain along the stacking construction. Use both controls to study symmetric or unequal thicknesses. These are integer cell repetitions, not distances in Angstrom.");
             if (ucA < 1) ucA = 1;
             ImGui::SameLine();
             ImGui::SetNextItemWidth(responsive::dp(110.0f));
-            ImGui::InputInt("Grain B (uc)", &ucB);
+            dialogLayout::hinted(ImGui::InputInt("Grain B (uc)", &ucB), "Set repetitions used to thicken each grain along the stacking construction. Use both controls to study symmetric or unequal thicknesses. These are integer cell repetitions, not distances in Angstrom.");
             if (ucB < 1) ucB = 1;
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Number of unit cells for each grain along the GB normal.");
@@ -624,21 +624,21 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
         ImGui::SeparatorText("Options");
         {
             ImGui::SetNextItemWidth(responsive::dp(140.0f));
-            ImGui::DragFloat("Vacuum (A)", &vacuumPadding, 0.1f, 0.0f, 50.0f, "%.2f");
+            dialogLayout::hinted(ImGui::DragFloat("Vacuum (A)", &vacuumPadding, 0.1f, 0.0f, 50.0f, "%.2f"), "Vacuum adds the specified outside spacing in the construction; Gap separates the stacked grains. Both alter geometry. Neither is a relaxation or a search over rigid translations.");
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Vacuum space at the end of the bicrystal cell.");
             ImGui::SameLine();
             ImGui::SetNextItemWidth(responsive::dp(140.0f));
-            ImGui::DragFloat("Gap (A)", &gapDist, 0.05f, 0.0f, 10.0f, "%.2f");
+            dialogLayout::hinted(ImGui::DragFloat("Gap (A)", &gapDist, 0.05f, 0.0f, 10.0f, "%.2f"), "Vacuum adds the specified outside spacing in the construction; Gap separates the stacked grains. Both alter geometry. Neither is a relaxation or a search over rigid translations.");
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Extra distance between the two grains at the interface.");
 
             ImGui::SetNextItemWidth(responsive::dp(140.0f));
-            ImGui::DragFloat("Overlap dist (A)", &overlapDist, 0.05f, 0.0f, 5.0f, "%.3f");
+            dialogLayout::hinted(ImGui::DragFloat("Overlap dist (A)", &overlapDist, 0.05f, 0.0f, 5.0f, "%.3f"), "Remove interfacial close contacts within the chosen cutoff. Inspect the removed-atom count and resulting stoichiometry. Set a conservative cutoff and compare before raising it.");
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Atoms closer than this distance will be removed (0 = off).");
 
-            ImGui::Checkbox("Conventional cell", &conventionalCell);
+            dialogLayout::hinted(ImGui::Checkbox("Conventional cell", &conventionalCell), "Retain the conventional construction when enabled; otherwise the builder attempts its primitive grain-boundary cell reduction. This can change the final cell representation and atom count.");
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("If unchecked (default), reduce to the primitive cell.\nIf checked, keep the conventional (unreduced) cell.");
         }

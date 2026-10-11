@@ -1319,7 +1319,7 @@
     },
     {
       "source": "src/ui/AmorphousBuilderDialog.cpp",
-      "sha256": "46b19cda8630f620731bed6a26559b94790fb0e6d6821496652591bde6ac9e6d",
+      "sha256": "b18f8719aad2aa1dfac20f4cf3cb662231d0021cb8ac32f408dacd87e1161fb7",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -1703,7 +1703,7 @@
     },
     {
       "source": "src/ui/CellSculptorDialog.cpp",
-      "sha256": "23dd54cb4a458555bba04692fb1369b965203956c02f5ecf22942dc2fb9ccd92",
+      "sha256": "e7faf04b84d12abb825eec0c3d50d483179b6faf000b4a30fc37ad8927be558d",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -1885,7 +1885,7 @@
     },
     {
       "source": "src/ui/CSLGrainBoundaryDialog.cpp",
-      "sha256": "3191582b5605f60d7667553412792864f9b2a84b7eb7ba52e159e1bf2dcda243",
+      "sha256": "529e3bcdfdbfd5250da46419a7c6a2433cbf1e86245da2096443e7de35f371bd",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -1968,7 +1968,7 @@
     },
     {
       "source": "src/ui/CustomStructureDialog.cpp",
-      "sha256": "eb05494889fb369e693f9601217dab90d4e2c34e07f332234385feb9ce10492c",
+      "sha256": "fa79bb21eae8bd57e6bd176d9ad0fdb06513566e8a68960a1d26ddc84a20348b",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -2087,7 +2087,7 @@
     },
     {
       "source": "src/ui/DialogLayout.h",
-      "sha256": "00bf681668316ccd773a96e82feb2fe7fda3a00ae47b03e9603dc6442d97b008",
+      "sha256": "51ee139f7ba98ac1648f487f368905888421aa6236152f9773abb992eb8511ca",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2233,7 +2233,7 @@
     },
     {
       "source": "src/ui/DislocationBuilderDialog.cpp",
-      "sha256": "21aa8de54bf3e6e71348706c58a86686689d26d2e3fee58a70bf0bd0487bfead",
+      "sha256": "6acf915d2cb9f63b19c7d8320953793d807ace450485ced39894825f6c47f8f2",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -3529,7 +3529,7 @@
     },
     {
       "source": "src/ui/InterfaceBuilderDialog.cpp",
-      "sha256": "1443a326076504bed5652720e625b035b2c177db94cbfcd2a9b78c2506915158",
+      "sha256": "095e243550066eaca8bc447536c9c38c2044d26f5af90fac82113cd1bc443c3b",
       "documentation": [
         "11-coverage.tex"
       ],
@@ -3690,7 +3690,7 @@
     },
     {
       "source": "src/ui/InterstitialAtomsDialog.cpp",
-      "sha256": "3a457318e3789583267e0772cf92d55633804387f337714269715e7d83d3d74d",
+      "sha256": "bc8e31ac03f240322fdfe3144f4a315d957d0983ed365b4b35820f536230c1a1",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -3915,7 +3915,7 @@
     },
     {
       "source": "src/ui/MainWindowChrome.cpp",
-      "sha256": "2db7ae108476b469d2f614c3a081dcbf488947bc7cd97ee9cabab48a17736b51",
+      "sha256": "34faa7913fad44e6cfc7acc29442bc81aac2fa4020e211d4cba3db96e214df49",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3975,7 +3975,7 @@
     },
     {
       "source": "src/ui/MergeStructuresDialog.cpp",
-      "sha256": "0ba5c029896825b8b0cc2fdc3e1d618a9ba7c5a56f1d61dcea46b0e70b6077c6",
+      "sha256": "f2343b3257338a6002a7c038ccbd388ea6cd7c25139b6bb199b238d57d82944c",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -4121,7 +4121,7 @@
     },
     {
       "source": "src/ui/NanoCrystalBuilderDialog.cpp",
-      "sha256": "29c6dbe54fe05113da659a3a0d9f96db2381b2777e27783476c7498e732a0dbb",
+      "sha256": "1e1407260ed58d4c597df17399d96d12275ad2074f9b3baca83716326b20eab8",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -4552,7 +4552,7 @@
     },
     {
       "source": "src/ui/PolyCrystalBuilderDialog.cpp",
-      "sha256": "f1f355f7626e2fb35b647180048084d124fe3ddf5354979d221d119dc44b7031",
+      "sha256": "a48648d3f221390406c3e82e4fe52f1fa582c332701e9480b238c980a1eb5c8a",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -4756,7 +4756,7 @@
     },
     {
       "source": "src/ui/ResponsiveLayout.cpp",
-      "sha256": "1935a3bcf05c9c7e7b7fe456daa0817813a693865faae65d3e820de41811962b",
+      "sha256": "86de92b9c0070cefd059bae249fe530bf6a87d3f774f0bf769ae3a6beeb81364",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4767,7 +4767,7 @@
     },
     {
       "source": "src/ui/ResponsiveLayout.h",
-      "sha256": "922c2c6af0d8d637077cbb23d95635754843fc04a3ed7a03f2e3fb9403e3db12",
+      "sha256": "1600fb02c588966088e7bf6e6febe343a5151032b5c0b57a49e3203cfb902b92",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5176,7 +5176,7 @@
     },
     {
       "source": "src/ui/SubstitutionalSolidSolutionDialog.cpp",
-      "sha256": "483eeb6261ee0dd48c35a130837c4afcb9bd3a74614939d9a2e17f356cd14694",
+      "sha256": "36c391fdfa81a869db8cfa36a007ec54d8a45aaa2493389c6ec9607080ee10d4",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"

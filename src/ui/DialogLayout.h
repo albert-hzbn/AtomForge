@@ -118,6 +118,25 @@ inline void helpMarker(const char* text)
     }
 }
 
+// A tooltip explaining the previous item (a field or button), shown after a
+// short hover, also when the item is disabled.
+inline void hint(const char* text)
+{
+    if (!ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort | ImGuiHoveredFlags_AllowWhenDisabled)) return;
+    ImGui::BeginTooltip();
+    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 28.0f);
+    ImGui::TextUnformatted(text);
+    ImGui::PopTextWrapPos();
+    ImGui::EndTooltip();
+}
+
+// hint() for a widget inside an expression: `if (hinted(ImGui::Checkbox(...), "..."))`.
+inline bool hinted(bool result, const char* text)
+{
+    hint(text);
+    return result;
+}
+
 inline ImVec2 actionSize()
 {
     return ImVec2(ImGui::GetFontSize() * 6.5f, 0);

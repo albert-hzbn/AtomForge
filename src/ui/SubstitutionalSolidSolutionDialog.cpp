@@ -961,7 +961,7 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
             ImGui::Text("Options");
             ImGui::Spacing();
             ImGui::SetNextItemWidth(responsive::dp(160.0f));
-            ImGui::InputInt("RNG Seed", &m_seed);
+            dialogLayout::hinted(ImGui::InputInt("RNG Seed", &m_seed), "A positive fixed integer makes the site assignment reproducible for the same input ordering. Zero selects a random/time-dependent assignment; negative input is clamped to zero.");
             if (m_seed < 0) m_seed = 0;
             ImGui::SameLine();
             ImGui::TextDisabled("(0 = random)");
