@@ -48,6 +48,9 @@ public:
     // frame, by name ("step 2", "up 2", "down 2", "remove 2", "move up", ...),
     // so interface tests can click and drag them.
     const std::vector<std::pair<std::string, std::array<float, 4>>>& controls() const { return m_controls; }
+    // While a step is dragged over the list: the gap it would drop into (0 = above
+    // the first step, size() = below the last), else -1.
+    int dropGap() const { return m_dropGap; }
 
 private:
     void show(Structure& structure, const std::function<void(Structure&)>& update, const std::function<void()>& showAtomProperty);
@@ -55,6 +58,9 @@ private:
     void drawEditor();
     void drawText();
     void drawAddMenu(const Structure& structure);
+    // Every modifier by category as menus; returns the chosen type ("" if none).
+    // Items are recorded as "<prefix> <id>", categories as "<prefix> <category>".
+    std::string drawModifierMenu(const std::string& exclude, const std::string& prefix);
     void record(const std::string& name);
     void moveStep(std::size_t from, std::size_t to);
     void removeStep(std::size_t index);
@@ -71,6 +77,7 @@ private:
     std::vector<std::pair<std::string, std::array<float, 4>>> m_controls;
     StepEdit m_dialogRequest;
     bool m_dialogRequested = false;
+    int m_dropGap = -1;  // gap a dragged step would drop into (-1: none)
     atomforge::pipeline::PipelineEditor m_editor;
     PathPicker m_picker;
 };

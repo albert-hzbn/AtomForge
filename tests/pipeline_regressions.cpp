@@ -370,6 +370,24 @@ int main()
         check(*std::min_element(coordination.structure.atomProperty.begin(), coordination.structure.atomProperty.end()) == 11, "coordination 11 next to the vacancy");
     });
 
+    test("pipeline editor: replace keeps state and shared parameters", [] {
+        PipelineEditor editor;
+        editor.setInput(copper(2));
+        editor.setPipeline(Pipeline::parse("select-sphere 0 0 0 2.6 mode=add | delete-selected"));
+        editor.setEnabled(0, false);
+        editor.setLabel(0, "corner");
+        editor.replace(0, "select-slab");
+        const auto& m = editor.modifier(0);
+        check(m.type == "select-slab" && !m.enabled && m.label == "corner", "type, enabled state and name");
+        check(m.parameters.at("mode").string() == "add", "a parameter both types have is kept");
+        check(m.parameters.at("axis").string() == "z", "the new type's own parameters take their defaults");
+        editor.setEnabled(0, true);
+        editor.replace(0, "select-element");
+        check(editor.evaluate().structure.atoms.empty(), "the replaced step runs (all Cu selected and deleted)");
+        expectError([&] { editor.replace(0, "nope"); }, "unknown type");
+        expectError([&] { editor.replace(5, "wrap"); }, "index out of range");
+    });
+
     test("pipeline editor: add, move, duplicate, disable, delete, bake", [] {
         PipelineEditor editor;
         check(!editor.active(), "inactive until it has an input");

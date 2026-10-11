@@ -67,6 +67,24 @@ std::size_t PipelineEditor::duplicate(std::size_t index)
     return index + 1;
 }
 
+void PipelineEditor::replace(std::size_t index, const std::string& type)
+{
+    if (index >= size()) throw std::out_of_range("No modifier " + std::to_string(index));
+    const Modifier old = m_pipeline.modifiers[index];
+    if (old.type == type) return;
+    Modifier replacement = makeModifier(type);  // throws for unknown types
+    replacement.enabled = old.enabled;
+    replacement.label = old.label;
+    const ModifierType* from = findModifierType(old.type);
+    const ModifierType* to = findModifierType(type);
+    for (const auto& p : to->parameters)
+        for (const auto& q : from->parameters)
+            if (std::string(p.name) == q.name && std::string(p.kind) == q.kind && old.parameters.contains(p.name))
+                replacement.parameters[p.name] = old.parameters.at(p.name);
+    m_pipeline.modifiers[index] = std::move(replacement);
+    changed(index);
+}
+
 void PipelineEditor::setEnabled(std::size_t index, bool enabled)
 {
     Modifier& m = m_pipeline.modifiers.at(index);

@@ -31,6 +31,9 @@ public:
     // Moves the modifier at `from` so that it ends up at position `to`.
     void move(std::size_t from, std::size_t to);
     std::size_t duplicate(std::size_t index);
+    // Replaces the modifier at `index` by one of `type`, keeping its enabled
+    // state, its name and the parameters both types have (same name and kind).
+    void replace(std::size_t index, const std::string& type);
     void setEnabled(std::size_t index, bool enabled);
     void setLabel(std::size_t index, const std::string& label);
     void setParameter(std::size_t index, const std::string& name, const Json& value);

@@ -3,6 +3,7 @@
 #include "ui/ModifierEditor.h"
 #include "ui/ResponsiveLayout.h"
 #include "imgui.h"
+#include "imgui_internal.h"
 
 #include <algorithm>
 #include <cmath>
@@ -158,26 +159,37 @@ void PipelineDialog::drawAddMenu(const Structure& structure)
 {
     if (responsive::button("Add modifier")) ImGui::OpenPopup("Add modifier");
     if (ImGui::BeginPopup("Add modifier")) {
-        std::string category;
-        bool menuOpen = false;
-        for (const auto& type : atomforge::pipeline::modifierTypes()) {
-            if (category != type.category) {
-                if (menuOpen) ImGui::EndMenu();
-                category = type.category;
-                menuOpen = ImGui::BeginMenu(type.category);
-            }
-            if (menuOpen && ImGui::MenuItem(type.title)) {
-                // The first modifier starts the pipeline on the active structure.
-                if (!m_editor.active() && !structure.atoms.empty()) m_editor.setInput(structure);
-                // New modifiers go after the selected one, else at the end.
-                const std::size_t at = m_selected >= 0 ? static_cast<std::size_t>(m_selected) + 1 : m_editor.size();
-                m_selected = static_cast<int>(m_editor.add(type.id, at));
-            }
-            if (menuOpen && ImGui::IsItemHovered()) ImGui::SetTooltip("%s", type.help);
+        const std::string type = drawModifierMenu("", "add");
+        if (!type.empty()) {
+            // The first modifier starts the pipeline on the active structure.
+            if (!m_editor.active() && !structure.atoms.empty()) m_editor.setInput(structure);
+            // New modifiers go after the selected one, else at the end.
+            const std::size_t at = m_selected >= 0 ? static_cast<std::size_t>(m_selected) + 1 : m_editor.size();
+            m_selected = static_cast<int>(m_editor.add(type, at));
         }
-        if (menuOpen) ImGui::EndMenu();
         ImGui::EndPopup();
     }
+}
+
+std::string PipelineDialog::drawModifierMenu(const std::string& exclude, const std::string& prefix)
+{
+    // Every modifier by category (the menus of "Add modifier", "Replace with", "Insert ...").
+    std::string chosen, category;
+    bool menuOpen = false;
+    for (const auto& type : atomforge::pipeline::modifierTypes()) {
+        if (category != type.category) {
+            if (menuOpen) ImGui::EndMenu();
+            category = type.category;
+            menuOpen = ImGui::BeginMenu(type.category);
+            record(prefix + " " + category);
+        }
+        if (!menuOpen) continue;
+        if (ImGui::MenuItem(type.title, nullptr, exclude == type.id, exclude != type.id)) chosen = type.id;
+        record(prefix + " " + type.id);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", type.help);
+    }
+    if (menuOpen) ImGui::EndMenu();
+    return chosen;
 }
 
 void PipelineDialog::drawList()
@@ -187,6 +199,7 @@ void PipelineDialog::drawList()
     const float rail = ImGui::GetCursorScreenPos().x + responsive::dp(7);
     const float indent = responsive::dp(20);
     const ImU32 lineColour = ImGui::GetColorU32(ImGuiCol_TextDisabled);
+    const ImU32 accent = ImGui::GetColorU32(ImGuiCol_CheckMark);
     std::vector<float> nodes;  // screen y of each node, input first
     const auto node = [&] { nodes.push_back(ImGui::GetCursorScreenPos().y + ImGui::GetFrameHeight() * 0.5f); };
     node();
@@ -197,49 +210,105 @@ void PipelineDialog::drawList()
         ImGui::Text("Input: %zu atoms%s", input.atoms.size(), input.hasUnitCell ? ", periodic cell" : "");
     } else ImGui::TextDisabled("Input: not started (the active structure is used when it starts)");
     ImGui::Unindent(indent);
+
+    // The step being dragged (from an earlier frame), shown faded in place.
+    int dragging = -1;
+    if (const ImGuiPayload* payload = ImGui::GetDragDropPayload(); payload && payload->IsDataType("PIPELINE_STEP"))
+        dragging = *static_cast<const int*>(payload->Data);
+    // Esc cancels a drag (the step stays where it was).
+    if (dragging >= 0 && ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
+        ImGui::ClearDragDrop();
+        ImGui::ClearActiveID();
+        dragging = -1;
+        m_dropGap = -1;
+    }
+
     int moveFrom = -1, moveTo = -1, remove = -1, duplicate = -1;
+    std::string replaceWith, insertType;
+    std::size_t replaceAt = 0, insertAt = 0;
+    std::vector<float> rowTop, rowBottom;
+    float left = 0, right = 0;
     for (std::size_t i = 0; i < m_editor.size(); ++i) {
         const auto& m = m_editor.modifier(i);
         ImGui::PushID(static_cast<int>(i));
+        rowTop.push_back(ImGui::GetCursorScreenPos().y);
         node();
         ImGui::Indent(indent);
+        if (dragging == static_cast<int>(i)) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.35f);
+        // Drag either the grip or the step's name.
+        const auto dragSource = [&] {
+            if (ImGui::BeginDragDropSource()) {
+                const int index = static_cast<int>(i);
+                ImGui::SetDragDropPayload("PIPELINE_STEP", &index, sizeof(index));
+                m_selected = index;
+                ImGui::Text("Move %s", titleOf(m).c_str());
+                ImGui::TextDisabled("Drop between steps; Esc cancels");
+                ImGui::EndDragDropSource();
+            }
+        };
+        const ImVec2 grip = ImGui::GetCursorScreenPos();
+        const float gripWidth = responsive::dp(12);
+        ImGui::InvisibleButton("##grip", ImVec2(gripWidth, ImGui::GetFrameHeight()));
+        const bool gripHot = ImGui::IsItemHovered() || ImGui::IsItemActive();
+        if (gripHot) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Drag to move this step");
+        dragSource();
+        record("grip " + std::to_string(i));
+        // Six dots: the grip.
+        for (int r = 0; r < 3; ++r)
+            for (int c = 0; c < 2; ++c)
+                draw->AddCircleFilled(ImVec2(grip.x + responsive::dp(3.5f + 5.0f * c), grip.y + ImGui::GetFrameHeight() * (0.3f + 0.2f * r)),
+                                      responsive::dp(1.3f), gripHot ? accent : lineColour);
+        ImGui::SameLine();
         bool enabled = m.enabled;
         if (ImGui::Checkbox("##enabled", &enabled)) m_editor.setEnabled(i, enabled);
         if (ImGui::IsItemHovered()) ImGui::SetTooltip(enabled ? "Applied; untick to bypass this step" : "Bypassed");
         ImGui::SameLine();
         const std::string title = std::to_string(i + 1) + "  " + titleOf(m);
-        ImGui::BeginDisabled(!m.enabled);
+        // A bypassed step is greyed but still selectable, draggable and right-clickable.
+        if (!m.enabled) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
         const ImGuiStyle& style = ImGui::GetStyle();
         const float buttons = 2 * ImGui::GetFrameHeight() + ImGui::CalcTextSize("X").x + 2 * style.FramePadding.x + 3 * style.ItemSpacing.x;
         if (ImGui::Selectable(title.c_str(), m_selected == static_cast<int>(i), ImGuiSelectableFlags_AllowOverlap,
                               ImVec2(std::max(responsive::dp(80), ImGui::GetContentRegionAvail().x - buttons), ImGui::GetFrameHeight())))
             m_selected = static_cast<int>(i);
         if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) requestDialog(i);
-        if (ImGui::IsItemHovered() && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) ImGui::SetTooltip("Double-click to edit in the %s dialog", menuPathOf(m.type).c_str());
-        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered() && !ImGui::IsMouseDown(ImGuiMouseButton_Left) && dragging < 0)
+            ImGui::SetTooltip("Drag to move; right-click to replace, insert or remove; double-click to edit in the %s dialog", menuPathOf(m.type).c_str());
+        if (!m.enabled) ImGui::PopStyleColor();
         record("step " + std::to_string(i));
-        // Drag a step onto another to move it there.
-        if (ImGui::BeginDragDropSource()) {
-            const int index = static_cast<int>(i);
-            ImGui::SetDragDropPayload("PIPELINE_STEP", &index, sizeof(index));
-            m_selected = index;
-            ImGui::Text("Move %s", titleOf(m).c_str());
-            ImGui::EndDragDropSource();
-        }
-        if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("PIPELINE_STEP")) {
-                moveFrom = *static_cast<const int*>(payload->Data);
-                moveTo = static_cast<int>(i);
-            }
-            ImGui::EndDragDropTarget();
-        }
+        left = ImGui::GetItemRectMin().x;
+        dragSource();
         if (ImGui::BeginPopupContextItem("step menu")) {
-            if (ImGui::MenuItem("Move up", nullptr, false, i > 0)) { moveFrom = static_cast<int>(i); moveTo = static_cast<int>(i) - 1; }
-            if (ImGui::MenuItem("Move down", nullptr, false, i + 1 < m_editor.size())) { moveFrom = static_cast<int>(i); moveTo = static_cast<int>(i) + 1; }
+            m_selected = static_cast<int>(i);
+            ImGui::TextDisabled("%s", titleOf(m).c_str());
+            ImGui::Separator();
             if (ImGui::MenuItem("Edit in dialog")) requestDialog(i);
+            if (ImGui::BeginMenu("Replace with")) {
+                record("replace with");
+                const std::string type = drawModifierMenu(m.type, "replace");
+                if (!type.empty()) { replaceWith = type; replaceAt = i; }
+                ImGui::EndMenu();
+            } else record("replace with");
+            if (ImGui::BeginMenu("Insert above")) {
+                record("insert above");
+                const std::string type = drawModifierMenu("", "above");
+                if (!type.empty()) { insertType = type; insertAt = i; }
+                ImGui::EndMenu();
+            } else record("insert above");
+            if (ImGui::BeginMenu("Insert below")) {
+                record("insert below");
+                const std::string type = drawModifierMenu("", "below");
+                if (!type.empty()) { insertType = type; insertAt = i + 1; }
+                ImGui::EndMenu();
+            } else record("insert below");
+            ImGui::Separator();
+            if (ImGui::MenuItem("Move up", "Alt+Up", false, i > 0)) { moveFrom = static_cast<int>(i); moveTo = static_cast<int>(i) - 1; }
+            if (ImGui::MenuItem("Move down", "Alt+Down", false, i + 1 < m_editor.size())) { moveFrom = static_cast<int>(i); moveTo = static_cast<int>(i) + 1; }
             if (ImGui::MenuItem("Duplicate")) duplicate = static_cast<int>(i);
             if (ImGui::MenuItem(m.enabled ? "Disable" : "Enable")) m_editor.setEnabled(i, !m.enabled);
-            if (ImGui::MenuItem("Delete")) remove = static_cast<int>(i);
+            ImGui::Separator();
+            if (ImGui::MenuItem("Delete", "Del")) remove = static_cast<int>(i);
             ImGui::EndPopup();
         }
         ImGui::SameLine();
@@ -256,8 +325,9 @@ void PipelineDialog::drawList()
         ImGui::EndDisabled();
         ImGui::SameLine();
         if (ImGui::Button("X")) remove = static_cast<int>(i);
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Remove this step (right-click a step to duplicate or disable it; drag it to move it)");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Remove this step");
         record("remove " + std::to_string(i));
+        right = ImGui::GetItemRectMax().x;
         // Status of the step after the last evaluation.
         if (i < stages.size()) {
             const auto& stage = stages[i];
@@ -270,11 +340,13 @@ void PipelineDialog::drawList()
             else ImGui::TextDisabled("%zu atoms, %zu selected, %.1f ms", stage.atoms, stage.selected, stage.milliseconds);
             ImGui::Unindent(responsive::dp(34));
         }
+        if (dragging == static_cast<int>(i)) ImGui::PopStyleVar();
         ImGui::Unindent(indent);
+        rowBottom.push_back(ImGui::GetCursorScreenPos().y - ImGui::GetStyle().ItemSpacing.y);
         ImGui::PopID();
     }
-    if (m_editor.size() == 0) ImGui::TextDisabled("No modifiers yet: add one below. The output equals the input.");
-    else ImGui::TextDisabled("Drag a step onto another to move it there.");
+    if (m_editor.size() == 0) ImGui::TextDisabled("No modifiers yet: add one below, or right-click here. The output equals the input.");
+    else ImGui::TextDisabled("Drag steps by their grip or name; right-click a step to replace it.");
     node();
     ImGui::Indent(indent);
     ImGui::AlignTextToFramePadding();
@@ -287,14 +359,82 @@ void PipelineDialog::drawList()
     for (std::size_t k = 0; k < nodes.size(); ++k) {
         const bool ends = k == 0 || k + 1 == nodes.size();
         const bool off = !ends && !m_editor.modifier(k - 1).enabled;
-        const ImU32 fill = ends ? ImGui::GetColorU32(ImGuiCol_CheckMark) : off ? ImGui::GetColorU32(ImGuiCol_FrameBg) : ImGui::GetColorU32(ImGuiCol_ButtonActive);
+        const ImU32 fill = ends ? accent : off ? ImGui::GetColorU32(ImGuiCol_FrameBg) : ImGui::GetColorU32(ImGuiCol_ButtonActive);
         draw->AddCircleFilled(ImVec2(rail, nodes[k]), responsive::dp(ends ? 5.5f : 4.5f), fill);
         draw->AddCircle(ImVec2(rail, nodes[k]), responsive::dp(ends ? 5.5f : 4.5f), lineColour, 0, responsive::dp(1.2f));
     }
+
+    // Dropping a dragged step: anywhere over the list, into the gap nearest the mouse,
+    // which an accent line marks while dragging.
+    if (!rowTop.empty()) {
+        const std::size_t n = rowTop.size();
+        const float mouse = ImGui::GetIO().MousePos.y;
+        std::size_t gap = n;
+        for (std::size_t k = 0; k < n; ++k)
+            if (mouse < 0.5f * (rowTop[k] + rowBottom[k])) { gap = k; break; }
+        // The list, and a margin above and below it so that the first and last gaps
+        // can be reached when the list is scrolled.
+        const float margin = responsive::dp(28);
+        const ImVec2 position = ImGui::GetWindowPos(), size = ImGui::GetWindowSize();
+        const ImRect area(ImVec2(position.x, position.y - margin), ImVec2(position.x + size.x, position.y + size.y + margin));
+        // Near the top or bottom edge while dragging, the list scrolls.
+        if (dragging >= 0 && area.Contains(ImGui::GetIO().MousePos)) {
+            float speed = 0;
+            if (mouse < position.y + margin) speed = mouse - (position.y + margin);
+            else if (mouse > position.y + size.y - margin) speed = mouse - (position.y + size.y - margin);
+            if (speed != 0) ImGui::SetScrollY(std::clamp(ImGui::GetScrollY() + 0.5f * speed, 0.0f, ImGui::GetScrollMaxY()));
+        }
+        // The target's hit test is clipped to the list; widen the clip to its margin.
+        ImGui::PushClipRect(area.Min, area.Max, false);
+        const bool target = ImGui::BeginDragDropTargetCustom(area, ImGui::GetID("pipeline list"));
+        ImGui::PopClipRect();
+        if (target) {
+            const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("PIPELINE_STEP", ImGuiDragDropFlags_AcceptBeforeDelivery | ImGuiDragDropFlags_AcceptNoDrawDefaultRect);
+            if (payload) {
+                const int from = *static_cast<const int*>(payload->Data);
+                const std::size_t to = gap > static_cast<std::size_t>(from) ? gap - 1 : gap;
+                // The insertion line (not where the step already is).
+                if (to != static_cast<std::size_t>(from)) {
+                    const float y = gap == 0 ? rowTop[0] - responsive::dp(2) : gap == n ? rowBottom[n - 1] + responsive::dp(2) : 0.5f * (rowBottom[gap - 1] + rowTop[gap]);
+                    draw->AddLine(ImVec2(rail, y), ImVec2(right, y), accent, responsive::dp(3));
+                    draw->AddTriangleFilled(ImVec2(left - responsive::dp(8), y - responsive::dp(5)), ImVec2(left - responsive::dp(8), y + responsive::dp(5)),
+                                            ImVec2(left - responsive::dp(1), y), accent);
+                    m_dropGap = static_cast<int>(gap);
+                } else m_dropGap = -1;
+                if (payload->IsDelivery() && to != static_cast<std::size_t>(from)) { moveFrom = from; moveTo = static_cast<int>(to); }
+            }
+            ImGui::EndDragDropTarget();
+        }
+        if (dragging < 0) m_dropGap = -1;
+    }
+    // Right-click on empty space: add a modifier there.
+    if (ImGui::BeginPopupContextWindow("list menu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
+        if (ImGui::BeginMenu("Add modifier")) {
+            record("add modifier");
+            const std::string type = drawModifierMenu("", "add");
+            if (!type.empty()) { insertType = type; insertAt = m_editor.size(); }
+            ImGui::EndMenu();
+        } else record("add modifier");
+        ImGui::EndPopup();
+    }
+    // Keys for the selected step while the list has focus.
+    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) && !ImGui::GetIO().WantTextInput &&
+        m_selected >= 0 && static_cast<std::size_t>(m_selected) < m_editor.size()) {
+        const auto& io = ImGui::GetIO();
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) remove = m_selected;
+        else if (io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_UpArrow) && m_selected > 0) { moveFrom = m_selected; moveTo = m_selected - 1; }
+        else if (io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_DownArrow) && static_cast<std::size_t>(m_selected) + 1 < m_editor.size()) { moveFrom = m_selected; moveTo = m_selected + 1; }
+    }
+
     // Apply list edits after drawing, so indices stay valid during the loop.
     if (moveFrom >= 0 && moveTo >= 0) moveStep(static_cast<std::size_t>(moveFrom), static_cast<std::size_t>(moveTo));
     if (duplicate >= 0) duplicateStep(static_cast<std::size_t>(duplicate));
     if (remove >= 0) removeStep(static_cast<std::size_t>(remove));
+    if (!replaceWith.empty()) {
+        m_editor.replace(replaceAt, replaceWith);
+        m_selected = static_cast<int>(replaceAt);
+    }
+    if (!insertType.empty()) m_selected = static_cast<int>(m_editor.add(insertType, insertAt));
 }
 
 void PipelineDialog::drawEditor()

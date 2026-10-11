@@ -752,7 +752,7 @@
     },
     {
       "source": "src/app/LargeData.cpp",
-      "sha256": "24e154585494fbde66d8c4616dd744be9185f9484ac03101ecf949246094a3e7",
+      "sha256": "fd0bcbbbf9d02a4123a59414a25e12466c6c64b323d67fbb15a20a493d412b51",
       "documentation": [
         "04-analysis.tex",
         "08-python.tex",
@@ -760,39 +760,39 @@
       ],
       "literal_controls": [
         {
-          "line": 205,
+          "line": 213,
           "declaration_label": "Atoms per frame (M)"
         },
         {
-          "line": 208,
+          "line": 216,
           "declaration_label": "GPU memory (MB)"
         },
         {
-          "line": 209,
+          "line": 217,
           "declaration_label": "Level of detail"
         },
         {
-          "line": 212,
+          "line": 220,
           "declaration_label": "Detail"
         },
         {
-          "line": 214,
+          "line": 222,
           "declaration_label": "Atom size"
         },
         {
-          "line": 216,
+          "line": 224,
           "declaration_label": "Colour"
         },
         {
-          "line": 217,
+          "line": 225,
           "declaration_label": "Show box"
         },
         {
-          "line": 219,
+          "line": 227,
           "declaration_label": "Occlusion culling"
         },
         {
-          "line": 235,
+          "line": 243,
           "declaration_label": "Cancel"
         }
       ]
@@ -1085,7 +1085,7 @@
     },
     {
       "source": "src/pipeline/PipelineEditor.cpp",
-      "sha256": "2d680f37b5790adda0ff2b24c1f18e5f519e1eea8aaf1264070eeefe6f5ae9f2",
+      "sha256": "573c6d2759b022dddac2e96f7ce532141be0d034692a1f950e528595c2561c24",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -1094,7 +1094,7 @@
     },
     {
       "source": "src/pipeline/PipelineEditor.h",
-      "sha256": "fb04a2a02a8f76f71e33b089dc2caac6113edeef646d2cde9440cbd7e862a7a7",
+      "sha256": "1604737327399c036d6f537830a6ef5723e361810ef3f645c0ea2d9a00f1fdb5",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -4405,137 +4405,137 @@
     },
     {
       "source": "src/ui/PipelineDialog.cpp",
-      "sha256": "3b300b5edd1f0fd88471ee28f48d47830f940683b72232dc013767dc5d35ed72",
+      "sha256": "a48ce9843aaf740434354f29a42be414abd101d72d33a2ef638fc3e76be6b530",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": [
         {
-          "line": 82,
+          "line": 83,
           "declaration_label": "Structure pipeline"
         },
         {
-          "line": 159,
+          "line": 160,
           "declaration_label": "Add modifier"
         },
         {
-          "line": 207,
+          "line": 257,
           "declaration_label": "##enabled"
         },
         {
-          "line": 237,
-          "declaration_label": "Move up"
-        },
-        {
-          "line": 238,
-          "declaration_label": "Move down"
-        },
-        {
-          "line": 239,
+          "line": 279,
           "declaration_label": "Edit in dialog"
         },
         {
-          "line": 240,
+          "line": 299,
+          "declaration_label": "Move up"
+        },
+        {
+          "line": 300,
+          "declaration_label": "Move down"
+        },
+        {
+          "line": 301,
           "declaration_label": "Duplicate"
         },
         {
-          "line": 242,
+          "line": 304,
           "declaration_label": "Delete"
         },
         {
-          "line": 258,
+          "line": 320,
           "declaration_label": "X"
         },
         {
-          "line": 311,
+          "line": 444,
           "declaration_label": "Move up"
         },
         {
-          "line": 316,
+          "line": 449,
           "declaration_label": "Move down"
         },
         {
-          "line": 320,
+          "line": 453,
           "declaration_label": "Duplicate"
         },
         {
-          "line": 323,
+          "line": 456,
           "declaration_label": "Remove"
         },
         {
-          "line": 327,
+          "line": 460,
           "declaration_label": "Enabled"
         },
         {
-          "line": 329,
+          "line": 462,
           "declaration_label": "Edit in dialog"
         },
         {
-          "line": 338,
+          "line": 471,
           "declaration_label": "Name##label"
         },
         {
-          "line": 350,
+          "line": 483,
           "declaration_label": "Copy as command"
         },
         {
-          "line": 358,
+          "line": 491,
           "declaration_label": "##pipelinetext"
         },
         {
-          "line": 359,
+          "line": 492,
           "declaration_label": "Apply text"
         },
         {
-          "line": 386,
+          "line": 519,
           "declaration_label": "Start from the active structure"
         },
         {
-          "line": 399,
+          "line": 532,
           "declaration_label": "Use it as the pipeline input"
         },
         {
-          "line": 401,
+          "line": 534,
           "declaration_label": "Restore the pipeline output"
         },
         {
-          "line": 403,
+          "line": 536,
           "declaration_label": "Use the active structure as input"
         },
         {
-          "line": 406,
+          "line": 539,
           "declaration_label": "Bake"
         },
         {
-          "line": 413,
+          "line": 546,
           "declaration_label": "Discard"
         },
         {
-          "line": 431,
+          "line": 564,
           "declaration_label": "Update automatically"
         },
         {
-          "line": 435,
+          "line": 568,
           "declaration_label": "Update"
         },
         {
-          "line": 438,
+          "line": 571,
           "declaration_label": "Colour atoms by selection"
         },
         {
-          "line": 443,
+          "line": 576,
           "declaration_label": "Save pipeline"
         },
         {
-          "line": 445,
+          "line": 578,
           "declaration_label": "Load pipeline"
         }
       ]
     },
     {
       "source": "src/ui/PipelineDialog.h",
-      "sha256": "481c4b77f7066ea34f6dbfac19f9cfab67b04e61e29f0cade89e54a694cff9cd",
+      "sha256": "90930a032ee7e4f57f4946df76b5e2f57431bbdba503edbaaf97a6665752b28b",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"

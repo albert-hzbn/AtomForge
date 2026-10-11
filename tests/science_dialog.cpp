@@ -9,6 +9,7 @@
 #include "ui/MenuParity.h"
 #include "ui/SciencePlot.h"
 #include <cmath>
+#include <cstdio>
 #include "imgui.h"
 #include "imgui_internal.h"
 
@@ -292,9 +293,9 @@ int main()
             if (order() != "select-element,replicate") throw std::runtime_error("Remove did not remove the selected step: " + order());
             click("duplicate");
             if (order() != "select-element,replicate,replicate") throw std::runtime_error("Duplicate: " + order());
-            // Drag the first step onto the last.
+            // Drag the first step onto the lower half of the last (below it: the insertion line shows the gap).
             frame();
-            const ImVec2 from = centre("step 0"), to = centre("step 2");
+            const ImVec2 from = centre("step 0"), to(centre("step 2").x, centre("step 2").y + 24);
             io.AddMousePosEvent(from.x, from.y); frame();
             io.AddMouseButtonEvent(0, true); frame();
             for (int k = 1; k <= 8; ++k) { io.AddMousePosEvent(from.x + (to.x - from.x) * k / 8, from.y + (to.y - from.y) * k / 8); frame(); }
@@ -303,6 +304,135 @@ int main()
             if (order() != "replicate,replicate,select-element") throw std::runtime_error("Dragging did not move the step: " + order());
             // The output follows the new order: two doublings of the 4-atom cell.
             if (shown.atoms.size() != 16) throw std::runtime_error("Output after reordering: " + std::to_string(shown.atoms.size()));
+            io.AddMousePosEvent(-1, -1);
+            frame();
+        }
+        // Dragging by the grip into the gaps between steps, replacing and inserting from the
+        // right-click menu, and keys, all with real mouse and keyboard input.
+        {
+            Structure shown = copper;
+            PipelineDialog panel;
+            panel.restore(R"({"format":"atomforge-pipeline","version":1,"active":true,"open":true,"modifiers":[
+                {"type":"replicate","parameters":{"counts":[2,1,1]}},
+                {"type":"wrap"},
+                {"type":"select-element","parameters":{"elements":"Cu","mode":"add"}},
+                {"type":"invert-selection"}]})", &copper);
+            auto& io = ImGui::GetIO();
+            float windowHeight = 1500;
+            const auto frame = [&] {
+                ImGui::NewFrame();
+                ImGui::SetNextWindowPos(ImVec2(0, 0));
+                ImGui::SetNextWindowSize(ImVec2(700, windowHeight));
+                ImGui::SetWindowSize("Structure pipeline", ImVec2(700, windowHeight));
+                panel.draw(shown, [](Structure&) {});
+                ImGui::Render();
+            };
+            const auto rect = [&](const std::string& name) {
+                for (const auto& [control, r] : panel.controls())
+                    if (control == name) return r;
+                throw std::runtime_error("Control not drawn: " + name);
+            };
+            const auto centre = [&](const std::string& name) {
+                const auto r = rect(name);
+                return ImVec2(0.5f * (r[0] + r[2]), 0.5f * (r[1] + r[3]));
+            };
+            const auto order = [&] {
+                std::string text;
+                for (std::size_t i = 0; i < panel.editor().size(); ++i) text += (i ? "," : "") + panel.editor().modifier(i).type;
+                return text;
+            };
+            const auto moveTo = [&](ImVec2 at) { io.AddMousePosEvent(at.x, at.y); frame(); };
+            const auto click = [&](ImVec2 at, int button) {
+                moveTo(at);
+                io.AddMouseButtonEvent(button, true); frame();
+                io.AddMouseButtonEvent(button, false); frame();
+                frame();
+            };
+            // Drags from `from` to `to` in steps; returns the drop gap shown just before release.
+            const auto drag = [&](ImVec2 from, ImVec2 to) {
+                moveTo(from);
+                io.AddMouseButtonEvent(0, true); frame();
+                for (int k = 1; k <= 10; ++k) moveTo(ImVec2(from.x + (to.x - from.x) * k / 10, from.y + (to.y - from.y) * k / 10));
+                frame();
+                const int gap = panel.dropGap();
+                io.AddMouseButtonEvent(0, false); frame();
+                frame();
+                return gap;
+            };
+            for (int k = 0; k < 3; ++k) frame();
+            // The first step by its grip to below the last step.
+            const auto last = rect("step 3");
+            int gap = drag(centre("grip 0"), ImVec2(centre("grip 0").x, last[3] + 6));
+            if (gap != 4 || order() != "wrap,select-element,invert-selection,replicate") throw std::runtime_error("Grip drag to the end: gap " + std::to_string(gap) + ", " + order());
+            // The last step by its name into the gap above the first step.
+            const auto first = rect("step 0");
+            gap = drag(centre("step 3"), ImVec2(centre("step 0").x, first[1] + 2));
+            if (gap != 0 || order() != "replicate,wrap,select-element,invert-selection") throw std::runtime_error("Drag above the first step: gap " + std::to_string(gap) + ", " + order());
+            // Into the gap between steps 1 and 2: the boundary between their rows.
+            gap = drag(centre("grip 3"), ImVec2(centre("grip 3").x, 0.5f * (rect("step 1")[3] + rect("step 2")[1]) + 1));
+            if (gap != 2 || order() != "replicate,wrap,invert-selection,select-element") throw std::runtime_error("Drag between steps: gap " + std::to_string(gap) + ", " + order());
+            if (panel.dropGap() != -1) throw std::runtime_error("The insertion line ends with the drag");
+            // Esc cancels a drag: nothing moves.
+            {
+                const std::string before = order();
+                moveTo(centre("grip 0"));
+                io.AddMouseButtonEvent(0, true); frame();
+                for (int k = 1; k <= 6; ++k) moveTo(ImVec2(centre("grip 0").x, centre("grip 0").y + 20.0f * k));
+                if (panel.dropGap() < 0) throw std::runtime_error("Drag before Esc");
+                io.AddKeyEvent(ImGuiKey_Escape, true); frame();
+                io.AddKeyEvent(ImGuiKey_Escape, false); frame();
+                io.AddMouseButtonEvent(0, false); frame();
+                frame();
+                if (order() != before || panel.dropGap() != -1) throw std::runtime_error("Esc did not cancel the drag: " + order());
+            }
+            // Right-click step 3 (select-element): Replace with > Selection > Select a sphere.
+            panel.editor().setEnabled(3, false);
+            click(centre("step 3"), 1);
+            moveTo(centre("replace with")); frame(); frame();
+            moveTo(centre("replace Selection")); frame(); frame();
+            click(centre("replace select-sphere"), 0);
+            const auto& replaced = panel.editor().modifier(3);
+            if (replaced.type != "select-sphere" || replaced.enabled || replaced.parameters.at("mode").string() != "add")
+                throw std::runtime_error("Replace with keeps the place, the state and shared settings: " + order());
+            // Right-click step 0: Insert below > Cell > Wrap into cell.
+            click(centre("step 0"), 1);
+            moveTo(centre("insert below")); frame(); frame();
+            moveTo(centre("below Cell")); frame(); frame();
+            click(centre("below wrap"), 0);
+            if (order() != "replicate,wrap,wrap,invert-selection,select-sphere") throw std::runtime_error("Insert below: " + order());
+            // Keys on the selected step: Alt+Down moves it, Delete removes it.
+            click(centre("step 1"), 0);
+            io.AddKeyEvent(ImGuiMod_Alt, true); io.AddKeyEvent(ImGuiKey_DownArrow, true); frame();
+            io.AddKeyEvent(ImGuiKey_DownArrow, false); io.AddKeyEvent(ImGuiMod_Alt, false); frame();
+            if (order() != "replicate,wrap,wrap,invert-selection,select-sphere" && order() != "replicate,wrap,invert-selection,wrap,select-sphere")
+                throw std::runtime_error("Alt+Down: " + order());
+            const std::size_t before = panel.editor().size();
+            io.AddKeyEvent(ImGuiKey_Delete, true); frame();
+            io.AddKeyEvent(ImGuiKey_Delete, false); frame();
+            if (panel.editor().size() != before - 1) throw std::runtime_error("Delete removes the selected step: " + order());
+            // A list longer than its area scrolls while a step is held near its bottom edge,
+            // and the step drops below the last one.
+            windowHeight = 700;
+            for (int k = 0; k < 10; ++k) panel.editor().add("wrap");
+            panel.editor().add("center");
+            for (int k = 0; k < 3; ++k) frame();
+            const auto steps = panel.editor().size();
+            const ImVec2 grip0 = centre("grip 0");
+            const auto list = ImGui::FindWindowByName("Structure pipeline");
+            if (!list) throw std::runtime_error("Pipeline window");
+            float listBottom = 0;
+            for (ImGuiWindow* w : ImGui::GetCurrentContext()->Windows)
+                if (w->ParentWindow == list && std::string(w->Name).find("Pipeline steps") != std::string::npos) listBottom = w->Pos.y + w->Size.y;
+            if (listBottom <= 0) throw std::runtime_error("Pipeline steps list");
+            moveTo(grip0);
+            io.AddMouseButtonEvent(0, true); frame();
+            for (int k = 1; k <= 10; ++k) moveTo(ImVec2(grip0.x, grip0.y + (listBottom + 10 - grip0.y) * k / 10));
+            for (int k = 0; k < 40; ++k) frame();  // held at the bottom edge: the list scrolls to the end
+            const int endGap = panel.dropGap();
+            io.AddMouseButtonEvent(0, false); frame();
+            frame();
+            if (endGap != static_cast<int>(steps) || panel.editor().modifier(steps - 1).type != "replicate")
+                throw std::runtime_error("Auto-scrolled drag to the end: gap " + std::to_string(endGap) + ", " + order());
             io.AddMousePosEvent(-1, -1);
             frame();
         }
