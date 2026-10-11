@@ -170,9 +170,9 @@ void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
     if (responsive::beginModal("Common Neighbour Analysis", &dialogOpen, ImGuiWindowFlags_NoResize))
     {
         bool changed = false;
-        changed |= ImGui::Checkbox("Use PBC when unit cell is available", &usePbc);
-        changed |= ImGui::SliderFloat("Bond cutoff scale", &cutoffScale, 1.00f, 1.60f, "%.2f");
-        changed |= ImGui::InputFloat("Fixed cutoff (A; 0 = covalent radii)", &m_params.cutoffRadius);
+        changed |= ImGui::Checkbox("Use PBC when unit cell is available", &usePbc); dialogLayout::hint("Find neighbours through the periodic images of the cell when the structure has one.");
+        changed |= ImGui::SliderFloat("Bond cutoff scale", &cutoffScale, 1.00f, 1.60f, "%.2f"); dialogLayout::hint("Two atoms are neighbours when closer than this factor times the sum of their covalent radii (used when the fixed cutoff is 0).");
+        changed |= ImGui::InputFloat("Fixed cutoff (A; 0 = covalent radii)", &m_params.cutoffRadius); dialogLayout::hint("One neighbour cutoff in Angstrom for every pair. Choose it between the first and second neighbour shells (fcc/hcp) or second and third (bcc). 0 uses the scaled covalent radii.");
         dialogLayout::note(dialogLayout::Note::Info, "For crystalline CNA, choose a cutoff between neighbour shells: first and second for FCC/HCP; second and third for BCC. Use a sufficiently repeated periodic cell. Complex graphs with more than 16 common neighbours have chain index -1.");
         ImGui::Spacing();
         

@@ -273,25 +273,25 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
             ImGui::TableSetColumnIndex(0);
             responsive::beginChild("##rdf-controls-child", responsive::size(0.0f,stackPanels ? 520.0f : 0.0f), true);
             ImGui::SeparatorText("Scope and Pair Selection");
-            changed |= ImGui::Combo("Reference species", &refSpeciesIndex, speciesLabelGetter, &speciesOptions, (int)speciesOptions.size());
-            changed |= ImGui::Combo("Target species", &targetSpeciesIndex, speciesLabelGetter, &speciesOptions, (int)speciesOptions.size());
-            changed |= ImGui::Checkbox("Use PBC when unit cell is available", &usePbc);
-            changed |= ImGui::Checkbox("Normalize to g(r)", &normalize);
+            changed |= ImGui::Combo("Reference species", &refSpeciesIndex, speciesLabelGetter, &speciesOptions, (int)speciesOptions.size()); dialogLayout::hint("Element of the centre atoms whose neighbours are counted (all elements: every atom).");
+            changed |= ImGui::Combo("Target species", &targetSpeciesIndex, speciesLabelGetter, &speciesOptions, (int)speciesOptions.size()); dialogLayout::hint("Element of the neighbours counted around the centre atoms; a pair of elements gives a partial g(r).");
+            changed |= ImGui::Checkbox("Use PBC when unit cell is available", &usePbc); dialogLayout::hint("Count neighbours through the periodic images of the cell (minimum image) when the structure has one.");
+            changed |= ImGui::Checkbox("Normalize to g(r)", &normalize); dialogLayout::hint("Divide the pair counts by those of an ideal gas of the same density, so g(r) tends to 1 at long range. Off: pair counts per shell.");
 
             ImGui::SeparatorText("Sampling");
             changed |= ImGui::DragFloatRange2("Radius range", &rMin, &rMax, 0.01f, 0.0f, 50.0f, "r_min = %.2f", "r_max = %.2f");
-            changed |= ImGui::SliderInt("Bins", &binCount, 32, 2000);
-            changed |= ImGui::SliderInt("Smoothing passes", &smoothingPasses, 0, 8);
+            changed |= ImGui::SliderInt("Bins", &binCount, 32, 2000); dialogLayout::hint("Number of histogram bins between the minimum and maximum radius.");
+            changed |= ImGui::SliderInt("Smoothing passes", &smoothingPasses, 0, 8); dialogLayout::hint("Moving-average passes applied to the displayed curve. The raw histogram is not smoothed.");
 
             ImGui::SeparatorText("Plot Overlays");
-            changed |= ImGui::Checkbox("Overlay raw counts", &showRawCounts);
-            changed |= ImGui::Checkbox("Overlay cumulative coordination", &showCumulative);
+            changed |= ImGui::Checkbox("Overlay raw counts", &showRawCounts); dialogLayout::hint("Also plot the unnormalised pair counts per bin.");
+            changed |= ImGui::Checkbox("Overlay cumulative coordination", &showCumulative); dialogLayout::hint("Also plot the running coordination number: the average number of target atoms within r of a centre atom.");
 
             ImGui::SeparatorText("Distortion Metrics (Alloy/Compound)");
-            changed |= ImGui::Checkbox("Enable distortion analysis", &enableDistortionAnalysis);
+            changed |= ImGui::Checkbox("Enable distortion analysis", &enableDistortionAnalysis); dialogLayout::hint("Report bond-length statistics of the first shell (mean, spread, coordination) for alloys and compounds.");
             if (enableDistortionAnalysis)
             {
-                changed |= ImGui::Checkbox("Auto shell window from first-shell minima", &autoDistortionWindow);
+                changed |= ImGui::Checkbox("Auto shell window from first-shell minima", &autoDistortionWindow); dialogLayout::hint("Take the first-shell distance window from the g(r) minima around the first peak instead of fixed limits.");
                 if (!autoDistortionWindow)
                     changed |= ImGui::DragFloatRange2("Manual shell window", &manualDistortionMin, &manualDistortionMax, 0.005f, 0.0f, 50.0f, "r_min = %.3f", "r_max = %.3f");
                 ImGui::TextWrapped("Use pair-resolved RDF (for example A-B) to track bond-length disorder and local distortion in multicomponent systems.");
