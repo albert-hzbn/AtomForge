@@ -1024,3 +1024,42 @@ void drawSelectionOverlay(
     // Selection is drawn as an outline halo by
     // Renderer::drawSelectionHalos in the OpenGL colour pass.
 }
+void drawAtomHoverTooltip(
+    const EditorState& state,
+    const glm::vec3& cameraPosition,
+    int windowWidth,
+    int windowHeight,
+    const glm::mat4& projection,
+    const glm::mat4& view)
+{
+    // Only over the view (not a panel), with the mouse at rest and no button
+    // or popup in use; picking is skipped for large structures.
+    static ImVec2 lastPosition(-1.0f, -1.0f);
+    static double restingSince = 0.0;
+    const ImGuiIO& io = ImGui::GetIO();
+    const double now = ImGui::GetTime();
+    if (io.MousePos.x != lastPosition.x || io.MousePos.y != lastPosition.y) {
+        lastPosition = io.MousePos;
+        restingSince = now;
+        return;
+    }
+    if (now - restingSince < 0.4 || io.WantCaptureMouse || !ImGui::IsMousePosValid() || ImGui::IsAnyMouseDown() ||
+        ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId) || state.sceneBuffers.cpuCachesDisabled ||
+        state.structure.atoms.empty() || state.grabState.active)
+        return;
+    const bool orthographic = std::abs(projection[3][3] - 1.0f) <= 1e-4f;
+    const glm::vec3 origin = orthographic
+        ? pickRayOrigin(io.MousePos.x, io.MousePos.y, windowWidth, windowHeight, projection, view)
+        : cameraPosition;
+    const glm::vec3 ray = pickRayDir(io.MousePos.x, io.MousePos.y, windowWidth, windowHeight, projection, view);
+    const int instance = pickAtom(origin, ray, state.sceneBuffers.atomPositions, state.sceneBuffers.atomRadii, 1.0f);
+    if (instance < 0 || instance >= static_cast<int>(state.sceneBuffers.atomIndices.size())) return;
+    const int index = state.sceneBuffers.atomIndices[static_cast<std::size_t>(instance)];
+    if (index < 0 || static_cast<std::size_t>(index) >= state.structure.atoms.size()) return;
+    const AtomSite& atom = state.structure.atoms[static_cast<std::size_t>(index)];
+    const glm::vec3& p = state.sceneBuffers.atomPositions[static_cast<std::size_t>(instance)];
+    ImGui::BeginTooltip();
+    ImGui::Text("%s #%d", atom.symbol.c_str(), index);
+    ImGui::TextDisabled("(%.3f, %.3f, %.3f) \xc3\x85", p.x, p.y, p.z);
+    ImGui::EndTooltip();
+}

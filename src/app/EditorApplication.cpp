@@ -1122,6 +1122,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+        drawAtomHoverTooltip(state, frame.cameraPosition, frame.windowWidth, frame.windowHeight, frame.projection, frame.view);
 
         FrameActionRequests requests = beginFrameActionRequests(state);
         applyKeyboardShortcuts(state, requests);

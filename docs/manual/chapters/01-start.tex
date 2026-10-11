@@ -49,6 +49,8 @@ With nothing open, the window shows a welcome panel: \ui{Open a structure}, \ui{
 
 The toolbar under the menus groups the common actions: \ui{Open} and \ui{Save}; undo and redo; \ui{View} (look along x, y, z or the lattice vectors a, b, c, and reset the view); \ui{Rotate} (an angle and the axis to rotate the crystal about); \ui{Measure} (\ui{Distance} and \ui{Angle} between picked atoms). On the right, \ui{Commands} (Ctrl+K) searches every menu command by name, \ui{Pipeline} opens the structure pipeline, the projection button switches between perspective and orthographic projection, and the theme button switches between the light and dark themes. Every button explains itself in a tooltip, with its keyboard shortcut; in the builder and editing dialogs, hovering a field shows what it controls (the same explanations as the control reference in Chapters 2 and 3). In a narrow window the toolbar wraps onto more rows.
 
+Resting the mouse on an atom in the view names it in a tooltip: element, index and position (structures above 100\,000 atoms skip this, as they skip picking).
+
 The status bar along the bottom shows the file, the number of atoms, the selection (the element, index and position of a single selected atom, or the count and the most common elements of several), the cell lengths, the projection and the colouring.
 
 A structure with unsaved changes shows a dot on its tab and in the window title (undoing back to the saved state clears it). Closing such a tab asks whether to save it first (\ui{Save}, \ui{Don't save} or \ui{Cancel}; \ui{Save} on a new structure opens \ui{Save As}), and closing the window lists the structures that would lose changes before quitting.

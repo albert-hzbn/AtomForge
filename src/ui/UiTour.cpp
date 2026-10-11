@@ -153,6 +153,9 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
             selectionRequested = true;
             requestMeasureAngle = true;
         }});
+        t.steps.push_back({"hover-atom", [](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            ImGui::GetIO().AddMousePosEvent(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f);
+        }});
         t.steps.push_back({"command-palette", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showCommandPalette = true; }});
         t.steps.push_back({"command-palette-search", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
             showCommandPalette = true;
@@ -200,7 +203,7 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         return;
     }
     if (t.frame == 0) t.steps[t.index].setup(current, dialogs, update);
-    if (++t.frame < 12) return;
+    if (++t.frame < (t.steps[t.index].name == "hover-atom" ? 40 : 12)) return;  // hover tooltips wait for the mouse to rest
     char name[256];
     std::snprintf(name, sizeof(name), "%02zu-%s.png", t.index + 1, t.steps[t.index].name.c_str());
     screenshotFrontBuffer(t.folder / name);

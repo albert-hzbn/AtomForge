@@ -40,6 +40,15 @@ void handlePendingAtomPick(
     const glm::mat4& projection,
     const glm::mat4& view);
 
+// A tooltip naming the atom under a resting mouse in the 3D view.
+void drawAtomHoverTooltip(
+    const EditorState& state,
+    const glm::vec3& cameraPosition,
+    int windowWidth,
+    int windowHeight,
+    const glm::mat4& projection,
+    const glm::mat4& view);
+
 void handleBoxSelection(
     EditorState& state,
     int windowWidth,

@@ -419,7 +419,8 @@ void FileBrowser::drawShortcuts()
                       {"S", "Substitute the selected atoms"},
                       {"I", "Insert an atom at the midpoint of the selection"},
                       {"G", "Move the selected atoms; X, Y or Z locks an axis, click or Enter confirms, Esc cancels"}});
-    group("Selection", {{"Click", "Select an atom"},
+    group("Selection", {{"Hover", "Name the atom under the mouse (element, index, position)"},
+                        {"Click", "Select an atom"},
                         {"Ctrl+click", "Add or remove an atom"},
                         {"Ctrl+A", "Select all atoms"},
                         {"Esc, Ctrl+D", "Clear the selection"}});
