@@ -1612,6 +1612,7 @@ void FileBrowser::draw(Structure& structure,
         atomColorMode = AtomColorMode::AtomProperty;
     };
     trajectoryDialog.draw(structure, updateBuffers, showAtomProperty);
+    if (trajectoryDialog.consumeLoaded()) requestResetDefaultView = true;  // frame the trajectory
     pipelineDialog.draw(structure, updateBuffers, showAtomProperty);
     OperationDialog::Callbacks operations;
     operations.update = updateBuffers;

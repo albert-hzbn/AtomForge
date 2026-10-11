@@ -101,7 +101,7 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
     bool changed=false;
     if (task.poll()) {
         error=task.error();
-        if (task.result()) { stream=*task.result(); playback.frame=0; playback.playing=false; changed=true; loaded=pending; }
+        if (task.result()) { stream=*task.result(); playback.frame=0; playback.playing=false; changed=true; loaded=pending; justLoaded=true; }
         task.clearResult();
     }
     const int count=static_cast<int>(frameCount());

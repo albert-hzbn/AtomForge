@@ -17,6 +17,8 @@ struct TrajectoryDialog
     void show() { open = true; }
     // Indexes a trajectory file in the background, as Open trajectory does.
     void load(const std::string& path);
+    // True once after a trajectory finished loading (its first frame is shown).
+    bool consumeLoaded() { const bool was = justLoaded; justLoaded = false; return was; }
     // showAtomProperty switches the view to atom-property colouring (per-frame analysis).
     void draw(Structure& structure, const std::function<void(Structure&)>& update,
               const std::function<void()>& showAtomProperty = {});
@@ -38,6 +40,7 @@ private:
     // Loads frame `index` into `structure` (with the per-frame analysis, when enabled).
     void show(int index, Structure& structure, const std::function<void(Structure&)>& update, const std::function<void()>& showAtomProperty);
     bool open=false;
+    bool justLoaded=false;
     TrajectoryPlayback playback;
     float fps=12;
     std::shared_ptr<const atomforge::science::TrajectoryStream> stream;
