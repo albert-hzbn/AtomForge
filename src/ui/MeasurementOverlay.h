@@ -84,3 +84,8 @@ void drawAtomPropertyLegend(ImDrawList* drawList,
                             const std::string& name,
                             double low,
                             double high);
+
+// The elements present with their colours and atom counts (colouring by
+// element), in a card at the top left of the view. `revision` identifies
+// the structure's content so the counts are only recomputed after edits.
+void drawElementLegend(ImDrawList* drawList, float top, const Structure& structure, std::uint64_t revision);

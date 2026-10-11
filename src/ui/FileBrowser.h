@@ -152,6 +152,7 @@ struct FileBrowser
     const int (&getTransformMatrix() const)[3][3] { return transformDialog.getMatrix(); }
     void clearTransformMatrix() { transformDialog.clearTransform(); }
     bool isShowElementEnabled() const { return showElementLabels; }
+    bool isShowElementLegendEnabled() const { return showElementLegend; }
     bool isShowBondsEnabled() const
     {
         if (atomDisplayMode == AtomDisplayMode::BallAndStick || atomDisplayMode == AtomDisplayMode::Polyhedral)
@@ -488,6 +489,7 @@ private:
     bool showManual;
     bool showEditColors;
     bool showElementLabels;
+    bool showElementLegend = true;
     bool showBonds;
     bool showAtoms;
     bool showBoundingBox;

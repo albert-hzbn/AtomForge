@@ -1516,6 +1516,17 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                                        frame.framebufferWidth, frame.framebufferHeight,
                                        activeState.structure);
 
+        if (activeState.fileBrowser.isShowElementLegendEnabled() && !activeState.hasCloud() &&
+            activeState.fileBrowser.getAtomColorMode() == AtomColorMode::ElementType)
+        {
+            // Below the toolbar and the tab bar.
+            float top = ImGui::GetFrameHeight();
+            for (const char* name : {"##ViewToolbar", "##StructureTabBar"})
+                if (ImGuiWindow* bar = ImGui::FindWindowByName(name); bar && bar->WasActive)
+                    top = std::max(top, bar->Pos.y + bar->Size.y);
+            drawElementLegend(drawList, top, activeState.structure, activeState.undoRedo.currentId());
+        }
+
         if (activeState.fileBrowser.getAtomColorMode() == AtomColorMode::CrystalOrientation)
             drawIPFTriangleLegend(drawList, frame.framebufferWidth, frame.framebufferHeight);
         else if (activeState.fileBrowser.getAtomColorMode() == AtomColorMode::AtomProperty &&

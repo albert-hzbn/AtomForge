@@ -719,6 +719,7 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         {
             ImGui::MenuItem("Atoms", nullptr, &showAtoms, hasAtoms);
             ImGui::MenuItem("Element Labels", nullptr, &showElementLabels);
+            ImGui::MenuItem("Element Legend", nullptr, &showElementLegend);
             ImGui::MenuItem("Bounding Box", nullptr, &showBoundingBox, structure.hasUnitCell);
             ImGui::Separator();
             ImGui::MenuItem("Lattice Planes", nullptr, &showLatticePlanes, structure.hasUnitCell);

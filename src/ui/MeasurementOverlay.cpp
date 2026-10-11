@@ -1036,3 +1036,60 @@ void drawAtomPropertyLegend(ImDrawList* drawList,
     const float titleWidth = ImGui::CalcTextSize(name.c_str()).x;
     drawList->AddText(ImVec2(std::max(4.0f, x1 + 40.0f - titleWidth), y1 - fontSize * 2.0f), IM_COL32(240, 240, 240, 255), name.c_str());
 }
+
+void drawElementLegend(ImDrawList* drawList, float top, const Structure& structure, std::uint64_t revision)
+{
+    struct Entry { std::string symbol; std::size_t count; ImU32 colour; };
+    static std::vector<Entry> entries;
+    static std::uint64_t cachedRevision = ~std::uint64_t(0);
+    static std::size_t cachedAtoms = 0;
+    if (revision != cachedRevision || structure.atoms.size() != cachedAtoms) {
+        cachedRevision = revision;
+        cachedAtoms = structure.atoms.size();
+        entries.clear();
+        for (const AtomSite& atom : structure.atoms) {
+            auto it = std::find_if(entries.begin(), entries.end(), [&](const Entry& e) { return e.symbol == atom.symbol; });
+            if (it == entries.end())
+                entries.push_back({atom.symbol, 1, ImGui::ColorConvertFloat4ToU32(ImVec4(atom.r, atom.g, atom.b, 1.0f))});
+            else
+                ++it->count;
+        }
+        std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) { return a.count > b.count; });
+    }
+    if (!drawList || entries.size() < 2) return;
+
+    const float scale = ImGui::GetFontSize() / 16.0f;
+    const float margin = 14.0f * scale, pad = 10.0f * scale, swatch = 6.0f * scale;
+    const float rowHeight = ImGui::GetTextLineHeight() + 4.0f * scale;
+    const std::size_t shown = std::min<std::size_t>(entries.size(), 12);
+    float symbolWidth = 0, countWidth = 0;
+    char text[32];
+    for (std::size_t i = 0; i < shown; ++i) {
+        symbolWidth = std::max(symbolWidth, ImGui::CalcTextSize(entries[i].symbol.c_str()).x);
+        std::snprintf(text, sizeof(text), "%zu", entries[i].count);
+        countWidth = std::max(countWidth, ImGui::CalcTextSize(text).x);
+    }
+    const bool more = entries.size() > shown;
+    const float width = pad * 2 + swatch * 2 + 8 * scale + symbolWidth + 16 * scale + countWidth;
+    const float height = pad * 2 + rowHeight * static_cast<float>(shown + (more ? 1 : 0)) - 4.0f * scale;
+    const ImVec2 min(margin, top + margin), max(min.x + width, min.y + height);
+    ImVec4 background = ImGui::GetStyleColorVec4(ImGuiCol_PopupBg);
+    background.w = 0.9f;
+    drawList->AddRectFilled(min, max, ImGui::ColorConvertFloat4ToU32(background), 8.0f * scale);
+    drawList->AddRect(min, max, ImGui::GetColorU32(ImGuiCol_Border), 8.0f * scale);
+    const ImU32 textColour = ImGui::GetColorU32(ImGuiCol_Text), muted = ImGui::GetColorU32(ImGuiCol_TextDisabled);
+    float y = min.y + pad;
+    for (std::size_t i = 0; i < shown; ++i) {
+        const float centre = y + ImGui::GetTextLineHeight() * 0.5f;
+        drawList->AddCircleFilled(ImVec2(min.x + pad + swatch, centre), swatch, entries[i].colour);
+        drawList->AddCircle(ImVec2(min.x + pad + swatch, centre), swatch, muted, 0, 1.0f);
+        drawList->AddText(ImVec2(min.x + pad + swatch * 2 + 8 * scale, y), textColour, entries[i].symbol.c_str());
+        std::snprintf(text, sizeof(text), "%zu", entries[i].count);
+        drawList->AddText(ImVec2(max.x - pad - ImGui::CalcTextSize(text).x, y), muted, text);
+        y += rowHeight;
+    }
+    if (more) {
+        std::snprintf(text, sizeof(text), "+%zu more", entries.size() - shown);
+        drawList->AddText(ImVec2(min.x + pad, y), muted, text);
+    }
+}
