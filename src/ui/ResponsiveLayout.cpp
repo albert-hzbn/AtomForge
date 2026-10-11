@@ -76,14 +76,32 @@ bool begin(const char* name, bool* open, ImGuiWindowFlags flags)
         prepare(name);
         flags = (flags & ~ImGuiWindowFlags_NoScrollbar) | ImGuiWindowFlags_HorizontalScrollbar;
     }
-    return ImGui::Begin(name, open, flags);
+    const bool visible = ImGui::Begin(name, open, flags);
+    if (visible && open && *open && !(flags & ImGuiWindowFlags_NoTitleBar) && escapeCloses()) *open = false;
+    return visible;
 }
 
 bool beginModal(const char* name, bool* open, ImGuiWindowFlags flags)
 {
     prepare(name);
     flags = (flags & ~ImGuiWindowFlags_NoScrollbar) | ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoCollapse;
-    return ImGui::BeginPopupModal(name, open, flags);
+    const bool visible = ImGui::BeginPopupModal(name, open, flags);
+    if (visible && open && *open && escapeCloses()) {
+        *open = false;
+        ImGui::CloseCurrentPopup();
+    }
+    return visible;
+}
+
+// Esc closes the focused dialog, like its close button, unless a field is
+// being edited (Esc then cancels the edit), a popup of it (a combo list) has
+// the focus, or something is being dragged (Esc then cancels the drag).
+bool escapeCloses()
+{
+    if (!ImGui::IsKeyPressed(ImGuiKey_Escape, false) || ImGui::IsAnyItemActive() || ImGui::GetDragDropPayload()) return false;
+    for (int button = 0; button < ImGuiMouseButton_COUNT; ++button)
+        if (ImGui::IsMouseDown(button)) return false;
+    return ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
 }
 
 bool beginChild(const char* name, ImVec2 extent, ImGuiChildFlags childFlags, ImGuiWindowFlags flags)

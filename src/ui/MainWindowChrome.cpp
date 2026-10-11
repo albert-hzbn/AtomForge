@@ -429,6 +429,8 @@ void FileBrowser::drawShortcuts()
                    {"R", "Reset the view"},
                    {"F1", "This list"},
                    {"Ctrl+K", "Find any command by name"}});
+    group("Dialogs", {{"Esc", "Close the dialog (in a field: cancel the edit)"},
+                      {"Tab, Shift+Tab", "Move between fields"}});
     ImGui::Spacing();
     if (dialogLayout::footer("Close", nullptr) == 1) ImGui::CloseCurrentPopup();
     ImGui::EndPopup();

@@ -591,6 +591,14 @@ int main()
             clickAt(ImVec2(0.5f * (rect[0] + rect[2]), 0.5f * (rect[1] + rect[3])));
             if (panel.editor().modifier(1).parameters.at("element").string() != "Zn") throw std::runtime_error("Update step writes the dialog's settings into the step");
             if (shown.atoms.size() != 8 || shown.atoms[0].symbol != "Zn") throw std::runtime_error("The pipeline output follows the updated step");
+            // Esc closes the focused dialog (here after a click on its title bar).
+            if (!dialog.open("replicate")) throw std::runtime_error("Replicate operation");
+            frame();
+            clickAt(ImVec2(760, 12));
+            if (!dialog.isOpen()) throw std::runtime_error("Clicking the dialog closed it");
+            io.AddKeyEvent(ImGuiKey_Escape, true); frame();
+            io.AddKeyEvent(ImGuiKey_Escape, false); frame();
+            if (dialog.isOpen()) throw std::runtime_error("Esc did not close the focused dialog");
             io.AddMousePosEvent(-1, -1);
             frame();
         }

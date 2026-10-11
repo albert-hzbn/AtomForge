@@ -13,6 +13,8 @@ void windowSize(ImVec2 designSize, ImGuiCond condition = ImGuiCond_None);
 void windowConstraints(ImVec2 minimum, ImVec2 maximum);
 bool begin(const char* name, bool* open = nullptr, ImGuiWindowFlags flags = 0);
 bool beginModal(const char* name, bool* open = nullptr, ImGuiWindowFlags flags = 0);
+// Esc pressed in the current (focused) dialog while no field is being edited.
+bool escapeCloses();
 bool beginChild(const char* name, ImVec2 size = ImVec2(0, 0),
                 ImGuiChildFlags childFlags = 0, ImGuiWindowFlags flags = 0);
 bool button(const char* label, ImVec2 size = ImVec2(0, 0));
