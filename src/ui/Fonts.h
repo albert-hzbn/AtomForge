@@ -55,4 +55,5 @@ inline constexpr const char* Folder = "\xee\xa2\xb7";     // U+E8B7
 inline constexpr const char* Document = "\xee\xa2\xa5";   // U+E8A5
 inline constexpr const char* Play = "\xee\x9d\xa8";       // U+E768
 inline constexpr const char* Pipeline = "\xee\xa5\xa4";   // U+E964
+inline constexpr const char* Search = "\xee\x9c\xa1";     // U+E721
 }

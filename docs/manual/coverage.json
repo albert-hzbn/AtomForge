@@ -3504,7 +3504,7 @@
     },
     {
       "source": "src/ui/Fonts.h",
-      "sha256": "e6ea535fe71dfa1e48e3094b2598158d3bd8a39535f6eaed5e603f5c19126a7a",
+      "sha256": "bd5155ecb418de32995261929b984f8a408f0bd0c749dd11ca65e71a4b1b09f5",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3923,7 +3923,7 @@
     },
     {
       "source": "src/ui/MainWindowChrome.cpp",
-      "sha256": "2e4bbe081812559ddeb7ea317f7e79183f5b4b3f6dd6af88f9c46a4fa9824abc",
+      "sha256": "512728b58f58d475c5ed1cec00de1cd15ff48b04799e4c4ab9920ac9812cd42e",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

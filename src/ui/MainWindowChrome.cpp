@@ -132,15 +132,20 @@ void FileBrowser::drawToolbar(const Structure& structure, bool canUndo, bool can
         ImGui::SameLine();
         if (toolButton(nullptr, "Angle##measure", "Measure the angle between three atoms (pick them in the view)", hasAtoms)) requestMeasureAngle = true;
 
-        // Right-aligned: the structure pipeline, the projection and the theme.
+        // Right-aligned: commands, the structure pipeline, the projection and the theme.
+        const char* commandsLabel = "Commands";
         const char* pipelineLabel = "Pipeline";
         const char* projectionLabel = viewMode == ViewMode::Orthographic ? "Orthographic" : "Perspective";
-        const float rightWidth = ImGui::CalcTextSize(pipelineLabel).x + ImGui::CalcTextSize("Orthographic").x + ImGui::CalcTextSize("Light theme").x
-                                 + 6 * ImGui::GetStyle().FramePadding.x + 3 * ImGui::GetStyle().ItemSpacing.x + (uiFonts::icons ? unit * 1.2f : 0.0f);
+        const float rightWidth = ImGui::CalcTextSize(commandsLabel).x + ImGui::CalcTextSize(pipelineLabel).x + ImGui::CalcTextSize("Orthographic").x
+                                 + ImGui::CalcTextSize("Light theme").x + 8 * ImGui::GetStyle().FramePadding.x + 4 * ImGui::GetStyle().ItemSpacing.x
+                                 + (uiFonts::icons ? unit * 2.4f : 0.0f);
         ImGui::SameLine();
         const float space = ImGui::GetContentRegionAvail().x - rightWidth;
         if (space > 0) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + space);
         else ImGui::NewLine();
+        if (toolButton(Icon::Search, commandsLabel, "Find any command by name (Ctrl+K)"))
+            showCommandPalette = true;
+        ImGui::SameLine();
         if (toolButton(Icon::Pipeline, pipelineLabel, "Edit > Structure pipeline: non-destructive editing steps", hasAtoms || pipelineDialog.isActive()))
             pipelineDialog.show();
         ImGui::SameLine();
