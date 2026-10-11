@@ -730,7 +730,7 @@
     },
     {
       "source": "src/app/EditorApplication.cpp",
-      "sha256": "660112409e47459778370e3d3528597281ac9c40beaea7de31e8acc9530f4a0c",
+      "sha256": "65d7970858f43b6698d2e74c3c468a64f92b17901dfccd1a8a6d6ad3dc244350",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2953,7 +2953,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "f254188a5a13aaf5cf04e3e1c768ff23a2565b964cfee9cf626f600eb60b3102",
+      "sha256": "45437968e0fa4a823b686d3d67f813f7d9e2922bc20a587aab781005690b187b",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2962,538 +2962,530 @@
       ],
       "literal_controls": [
         {
-          "line": 511,
+          "line": 549,
           "declaration_label": "Open"
         },
         {
-          "line": 529,
+          "line": 567,
           "declaration_label": "Close"
         },
         {
-          "line": 535,
+          "line": 573,
           "declaration_label": "Save"
         },
         {
-          "line": 538,
+          "line": 576,
           "declaration_label": "Save As"
         },
         {
-          "line": 541,
+          "line": 579,
           "declaration_label": "Export Image"
         },
         {
-          "line": 556,
+          "line": 594,
           "declaration_label": "Open Project"
         },
         {
-          "line": 557,
+          "line": 595,
           "declaration_label": "Save Project As"
         },
         {
-          "line": 558,
+          "line": 596,
           "declaration_label": "Autosave project every minute"
         },
         {
-          "line": 559,
+          "line": 597,
           "declaration_label": "Recover Last Autosave"
         },
         {
-          "line": 561,
+          "line": 599,
           "declaration_label": "Quit"
         },
         {
-          "line": 570,
-          "declaration_label": "Undo"
-        },
-        {
-          "line": 572,
-          "declaration_label": "Redo"
-        },
-        {
-          "line": 575,
+          "line": 615,
           "declaration_label": "Box Select Mode"
         },
         {
-          "line": 577,
+          "line": 617,
           "declaration_label": "Lasso Select Mode"
         },
         {
-          "line": 643,
+          "line": 683,
           "declaration_label": "Element"
         },
         {
-          "line": 644,
+          "line": 684,
           "declaration_label": "Crystal Orientation"
         },
         {
-          "line": 645,
+          "line": 685,
           "declaration_label": "Grain Boundaries"
         },
         {
-          "line": 646,
+          "line": 686,
           "declaration_label": "Atom Property"
         },
         {
-          "line": 656,
+          "line": 696,
           "declaration_label": "Balls"
         },
         {
-          "line": 657,
+          "line": 697,
           "declaration_label": "Ball and Stick"
         },
         {
-          "line": 658,
+          "line": 698,
           "declaration_label": "Space Filling"
         },
         {
-          "line": 660,
+          "line": 700,
           "declaration_label": "Polyhedral"
         },
         {
-          "line": 667,
+          "line": 707,
           "declaration_label": "Atoms"
         },
         {
-          "line": 668,
+          "line": 708,
           "declaration_label": "Element Labels"
         },
         {
-          "line": 669,
+          "line": 709,
           "declaration_label": "Bounding Box"
         },
         {
-          "line": 671,
+          "line": 711,
           "declaration_label": "Lattice Planes"
         },
         {
-          "line": 672,
+          "line": 712,
           "declaration_label": "Miller Directions"
         },
         {
-          "line": 673,
+          "line": 713,
           "declaration_label": "Voronoi Volumes"
         },
         {
-          "line": 674,
+          "line": 714,
           "declaration_label": "Dislocation Lines"
         },
         {
-          "line": 679,
+          "line": 719,
           "declaration_label": "Perspective"
         },
         {
-          "line": 684,
+          "line": 724,
           "declaration_label": "Orthographic"
         },
         {
-          "line": 691,
+          "line": 731,
           "declaration_label": "Reset View"
         },
         {
-          "line": 694,
+          "line": 734,
           "declaration_label": "Lattice Planes Settings"
         },
         {
-          "line": 696,
+          "line": 736,
           "declaration_label": "Miller Directions Settings"
         },
         {
-          "line": 698,
+          "line": 738,
           "declaration_label": "Polyhedral Viewer"
         },
         {
-          "line": 700,
+          "line": 740,
           "declaration_label": "Structure Info"
         },
         {
-          "line": 702,
+          "line": 742,
           "declaration_label": "Atom Info"
         },
         {
-          "line": 704,
+          "line": 744,
           "declaration_label": "Measure Distance"
         },
         {
-          "line": 706,
+          "line": 746,
           "declaration_label": "Measure Angle"
         },
         {
-          "line": 712,
+          "line": 752,
           "declaration_label": "Light"
         },
         {
-          "line": 713,
+          "line": 753,
           "declaration_label": "Dark"
         },
         {
-          "line": 714,
+          "line": 754,
           "declaration_label": "Match the system"
         },
         {
-          "line": 769,
+          "line": 809,
           "declaration_label": "Automatic (display scaling)"
         },
         {
-          "line": 770,
+          "line": 810,
           "declaration_label": "Compact (85%)"
         },
         {
-          "line": 771,
+          "line": 811,
           "declaration_label": "Larger (125%)"
         },
         {
-          "line": 772,
+          "line": 812,
           "declaration_label": "Large (150%)"
         },
         {
-          "line": 773,
+          "line": 813,
           "declaration_label": "Extra large (200%)"
         },
         {
-          "line": 778,
+          "line": 818,
           "declaration_label": "Polyhedral Settings"
         },
         {
-          "line": 783,
+          "line": 823,
           "declaration_label": "Light"
         },
         {
-          "line": 784,
+          "line": 824,
           "declaration_label": "Dark"
         },
         {
-          "line": 785,
+          "line": 825,
           "declaration_label": "Match the system"
         },
         {
-          "line": 794,
+          "line": 834,
           "declaration_label": "Manual"
         },
         {
-          "line": 797,
+          "line": 837,
           "declaration_label": "Find a Command"
         },
         {
-          "line": 800,
+          "line": 840,
           "declaration_label": "Keyboard Shortcuts"
         },
         {
-          "line": 803,
+          "line": 843,
           "declaration_label": "About"
         },
         {
-          "line": 835,
+          "line": 875,
           "declaration_label": "\\xe2\\x86\\x90##openBack"
         },
         {
-          "line": 843,
+          "line": 883,
           "declaration_label": "\\xe2\\x86\\x92##openFwd"
         },
         {
-          "line": 851,
+          "line": 891,
           "declaration_label": "\\xe2\\x86\\x91##openUp"
         },
         {
-          "line": 860,
+          "line": 900,
           "declaration_label": "##openPathBar"
         },
         {
-          "line": 955,
+          "line": 997,
           "declaration_label": "##openFilename"
         },
         {
-          "line": 1056,
+          "line": 1103,
           "declaration_label": "\\xe2\\x86\\x90##saveBack"
         },
         {
-          "line": 1063,
+          "line": 1110,
           "declaration_label": "\\xe2\\x86\\x92##saveFwd"
         },
         {
-          "line": 1070,
+          "line": 1117,
           "declaration_label": "\\xe2\\x86\\x91##saveUp"
         },
         {
-          "line": 1076,
+          "line": 1123,
           "declaration_label": "##savePathBar"
         },
         {
-          "line": 1159,
+          "line": 1206,
           "declaration_label": "##saveFilename"
         },
         {
-          "line": 1165,
+          "line": 1212,
           "declaration_label": "##saveFormat"
         },
         {
-          "line": 1281,
+          "line": 1328,
           "declaration_label": "\\xe2\\x86\\x90##exportBack"
         },
         {
-          "line": 1288,
+          "line": 1335,
           "declaration_label": "\\xe2\\x86\\x92##exportFwd"
         },
         {
-          "line": 1295,
+          "line": 1342,
           "declaration_label": "\\xe2\\x86\\x91##exportUp"
         },
         {
-          "line": 1300,
+          "line": 1347,
           "declaration_label": "##exportPathBar"
         },
         {
-          "line": 1385,
+          "line": 1432,
           "declaration_label": "##exportFilename"
         },
         {
-          "line": 1389,
+          "line": 1436,
           "declaration_label": "##exportFormat"
         },
         {
-          "line": 1402,
+          "line": 1449,
           "declaration_label": "Include background"
         },
         {
-          "line": 1405,
+          "line": 1452,
           "declaration_label": "Include orientation gizmo"
         },
         {
-          "line": 1409,
+          "line": 1456,
           "declaration_label": "##exportScale"
         },
         {
-          "line": 1592,
+          "line": 1639,
           "declaration_label": "OK"
         },
         {
-          "line": 1616,
+          "line": 1663,
           "declaration_label": "Close"
         },
         {
-          "line": 1622,
+          "line": 1669,
           "declaration_label": "Show lattice planes"
         },
         {
-          "line": 1628,
+          "line": 1675,
           "declaration_label": "H##plane"
         },
         {
-          "line": 1631,
+          "line": 1678,
           "declaration_label": "K##plane"
         },
         {
-          "line": 1634,
+          "line": 1681,
           "declaration_label": "L##plane"
         },
         {
-          "line": 1637,
+          "line": 1684,
           "declaration_label": "Offset n##plane"
         },
         {
-          "line": 1639,
+          "line": 1686,
           "declaration_label": "Opacity##plane"
         },
         {
-          "line": 1641,
+          "line": 1688,
           "declaration_label": "Color##plane"
         },
         {
-          "line": 1648,
+          "line": 1695,
           "declaration_label": "Add Plane"
         },
         {
-          "line": 1681,
+          "line": 1728,
           "declaration_label": "##visible"
         },
         {
-          "line": 1686,
+          "line": 1733,
           "declaration_label": "H##plane-h"
         },
         {
-          "line": 1689,
+          "line": 1736,
           "declaration_label": "K##plane-k"
         },
         {
-          "line": 1692,
+          "line": 1739,
           "declaration_label": "L##plane-l"
         },
         {
-          "line": 1695,
+          "line": 1742,
           "declaration_label": "n##plane-offset"
         },
         {
-          "line": 1698,
+          "line": 1745,
           "declaration_label": "a##plane-opacity"
         },
         {
-          "line": 1704,
+          "line": 1751,
           "declaration_label": "##plane-color"
         },
         {
-          "line": 1712,
+          "line": 1759,
           "declaration_label": "Delete"
         },
         {
-          "line": 1727,
+          "line": 1774,
           "declaration_label": "Close"
         },
         {
-          "line": 1749,
+          "line": 1796,
           "declaration_label": "Close"
         },
         {
-          "line": 1755,
+          "line": 1802,
           "declaration_label": "Show Miller directions"
         },
         {
-          "line": 1761,
+          "line": 1808,
           "declaration_label": "U##dir"
         },
         {
-          "line": 1764,
+          "line": 1811,
           "declaration_label": "V##dir"
         },
         {
-          "line": 1767,
+          "line": 1814,
           "declaration_label": "W##dir"
         },
         {
-          "line": 1770,
+          "line": 1817,
           "declaration_label": "Length (A)##dir"
         },
         {
-          "line": 1772,
+          "line": 1819,
           "declaration_label": "Color##dir"
         },
         {
-          "line": 1779,
+          "line": 1826,
           "declaration_label": "Add Direction"
         },
         {
-          "line": 1807,
+          "line": 1854,
           "declaration_label": "##vis"
         },
         {
-          "line": 1812,
+          "line": 1859,
           "declaration_label": "U##du"
         },
         {
-          "line": 1815,
+          "line": 1862,
           "declaration_label": "V##dv"
         },
         {
-          "line": 1818,
+          "line": 1865,
           "declaration_label": "W##dw"
         },
         {
-          "line": 1821,
+          "line": 1868,
           "declaration_label": "L##dl"
         },
         {
-          "line": 1828,
+          "line": 1875,
           "declaration_label": "##dc"
         },
         {
-          "line": 1835,
+          "line": 1882,
           "declaration_label": "Delete##ddel"
         },
         {
-          "line": 1849,
+          "line": 1896,
           "declaration_label": "Close##dclose"
         },
         {
-          "line": 1869,
+          "line": 1916,
           "declaration_label": "Max displayed centers"
         },
         {
-          "line": 1871,
+          "line": 1918,
           "declaration_label": "Nearest neighbors"
         },
         {
-          "line": 1875,
+          "line": 1922,
           "declaration_label": "Specify center atom indices"
         },
         {
-          "line": 1883,
+          "line": 1930,
           "declaration_label": "Center atom IDs##polyIndexFilter"
         },
         {
-          "line": 1895,
+          "line": 1942,
           "declaration_label": "Show polyhedral edges"
         },
         {
-          "line": 1897,
+          "line": 1944,
           "declaration_label": "Face opacity"
         },
         {
-          "line": 1899,
+          "line": 1946,
           "declaration_label": "Edge opacity"
         },
         {
-          "line": 1903,
+          "line": 1950,
           "declaration_label": "Filter center elements"
         },
         {
-          "line": 1912,
+          "line": 1959,
           "declaration_label": "Centers##polyFilter"
         },
         {
-          "line": 1923,
+          "line": 1970,
           "declaration_label": "Filter ligand elements"
         },
         {
-          "line": 1932,
+          "line": 1979,
           "declaration_label": "Ligands##polyFilter"
         },
         {
-          "line": 1942,
+          "line": 1989,
           "declaration_label": "Reset Defaults"
         },
         {
-          "line": 1950,
+          "line": 1997,
           "declaration_label": "Close##polySettings"
         },
         {
-          "line": 2076,
+          "line": 2123,
           "declaration_label": "Manual##about"
         },
         {
-          "line": 2079,
+          "line": 2126,
           "declaration_label": "Close##about"
         },
         {
-          "line": 2141,
+          "line": 2188,
           "declaration_label": "Color"
         },
         {
-          "line": 2188,
+          "line": 2235,
           "declaration_label": "Automatic colour range"
         },
         {
-          "line": 2191,
+          "line": 2238,
           "declaration_label": "Minimum"
         },
         {
-          "line": 2192,
+          "line": 2239,
           "declaration_label": "Maximum"
         },
         {
-          "line": 2194,
+          "line": 2241,
           "declaration_label": "Hide atoms outside the range"
         },
         {
-          "line": 2195,
+          "line": 2242,
           "declaration_label": "Hide atoms without a value"
         },
         {
-          "line": 2196,
+          "line": 2243,
           "declaration_label": "Show element colours"
         }
       ]
     },
     {
       "source": "src/ui/FileBrowser.h",
-      "sha256": "9d8f245f66f7b00cb3e8a524e53eb9c8fb3cbdf00203e63867c19f5fb3e391a6",
+      "sha256": "59434f2f4b2b7a6b3a89e9c54e8f5639b6913be978975396200a37f9aa5bf7c9",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3923,7 +3915,7 @@
     },
     {
       "source": "src/ui/MainWindowChrome.cpp",
-      "sha256": "95fb8457ac0fe6d23a5c57a2712a10a4cb6c26774a18fe6580aa61b00133a6d0",
+      "sha256": "d321319c7ca307a41f8c3f40ed8285c52c57c1c42a182b85343c337550efaaf0",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3932,7 +3924,7 @@
       ],
       "literal_controls": [
         {
-          "line": 121,
+          "line": 123,
           "declaration_label": "##rotangle"
         }
       ]

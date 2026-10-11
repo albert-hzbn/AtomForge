@@ -1,6 +1,6 @@
 {
-  "capture_date": "2026-10-11",
-  "application_source_baseline": "759c882",
+  "capture_date": "2026-10-12",
+  "application_source_baseline": "411b1db",
   "notes": "Real AtomForge screenshots and native shape examples. Captions distinguish input previews and completed results; paired scientific 3D/projection plots have been removed.",
   "required_tutorials": [
     "build-menu",
@@ -1103,10 +1103,10 @@
             {
               "file": "tutorials/file-browser.jpg",
               "bounds": [
-                594,
-                318,
-                1326,
-                840
+                838,
+                243,
+                1570,
+                765
               ],
               "caption": "The real structure browser with a generated example selected. The filename can be selected from the listing."
             }

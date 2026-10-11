@@ -15,6 +15,9 @@
 #include <openbabel3/openbabel/elements.h>
 
 #include <algorithm>
+#include <filesystem>
+#include <ctime>
+#include <chrono>
 #include <cctype>
 #include <cfloat>
 #include <cmath>
@@ -118,6 +121,41 @@ void saveSharedRecentFiles()
     for (const std::string& path : sharedRecentFiles())
         out << path << '\n';
 }
+}
+
+// "CIF structure, 42.1 KB, modified 2026-09-09 14:02" ("" if not a file).
+std::string describeFile(const std::string& path)
+{
+    std::error_code error;
+    const auto file = std::filesystem::u8path(path);
+    if (!std::filesystem::is_regular_file(file, error)) return {};
+    std::string extension = file.extension().u8string();
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    const std::string name = file.filename().u8string();
+    std::string kind = extension.size() > 1 ? extension.substr(1) : name;
+    std::transform(kind.begin(), kind.end(), kind.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    if (extension == ".afcloud") kind = "Large dataset (opens in the large-data viewer)";
+    else if (name.rfind("POSCAR", 0) == 0 || name.rfind("CONTCAR", 0) == 0 || extension == ".vasp") kind = "VASP structure";
+    else kind += " structure";
+    const double size = static_cast<double>(std::filesystem::file_size(file, error));
+    char sizeText[32];
+    if (size < 1024.0) std::snprintf(sizeText, sizeof(sizeText), "%.0f bytes", size);
+    else if (size < 1024.0 * 1024.0) std::snprintf(sizeText, sizeof(sizeText), "%.1f KB", size / 1024.0);
+    else if (size < 1024.0 * 1024.0 * 1024.0) std::snprintf(sizeText, sizeof(sizeText), "%.1f MB", size / (1024.0 * 1024.0));
+    else std::snprintf(sizeText, sizeof(sizeText), "%.2f GB", size / (1024.0 * 1024.0 * 1024.0));
+    std::string text = kind + ", " + sizeText;
+    const auto written = std::filesystem::last_write_time(file, error);
+    if (!error) {
+        const auto system = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+            written - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
+        const std::time_t time = std::chrono::system_clock::to_time_t(system);
+        if (const std::tm* local = std::localtime(&time)) {
+            char date[32];
+            std::strftime(date, sizeof(date), "%Y-%m-%d %H:%M", local);
+            text += std::string(", modified ") + date;
+        }
+    }
+    return text;
 }
 
 // Persistent sidebar width shared across all three file-browser dialogs.
@@ -873,7 +911,9 @@ void FileBrowser::drawOpenStructureDialog()
         ImGui::Separator();
 
         // --- Sidebar + file list ---
-        const float listH = 300.0f;
+        // The lists take the height the fields below leave.
+        const float listH = std::max(responsive::dp(200.0f),
+                                     ImGui::GetContentRegionAvail().y - 2.0f * ImGui::GetFrameHeightWithSpacing() - ImGui::GetTextLineHeightWithSpacing() - responsive::dp(30.0f));
 
         if (responsive::beginChild("##opensidebar", ImVec2(s_sidebarW, listH), true))
         {
@@ -957,6 +997,11 @@ void FileBrowser::drawOpenStructureDialog()
             if (ImGui::InputTextWithHint("##openFilename", "CIF, POSCAR/.vasp, XYZ, PDB, SDF, MOL2, PWI, GJF, LAMMPS dump or .afcloud",
                                          openFilename, sizeof(openFilename), ImGuiInputTextFlags_EnterReturnsTrue))
                 openFileDoubleClicked = true;
+        }
+        // The selected file: format, size and date.
+        if (openFilename[0] != '\0') {
+            const std::string details = describeFile(joinPath(openDir, openFilename));
+            if (!details.empty()) ImGui::TextDisabled("%s", details.c_str());
         }
         if (openStatusMsg[0] != '\0')
             dialogLayout::note(dialogLayout::Note::Error, openStatusMsg);
