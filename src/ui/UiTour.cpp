@@ -129,6 +129,10 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
             scientificToolsDialog.open("powder-xrd");
             uiScript::request("science.run");
         }});
+        t.steps.push_back({"science-error-result", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            scientificToolsDialog.open("band-gap");
+            uiScript::request("science.run");
+        }});
         t.steps.push_back({"science-plot", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { scientificToolsDialog.open("powder-xrd"); }});
         t.steps.push_back({"science-simulation", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { scientificToolsDialog.open("relax"); }});
         t.steps.push_back({"analysis-cna", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { cnaDialog.open(); }});

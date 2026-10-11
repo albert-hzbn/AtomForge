@@ -448,7 +448,8 @@ void ScientificToolsDialog::drawPlotLayout(const Structure& structure, const std
     if (!stack) ImGui::SameLine();
     responsive::beginChild("Plot area", ImVec2(0, stack ? 0 : height), false);
     if (m_result.output.empty()) {
-        dialogLayout::emptyState(m_task.running() ? "Calculating..." : "Results appear here after you run the tool.");
+        if (!m_error.empty() && !m_task.running()) dialogLayout::note(dialogLayout::Note::Error, m_error.c_str());
+        else dialogLayout::emptyState(m_task.running() ? "Calculating..." : "Results appear here after you run the tool.");
     } else {
         const float plotHeight = m_result.plots.empty() ? 0.0f :
             std::max(responsive::dp(240), ImGui::GetContentRegionAvail().y * 0.62f);
@@ -505,7 +506,8 @@ void ScientificToolsDialog::drawPropertiesLayout(const Structure& structure, con
     if (!stack) ImGui::SameLine();
     responsive::beginChild("Property values", ImVec2(0, stack ? 0 : height), true);
     if (m_result.output.empty()) {
-        dialogLayout::emptyState(m_task.running() ? "Calculating..." : "Computed properties appear here after you run the tool.");
+        if (!m_error.empty() && !m_task.running()) dialogLayout::note(dialogLayout::Note::Error, m_error.c_str());
+        else dialogLayout::emptyState(m_task.running() ? "Calculating..." : "Computed properties appear here after you run the tool.");
         ImGui::EndChild();
         return;
     }
@@ -602,7 +604,8 @@ void ScientificToolsDialog::drawGeneratorLayout(const Structure& structure)
     drawStatus();
     ImGui::SeparatorText("Generated files");
     if (m_result.files.empty()) {
-        ImGui::TextDisabled(m_result.output.empty() ? "Generate to preview the files here." : "This run produced no files.");
+        if (!m_error.empty() && !m_task.running()) dialogLayout::note(dialogLayout::Note::Error, m_error.c_str());
+        else ImGui::TextDisabled(m_result.output.empty() ? "Generate to preview the files here." : "This run produced no files.");
         return;
     }
     m_file = std::clamp(m_file, 0, static_cast<int>(m_result.files.size()) - 1);
