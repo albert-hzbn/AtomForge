@@ -15,6 +15,8 @@ struct TrajectoryDialog
     // Opens the window, as its menu item does.
     void hide() { open = false; }
     void show() { open = true; }
+    // Indexes a trajectory file in the background, as Open trajectory does.
+    void load(const std::string& path);
     // showAtomProperty switches the view to atom-property colouring (per-frame analysis).
     void draw(Structure& structure, const std::function<void(Structure&)>& update,
               const std::function<void()>& showAtomProperty = {});

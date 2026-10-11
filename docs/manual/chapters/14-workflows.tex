@@ -52,7 +52,7 @@ Every step names an allowlisted operation, optional parameters and an optional u
 The Python electronic command accepts an operation, a reference, JSON parameters, a JSON recipe or batch inputs. Use its \code{--help} for current argument syntax. Recipe execution does not evaluate Python expressions. Save the recipe, source calculation settings and input hashes separately when preparing an independently reproducible study.
 
 \section{Trajectories and animation}
-Open Analysis > Trajectories and transport > Trajectory playback, choose an XYZ or extended XYZ trajectory, and use Play/Pause, First frame, the frame slider and playback speed. Frames replace the active structure; preserve the original in another tab or project first. Main-window orbit, zoom and pan remain available. The desktop reader requires species followed by Cartesian coordinates; extended XYZ properties must begin with \code{species:S:1:pos:R:3}. It reads lattice vectors from the comment and rejects incomplete frames.
+Open Analysis > Trajectories and transport > Trajectory playback, choose an XYZ or extended XYZ trajectory, and use the transport buttons (first, previous, play/pause, next, last; Space, Left and Right work while the window has the focus), the frame slider and playback speed. Frames replace the active structure; preserve the original in another tab or project first. Main-window orbit, zoom and pan remain available. The desktop reader requires species followed by Cartesian coordinates; extended XYZ properties must begin with \code{species:S:1:pos:R:3}. It reads lattice vectors from the comment and rejects incomplete frames.
 
 Python provides broader ASE trajectory formats, including XDATCAR and LAMMPS dumps:
 \begin{lstlisting}[language=Python]

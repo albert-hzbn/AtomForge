@@ -1,10 +1,12 @@
 #include "ui/TrajectoryDialog.h"
 #include "ui/DialogLayout.h"
+#include "ui/Fonts.h"
 #include "science/ScienceTools.h"
 #include "ui/ResponsiveLayout.h"
 #include "util/ElementData.h"
 #include "imgui.h"
 #include <cfloat>
+#include <cstdio>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -130,11 +132,37 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
         if (task.running()) { ImGui::TextUnformatted("Indexing frames..."); if (responsive::button("Cancel")) task.cancel(); }
         if (count>0) {
             ImGui::BeginDisabled(exporting);
-            const bool togglePlay = responsive::button(playback.playing ? "Pause" : "Play");
+            // Transport: first, previous, play/pause, next, last (Space, Left
+            // and Right while the window has the focus).
+            char label[64];
+            const bool focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) && !ImGui::GetIO().WantTextInput;
+            const bool jumpToFirst = responsive::button(uiFonts::withIcon(Icon::Previous, "First##first", label, sizeof(label)));
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("First frame");
             ImGui::SameLine();
-            const bool jumpToFirst = responsive::button("First frame");
-            ImGui::TextUnformatted("Frame (zero-based)"); ImGui::SetNextItemWidth(-FLT_MIN);
-            const bool sliderChanged = ImGui::SliderInt("##frame",&playback.frame,0,count-1);
+            int step = 0;
+            if (responsive::button("<##previous") || (focused && ImGui::IsKeyPressed(ImGuiKey_LeftArrow))) step = -1;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Previous frame (Left)");
+            ImGui::SameLine();
+            const bool togglePlay = dialogLayout::primaryButton(playback.playing ? uiFonts::withIcon(Icon::Pause, "Pause##play", label, sizeof(label))
+                                                                                 : uiFonts::withIcon(Icon::Play, "Play##play", label, sizeof(label)))
+                                    || (focused && ImGui::IsKeyPressed(ImGuiKey_Space, false));
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Play or pause (Space)");
+            ImGui::SameLine();
+            if (responsive::button(">##next") || (focused && ImGui::IsKeyPressed(ImGuiKey_RightArrow))) step = 1;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Next frame (Right)");
+            ImGui::SameLine();
+            const bool jumpToLast = responsive::button(uiFonts::withIcon(Icon::Next, "Last##last", label, sizeof(label)));
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Last frame");
+            bool stepped = false;
+            if (step != 0 || jumpToLast) {
+                playback.playing = false;
+                playback.frame = jumpToLast ? count - 1 : std::clamp(playback.frame + step, 0, count - 1);
+                stepped = true;
+            }
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            char frameFormat[64];
+            std::snprintf(frameFormat, sizeof(frameFormat), "Frame %%d of %d", count - 1);
+            const bool sliderChanged = ImGui::SliderInt("##frame",&playback.frame,0,count-1,frameFormat) || stepped;
             ImGui::TextUnformatted("Frames per second"); ImGui::SetNextItemWidth(-FLT_MIN);
             ImGui::SliderFloat("##fps",&fps,1,60,"%.0f");
             if (!exporting) changed |= playback.tick(togglePlay,jumpToFirst,sliderChanged,count,fps,ImGui::GetTime());
@@ -167,15 +195,7 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
         }
         ImGui::TextWrapped("Playback replaces the active structure. Frames are read from the file as they are shown, so long trajectories need little memory. Loaded trajectories can be analysed directly with the trajectory and transport tools. GIF export renders every chosen frame with the current camera and frame rate, at most 960 pixels wide.");
         if (!error.empty()) ImGui::TextWrapped("%s",error.c_str());
-        if (auto path=picker.draw()) {
-            playback.playing=false;
-            pending=*path;
-            error.clear();
-            task.start([path=*path] {
-                return std::shared_ptr<const atomforge::science::TrajectoryStream>(
-                    std::make_shared<atomforge::science::TrajectoryStream>(std::filesystem::u8path(path)));
-            });
-        }
+        if (auto path=picker.draw()) load(*path);
         if (auto path=gifPicker.draw()) {
             gifPath=*path;
             if (std::filesystem::u8path(gifPath).extension().empty()) gifPath+=".gif";
@@ -188,4 +208,15 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
         if (changed && count>0) show(playback.frame,structure,update,showAtomProperty);
     }
     ImGui::End();
+}
+
+void TrajectoryDialog::load(const std::string& path)
+{
+    playback.playing=false;
+    pending=path;
+    error.clear();
+    task.start([path] {
+        return std::shared_ptr<const atomforge::science::TrajectoryStream>(
+            std::make_shared<atomforge::science::TrajectoryStream>(std::filesystem::u8path(path)));
+    });
 }

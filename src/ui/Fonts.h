@@ -56,4 +56,7 @@ inline constexpr const char* Document = "\xee\xa2\xa5";   // U+E8A5
 inline constexpr const char* Play = "\xee\x9d\xa8";       // U+E768
 inline constexpr const char* Pipeline = "\xee\xa5\xa4";   // U+E964
 inline constexpr const char* Search = "\xee\x9c\xa1";     // U+E721
+inline constexpr const char* Pause = "\xee\x9d\xa9";      // U+E769
+inline constexpr const char* Previous = "\xee\xa2\x92";   // U+E892
+inline constexpr const char* Next = "\xee\xa2\x93";       // U+E893
 }

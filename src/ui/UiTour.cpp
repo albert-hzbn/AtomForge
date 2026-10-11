@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <string>
 #include <vector>
@@ -127,6 +128,18 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         t.steps.push_back({"analysis-adf", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { angularDistributionDialog.open(); }});
         t.steps.push_back({"analysis-sro", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { shortRangeOrderDialog.openRequested = true; }});
         t.steps.push_back({"analysis-dislocations", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { dislocationAnalysisDialog.open(); }});
+        t.steps.push_back({"trajectory-loaded", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            // A small generated trajectory: 4 atoms moving over 20 frames.
+            const auto file = std::filesystem::temp_directory_path() / "atomforge-tour-trajectory.xyz";
+            std::ofstream out(file);
+            for (int f = 0; f < 20; ++f) {
+                out << "4\nLattice=\"4 0 0 0 4 0 0 0 4\" Properties=species:S:1:pos:R:3\n";
+                for (int a = 0; a < 4; ++a) out << (a % 2 ? "Ni " : "Cu ") << a + 0.05 * f << " " << (a % 2) * 2.0 << " 0\n";
+            }
+            out.close();
+            trajectoryDialog.show();
+            trajectoryDialog.load(file.u8string());
+        }});
         t.steps.push_back({"trajectory", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { trajectoryDialog.show(); }});
         t.steps.push_back({"electronic", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { electronicDialog.open(); }});
         t.steps.push_back({"wannier", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { wannierDialog.open(); }});
