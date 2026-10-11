@@ -149,10 +149,9 @@ void FileBrowser::drawToolbar(const Structure& structure, bool canUndo, bool can
             requestResetDefaultView = true;
         }
         ImGui::SameLine();
-        if (toolButton(nullptr, useLightTheme ? "Dark theme" : "Light theme", "Switch the colour theme")) {
-            useLightTheme = !useLightTheme;
-            if (useLightTheme) applyLightTheme(); else applyDarkTheme();
-        }
+        const bool light = isLightThemeEnabled();
+        if (toolButton(nullptr, light ? "Dark theme" : "Light theme", "Switch the colour theme (Settings > Theme can also follow the system)"))
+            setThemeMode(light ? ThemeMode::Dark : ThemeMode::Light);
         ImGui::PopStyleVar(2);
     }
     ImGui::End();

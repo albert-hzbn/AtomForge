@@ -1,6 +1,6 @@
 {
   "capture_date": "2026-10-11",
-  "application_source_baseline": "bf299b8",
+  "application_source_baseline": "759c882",
   "notes": "Real AtomForge screenshots and native shape examples. Captions distinguish input previews and completed results; paired scientific 3D/projection plots have been removed.",
   "required_tutorials": [
     "build-menu",
@@ -1369,8 +1369,8 @@
               "bounds": [
                 87,
                 0,
-                451,
-                447
+                527,
+                473
               ],
               "caption": "Theme selection under View. Light is selected in these captures."
             }

@@ -162,8 +162,8 @@ struct FileBrowser
     bool isShowBoundingBoxEnabled() const { return showBoundingBox; }
     bool isShowDislocationLinesEnabled() const { return showDislocationLines; }
     void enableDislocationLines() { showDislocationLines = true; }
-    bool isLightThemeEnabled() const { return useLightTheme; }
-    void setLightTheme(bool v) { useLightTheme = v; }
+    // The theme is application-wide (ImGuiSetup's ThemeMode).
+    bool isLightThemeEnabled() const;
     bool isBondElementFilterEnabled() const { return bondElementFilterEnabled; }
     const std::array<bool, 119>& getBondElementFilterMask() const { return bondElementFilterMask; }
     bool isOrthographicViewEnabled() const { return viewMode == ViewMode::Orthographic; }
@@ -471,7 +471,6 @@ private:
     bool isAllowedFile(const std::string& name) const;
     void drawNotifications();
 
-    bool useLightTheme;
     bool showAbout;
     bool showManual;
     bool showEditColors;

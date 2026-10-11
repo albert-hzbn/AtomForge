@@ -3,6 +3,11 @@
 #include "imgui_internal.h"
 
 #include <cmath>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <string>
 #include <iostream>
 #include <stdexcept>
 
@@ -104,6 +109,29 @@ int main()
             for (int i = 0; i < 3; ++i) { applyDarkTheme(); applyLightTheme(); }
             require(std::abs(ImGui::GetStyle().FramePadding.y - 6 * multiplier) <= 1.0f,
                     "Switching themes accumulated scaling");
+        }
+        // Appearance preferences: read from, and written back to, the home folder.
+        {
+            const auto home = std::filesystem::temp_directory_path() / "atomforge-ui-layout-home";
+            std::filesystem::create_directories(home);
+#ifdef _WIN32
+            _putenv_s("USERPROFILE", home.string().c_str());
+#else
+            setenv("HOME", home.string().c_str(), 1);
+#endif
+            std::ofstream(home / ".atomforge_preferences.txt") << "theme=dark\ninterface_scale=1.25\n";
+            loadAppearancePreferences();
+            require(themeMode() == ThemeMode::Dark && ImGui::GetStyle().Colors[ImGuiCol_WindowBg].x < 0.5f,
+                    "Saved dark theme not applied");
+            require(std::abs(interfaceScale() - 1.25f) < 1e-4f, "Saved interface size not applied");
+            setThemeMode(ThemeMode::Light);
+            setInterfaceScale(1.0f);
+            std::ifstream saved(home / ".atomforge_preferences.txt");
+            const std::string text((std::istreambuf_iterator<char>(saved)), std::istreambuf_iterator<char>());
+            require(text.find("theme=light") != std::string::npos && text.find("interface_scale=1") != std::string::npos,
+                    "Changed preferences not saved");
+            saved.close();
+            std::filesystem::remove_all(home);
         }
         ImGui::DestroyContext();
         for (const auto display : {ImVec2(1024,600), ImVec2(1280,720), ImVec2(1920,1080), ImVec2(3840,2160)})

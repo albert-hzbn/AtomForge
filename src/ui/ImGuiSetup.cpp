@@ -8,8 +8,19 @@
 #include <GLFW/glfw3.h>
 
 #include <algorithm>
-#include <filesystem>
 #include <cmath>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <string>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 namespace
 {
@@ -351,9 +362,99 @@ void updateImGuiScale(GLFWwindow* window)
 
 float interfaceScale() { return gInterfaceScale; }
 
+namespace
+{
+ThemeMode gThemeMode = ThemeMode::Light;
+bool gPreferencesLoaded = false;
+
+std::filesystem::path preferencesPath()
+{
+#ifdef _WIN32
+    const char* home = std::getenv("USERPROFILE");
+#else
+    const char* home = std::getenv("HOME");
+#endif
+    return std::filesystem::u8path(home && *home ? home : ".") / ".atomforge_preferences.txt";
+}
+
+void savePreferences()
+{
+    // Only once the user's preferences are in effect, so that defaults
+    // applied during start-up never overwrite them.
+    if (!gPreferencesLoaded) return;
+    std::ofstream out(preferencesPath(), std::ios::trunc);
+    if (!out) return;
+    out << "theme=" << (gThemeMode == ThemeMode::Dark ? "dark" : gThemeMode == ThemeMode::System ? "system" : "light") << '\n'
+        << "interface_scale=" << gInterfaceScale << '\n';
+}
+
+// The operating system's app theme (light unless it asks for dark).
+bool systemPrefersLight()
+{
+#ifdef _WIN32
+    DWORD value = 1, size = sizeof(value);
+    if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                     L"AppsUseLightTheme", RRF_RT_REG_DWORD, nullptr, &value, &size) == ERROR_SUCCESS)
+        return value != 0;
+    return true;
+#else
+    const char* gtk = std::getenv("GTK_THEME");
+    return !(gtk && std::string(gtk).find("dark") != std::string::npos);
+#endif
+}
+
+void applyThemeMode()
+{
+    const bool light = gThemeMode == ThemeMode::System ? systemPrefersLight() : gThemeMode == ThemeMode::Light;
+    if (light) applyLightTheme();
+    else applyDarkTheme();
+}
+}
+
 void setInterfaceScale(float multiplier)
 {
     if (std::isfinite(multiplier)) gInterfaceScale = std::clamp(multiplier, 0.85f, 2.0f);
+    savePreferences();
+}
+
+ThemeMode themeMode() { return gThemeMode; }
+
+void setThemeMode(ThemeMode mode)
+{
+    gThemeMode = mode;
+    applyThemeMode();
+    savePreferences();
+}
+
+void loadAppearancePreferences()
+{
+    std::ifstream in(preferencesPath());
+    for (std::string line; std::getline(in, line);) {
+        const auto equals = line.find('=');
+        if (equals == std::string::npos) continue;
+        const std::string key = line.substr(0, equals), value = line.substr(equals + 1);
+        if (key == "theme")
+            gThemeMode = value == "dark" ? ThemeMode::Dark : value == "system" ? ThemeMode::System : ThemeMode::Light;
+        else if (key == "interface_scale") {
+            const float scale = std::strtof(value.c_str(), nullptr);
+            if (std::isfinite(scale) && scale > 0) gInterfaceScale = std::clamp(scale, 0.85f, 2.0f);
+        }
+    }
+    applyThemeMode();
+    gPreferencesLoaded = true;
+}
+
+void updateSystemTheme()
+{
+    // A registry read every two seconds is enough to follow a change.
+    if (gThemeMode != ThemeMode::System) return;
+    static double lastCheck = -10.0;
+    const double now = ImGui::GetTime();
+    if (now - lastCheck < 2.0) return;
+    lastCheck = now;
+    const bool light = systemPrefersLight();
+    const ImVec4& bg = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+    if (light != ((bg.x + bg.y + bg.z) / 3.0f > 0.5f)) applyThemeMode();
 }
 
 void shutdownImGui()

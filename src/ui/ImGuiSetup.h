@@ -22,3 +22,14 @@ void shutdownImGui();
 // Apply the dark (default) or light theme.  Safe to call at any time.
 void applyDarkTheme();
 void applyLightTheme();
+
+// The user's appearance preferences (~/.atomforge_preferences.txt): the
+// theme, which may follow the operating system, and the interface size.
+enum class ThemeMode { Light, Dark, System };
+ThemeMode themeMode();
+// Applies the theme and remembers the choice.
+void setThemeMode(ThemeMode mode);
+// Reads and applies the saved preferences (after initImGui).
+void loadAppearancePreferences();
+// Once per frame: follows a change of the system theme in System mode.
+void updateSystemTheme();

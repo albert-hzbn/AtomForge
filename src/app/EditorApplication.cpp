@@ -844,6 +844,14 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
     updateSplashScreen(splash, 0.28f, "Initializing UI");
 
     initImGui(window);
+    // The user's theme and interface size; the review and capture modes keep
+    // the defaults so their screenshots do not depend on them.
+    {
+        bool harness = false;
+        for (const char* mode : {"ATOMFORGE_UI_TOUR", "ATOMFORGE_TUTORIAL_CAPTURE", "ATOMFORGE_STEP_DIALOG_CHECK", "ATOMFORGE_CLOUD_BENCHMARK"})
+            if (const char* value = std::getenv(mode); value && *value) harness = true;
+        if (!harness) loadAppearancePreferences();
+    }
 
     SphereMesh sphere(40, 40);
     LowPolyMesh lowPolyMesh;
@@ -898,7 +906,6 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         dst.editMenuDialogs.materialSpecularIntensity = src.editMenuDialogs.materialSpecularIntensity;
         dst.editMenuDialogs.materialShininessScale    = src.editMenuDialogs.materialShininessScale;
         dst.editMenuDialogs.materialShininessFloor    = src.editMenuDialogs.materialShininessFloor;
-        dst.fileBrowser.setLightTheme(src.fileBrowser.isLightThemeEnabled());
     };
 
     atomforge::BackgroundTask<bool> autosaveTask;
@@ -1111,6 +1118,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         }
 
         updateImGuiScale(window);
+        updateSystemTheme();
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();

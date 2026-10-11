@@ -124,8 +124,7 @@ void saveSharedRecentFiles()
 static float s_sidebarW = 130.0f;
  
 FileBrowser::FileBrowser()
-        : useLightTheme(true),
-            showAbout(false),
+        : showAbout(false),
             showManual(false),
             showEditColors(false),
             showElementLabels(false),
@@ -710,8 +709,9 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         forceTourSubmenu("Theme");
         if (ImGui::BeginMenu("Theme"))
         {
-            if (ImGui::MenuItem("Light", nullptr, useLightTheme) && !useLightTheme) { useLightTheme = true; applyLightTheme(); }
-            if (ImGui::MenuItem("Dark", nullptr, !useLightTheme) && useLightTheme) { useLightTheme = false; applyDarkTheme(); }
+            if (ImGui::MenuItem("Light", nullptr, themeMode() == ThemeMode::Light)) setThemeMode(ThemeMode::Light);
+            if (ImGui::MenuItem("Dark", nullptr, themeMode() == ThemeMode::Dark)) setThemeMode(ThemeMode::Dark);
+            if (ImGui::MenuItem("Match the system", nullptr, themeMode() == ThemeMode::System)) setThemeMode(ThemeMode::System);
             ImGui::EndMenu();
         }
         ImGui::EndMenu();
@@ -780,8 +780,9 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         ImGui::Separator();
         if (ImGui::BeginMenu("Theme"))
         {
-            if (ImGui::MenuItem("Light", nullptr, useLightTheme) && !useLightTheme) { useLightTheme = true; applyLightTheme(); }
-            if (ImGui::MenuItem("Dark", nullptr, !useLightTheme) && useLightTheme) { useLightTheme = false; applyDarkTheme(); }
+            if (ImGui::MenuItem("Light", nullptr, themeMode() == ThemeMode::Light)) setThemeMode(ThemeMode::Light);
+            if (ImGui::MenuItem("Dark", nullptr, themeMode() == ThemeMode::Dark)) setThemeMode(ThemeMode::Dark);
+            if (ImGui::MenuItem("Match the system", nullptr, themeMode() == ThemeMode::System)) setThemeMode(ThemeMode::System);
             ImGui::EndMenu();
         }
         ImGui::EndMenu();
@@ -2560,7 +2561,7 @@ void FileBrowser::openPdfManual()
 atomforge::Workspace FileBrowser::workspace(const Structure& structure) const
 {
     auto saved=electronicDialog.snapshot(); saved.structure=structure;
-    saved.settings["desktop.useLightTheme"]=useLightTheme;
+    saved.settings["desktop.useLightTheme"]=isLightThemeEnabled();
     saved.settings["desktop.showElementLabels"]=showElementLabels;
     saved.settings["desktop.showBonds"]=showBonds;
     saved.settings["desktop.showAtoms"]=showAtoms;
@@ -2594,7 +2595,6 @@ void FileBrowser::restoreWorkspace(const atomforge::Workspace& saved, Structure&
     const auto read=[&](const char* key,double fallback) {
         const auto found=saved.settings.find(key); return found==saved.settings.end() ? fallback : found->second;
     };
-    useLightTheme=read("desktop.useLightTheme",useLightTheme)!=0;
     showElementLabels=read("desktop.showElementLabels",showElementLabels)!=0;
     showBonds=read("desktop.showBonds",showBonds)!=0;
     showAtoms=read("desktop.showAtoms",showAtoms)!=0;
@@ -2660,3 +2660,5 @@ std::vector<std::string> FileBrowser::recentFiles()
     loadSharedRecentFilesIfNeeded();
     return sharedRecentFiles();
 }
+
+bool FileBrowser::isLightThemeEnabled() const { return isLightTheme(); }

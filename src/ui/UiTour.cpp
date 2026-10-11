@@ -89,7 +89,7 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         };
         // ATOMFORGE_UI_TOUR_DARK=1 takes the whole tour in the dark theme.
         const bool allDark = std::getenv("ATOMFORGE_UI_TOUR_DARK") && *std::getenv("ATOMFORGE_UI_TOUR_DARK") == '1';
-        const auto theme = [this, allDark](bool light) { light = light && !allDark; useLightTheme = light; if (light) applyLightTheme(); else applyDarkTheme(); };
+        const auto theme = [this, allDark](bool light) { light = light && !allDark; if (light) applyLightTheme(); else applyDarkTheme(); };
         t.steps = {
             {"welcome", [theme](Structure&, EditMenuDialogs&, const UiTour::Update&) { theme(true); }},
             {"main-window", load},
@@ -173,7 +173,6 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
     }
     auto& t = *uiTour;
     if (t.index >= t.steps.size()) {
-        useLightTheme = true;
         applyLightTheme();
         glfwSetWindowShouldClose(glfwGetCurrentContext(), true);
         uiTour.reset();
