@@ -132,6 +132,7 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         t.steps.push_back({"miller-directions", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showMillerDirectionsDialog = true; }});
         t.steps.push_back({"polyhedral-settings", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showPolyhedralSettingsDialog = true; }});
         t.steps.push_back({"about", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showAbout = true; }});
+        t.steps.push_back({"shortcuts", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showShortcuts = true; }});
         // ATOMFORGE_UI_TOUR_ALL=1 adds every remaining dialog: the other
         // builders, every operation and every scientific tool.
         if (const char* all = std::getenv("ATOMFORGE_UI_TOUR_ALL"); all && *all == '1') {

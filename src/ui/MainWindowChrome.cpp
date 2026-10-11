@@ -297,3 +297,55 @@ void FileBrowser::drawWelcome(const Structure& structure)
     ImGui::PopStyleColor();
     ImGui::PopStyleVar(2);
 }
+
+// Help > Keyboard Shortcuts (F1): every key and mouse binding of the main view.
+void FileBrowser::drawShortcuts()
+{
+    if (showShortcuts) {
+        ImGui::OpenPopup("Keyboard Shortcuts");
+        showShortcuts = false;
+    }
+    ImGui::SetNextWindowSizeConstraints(ImVec2(responsive::dp(560), 0), ImVec2(responsive::dp(560), FLT_MAX));
+    bool open = true;
+    if (!responsive::beginModal("Keyboard Shortcuts", &open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize)) return;
+    struct Row { const char* keys; const char* action; };
+    const auto group = [](const char* title, std::initializer_list<Row> rows) {
+        dialogLayout::section(title);
+        if (!ImGui::BeginTable(title, 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_RowBg)) return;
+        ImGui::TableSetupColumn("keys", ImGuiTableColumnFlags_WidthStretch, 0.38f);
+        ImGui::TableSetupColumn("action", ImGuiTableColumnFlags_WidthStretch, 0.62f);
+        for (const Row& row : rows) {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::TextUnformatted(row.keys);
+            ImGui::TableSetColumnIndex(1);
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+            ImGui::TextWrapped("%s", row.action);
+            ImGui::PopStyleColor();
+        }
+        ImGui::EndTable();
+    };
+    group("Files", {{"Ctrl+O", "Open a structure"},
+                    {"Ctrl+S", "Save"},
+                    {"Ctrl+Shift+S", "Save as"},
+                    {"Ctrl+Alt+S", "Export an image"},
+                    {"Ctrl+W", "Close the structure"}});
+    group("Editing", {{"Ctrl+Z", "Undo"},
+                      {"Ctrl+Y, Ctrl+Shift+Z", "Redo"},
+                      {"Delete", "Delete the selected atoms"},
+                      {"S", "Substitute the selected atoms"},
+                      {"I", "Insert an atom at the midpoint of the selection"},
+                      {"G", "Move the selected atoms; X, Y or Z locks an axis, click or Enter confirms, Esc cancels"}});
+    group("Selection", {{"Click", "Select an atom"},
+                        {"Ctrl+click", "Add or remove an atom"},
+                        {"Ctrl+A", "Select all atoms"},
+                        {"Esc, Ctrl+D", "Clear the selection"}});
+    group("View", {{"Left drag", "Orbit"},
+                   {"Right drag", "Pan (when no box or lasso selection is active)"},
+                   {"Wheel", "Zoom"},
+                   {"R", "Reset the view"},
+                   {"F1", "This list"}});
+    ImGui::Spacing();
+    if (dialogLayout::footer("Close", nullptr) == 1) ImGui::CloseCurrentPopup();
+    ImGui::EndPopup();
+}

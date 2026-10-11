@@ -793,6 +793,9 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         if (ImGui::MenuItem("Manual"))
             showManual = true;
 
+        if (ImGui::MenuItem("Keyboard Shortcuts", "F1"))
+            showShortcuts = true;
+
         if (ImGui::MenuItem("About"))
             showAbout = true;
 
@@ -1961,6 +1964,10 @@ void FileBrowser::draw(Structure& structure,
         ImGui::TextWrapped("%s", text);
         ImGui::PopTextWrapPos();
     };
+
+    if (ImGui::IsKeyPressed(ImGuiKey_F1, false) && !ImGui::GetIO().WantTextInput)
+        showShortcuts = true;
+    drawShortcuts();
 
     if (showAbout)
     {

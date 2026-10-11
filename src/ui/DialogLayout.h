@@ -177,15 +177,18 @@ inline void beginFooter(float width)
     if (width < available) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + available - width);
 }
 
-// The common footer: [secondary] [primary], right-aligned. Returns 1 when the
-// primary action is pressed, 2 for the secondary one, else 0.
+// The common footer: [secondary] [primary], right-aligned (secondary nullptr:
+// the primary button alone). Returns 1 when the primary action is pressed, 2
+// for the secondary one, else 0.
 inline int footer(const char* primary, const char* secondary = "Close", bool primaryEnabled = true)
 {
     const float minimum = ImGui::GetFontSize() * 5.5f;
-    beginFooter(buttonRowWidth({secondary, primary}, minimum));
+    beginFooter(secondary ? buttonRowWidth({secondary, primary}, minimum) : buttonRowWidth({primary}, minimum));
     int result = 0;
-    if (secondary && secondaryButton(secondary, ImVec2(std::max(minimum, ImGui::CalcTextSize(secondary, nullptr, true).x + 2 * ImGui::GetStyle().FramePadding.x), 0))) result = 2;
-    ImGui::SameLine();
+    if (secondary) {
+        if (secondaryButton(secondary, ImVec2(std::max(minimum, ImGui::CalcTextSize(secondary, nullptr, true).x + 2 * ImGui::GetStyle().FramePadding.x), 0))) result = 2;
+        ImGui::SameLine();
+    }
     ImGui::BeginDisabled(!primaryEnabled);
     if (primaryButton(primary, ImVec2(std::max(minimum, ImGui::CalcTextSize(primary, nullptr, true).x + 2 * ImGui::GetStyle().FramePadding.x), 0))) result = 1;
     ImGui::EndDisabled();

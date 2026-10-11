@@ -421,6 +421,8 @@ private:
     void drawToolbar(const Structure& structure, bool canUndo, bool canRedo);
     void drawStatusBar(const Structure& structure);
     void drawWelcome(const Structure& structure);
+    void drawShortcuts();
+    bool showShortcuts = false;
     std::vector<std::string> recentFiles();
     // UI tour (UiTour.cpp): ATOMFORGE_UI_TOUR=FOLDER screenshots the main window,
     // its menus and dialogs, then quits.
