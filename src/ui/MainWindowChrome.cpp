@@ -6,6 +6,7 @@
 #include "ui/DialogLayout.h"
 #include "ui/Fonts.h"
 #include "ui/ResponsiveLayout.h"
+#include "util/ApplicationPaths.h"
 
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -14,6 +15,7 @@
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -292,19 +294,70 @@ void FileBrowser::drawWelcome(const Structure& structure)
         ImGui::SameLine();
         if (dialogLayout::secondaryButton(uiFonts::withIcon(Icon::Help, "Read the manual", label, sizeof(label)), big)) showManual = true;
 
+        // Example structures, when installed (or in the source tree).
+        static const std::filesystem::path examples = findExamplesDirectory(applicationDirectory());
+        if (!examples.empty()) {
+            struct Example { const char* file; const char* label; const char* about; };
+            static const Example kExamples[] = {
+                {"cu_fcc.cif", "Copper (fcc)", "The four-atom conventional cell of copper"},
+                {"fe_bcc.cif", "Iron (bcc)", "The two-atom conventional cell of iron"},
+                {"cu_ni_alloy.cif", "Cu-Ni alloy", "A 500-atom random Cu70Ni30 solid solution"},
+                {"cu_sigma5.cif", "Grain boundary", "A copper Sigma-5 [001] tilt grain boundary"},
+                {"cu_polycrystal.cif", "Polycrystal", "A four-grain copper polycrystal"},
+                {"cu_dislocation.cif", "Dislocation", "A copper crystal containing an edge dislocation"},
+                {"cu_sphere.xyz", "Nanoparticle", "A spherical copper nanoparticle"},
+                {"sio2_pack.xyz", "Amorphous SiO2", "A 120-atom amorphous silica packing"}};
+            dialogLayout::section("Examples");
+            const float right = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;
+            bool first = true;
+            for (const Example& example : kExamples) {
+                const auto path = examples / example.file;
+                std::error_code error;
+                if (!std::filesystem::is_regular_file(path, error)) continue;
+                const float w = ImGui::CalcTextSize(example.label).x + 2 * ImGui::GetStyle().FramePadding.x;
+                if (!first) {
+                    ImGui::SameLine();
+                    if (ImGui::GetCursorPosX() + w > right) ImGui::NewLine();
+                }
+                first = false;
+                if (dialogLayout::secondaryButton(example.label)) {
+                    pendingOpenPath = path.generic_u8string();
+                    openStatusMsg[0] = '\0';
+                }
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) ImGui::SetTooltip("%s\n%s", example.about, example.file);
+            }
+        }
+
         const auto recent = recentFiles();
         if (!recent.empty()) {
             dialogLayout::section("Recent files");
+            // Whether each file still exists, checked every few seconds (slow
+            // network drives must not stall the frame).
+            static std::vector<std::pair<std::string, bool>> present;
+            static double checked = -10.0;
+            if (ImGui::GetTime() - checked > 5.0) {
+                checked = ImGui::GetTime();
+                present.clear();
+                for (std::size_t i = 0; i < recent.size() && i < 6; ++i) {
+                    std::error_code error;
+                    present.push_back({recent[i], std::filesystem::is_regular_file(std::filesystem::u8path(recent[i]), error)});
+                }
+            }
             int shown = 0;
             for (const std::string& path : recent) {
                 if (++shown > 6) break;
                 ImGui::PushID(path.c_str());
                 const std::string name = fileNameOf(path);
+                const auto found = std::find_if(present.begin(), present.end(), [&](const auto& p) { return p.first == path; });
+                const bool missing = found != present.end() && !found->second;
+                ImGui::BeginDisabled(missing);
                 if (ImGui::Selectable(name.c_str(), false, ImGuiSelectableFlags_None, ImVec2(0, ImGui::GetFrameHeight()))) {
                     pendingOpenPath = path;
                     openStatusMsg[0] = '\0';
                 }
-                if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) ImGui::SetTooltip("%s", path.c_str());
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort | ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("%s%s", path.c_str(), missing ? "\n(the file is no longer there)" : "");
                 // The folder, shortened from the left to fit.
                 const float column = ImGui::GetContentRegionAvail().x * 0.42f;
                 ImGui::SameLine(column);

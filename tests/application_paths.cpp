@@ -38,6 +38,20 @@ int main()
                     throw std::runtime_error("multi-configuration manual not resolved");
             }
         }
+        // Example structures in each package layout.
+        for (const auto& layout : {"portable", "portable-bin", "installed"})
+        {
+            const auto base = root / (std::string("examples-") + layout);
+            const auto executable = base / "bin";
+            fs::create_directories(executable);
+            const auto examples = std::string(layout) == "portable" ? executable / "examples"
+                : std::string(layout) == "portable-bin" ? base / "examples"
+                : base / "share/doc/atomforge/examples";
+            fs::create_directories(examples);
+            if (findExamplesDirectory(executable) != examples) throw std::runtime_error("examples layout not resolved");
+        }
+        if (findExamplesDirectory(applicationDirectory()) != fs::path(ATOMFORGE_SOURCE_MANUAL).parent_path() / "examples")
+            throw std::runtime_error("built application cannot find the source examples");
         if (applicationDirectory().empty()) throw std::runtime_error("missing executable directory");
         if (findManualPdf(applicationDirectory()) != fs::path(ATOMFORGE_SOURCE_MANUAL))
             throw std::runtime_error("built application cannot find its published manual");

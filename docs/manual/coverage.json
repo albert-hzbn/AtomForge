@@ -3,7 +3,7 @@
   "files": [
     {
       "source": "CMakeLists.txt",
-      "sha256": "ed41f8386dfa8676d05984052d868618405f7500537ad526bca819bd0d344016",
+      "sha256": "16fdcd6b544ececea850df22d4586f014ab94ab54049595974ca3cc2cd56adb6",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3915,7 +3915,7 @@
     },
     {
       "source": "src/ui/MainWindowChrome.cpp",
-      "sha256": "d321319c7ca307a41f8c3f40ed8285c52c57c1c42a182b85343c337550efaaf0",
+      "sha256": "2db7ae108476b469d2f614c3a081dcbf488947bc7cd97ee9cabab48a17736b51",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3924,7 +3924,7 @@
       ],
       "literal_controls": [
         {
-          "line": 123,
+          "line": 125,
           "declaration_label": "##rotangle"
         }
       ]

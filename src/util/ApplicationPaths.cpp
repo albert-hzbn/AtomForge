@@ -59,3 +59,28 @@ std::filesystem::path findManualPdf(const std::filesystem::path& directory)
 #endif
     return {};
 }
+
+std::filesystem::path findExamplesDirectory(const std::filesystem::path& directory)
+{
+    if (directory.empty()) return {};
+    const auto parent = directory.parent_path();
+    for (const auto& candidate : {
+        directory / "examples",
+        parent / "examples",
+        parent / "share/doc/atomforge/examples",
+        parent / "docs/manual/examples",
+        parent.parent_path() / "docs/manual/examples"})
+    {
+        std::error_code error;
+        if (std::filesystem::is_directory(candidate, error)) return candidate;
+    }
+#ifdef ATOMFORGE_SOURCE_MANUAL
+    if (directory == applicationDirectory())
+    {
+        const auto examples = std::filesystem::path(ATOMFORGE_SOURCE_MANUAL).parent_path() / "examples";
+        std::error_code error;
+        if (std::filesystem::is_directory(examples, error)) return examples;
+    }
+#endif
+    return {};
+}

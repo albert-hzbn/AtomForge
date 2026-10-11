@@ -318,6 +318,12 @@ endif()
 # Installation Rules
 # ============================================================================
 set(ATOMFORGE_MANUAL_PDF "${PROJECT_SOURCE_DIR}/docs/manual/AtomForge-manual.pdf")
+# Example structures offered on the welcome panel (installed next to the manual).
+set(ATOMFORGE_EXAMPLE_FILES)
+foreach(_example cu_fcc.cif fe_bcc.cif cu_ni_alloy.cif cu_sigma5.cif cu_polycrystal.cif
+                 cu_dislocation.cif cu_sphere.xyz sio2_pack.xyz cu_host.cif octahedron.obj)
+    list(APPEND ATOMFORGE_EXAMPLE_FILES "${PROJECT_SOURCE_DIR}/docs/manual/examples/${_example}")
+endforeach()
 if(NOT EXISTS "${ATOMFORGE_MANUAL_PDF}")
     message(FATAL_ERROR "The published AtomForge manual PDF is missing: ${ATOMFORGE_MANUAL_PDF}")
 endif()
@@ -334,6 +340,7 @@ if(BUILD_PORTABLE)
         PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
     install(FILES README.md DESTINATION "${ATOMFORGE_PORTABLE_ROOT}")
     install(FILES "${ATOMFORGE_MANUAL_PDF}" DESTINATION "${ATOMFORGE_PORTABLE_ROOT}")
+    install(FILES ${ATOMFORGE_EXAMPLE_FILES} DESTINATION "${ATOMFORGE_PORTABLE_ROOT}/examples")
 
     # Bundle Open Babel plugin files (.obf), including versioned subdirectories.
     if(OPENBABEL_PLUGINDIR AND EXISTS "${OPENBABEL_PLUGINDIR}")
@@ -372,6 +379,7 @@ else()
     install(DIRECTORY python/atomforge DESTINATION share/atomforge/python
         PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
     install(FILES "${ATOMFORGE_MANUAL_PDF}" DESTINATION share/doc/atomforge)
+    install(FILES ${ATOMFORGE_EXAMPLE_FILES} DESTINATION share/doc/atomforge/examples)
     install(TARGETS atomforge_electronic atomforge_science_native RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
     if(WIN32)
         install(TARGETS AtomForge DESTINATION bin)
