@@ -26,6 +26,8 @@ public:
     // change stays out of undo history.
     bool isUpdating() const { return m_updating; }
     bool isActive() const { return m_editor.active(); }
+    void show() { m_open = true; }
+    void hide() { m_open = false; }
     // Appends steps (from a menu operation), starting the pipeline on `structure`
     // when none is active, and opens the panel.
     void addSteps(const std::vector<atomforge::pipeline::Modifier>& steps, const Structure& structure);

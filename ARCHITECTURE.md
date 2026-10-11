@@ -77,6 +77,24 @@ mask with `select(data, mask, mode)`; modifiers that drop or copy atoms use
 `rebuild`/`replicate`-style helpers so per-atom metadata stays aligned.
 `tests/pipeline_regressions.cpp` covers every modifier.
 
+The interface shares one look through `ui/ImGuiSetup.cpp` (light and dark
+palettes, spacing, fonts: a semibold heading face and, on Windows, icon glyphs
+declared in `ui/Fonts.h`) and `ui/DialogLayout.h` (section headings, callouts,
+help markers, primary/secondary/danger buttons, right-aligned footers, empty
+states); dialogs build on these rather than on literal colours or sizes.
+`ui/MainWindowChrome.cpp` draws the toolbar, status bar and welcome panel.
+The startup splash (`app/WindowSetup.cpp`) is drawn on the CPU (the icon as
+geometry, text through stb_truetype with the system UI font) and shows the
+version and a loading bar.
+`ATOMFORGE_UI_TOUR=FOLDER` (`ui/UiTour.cpp`) screenshots the main window, every
+menu and the main dialogs in both themes, for reviewing the interface;
+`ATOMFORGE_UI_TOUR_ALL=1` adds every other builder, operation and scientific
+tool. Command-line builder options (`kind` "options") are edited as one field
+per flag, parsed from the builder's usage text (`ui/ModifierEditor.cpp`).
+`ATOMFORGE_TUTORIAL_CAPTURE=FOLDER` (`ui/TutorialCapture.cpp`, with scripted
+actions from `ui/UiScript.h`) recaptures the manual's tutorial screenshots and
+their crop bounds; `docs/manual/scripts/update_tutorial_captures.py` applies them.
+
 Large datasets (billions of atoms) bypass `Structure`: `cloud/AtomCloud.*`
 stores atoms by space in chunks of 8-byte atoms in random order (a chunk prefix
 is a uniform subsample) and builds such files from streamed inputs through

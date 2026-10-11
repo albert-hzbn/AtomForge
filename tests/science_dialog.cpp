@@ -7,6 +7,7 @@
 #include "ui/PipelineDialog.h"
 #include "ui/OperationDialog.h"
 #include "ui/MenuParity.h"
+#include "ui/ModifierEditor.h"
 #include "ui/SciencePlot.h"
 #include <cmath>
 #include <cstdio>
@@ -33,6 +34,30 @@ int main()
         copper.cellVectors = {{{3.6, 0, 0}, {0, 3.6, 0}, {0, 0, 3.6}}};
         for (const auto& p : {std::array<double, 3>{0, 0, 0}, {0, 1.8, 1.8}, {1.8, 0, 1.8}, {1.8, 1.8, 0}})
             copper.atoms.push_back({"Cu", 29, p[0], p[1], p[2]});
+        // Command-line builder options as fields: usage parsing and the
+        // options string <-> field values round trip.
+        {
+            const auto usage = modifierFlags::parse(
+                "Takes the pipeline's structure as its input. Options are the command-line flags of AtomForge --build sqs:\n\n"
+                "SQS (--build sqs)\n--input FILE --output FILE --element \"SYMBOL FRACTION\" (repeatable, >=2)\n"
+                "[--shells 2] [--percent P | --count N] [--no-primitive]\nAnnealing optimizer.\nSecond line.\n");
+            if (usage.flags.size() != 5 || usage.flags[0].name != "element" || !usage.flags[0].repeatable || usage.flags[0].optional ||
+                usage.flags[1].name != "shells" || usage.flags[1].value != "2" || !usage.flags[1].optional ||
+                usage.flags[3].name != "count" || usage.flags[4].name != "no-primitive" || !usage.flags[4].value.empty() ||
+                usage.description != "Annealing optimizer. Second line.")
+                throw std::runtime_error("Usage parsing");
+            std::string other;
+            const auto values = modifierFlags::values(usage, "--element \"Cu 0.5\" --element \"Au 0.5\" --no-primitive --seed 3 --shells 4", other);
+            if (values[0] != "Cu 0.5; Au 0.5" || values[1] != "4" || values[4] != "1" || other != "--seed 3")
+                throw std::runtime_error("Options to field values");
+            if (modifierFlags::compose(usage, values, other) != "--element \"Cu 0.5\" --element \"Au 0.5\" --shells 4 --no-primitive --seed 3")
+                throw std::runtime_error("Field values to options");
+            for (const auto& location : menuLocations())
+                if (const auto* type = atomforge::pipeline::findModifierType(location.step))
+                    for (const auto& p : type->parameters)
+                        if (std::string(p.kind) == "options" && modifierFlags::parse(type->help).flags.empty())
+                            throw std::runtime_error(std::string("No option fields for ") + location.step);
+        }
         ScientificToolsDialog dialog;
         if (dialog.open("no-such-tool")) throw std::runtime_error("Unknown tool ids must be rejected");
         // Input-source rules: position inputs fill a cell that exists on the

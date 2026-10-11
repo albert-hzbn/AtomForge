@@ -1,4 +1,6 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
+#include "ui/DialogLayout.h"
 #include "ui/SubstitutionalSolidSolutionDialog.h"
 #include "algorithms/SubstitutionalSolidSolutionBuilder.h"
 #include "camera/Camera.h"
@@ -677,7 +679,7 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
     m_isOpen = true;
 
     if (m_step.active())
-        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+        dialogLayout::stepBanner(m_step.step.c_str());
 
     // -----------------------------------------------------------------------
     // Description bar
@@ -872,7 +874,7 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
                 const int z = entry.atomicNumber;
                 char symBtn[16];
                 std::snprintf(symBtn, sizeof(symBtn), "%s##sym", elementSymbol(z));
-                if (responsive::button(symBtn, ImVec2(kSymW, 0.0f)))
+                if (responsive::button(symBtn, ImVec2(kSymW, 0.0f)) || (i == 0 && uiScript::take("sss.picker")))
                 {
                     m_pickerTarget = i;
                     openPicker = true;
@@ -980,7 +982,7 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
                     ImGui::CloseCurrentPopup();
                 }
             }
-            else if (responsive::button("Build Solid Solution", responsive::size(-1.0f,0.0f)))
+            else if (dialogLayout::primaryButton("Build Solid Solution", responsive::size(-1.0f,0.0f)))
             {
                 SSSParams params;
                 params.seed = (unsigned int)m_seed;
@@ -1022,7 +1024,7 @@ void SubstitutionalSolidSolutionDialog::drawDialog(
     if (!m_statusMsg.empty())
     {
         if (m_statusIsError)
-            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+            ImGui::TextColored(themeStatusError(),
                                "%s", m_statusMsg.c_str());
         else
             ImGui::TextColored(themeStatusGood(),

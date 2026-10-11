@@ -1,4 +1,5 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
 #include "ui/BulkCrystalBuilderDialog.h"
 
 #include "algorithms/BulkCrystalBuilder.h"
@@ -212,7 +213,7 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
     if (responsive::beginModal("Build Bulk Crystal", &dialogOpen, ImGuiWindowFlags_None))
     {
         if (m_step.active())
-            ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+            dialogLayout::stepBanner(m_step.step.c_str());
 #ifndef ATOMS_ENABLE_SPGLIB
         ImGui::TextWrapped("spglib is not available in this build, so symmetry expansion cannot be generated.");
 #else
@@ -226,6 +227,7 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
         ImGui::SameLine(ImGui::GetStyle().WindowPadding.x+halfWidth+ImGui::GetStyle().ItemSpacing.x);
         ImGui::TextUnformatted("Space group");
         ImGui::PushItemWidth(halfWidth);
+        uiScript::openCombo("bulk.systems", "##system");
         if (ImGui::Combo("##system", &crystalSystemIndex, systemLabels, 7))
         {
             const SpaceGroupRange& range = currentRange((CrystalSystem)crystalSystemIndex);

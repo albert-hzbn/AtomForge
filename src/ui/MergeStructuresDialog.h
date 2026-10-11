@@ -28,6 +28,8 @@ struct MergeStructuresDialog
     void initRenderResources(Renderer& renderer);
 
     void drawMenuItem(bool enabled);
+    // Opens the dialog, as its menu item does.
+    void open() { m_step.finish(); m_openRequested = true; }
 
     void drawDialog(Structure& structure,
                     const std::function<void(Structure&)>& updateBuffers);

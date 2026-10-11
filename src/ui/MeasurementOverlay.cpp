@@ -279,7 +279,8 @@ void drawOrientationAxesGizmo(ImDrawList* drawList,
                               int viewportHeight,
                               const Structure& structure)
 {
-    const ImVec2 origin(73.0f, (float)viewportHeight - 73.0f);
+    // Above the status bar at the bottom of the window.
+    const ImVec2 origin(73.0f, (float)viewportHeight - 73.0f - (ImGui::GetFrameHeight() + 8.0f));
     drawGizmoBackdrop(drawList, origin);
 
     const bool light = isLightTheme();

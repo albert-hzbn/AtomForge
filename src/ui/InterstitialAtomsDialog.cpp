@@ -1,4 +1,6 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
+#include "ui/DialogLayout.h"
 #include "ui/InterstitialAtomsDialog.h"
 #include "io/StructureLoader.h"
 
@@ -1228,7 +1230,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
 
     if (editingStep)
     {
-        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+        dialogLayout::stepBanner(m_step.step.c_str());
         ImGui::TextDisabled("The step fills voids of the structure entering it; mesh regions, manual picks and volume groups are not part of the step.");
     }
 
@@ -1307,6 +1309,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
 
     // ---- Right: controls ----
     responsive::beginChild("##interstitial-controls", ImVec2(0.0f, contentH), false);
+    uiScript::scrollToBottom("interstitial.scroll");
     {
         // Source
         ImGui::Text("Source");
@@ -1376,7 +1379,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
 
         if (!m_sourceLoaded)
             ImGui::BeginDisabled();
-        if (responsive::button("Detect Voids", responsive::size(140.0f,0.0f)))
+        if (responsive::button("Detect Voids", responsive::size(140.0f,0.0f)) || (m_sourceLoaded && uiScript::take("interstitial.detect")))
         {
             if (detectVoids())
             {
@@ -1486,7 +1489,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
             for (char v : m_voidTypeSelections)
                 anyVoidTypeEnabled = anyVoidTypeEnabled || (v != 0);
             if (!anyVoidTypeEnabled && !m_voidTypeSelections.empty())
-                ImGui::TextColored(ImVec4(0.95f, 0.42f, 0.42f, 1.0f), "No void type selected. Placement pool will be empty.");
+                ImGui::TextColored(themeStatusError(), "No void type selected. Placement pool will be empty.");
 
             ImGui::Checkbox("Show Void Polyhedra in Scene", &m_showVoidOverlay);
 
@@ -1506,6 +1509,8 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
             int placement = (m_placementMode == PlacementMode::Random) ? 0
                           : (m_placementMode == PlacementMode::MeshRegion) ? 1 : 2;
             ImGui::SetNextItemWidth(responsive::dp(280.0f));
+            if (uiScript::take("interstitial.mesh")) { m_placementMode = PlacementMode::MeshRegion; placement = 1; }
+            uiScript::openCombo("interstitial.modes", "Mode");
             if (ImGui::Combo("Mode", &placement, placementItems, 3))
             {
                 if (placement == 0)
@@ -1620,7 +1625,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
         if (!canApply)
             ImGui::BeginDisabled();
 
-        if (responsive::button("Apply Interstitials", responsive::size(180.0f,0.0f)))
+        if (dialogLayout::primaryButton("Apply Interstitials", responsive::size(180.0f,0.0f)))
         {
             Structure out;
             const int added = applyPlacement(out, elementColors);
@@ -1658,7 +1663,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
     {
         ImGui::SameLine();
         if (m_statusIsError)
-            ImGui::TextColored(ImVec4(0.95f, 0.42f, 0.42f, 1.0f), "%s", m_statusMsg.c_str());
+            ImGui::TextColored(themeStatusError(), "%s", m_statusMsg.c_str());
         else
             ImGui::TextColored(themeStatusGood(), "%s", m_statusMsg.c_str());
     }

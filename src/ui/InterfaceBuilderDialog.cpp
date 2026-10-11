@@ -1,4 +1,5 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/DialogLayout.h"
 #include "ui/InterfaceBuilderDialog.h"
 
 #include "algorithms/InterfaceBuilder.h"
@@ -897,8 +898,7 @@ void InterfaceBuilderDialog::drawDialog(
 
     m_isOpen = true;
     if (m_step.active())
-        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f),
-                           "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+        dialogLayout::stepBanner(m_step.step.c_str());
 
     float totalW = ImGui::GetContentRegionAvail().x;
     float gap = 4.0f;
@@ -1275,7 +1275,7 @@ void InterfaceBuilderDialog::drawDialog(
         bool canBuild = (m_selectedIdx >= 0 &&
                          m_selectedIdx < (int)m_interfaceStructures.size());
         if (!canBuild) ImGui::BeginDisabled();
-        if (responsive::button("Build##iface", responsive::size(100.0f,0.0f)))
+        if (dialogLayout::primaryButton("Build##iface", responsive::size(100.0f,0.0f)))
         {
             structure = m_interfaceStructures[m_selectedIdx];
             updateBuffers(structure);

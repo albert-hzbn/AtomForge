@@ -69,7 +69,7 @@ void WannierAnalysisDialog::drawDialog()
     responsive::windowSize(ImVec2(1180,820),ImGuiCond_FirstUseEver);
     if (!responsive::begin("Wannier Analysis",&m_open,ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
     const bool stackPanels = responsive::stacked(1000);
-    const float sidebar = stackPanels ? ImGui::GetContentRegionAvail().x : std::clamp(ImGui::GetContentRegionAvail().x*.38f,responsive::dp(340),responsive::dp(440));
+    const float sidebar = stackPanels ? ImGui::GetContentRegionAvail().x : std::clamp(ImGui::GetContentRegionAvail().x * .42f, responsive::dp(420), responsive::dp(540));
     responsive::beginChild("Wannier controls",ImVec2(sidebar,stackPanels?responsive::dp(360):0),true);
 
     if (responsive::button("Open seedname_hr.dat")) m_picker.open("Open Wannier90 Hamiltonian",false,m_loadedPath.empty()?"wannier90_hr.dat":m_loadedPath);

@@ -1,4 +1,6 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
+#include "ui/DialogLayout.h"
 #include "ui/NanoCrystalBuilderDialog.h"
 #include "algorithms/NanoCrystalBuilder.h"
 #include "util/PathUtils.h"
@@ -445,7 +447,7 @@ void drawReplicationPreview(const NanoParams& params, const Structure& reference
     if (clamped)
         ImGui::TextColored(themeStatusWarn(), "Warning: replication clamped to %d.", kMax);
     if (tested > 8000000LL)
-        ImGui::TextColored(ImVec4(1,0.3f,0.3f,1),
+        ImGui::TextColored(themeStatusError(),
                            "Exceeds 8M limit -- build will be refused.");
 }
 
@@ -1140,9 +1142,7 @@ void NanoCrystalBuilderDialog::drawDialog(
     m_isOpen = true;
 
     if (m_step.active())
-        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f),
-                           "Editing pipeline step %s: Update step writes these settings into the pipeline.",
-                           m_step.step.c_str());
+        dialogLayout::stepBanner(m_step.step.c_str());
 
     if (responsive::button("Load reference##sourcePicker"))
         m_sourcePicker.open("Load reference", false, "");
@@ -1377,7 +1377,14 @@ void NanoCrystalBuilderDialog::drawDialog(
     int generationMode = (int)params.generationMode;
     const char* generationLabels[] = {"Shape Cut", "Wulff Construction"};
     ImGui::SetNextItemWidth(responsive::dp(-1.0f));
-    if (ImGui::Combo("##nanoGenMode", &generationMode, generationLabels, 2))
+    const bool scriptedWulff = uiScript::take("nano.wulff");
+    if (scriptedWulff) {
+        // The manual's exercise: equal-energy (100) and (111) families, 20 A.
+        generationMode = (int)NanoGenerationMode::WulffConstruction;
+        params.wulffMaxRadius = 20.0f;
+        params.wulffPlanes = {WulffPlaneInput{1, 0, 0, 1.0f}, WulffPlaneInput{1, 1, 1, 1.0f}};
+    }
+    if (ImGui::Combo("##nanoGenMode", &generationMode, generationLabels, 2) || scriptedWulff)
     {
         params.generationMode = (NanoGenerationMode)generationMode;
         m_wulffPreviewDirty = true;
@@ -1517,7 +1524,7 @@ void NanoCrystalBuilderDialog::drawDialog(
             ImGui::CloseCurrentPopup();
         }
     }
-    else if (responsive::button("Build Nanocrystal##nano", responsive::size(160.0f,0.0f))) {
+    else if (dialogLayout::primaryButton("Build Nanocrystal##nano", responsive::size(160.0f,0.0f)) || uiScript::take("nano.build")) {
         static const std::vector<glm::vec3>       kNoVerts;
         static const std::vector<unsigned int>    kNoIdx;
         lastResult = buildNanocrystal(structure,

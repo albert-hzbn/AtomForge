@@ -1,4 +1,6 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
+#include "ui/DialogLayout.h"
 #include "ui/CustomStructureDialog.h"
 #include "io/StructureLoader.h"
 
@@ -656,7 +658,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     m_isOpen = true;
 
     if (m_step.active())
-        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+        dialogLayout::stepBanner(m_step.step.c_str());
 
     if (responsive::button("Load structure or model##sourcePicker"))
         m_sourcePicker.open("Load structure or model", false, "");
@@ -919,6 +921,11 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     }
 
     ImGui::SeparatorText("Crystal Orientation");
+    if (uiScript::take("custom.scale12")) params.modelScale = 12.0f;
+    if (uiScript::take("custom.type1")) { params.applyCrystalOrientation = true; orientationType = 1; }
+    if (uiScript::take("custom.plain")) params.applyCrystalOrientation = false;
+    if (uiScript::take("custom.type2")) { params.applyCrystalOrientation = true; orientationType = 2; }
+    uiScript::scrollToBottom("custom.scroll");
     ImGui::Checkbox("Apply crystal orientation", &params.applyCrystalOrientation);
     if (params.applyCrystalOrientation)
     {
@@ -1018,7 +1025,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
             ImGui::CloseCurrentPopup();
         }
     }
-    else if (responsive::button("Build Fill", responsive::size(140.0f,0.0f)))
+    else if (dialogLayout::primaryButton("Build Fill", responsive::size(140.0f,0.0f)) || uiScript::take("custom.build"))
     {
         if (params.applyCrystalOrientation)
         {

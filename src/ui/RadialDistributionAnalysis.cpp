@@ -1,4 +1,6 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
+#include "ui/DialogLayout.h"
 #include "ui/RadialDistributionAnalysis.h"
 
 #include "ElementData.h"
@@ -296,7 +298,7 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
             }
 
             bool computeRequested = false;
-            if (responsive::button("Run RDF", responsive::size(140.0f,0.0f)) && !m_task.running())
+            if ((dialogLayout::primaryButton("Run RDF", responsive::size(140.0f,0.0f)) || uiScript::take("rdf.run")) && !m_task.running())
                 computeRequested = true;
             ImGui::SameLine();
             if (responsive::button("Close", responsive::size(120.0f,0.0f)))

@@ -1,4 +1,6 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
+#include "ui/DialogLayout.h"
 #include "ui/AmorphousBuilderDialog.h"
 
 #include "algorithms/AmorphousBuilder.h"
@@ -230,9 +232,7 @@ void AmorphousBuilderDialog::drawDialog(
     }
 
     if (m_step.active())
-        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f),
-                           "Editing pipeline step %s: Update step writes these settings into the pipeline.",
-                           m_step.step.c_str());
+        dialogLayout::stepBanner(m_step.step.c_str());
 
     // =========================================================================
     // SECTION 1 – Composition
@@ -345,6 +345,8 @@ void AmorphousBuilderDialog::drawDialog(
     ImGui::Spacing();
     ImGui::SeparatorText("Simulation Box");
 
+    if (uiScript::take("amorphous.manual")) m_boxMode = 0;
+    uiScript::scrollToBottom("amorphous.scroll");
     ImGui::RadioButton("Auto from target density", &m_boxMode, 1);
     ImGui::SameLine();
     ImGui::RadioButton("Manual dimensions", &m_boxMode, 0);
@@ -394,6 +396,7 @@ void AmorphousBuilderDialog::drawDialog(
     // SECTION 3 – Advanced settings (collapsible)
     // =========================================================================
     ImGui::Spacing();
+    uiScript::openHeader("amorphous.advanced");
     if (ImGui::CollapsingHeader("Advanced Settings"))
     {
         // -- Placement parameters --
@@ -509,7 +512,7 @@ void AmorphousBuilderDialog::drawDialog(
             m_isOpen = false;
         }
     }
-    else if (responsive::button("Build", responsive::size(120.0f,0.0f)))
+    else if (dialogLayout::primaryButton("Build", responsive::size(120.0f,0.0f)))
     {
         // Assemble AmorphousParams from dialog state.
         AmorphousParams params;

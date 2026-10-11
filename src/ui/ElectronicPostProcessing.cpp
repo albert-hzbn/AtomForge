@@ -313,7 +313,7 @@ void ElectronicPostProcessingDialog::drawDialog()
     responsive::windowConstraints(ImVec2(980,680),ImVec2(FLT_MAX,FLT_MAX));
     if (!responsive::begin("Electronic Post-processing",&m_open,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
     const bool stackPanels = responsive::stacked(1000);
-    const float sidebar = stackPanels ? ImGui::GetContentRegionAvail().x : std::clamp(ImGui::GetContentRegionAvail().x * .38f,responsive::dp(340),responsive::dp(440));
+    const float sidebar = stackPanels ? ImGui::GetContentRegionAvail().x : std::clamp(ImGui::GetContentRegionAvail().x * .42f, responsive::dp(420), responsive::dp(540));
     responsive::beginChild("Electronic controls",ImVec2(sidebar,stackPanels ? responsive::dp(420) : 0),true);
     ImGui::BeginDisabled(m_task.running());
     if (responsive::button("Open workspace")) { m_pickerAction=3; m_picker.open("Open electronic workspace",false,"workspace.afproject"); }

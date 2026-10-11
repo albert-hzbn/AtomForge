@@ -16,6 +16,8 @@ struct AngularDistributionAnalysisDialog
     AngularDistributionAnalysisDialog& operator=(const AngularDistributionAnalysisDialog&) = delete;
 
     void drawMenuItem(bool enabled);
+    // Opens the window, as its menu item does.
+    void open() { m_openRequested = true; }
     void drawDialog(const Structure& structure);
 
 private:

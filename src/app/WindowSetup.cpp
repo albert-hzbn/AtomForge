@@ -6,16 +6,52 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdlib>
+#include <fstream>
+#include <initializer_list>
 #include <iostream>
+#include <iterator>
 #include <string>
+#include <vector>
 
 #include "Camera.h"
 
+#define STBTT_STATIC
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "imstb_truetype.h"
+#include "third_party/stb_image_write.h"
+
+namespace {
+struct SplashFont
+{
+    std::vector<unsigned char> data;
+    stbtt_fontinfo info{};
+    bool loaded = false;
+};
+
+bool loadSplashFont(SplashFont& font, std::initializer_list<const char*> paths)
+{
+    for (const char* path : paths)
+    {
+        std::ifstream file(path, std::ios::binary);
+        if (!file)
+            continue;
+        font.data.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+        const int offset = stbtt_GetFontOffsetForIndex(font.data.data(), 0);
+        if (offset >= 0 && stbtt_InitFont(&font.info, font.data.data(), offset))
+            return font.loaded = true;
+    }
+    return false;
+}
+} // namespace
+
 struct SplashScreen
 {
+    static constexpr int kWidth = 560;
+    static constexpr int kHeight = 320;
     GLFWwindow* window = nullptr;
-    int width = 560;
-    int height = 320;
+    SplashFont regular, heading;
+    std::string status;
 };
 
 namespace {
@@ -1075,126 +1111,185 @@ bool ensureGlfwInitialized()
     return glfwInit() == GLFW_TRUE;
 }
 
-void fillRect(GLFWwindow* window, int x, int y, int width, int height, float r, float g, float b)
+// ---- Splash screen ---------------------------------------------------------
+// Drawn on the CPU into an RGBA canvas (the AtomForge icon, the name, the
+// version and a loading bar) and copied to the window with glDrawPixels, so it
+// needs nothing but an OpenGL 2.1 context. Text uses the system UI font.
+
+struct Rgb { float r, g, b; };
+constexpr Rgb kSplashBackground{1.000f, 1.000f, 1.000f};
+constexpr Rgb kSplashBorder{0.835f, 0.859f, 0.886f};
+constexpr Rgb kSplashTitle{0.094f, 0.125f, 0.173f};
+constexpr Rgb kSplashText{0.361f, 0.400f, 0.455f};
+constexpr Rgb kSplashMuted{0.510f, 0.541f, 0.588f};
+constexpr Rgb kSplashTrack{0.906f, 0.922f, 0.941f};
+constexpr Rgb kSplashAccent{0.122f, 0.439f, 0.749f};
+
+class SplashCanvas
 {
-    if (!window || width <= 0 || height <= 0)
-        return;
+public:
+    SplashCanvas(int width, int height) : m_width(width), m_height(height),
+        m_pixels(static_cast<std::size_t>(width) * height * 3, 255) {}
 
-    int framebufferWidth = 0;
-    int framebufferHeight = 0;
-    glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
-    if (framebufferWidth <= 0 || framebufferHeight <= 0)
-        return;
-
-    x = std::max(0, std::min(x, framebufferWidth));
-    y = std::max(0, std::min(y, framebufferHeight));
-    width = std::min(width, framebufferWidth - x);
-    height = std::min(height, framebufferHeight - y);
-    if (width <= 0 || height <= 0)
-        return;
-
-    glEnable(GL_SCISSOR_TEST);
-    glScissor(x, y, width, height);
-    glClearColor(r, g, b, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glDisable(GL_SCISSOR_TEST);
-}
-
-void fillRectTopLeft(GLFWwindow* window, int x, int y, int width, int height, float r, float g, float b)
-{
-    if (!window)
-        return;
-
-    int framebufferWidth = 0;
-    int framebufferHeight = 0;
-    glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
-    fillRect(window, x, framebufferHeight - y - height, width, height, r, g, b);
-}
-
-void drawGlyph(GLFWwindow* window,
-               int x,
-               int y,
-               int scale,
-               const std::array<const char*, 7>& rows,
-               float r,
-               float g,
-               float b)
-{
-    for (int row = 0; row < 7; ++row)
+    // Blends `colour` into (x, y) with coverage `alpha`.
+    void blend(int x, int y, Rgb colour, float alpha)
     {
-        for (int col = 0; rows[row][col] != '\0'; ++col)
-        {
-            if (rows[row][col] == ' ')
-                continue;
+        if (x < 0 || y < 0 || x >= m_width || y >= m_height || alpha <= 0.0f)
+            return;
+        alpha = std::min(alpha, 1.0f);
+        unsigned char* p = &m_pixels[(static_cast<std::size_t>(y) * m_width + x) * 3];
+        const float c[3] = {colour.r, colour.g, colour.b};
+        for (int i = 0; i < 3; ++i)
+            p[i] = static_cast<unsigned char>(std::lround(p[i] * (1.0f - alpha) + c[i] * 255.0f * alpha));
+    }
 
-            fillRectTopLeft(window, x + col * scale, y + row * scale, scale - 1, scale - 1, r, g, b);
+    void fill(Rgb colour) { rect(0, 0, static_cast<float>(m_width), static_cast<float>(m_height), colour, 1.0f); }
+
+    // Anti-aliased rectangle with rounded corners (radius in pixels).
+    void rect(float x0, float y0, float x1, float y1, Rgb colour, float alpha, float radius = 0.0f)
+    {
+        radius = std::min({radius, (x1 - x0) * 0.5f, (y1 - y0) * 0.5f});
+        for (int y = static_cast<int>(std::floor(y0)); y < static_cast<int>(std::ceil(y1)); ++y)
+            for (int x = static_cast<int>(std::floor(x0)); x < static_cast<int>(std::ceil(x1)); ++x)
+            {
+                const float px = x + 0.5f, py = y + 0.5f;
+                const float qx = std::max(std::abs(px - (x0 + x1) * 0.5f) - ((x1 - x0) * 0.5f - radius), 0.0f);
+                const float qy = std::max(std::abs(py - (y0 + y1) * 0.5f) - ((y1 - y0) * 0.5f - radius), 0.0f);
+                const float distance = std::sqrt(qx * qx + qy * qy) - radius;
+                blend(x, y, colour, alpha * std::clamp(0.5f - distance, 0.0f, 1.0f));
+            }
+    }
+
+    void circle(float cx, float cy, float radius, Rgb colour, float alpha = 1.0f)
+    {
+        rect(cx - radius, cy - radius, cx + radius, cy + radius, colour, alpha, radius);
+    }
+
+    // The application icon: four atoms on a square frame around a central atom.
+    void icon(float x, float y, float size)
+    {
+        const float u = size / 256.0f;
+        const Rgb corner{0.247f, 0.431f, 0.525f}, centre{0.071f, 0.247f, 0.341f}, frame{0.180f, 0.369f, 0.463f};
+        const float a = 40.0f * u, b = 216.0f * u, half = 7.0f * u;
+        rect(x + a - half, y + a, x + a + half, y + b, frame, 0.65f);
+        rect(x + b - half, y + a, x + b + half, y + b, frame, 0.65f);
+        rect(x + a + half, y + a - half, x + b - half, y + a + half, frame, 0.65f);
+        rect(x + a + half, y + b - half, x + b - half, y + b + half, frame, 0.65f);
+        for (const float cx : {42.0f, 214.0f})
+            for (const float cy : {42.0f, 214.0f})
+                circle(x + cx * u, y + cy * u, 42.0f * u, corner);
+        circle(x + 128.0f * u, y + 128.0f * u, 50.0f * u, centre);
+    }
+
+    float textWidth(const SplashFont& font, float pixelHeight, const std::string& text) const
+    {
+        if (!font.loaded)
+            return 0.0f;
+        const float scale = stbtt_ScaleForPixelHeight(&font.info, pixelHeight);
+        float width = 0.0f;
+        for (std::size_t i = 0; i < text.size(); ++i)
+        {
+            int advance = 0, bearing = 0;
+            stbtt_GetCodepointHMetrics(&font.info, static_cast<unsigned char>(text[i]), &advance, &bearing);
+            width += advance * scale;
+            if (i + 1 < text.size())
+                width += scale * stbtt_GetCodepointKernAdvance(&font.info, static_cast<unsigned char>(text[i]), static_cast<unsigned char>(text[i + 1]));
+        }
+        return width;
+    }
+
+    // Draws `text` with its baseline at y.
+    void text(const SplashFont& font, float pixelHeight, float x, float baseline, const std::string& text, Rgb colour)
+    {
+        if (!font.loaded)
+            return;
+        const float scale = stbtt_ScaleForPixelHeight(&font.info, pixelHeight);
+        for (std::size_t i = 0; i < text.size(); ++i)
+        {
+            const int codepoint = static_cast<unsigned char>(text[i]);
+            const float shift = x - std::floor(x);
+            int w = 0, h = 0, xoff = 0, yoff = 0;
+            unsigned char* glyph = stbtt_GetCodepointBitmapSubpixel(&font.info, scale, scale, shift, 0.0f, codepoint, &w, &h, &xoff, &yoff);
+            for (int gy = 0; gy < h; ++gy)
+                for (int gx = 0; gx < w; ++gx)
+                    blend(static_cast<int>(std::floor(x)) + xoff + gx, static_cast<int>(std::lround(baseline)) + yoff + gy, colour,
+                          glyph[gy * w + gx] / 255.0f);
+            stbtt_FreeBitmap(glyph, nullptr);
+            int advance = 0, bearing = 0;
+            stbtt_GetCodepointHMetrics(&font.info, codepoint, &advance, &bearing);
+            x += advance * scale;
+            if (i + 1 < text.size())
+                x += scale * stbtt_GetCodepointKernAdvance(&font.info, codepoint, static_cast<unsigned char>(text[i + 1]));
         }
     }
-}
 
-void drawAtomForgeLogo(GLFWwindow* window, int x, int y, int scale)
-{
-    static const std::array<const char*, 7> kA = {" ### ", "#   #", "#   #", "#####", "#   #", "#   #", "#   #"};
-    static const std::array<const char*, 7> kT = {"#####", "  #  ", "  #  ", "  #  ", "  #  ", "  #  ", "  #  "};
-    static const std::array<const char*, 7> kO = {" ### ", "#   #", "#   #", "#   #", "#   #", "#   #", " ### "};
-    static const std::array<const char*, 7> kM = {"#   #", "## ##", "# # #", "#   #", "#   #", "#   #", "#   #"};
-    static const std::array<const char*, 7> kF = {"#####", "#    ", "#    ", "#### ", "#    ", "#    ", "#    "};
-    static const std::array<const char*, 7> kR = {"#### ", "#   #", "#   #", "#### ", "# #  ", "#  # ", "#   #"};
-    static const std::array<const char*, 7> kG = {" ### ", "#   #", "#    ", "# ###", "#   #", "#   #", " ### "};
-    static const std::array<const char*, 7> kE = {"#####", "#    ", "#    ", "#### ", "#    ", "#    ", "#####"};
-
-    const std::array<const std::array<const char*, 7>*, 9> glyphs = {
-        &kA, &kT, &kO, &kM, &kF, &kO, &kR, &kG, &kE
-    };
-
-    int cursorX = x;
-    for (const auto* glyph : glyphs)
+    // Copies the canvas to the current framebuffer (rows bottom-up).
+    void present() const
     {
-        drawGlyph(window, cursorX, y, scale, *glyph, 0.95f, 0.96f, 0.98f);
-        cursorX += scale * 6;
+        std::vector<unsigned char> flipped(m_pixels.size());
+        const std::size_t row = static_cast<std::size_t>(m_width) * 3;
+        for (int y = 0; y < m_height; ++y)
+            std::copy_n(m_pixels.begin() + static_cast<std::ptrdiff_t>(y * row), row, flipped.begin() + static_cast<std::ptrdiff_t>((m_height - 1 - y) * row));
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glRasterPos2f(-1.0f, -1.0f);
+        glDrawPixels(m_width, m_height, GL_RGB, GL_UNSIGNED_BYTE, flipped.data());
     }
-}
 
-void drawSplashBadge(GLFWwindow* window, int x, int y)
-{
-    fillRectTopLeft(window, x, y, 88, 88, 0.20f, 0.43f, 0.68f);
-    fillRectTopLeft(window, x + 10, y + 10, 68, 68, 0.08f, 0.11f, 0.16f);
-    fillRectTopLeft(window, x + 21, y + 16, 14, 56, 0.38f, 0.76f, 0.92f);
-    fillRectTopLeft(window, x + 39, y + 16, 14, 56, 0.95f, 0.45f, 0.25f);
-    fillRectTopLeft(window, x + 57, y + 16, 10, 56, 0.94f, 0.82f, 0.28f);
-    fillRectTopLeft(window, x + 15, y + 42, 58, 8, 0.86f, 0.89f, 0.93f);
-}
+private:
+    int m_width, m_height;
+    std::vector<unsigned char> m_pixels;
+};
 
 void renderSplash(SplashScreen* splash, float progress)
 {
     if (!splash || !splash->window)
         return;
 
-    const float clampedProgress = std::max(0.0f, std::min(progress, 1.0f));
+    progress = std::clamp(progress, 0.0f, 1.0f);
     GLFWwindow* previousContext = glfwGetCurrentContext();
     glfwMakeContextCurrent(splash->window);
 
-    int framebufferWidth = 0;
-    int framebufferHeight = 0;
-    glfwGetFramebufferSize(splash->window, &framebufferWidth, &framebufferHeight);
-    glViewport(0, 0, framebufferWidth, framebufferHeight);
-    glDisable(GL_DEPTH_TEST);
-    glClearColor(0.07f, 0.09f, 0.13f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(splash->window, &width, &height);
+    if (width > 0 && height > 0)
+    {
+        glViewport(0, 0, width, height);
+        glDisable(GL_DEPTH_TEST);
+        // Layout in units of a 560 x 320 card.
+        const float s = width / static_cast<float>(SplashScreen::kWidth);
+        SplashCanvas canvas(width, height);
+        canvas.fill(kSplashBackground);
+        canvas.rect(0, 0, static_cast<float>(width), std::max(1.0f, s), kSplashBorder, 1.0f);
+        canvas.rect(0, height - std::max(1.0f, s), static_cast<float>(width), static_cast<float>(height), kSplashBorder, 1.0f);
+        canvas.rect(0, 0, std::max(1.0f, s), static_cast<float>(height), kSplashBorder, 1.0f);
+        canvas.rect(width - std::max(1.0f, s), 0, static_cast<float>(width), static_cast<float>(height), kSplashBorder, 1.0f);
 
-    fillRectTopLeft(splash->window, 0, 0, framebufferWidth, framebufferHeight, 0.07f, 0.09f, 0.13f);
-    fillRectTopLeft(splash->window, 0, 0, framebufferWidth, 12, 0.19f, 0.45f, 0.76f);
-    fillRectTopLeft(splash->window, 0, 12, framebufferWidth, 28, 0.11f, 0.14f, 0.20f);
-    fillRectTopLeft(splash->window, 36, 86, framebufferWidth - 72, 2, 0.24f, 0.29f, 0.38f);
-    fillRectTopLeft(splash->window, 36, framebufferHeight - 68, framebufferWidth - 72, 1, 0.18f, 0.21f, 0.29f);
+        canvas.icon(48 * s, 64 * s, 112 * s);
+        canvas.text(splash->heading, 46 * s, 190 * s, 118 * s, "AtomForge", kSplashTitle);
+        canvas.text(splash->regular, 16 * s, 192 * s, 148 * s, "Atomic structure building and analysis", kSplashText);
+        canvas.text(splash->regular, 14 * s, 192 * s, 174 * s, std::string("Version ") + ATOMFORGE_VERSION, kSplashMuted);
 
-    drawSplashBadge(splash->window, 38, 58);
-    drawAtomForgeLogo(splash->window, 146, 74, 8);
-
-    fillRectTopLeft(splash->window, 146, 150, 228, 6, 0.24f, 0.30f, 0.39f);
-    fillRectTopLeft(splash->window, 146, 150, static_cast<int>(228.0f * clampedProgress), 6, 0.34f, 0.77f, 0.91f);
-    fillRectTopLeft(splash->window, 38, 246, framebufferWidth - 76, 24, 0.10f, 0.13f, 0.19f);
-    fillRectTopLeft(splash->window, 38, 246, static_cast<int>((framebufferWidth - 76) * clampedProgress), 24, 0.20f, 0.43f, 0.68f);
+        const float left = 48 * s, right = (SplashScreen::kWidth - 48) * s, bar = 262 * s;
+        canvas.text(splash->regular, 13 * s, left, bar - 10 * s, splash->status, kSplashText);
+        const std::string percent = std::to_string(static_cast<int>(std::lround(progress * 100.0f))) + "%";
+        canvas.text(splash->regular, 13 * s, right - canvas.textWidth(splash->regular, 13 * s, percent), bar - 10 * s, percent, kSplashMuted);
+        canvas.rect(left, bar, right, bar + 4 * s, kSplashTrack, 1.0f, 2 * s);
+        if (progress > 0.0f)
+            canvas.rect(left, bar, left + std::max(4 * s, (right - left) * progress), bar + 4 * s, kSplashAccent, 1.0f, 2 * s);
+        canvas.present();
+        // ATOMFORGE_SPLASH_SHOT=FILE.png saves the splash (for the manual).
+        static bool saved = false;
+        if (const char* shot = std::getenv("ATOMFORGE_SPLASH_SHOT"); shot && *shot && !saved && progress >= 0.4f)
+        {
+            saved = true;
+            std::vector<unsigned char> pixels(static_cast<std::size_t>(width) * height * 3);
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+            glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+            stbi_flip_vertically_on_write(1);
+            stbi_write_png(shot, width, height, 3, pixels.data(), width * 3);
+            stbi_flip_vertically_on_write(0);
+        }
+    }
 
     glfwSwapBuffers(splash->window);
     glfwPollEvents();
@@ -1234,7 +1329,31 @@ SplashScreen* createSplashScreen()
     glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
 
     SplashScreen* splash = new SplashScreen();
-    splash->window = glfwCreateWindow(splash->width, splash->height, "AtomForge", nullptr, nullptr);
+#ifdef _WIN32
+    loadSplashFont(splash->regular, {"C:/Windows/Fonts/segoeui.ttf", "C:/Windows/Fonts/arial.ttf"});
+    loadSplashFont(splash->heading, {"C:/Windows/Fonts/seguisb.ttf", "C:/Windows/Fonts/segoeuib.ttf", "C:/Windows/Fonts/arialbd.ttf"});
+#elif defined(__APPLE__)
+    loadSplashFont(splash->regular, {"/System/Library/Fonts/Helvetica.ttc", "/Library/Fonts/Arial.ttf"});
+    loadSplashFont(splash->heading, {"/System/Library/Fonts/Helvetica.ttc", "/Library/Fonts/Arial Bold.ttf"});
+#else
+    loadSplashFont(splash->regular, {"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                                     "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+                                     "/usr/share/fonts/truetype/freefont/FreeSans.ttf"});
+    loadSplashFont(splash->heading, {"/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                                     "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+                                     "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"});
+#endif
+    // Sized for the display scale of the primary monitor.
+    float scale = 1.0f;
+    if (GLFWmonitor* monitor = glfwGetPrimaryMonitor())
+    {
+        float sx = 1.0f, sy = 1.0f;
+        glfwGetMonitorContentScale(monitor, &sx, &sy);
+        scale = std::clamp(sx, 1.0f, 3.0f);
+    }
+    const int width = static_cast<int>(std::lround(SplashScreen::kWidth * scale));
+    const int height = static_cast<int>(std::lround(SplashScreen::kHeight * scale));
+    splash->window = glfwCreateWindow(width, height, "AtomForge", nullptr, nullptr);
     if (!splash->window)
     {
         delete splash;
@@ -1253,8 +1372,8 @@ SplashScreen* createSplashScreen()
         glfwGetMonitorWorkarea(primaryMonitor, &workX, &workY, &workWidth, &workHeight);
         if (workWidth > 0 && workHeight > 0)
         {
-            const int posX = workX + (workWidth - splash->width) / 2;
-            const int posY = workY + (workHeight - splash->height) / 2;
+            const int posX = workX + (workWidth - width) / 2;
+            const int posY = workY + (workHeight - height) / 2;
             glfwSetWindowPos(splash->window, posX, posY);
         }
     }
@@ -1272,6 +1391,7 @@ void updateSplashScreen(SplashScreen* splash, float progress, const char* status
         ? (std::string("AtomForge - ") + status)
         : std::string("AtomForge");
     glfwSetWindowTitle(splash->window, windowTitle.c_str());
+    splash->status = status && status[0] ? std::string(status) : std::string();
     renderSplash(splash, progress);
 }
 

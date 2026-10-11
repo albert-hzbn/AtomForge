@@ -1,4 +1,5 @@
 #include "ui/ScientificToolsDialog.h"
+#include "ui/DialogLayout.h"
 #include "science/ScienceCatalog.h"
 #include "science/ScienceTools.h"
 #include "ui/ResponsiveLayout.h"
@@ -124,6 +125,18 @@ std::string trimmed(const std::string& text)
     if (first == std::string::npos) return "";
     return text.substr(first, text.find_last_not_of(" \t\r\n") - first + 1);
 }
+
+// A text field shows a JSON string literal ("conventional") without its
+// quotes; running the tool quotes plain text again.
+std::string fieldText(const std::string& kind, const std::string& text)
+{
+    if (kind != "string" || text.size() < 2 || text.front() != '"' || text.back() != '"') return text;
+    try {
+        const Json parsed = Json::parse(text);
+        if (parsed.isString()) return parsed.string();
+    } catch (const std::exception&) {}
+    return text;
+}
 }
 
 ScientificToolsDialog::Field::Field()
@@ -140,7 +153,7 @@ void ScientificToolsDialog::selectTool(int index)
     m_fields.clear();
     for (const auto& parameter : scienceToolCatalog()[static_cast<std::size_t>(index)].parameters) {
         Field field;
-        std::snprintf(field.value.data(), field.value.size(), "%s", parameter.value);
+        std::snprintf(field.value.data(), field.value.size(), "%s", fieldText(parameter.kind, parameter.value).c_str());
         field.enabled = parameter.required || parameter.value[0] != '\0';
         field.useFile = ((std::strcmp(parameter.kind, "data") == 0 ||
                           std::strcmp(parameter.kind, "structure") == 0) && parameter.value[0] == '\0') ||
@@ -384,7 +397,7 @@ bool ScientificToolsDialog::editStep(StepEdit edit)
             field.path = parsed.string();
         } else {
             field.useFile = false;
-            setValue(text);
+            setValue(fieldText(kind, text));
         }
     }
     m_stepCell = 0;
@@ -719,7 +732,7 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, responsive::size(10, 6));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, responsive::size(10, 8));
         if (m_step.active()) {
-            ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+            dialogLayout::stepBanner(m_step.step.c_str());
             if (m_step.step == "standardize-cell") {
                 ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(240)));
                 ImGui::Combo("Cell to keep", &m_stepCell, "Primitive\0Conventional\0Symmetrized\0");

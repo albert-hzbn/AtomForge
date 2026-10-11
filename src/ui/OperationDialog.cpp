@@ -1,10 +1,12 @@
 #include "ui/OperationDialog.h"
+#include "ui/DialogLayout.h"
 #include "ui/MenuParity.h"
 #include "ui/ModifierEditor.h"
 #include "ui/ResponsiveLayout.h"
 #include "imgui.h"
 
 #include <algorithm>
+#include <cfloat>
 #include <cstdio>
 #include <cstring>
 #include <stdexcept>
@@ -114,32 +116,24 @@ void OperationDialog::draw(Structure& structure, const std::vector<int>& viewSel
     const ModifierType* type = atomforge::pipeline::findModifierType(m_step);
     if (!type) { m_open = false; return; }
     const std::string path = menuPathOf(m_step);
-    responsive::windowSize(ImVec2(520, 560), ImGuiCond_FirstUseEver);
     const bool editing = m_edit.active();
+    const bool selecting = isSelectionStep(m_step);
+    // A fixed width and a height that follows the content.
+    const float width = responsive::dp(500);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(width, 0), ImVec2(width, FLT_MAX));
     const std::string title = std::string(type->title) + (editing ? " (pipeline step)" : "") + "###Structure operation";
-    if (responsive::begin(title.c_str(), &m_open, ImGuiWindowFlags_NoCollapse)) {
-        ImGui::TextDisabled("%s  |  pipeline step: %s", path.c_str(), m_step.c_str());
-        if (editing) ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing a step of the structure pipeline; the structure changes through the pipeline.");
-        responsive::beginChild("Operation help", ImVec2(0, responsive::dp(110)), true);
-        ImGui::PushTextWrapPos(0.0f);
-        ImGui::TextUnformatted(type->help);
+    if (responsive::begin(title.c_str(), &m_open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + width - 2 * ImGui::GetStyle().WindowPadding.x);
+        ImGui::TextDisabled("%s", path.c_str());
+        if (editing) dialogLayout::stepBanner(m_step.c_str());
+        ImGui::TextUnformatted(modifierDescription(*type).c_str());
         ImGui::PopTextWrapPos();
-        ImGui::EndChild();
-        drawModifierParameters(*type, m_parameters, [&](const std::string& name, const Json& value) { m_parameters[name] = value; });
-        if (editing) {
-            // A pipeline step acts on the selection made by the steps above it.
-            ImGui::Spacing();
-            if (responsive::button("Update step", ImVec2(responsive::dp(140), 0))) {
-                m_edit.commitParameters(m_parameters);
-                m_message = "Step updated";
-                m_error = false;
-            }
-            m_updateButton = {ImGui::GetItemRectMin().x, ImGui::GetItemRectMin().y, ImGui::GetItemRectMax().x, ImGui::GetItemRectMax().y};
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Write these settings into the pipeline step");
-            ImGui::SameLine();
-            if (responsive::button("Close")) m_open = false;
-        } else if (actsOnAtoms(m_step)) {
-            ImGui::SeparatorText("Apply to");
+        if (!type->parameters.empty()) {
+            dialogLayout::section("Settings");
+            drawModifierParameters(*type, m_parameters, [&](const std::string& name, const Json& value) { m_parameters[name] = value; });
+        }
+        if (!editing && actsOnAtoms(m_step)) {
+            dialogLayout::section("Apply to");
             ImGui::RadioButton("All atoms", &m_target, AllAtoms);
             ImGui::SameLine();
             ImGui::RadioButton(("Selected in the view (" + std::to_string(viewSelection.size()) + ")").c_str(), &m_target, ViewSelection);
@@ -149,28 +143,34 @@ void OperationDialog::draw(Structure& structure, const std::vector<int>& viewSel
                 ImGui::SetNextItemWidth(-1);
                 ImGui::InputTextWithHint("##condition", "e.g. fz > 0.5 && element == O", m_condition.data(), m_condition.size());
             }
-        } else if (isSelectionStep(m_step)) {
-            ImGui::TextDisabled("Sets the selection in the view (%zu atoms selected now).", viewSelection.size());
-        }
-        if (!editing) {
+        } else if (!editing && selecting) {
             ImGui::Spacing();
-            if (responsive::button(isSelectionStep(m_step) ? "Select" : "Apply", ImVec2(responsive::dp(140), 0))) {
-                try {
-                    const auto selected = apply(structure, viewSelection);
-                    m_error = false;
-                    if (isSelectionStep(m_step)) { if (callbacks.select) callbacks.select(selected); }
-                    else {
-                        if (m_step == "compute-property" && callbacks.showAtomProperty) callbacks.showAtomProperty();
-                        if (callbacks.update) callbacks.update(structure);
-                    }
-                } catch (const std::exception& error) {
-                    m_message = error.what();
-                    m_error = true;
-                }
-            }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip(isSelectionStep(m_step) ? "Change the selection in the view" : "Change the structure (Edit > Undo reverts it)");
-            ImGui::SameLine();
-            if (responsive::button("Add to pipeline") && callbacks.addToPipeline) {
+            const bool combines = std::any_of(type->parameters.begin(), type->parameters.end(),
+                                              [](const auto& p) { return std::string(p.name) == "mode"; });
+            if (combines)
+                dialogLayout::notef(dialogLayout::Note::Info, "Sets the selection in the view (%zu atoms selected now), combined with it by the mode above.", viewSelection.size());
+            else
+                dialogLayout::notef(dialogLayout::Note::Info, "Changes the selection in the view (%zu atoms selected now).", viewSelection.size());
+        }
+        if (!m_message.empty()) {
+            ImGui::Spacing();
+            dialogLayout::note(m_error ? dialogLayout::Note::Error : dialogLayout::Note::Success, m_message.c_str());
+        }
+        if (editing) {
+            // A pipeline step acts on the selection made by the steps above it.
+            const int pressed = dialogLayout::footer("Update step", "Close");
+            m_updateButton = {ImGui::GetItemRectMin().x, ImGui::GetItemRectMin().y, ImGui::GetItemRectMax().x, ImGui::GetItemRectMax().y};
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Write these settings into the pipeline step");
+            if (pressed == 1) {
+                m_edit.commitParameters(m_parameters);
+                m_message = "Step updated";
+                m_error = false;
+            } else if (pressed == 2) m_open = false;
+        } else {
+            const char* action = selecting ? "Select" : "Apply";
+            const float minimum = ImGui::GetFontSize() * 5.5f;
+            dialogLayout::beginFooter(dialogLayout::buttonRowWidth({"Add to pipeline", action}, minimum));
+            if (dialogLayout::secondaryButton("Add to pipeline") && callbacks.addToPipeline) {
                 std::vector<atomforge::pipeline::Modifier> steps;
                 if (actsOnAtoms(m_step) && m_target == Condition) {
                     auto condition = atomforge::pipeline::makeModifier("select-expression");
@@ -193,11 +193,22 @@ void OperationDialog::draw(Structure& structure, const std::vector<int>& viewSel
                 }
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Append this step to Edit > Structure pipeline instead of changing the structure now");
-        }
-        if (!m_message.empty()) {
-            if (m_error) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.95f, 0.42f, 0.38f, 1.0f));
-            ImGui::TextWrapped("%s", m_message.c_str());
-            if (m_error) ImGui::PopStyleColor();
+            ImGui::SameLine();
+            if (dialogLayout::primaryButton(action, ImVec2(std::max(minimum, ImGui::CalcTextSize(action).x + 2 * ImGui::GetStyle().FramePadding.x), 0))) {
+                try {
+                    const auto selected = apply(structure, viewSelection);
+                    m_error = false;
+                    if (selecting) { if (callbacks.select) callbacks.select(selected); }
+                    else {
+                        if (m_step == "compute-property" && callbacks.showAtomProperty) callbacks.showAtomProperty();
+                        if (callbacks.update) callbacks.update(structure);
+                    }
+                } catch (const std::exception& error) {
+                    m_message = error.what();
+                    m_error = true;
+                }
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip(selecting ? "Change the selection in the view" : "Change the structure (Edit > Undo reverts it)");
         }
     }
     ImGui::End();

@@ -1,8 +1,10 @@
 #include "ui/TrajectoryDialog.h"
+#include "ui/DialogLayout.h"
 #include "science/ScienceTools.h"
 #include "ui/ResponsiveLayout.h"
 #include "util/ElementData.h"
 #include "imgui.h"
+#include <cfloat>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -119,8 +121,8 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
         if (wasPlaying && count>0) show(playback.frame,structure,update,showAtomProperty);
         return;
     }
-    responsive::windowSize(ImVec2(560,470),ImGuiCond_FirstUseEver);
-    if (responsive::begin("Trajectory playback",&open,ImGuiWindowFlags_NoCollapse)) {
+    ImGui::SetNextWindowSizeConstraints(ImVec2(responsive::dp(560),0),ImVec2(responsive::dp(560),FLT_MAX));
+    if (responsive::begin("Trajectory playback",&open,ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_AlwaysAutoResize)) {
         const bool exporting=gifFrame>=0;
         ImGui::BeginDisabled(task.running() || exporting);
         if (responsive::button("Open trajectory")) picker.open("Open trajectory (XYZ/extXYZ, XDATCAR, POSCAR or LAMMPS dump)",false,"trajectory.xyz");
@@ -155,7 +157,7 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
             ImGui::TextUnformatted("GIF: use every Nth frame"); ImGui::SetNextItemWidth(-FLT_MIN);
             ImGui::SliderInt("##gifstride",&gifStride,1,std::max(1,count/2));
             gifStride=std::max(1,gifStride);
-            if (responsive::button("Export GIF")) gifPicker.open("Export trajectory animation as GIF",true,"trajectory.gif");
+            if (dialogLayout::primaryButton("Export GIF")) gifPicker.open("Export trajectory animation as GIF",true,"trajectory.gif");
             ImGui::EndDisabled();
             if (exporting) {
                 ImGui::Text("Writing GIF: frame %d of %d",gifFrame+1,count);

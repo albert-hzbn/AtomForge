@@ -1,4 +1,5 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/DialogLayout.h"
 #include "ui/MergeStructuresDialog.h"
 #include "io/StructureLoader.h"
 
@@ -713,15 +714,15 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
     const bool editingStep = m_step.active();
     if (editingStep)
     {
-        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+        dialogLayout::stepBanner(m_step.step.c_str());
         ImGui::TextWrapped("The step appends one structure file to the structure entering it, shifted by an offset: "
                            "the first entry loaded from a file is that file and its Pos is the offset. "
                            "Rotations and further entries are not part of the step.");
         const int file = firstFileEntry();
         if (file < 0)
-            ImGui::TextColored(ImVec4(0.95f, 0.42f, 0.42f, 1.0f), "Add a structure file to merge.");
+            ImGui::TextColored(themeStatusError(), "Add a structure file to merge.");
         else if (m_entries[(size_t)file].rotationDeg != glm::vec3(0.0f))
-            ImGui::TextColored(ImVec4(0.95f, 0.75f, 0.30f, 1.0f), "The rotation of %s is not written to the step.", m_entries[(size_t)file].name.c_str());
+            ImGui::TextColored(themeStatusWarn(), "The rotation of %s is not written to the step.", m_entries[(size_t)file].name.c_str());
     }
 
     if (responsive::button("Add structure##sourcePicker"))
@@ -1025,7 +1026,7 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
             finishStepEdit();
         }
     }
-    else if (responsive::button("Merge Structures", responsive::size(170.0f,0.0f)))
+    else if (dialogLayout::primaryButton("Merge Structures", responsive::size(170.0f,0.0f)))
     {
         Structure merged = buildCombinedPreviewStructure();
         if (merged.atoms.empty())

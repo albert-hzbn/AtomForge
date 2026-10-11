@@ -47,7 +47,7 @@ void DislocationAnalysisDialog::drawDialog()
 
     const bool stackPanels = responsive::stacked(1000);
     const float sidebar = stackPanels ? ImGui::GetContentRegionAvail().x
-        : std::clamp(ImGui::GetContentRegionAvail().x * .40f, responsive::dp(360), responsive::dp(460));
+        : std::clamp(ImGui::GetContentRegionAvail().x * .42f, responsive::dp(430), responsive::dp(540));
     responsive::beginChild("Dislocation analysis controls", ImVec2(sidebar, stackPanels ? responsive::dp(420) : 0), true);
 
     dialogLayout::section("Structures");

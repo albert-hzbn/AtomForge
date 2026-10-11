@@ -1,4 +1,5 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/DialogLayout.h"
 #include "ui/CommonNeighbourAnalysis.h"
 
 #include "ui/ThemeUtils.h"
@@ -164,7 +165,7 @@ void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
         m_openRequested = false;
     }
 
-    responsive::windowSize(ImVec2(1100.0f, 760.0f), ImGuiCond_FirstUseEver);
+    responsive::windowSize(ImVec2(900.0f, 720.0f), ImGuiCond_FirstUseEver);
     bool dialogOpen = true;
     if (responsive::beginModal("Common Neighbour Analysis", &dialogOpen, ImGuiWindowFlags_NoResize))
     {
@@ -172,11 +173,11 @@ void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
         changed |= ImGui::Checkbox("Use PBC when unit cell is available", &usePbc);
         changed |= ImGui::SliderFloat("Bond cutoff scale", &cutoffScale, 1.00f, 1.60f, "%.2f");
         changed |= ImGui::InputFloat("Fixed cutoff (A; 0 = covalent radii)", &m_params.cutoffRadius);
-        ImGui::TextWrapped("For crystalline CNA, choose a cutoff between neighbour shells: first and second for FCC/HCP; second and third for BCC. Use a sufficiently repeated periodic cell. Complex graphs with more than 16 common neighbours have chain index -1.");
-        ImGui::SameLine();
+        dialogLayout::note(dialogLayout::Note::Info, "For crystalline CNA, choose a cutoff between neighbour shells: first and second for FCC/HCP; second and third for BCC. Use a sufficiently repeated periodic cell. Complex graphs with more than 16 common neighbours have chain index -1.");
+        ImGui::Spacing();
         
         bool computeRequested = false;
-        if (responsive::button("Run CNA") && !m_task.running())
+        if (dialogLayout::primaryButton("Run CNA") && !m_task.running())
             computeRequested = true;
         
         ImGui::SameLine();
@@ -210,6 +211,8 @@ void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
             drawCnaSummary(*resultPtr);
             drawCnaDetails(*resultPtr);
         }
+        else if (!m_task.running())
+            dialogLayout::emptyState("Run CNA to classify every atom by its common-neighbour signature (fcc, hcp, bcc, icosahedral or other).");
 
         ImGui::EndPopup();
     }

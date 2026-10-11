@@ -247,7 +247,7 @@ void FileBrowser::runStepDialogCheck(EditMenuDialogs& editMenuDialogs)
         if (!problem.empty()) { entry["problem"] = problem; ++c.failures; }
         c.results.push(entry);
         // Close the dialog (its step editing ends) before the next step.
-        ImGui::ClosePopupToLevel(0, true);
+        if (!ImGui::GetCurrentContext()->OpenPopupStack.empty()) ImGui::ClosePopupToLevel(0, true);
     } else if (c.frame >= 8) {
         ++c.index;
         c.frame = 0;

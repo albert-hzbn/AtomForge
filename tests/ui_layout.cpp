@@ -102,7 +102,7 @@ int main()
                     "Interface preference did not resize the rendered font");
             ImGui::Render();
             for (int i = 0; i < 3; ++i) { applyDarkTheme(); applyLightTheme(); }
-            require(std::abs(ImGui::GetStyle().FramePadding.y - 7 * multiplier) <= 1.0f,
+            require(std::abs(ImGui::GetStyle().FramePadding.y - 6 * multiplier) <= 1.0f,
                     "Switching themes accumulated scaling");
         }
         ImGui::DestroyContext();

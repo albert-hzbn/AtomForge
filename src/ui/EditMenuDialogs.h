@@ -36,6 +36,9 @@ struct EditMenuDialogs
     // Call inside an already-open "Settings" ImGui menu to add Atomic Sizes
     // and Display Settings items (without Edit Structure).
     void drawSettingsMenuItems();
+    void openAtomicSizes() { m_openAtomicSize = true; }
+    void openDisplaySettings() { m_openElementColor = true; }
+    void openEditStructure() { m_openEditStructure = true; }
 
     // Call once per ImGui frame (outside any menu) to service the modal popups.
     // Calls updateBuffers(structure) when the user changes a value.

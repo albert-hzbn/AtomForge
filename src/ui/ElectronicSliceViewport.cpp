@@ -1,4 +1,5 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
 #include "ui/ElectronicSliceViewport.h"
 #include "electronic/DisplayRange.h"
 #include "graphics/ElectronicViewport.h"
@@ -90,6 +91,7 @@ void ElectronicSliceViewport::draw(const Grid& grid, float low, float high, int 
 {
     ImGui::TextUnformatted("2D section");
     ImGui::SetNextItemWidth(responsive::dp(-1));
+    if (uiScript::take("electronic.arbitrary")) { m_axis = 3; m_dirty = true; }
     m_dirty |= ImGui::Combo("##plane",&m_axis,"bc plane (normal a*)\0ac plane (normal b*)\0ab plane (normal c*)\0Arbitrary plane\0");
     if (m_axis==3)
     {

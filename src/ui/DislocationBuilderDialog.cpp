@@ -1,4 +1,6 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
+#include "ui/DialogLayout.h"
 #include "ui/DislocationBuilderDialog.h"
 
 #include "app/SceneView.h"
@@ -658,8 +660,7 @@ void DislocationBuilderDialog::drawDialog(
     m_isOpen = true;
 
     if (m_step.active())
-        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f),
-                           "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+        dialogLayout::stepBanner(m_step.step.c_str());
 
     ImGui::TextDisabled("Isotropic-elastic dislocation insertion with automatic FCC/HCP/BCC detection and shape-controlled application region.");
     ImGui::SameLine();
@@ -704,7 +705,7 @@ void DislocationBuilderDialog::drawDialog(
 
             if (activeSource != nullptr)
             {
-                ImGui::TextColored(ImVec4(0.40f, 0.90f, 0.40f, 1.0f), "%s", m_sourceLabel.c_str());
+                ImGui::TextColored(themeStatusGood(), "%s", m_sourceLabel.c_str());
                 ImGui::SameLine();
                 ImGui::TextDisabled("(%d atoms)", (int)activeSource->atoms.size());
             }
@@ -834,6 +835,7 @@ void DislocationBuilderDialog::drawDialog(
     responsive::nextPanel(stackPanels);
 
     responsive::beginChild("##disloc_controls", ImVec2(0, contentHeight), false);
+    uiScript::scrollToBottom("dislocation.scroll");
     {
         ImGui::Text("Dislocation Options");
         ImGui::Separator();
@@ -967,7 +969,7 @@ void DislocationBuilderDialog::drawDialog(
             ImGui::TextWrapped("Breaks the sextic formalism's degeneracy at isotropic or high-symmetry orientations (e.g. line = plane normal).");
 
             if (m_params.elasticC11 <= 0.0 || m_params.elasticC44 <= 0.0)
-                ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "C11 and C44 must be positive to generate.");
+                ImGui::TextColored(themeStatusWarn(), "C11 and C44 must be positive to generate.");
         }
 
         ImGui::Separator();
@@ -1024,7 +1026,7 @@ void DislocationBuilderDialog::drawDialog(
         ImGui::Spacing();
         if (!canGenerate)
             ImGui::BeginDisabled();
-        if (responsive::button("Generate Dislocation", responsive::size(-1.0f,0.0f)))
+        if (dialogLayout::primaryButton("Generate Dislocation", responsive::size(-1.0f,0.0f)) || (canGenerate && uiScript::take("dislocation.generate")))
             generateDislocation(*activeSource);
         if (!canGenerate)
             ImGui::EndDisabled();

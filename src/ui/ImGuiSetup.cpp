@@ -1,4 +1,5 @@
 #include "ImGuiSetup.h"
+#include "ui/Fonts.h"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -82,45 +83,55 @@ void rebuildFonts()
 {
     ImGuiIO& io = ImGui::GetIO();
     io.Fonts->Clear();
-
-    ImFontConfig fontConfig;
-    fontConfig.SizePixels = kBaseFontSizePixels;
     io.FontGlobalScale = 1.0f;
+    uiFonts::heading = nullptr;
+    uiFonts::icons = false;
 
-    // Prefer the platform UI font, with a built-in fallback on minimal systems.
+    // The platform UI font (regular and semibold), with a built-in fallback.
 #ifdef _WIN32
-    static const char* kSystemFontCandidates[] = {
-        "C:/Windows/Fonts/segoeui.ttf",
-        "C:/Windows/Fonts/arial.ttf",
-        nullptr
-    };
+    static const char* kTextFonts[] = {"C:/Windows/Fonts/segoeui.ttf", "C:/Windows/Fonts/arial.ttf", nullptr};
+    static const char* kHeadingFonts[] = {"C:/Windows/Fonts/seguisb.ttf", "C:/Windows/Fonts/segoeuib.ttf", "C:/Windows/Fonts/arialbd.ttf", nullptr};
+    static const char* kIconFonts[] = {"C:/Windows/Fonts/SegoeIcons.ttf", "C:/Windows/Fonts/segmdl2.ttf", nullptr};
 #else
-    static const char* kSystemFontCandidates[] = {
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
-        nullptr
-    };
+    static const char* kTextFonts[] = {"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                                       "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+                                       "/usr/share/fonts/truetype/freefont/FreeSans.ttf", nullptr};
+    static const char* kHeadingFonts[] = {"/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                                          "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+                                          "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf", nullptr};
+    static const char* kIconFonts[] = {nullptr};
 #endif
-    ImFontConfig mergeConfig;
-    mergeConfig.MergeMode   = false;
-    mergeConfig.SizePixels  = kBaseFontSizePixels;
-    mergeConfig.OversampleH = 2;
-    mergeConfig.OversampleV = 1;
-    bool loaded = false;
-    static const ImWchar ranges[] = {0x20,0xFF,0x2190,0x2192,0};
-    for (int i = 0; kSystemFontCandidates[i]; ++i)
-    {
-        std::error_code error;
-        if (!std::filesystem::is_regular_file(kSystemFontCandidates[i],error)) continue;
-        if (io.Fonts->AddFontFromFileTTF(
-                kSystemFontCandidates[i],
-                kBaseFontSizePixels,
-                &mergeConfig,
-                ranges))
-        { loaded = true; break; }
+    const auto firstExisting = [](const char* const* candidates) -> const char* {
+        for (int i = 0; candidates[i]; ++i) {
+            std::error_code error;
+            if (std::filesystem::is_regular_file(candidates[i], error)) return candidates[i];
+        }
+        return nullptr;
+    };
+    static const ImWchar textRanges[] = {0x20, 0xFF, 0x2190, 0x2192, 0x2022, 0x2022, 0x2026, 0x2026, 0x00B0, 0x00B0, 0x212B, 0x212B, 0};
+    static const ImWchar iconRanges[] = {0xE700, 0xF8FF, 0};
+    ImFontConfig text;
+    text.OversampleH = 2;
+    text.OversampleV = 1;
+    ImFont* body = nullptr;
+    if (const char* path = firstExisting(kTextFonts)) body = io.Fonts->AddFontFromFileTTF(path, kBaseFontSizePixels, &text, textRanges);
+    if (!body) {
+        ImFontConfig fallback;
+        fallback.SizePixels = kBaseFontSizePixels;
+        io.Fonts->AddFontDefault(&fallback);
+    } else if (const char* path = firstExisting(kIconFonts)) {
+        // Icons share the text font, centred on its line.
+        ImFontConfig icon;
+        icon.MergeMode = true;
+        icon.GlyphOffset = ImVec2(0.0f, 2.0f);
+        icon.GlyphMinAdvanceX = kBaseFontSizePixels;
+        uiFonts::icons = io.Fonts->AddFontFromFileTTF(path, kBaseFontSizePixels - 2.0f, &icon, iconRanges) != nullptr;
     }
-    if (!loaded) io.Fonts->AddFontDefault(&fontConfig);
+    if (const char* path = firstExisting(kHeadingFonts)) {
+        ImFontConfig headingConfig;
+        headingConfig.OversampleH = 2;
+        uiFonts::heading = io.Fonts->AddFontFromFileTTF(path, kBaseFontSizePixels, &headingConfig, textRanges);
+    }
 
     if (gImGuiBackendsReady)
     {
@@ -130,33 +141,112 @@ void rebuildFonts()
     }
 }
 
+// Geometry shared by both themes: compact, evenly spaced, softly rounded.
 void applyCommonStyle()
 {
     ImGuiStyle& style = ImGui::GetStyle();
 
-    style.WindowPadding = ImVec2(18.0f, 16.0f);
-    style.FramePadding = ImVec2(12.0f, 7.0f);
-    style.CellPadding = ImVec2(8.0f, 6.0f);
-    style.ItemSpacing = ImVec2(10.0f, 8.0f);
-    style.ItemInnerSpacing = ImVec2(8.0f, 6.0f);
-    style.TouchExtraPadding = ImVec2(1.0f, 1.0f);
-    style.IndentSpacing = 20.0f;
-    style.ScrollbarSize = 14.0f;
-    style.GrabMinSize = 10.0f;
+    style.WindowPadding = ImVec2(16.0f, 14.0f);
+    style.FramePadding = ImVec2(10.0f, 6.0f);
+    style.CellPadding = ImVec2(8.0f, 5.0f);
+    style.ItemSpacing = ImVec2(8.0f, 8.0f);
+    style.ItemInnerSpacing = ImVec2(7.0f, 5.0f);
+    style.TouchExtraPadding = ImVec2(0.0f, 0.0f);
+    style.IndentSpacing = 18.0f;
+    style.ScrollbarSize = 12.0f;
+    style.GrabMinSize = 12.0f;
+    style.SeparatorTextBorderSize = 1.0f;
+    style.SeparatorTextPadding = ImVec2(0.0f, 4.0f);
 
-    style.WindowRounding = 8.0f;
-    style.ChildRounding = 6.0f;
-    style.FrameRounding = 5.0f;
+    style.WindowRounding = 10.0f;
+    style.ChildRounding = 8.0f;
+    style.FrameRounding = 6.0f;
     style.PopupRounding = 8.0f;
-    style.ScrollbarRounding = 12.0f;
-    style.GrabRounding = 12.0f;
-    style.TabRounding = 10.0f;
+    style.ScrollbarRounding = 6.0f;
+    style.GrabRounding = 6.0f;
+    style.TabRounding = 6.0f;
 
     style.WindowBorderSize = 1.0f;
     style.ChildBorderSize = 1.0f;
     style.PopupBorderSize = 1.0f;
-    style.FrameBorderSize = 0.0f;
+    style.FrameBorderSize = 1.0f;
     style.TabBorderSize = 0.0f;
+
+    style.WindowTitleAlign = ImVec2(0.0f, 0.5f);
+    style.WindowMenuButtonPosition = ImGuiDir_None;
+    style.SelectableTextAlign = ImVec2(0.0f, 0.5f);
+}
+
+// Colours from a small palette: neutral surfaces, one accent, quiet borders.
+struct Palette
+{
+    ImVec4 text, textMuted, window, surface, popup, border, frame, frameHover, frameActive,
+           title, titleActive, menuBar, button, buttonHover, buttonActive, accent, accentStrong, separator, dim;
+};
+
+ImVec4 withAlpha(ImVec4 c, float a) { c.w = a; return c; }
+
+void applyPalette(const Palette& p, bool light)
+{
+    ImVec4* c = ImGui::GetStyle().Colors;
+    c[ImGuiCol_Text] = p.text;
+    c[ImGuiCol_TextDisabled] = p.textMuted;
+    c[ImGuiCol_WindowBg] = p.window;
+    c[ImGuiCol_ChildBg] = p.surface;
+    c[ImGuiCol_PopupBg] = p.popup;
+    c[ImGuiCol_Border] = p.border;
+    c[ImGuiCol_BorderShadow] = ImVec4(0, 0, 0, 0);
+    c[ImGuiCol_FrameBg] = p.frame;
+    c[ImGuiCol_FrameBgHovered] = p.frameHover;
+    c[ImGuiCol_FrameBgActive] = p.frameActive;
+    c[ImGuiCol_TitleBg] = p.title;
+    c[ImGuiCol_TitleBgActive] = p.titleActive;
+    c[ImGuiCol_TitleBgCollapsed] = p.title;
+    c[ImGuiCol_MenuBarBg] = p.menuBar;
+    c[ImGuiCol_ScrollbarBg] = ImVec4(0, 0, 0, 0);
+    c[ImGuiCol_ScrollbarGrab] = withAlpha(p.textMuted, 0.35f);
+    c[ImGuiCol_ScrollbarGrabHovered] = withAlpha(p.textMuted, 0.55f);
+    c[ImGuiCol_ScrollbarGrabActive] = withAlpha(p.textMuted, 0.75f);
+    c[ImGuiCol_CheckMark] = p.accent;
+    c[ImGuiCol_SliderGrab] = p.accent;
+    c[ImGuiCol_SliderGrabActive] = p.accentStrong;
+    c[ImGuiCol_Button] = p.button;
+    c[ImGuiCol_ButtonHovered] = p.buttonHover;
+    c[ImGuiCol_ButtonActive] = p.buttonActive;
+    c[ImGuiCol_Header] = withAlpha(p.accent, light ? 0.14f : 0.24f);
+    c[ImGuiCol_HeaderHovered] = withAlpha(p.accent, light ? 0.22f : 0.34f);
+    c[ImGuiCol_HeaderActive] = withAlpha(p.accent, light ? 0.32f : 0.46f);
+    c[ImGuiCol_Separator] = p.separator;
+    c[ImGuiCol_SeparatorHovered] = withAlpha(p.accent, 0.70f);
+    c[ImGuiCol_SeparatorActive] = p.accent;
+    c[ImGuiCol_ResizeGrip] = ImVec4(0, 0, 0, 0);
+    c[ImGuiCol_ResizeGripHovered] = withAlpha(p.accent, 0.45f);
+    c[ImGuiCol_ResizeGripActive] = withAlpha(p.accent, 0.80f);
+    c[ImGuiCol_InputTextCursor] = p.text;
+    c[ImGuiCol_Tab] = p.button;
+    c[ImGuiCol_TabHovered] = p.buttonHover;
+    c[ImGuiCol_TabSelected] = p.surface;
+    c[ImGuiCol_TabSelectedOverline] = p.accent;
+    c[ImGuiCol_TabDimmed] = p.button;
+    c[ImGuiCol_TabDimmedSelected] = p.surface;
+    c[ImGuiCol_TabDimmedSelectedOverline] = withAlpha(p.accent, 0.5f);
+    c[ImGuiCol_PlotLines] = p.accent;
+    c[ImGuiCol_PlotLinesHovered] = p.accentStrong;
+    c[ImGuiCol_PlotHistogram] = p.accent;
+    c[ImGuiCol_PlotHistogramHovered] = p.accentStrong;
+    c[ImGuiCol_TableHeaderBg] = p.button;
+    c[ImGuiCol_TableBorderStrong] = p.border;
+    c[ImGuiCol_TableBorderLight] = p.separator;
+    c[ImGuiCol_TableRowBg] = ImVec4(0, 0, 0, 0);
+    c[ImGuiCol_TableRowBgAlt] = light ? ImVec4(0, 0, 0, 0.025f) : ImVec4(1, 1, 1, 0.03f);
+    c[ImGuiCol_TextLink] = p.accent;
+    c[ImGuiCol_TextSelectedBg] = withAlpha(p.accent, 0.28f);
+    c[ImGuiCol_TreeLines] = p.separator;
+    c[ImGuiCol_DragDropTarget] = p.accent;
+    c[ImGuiCol_NavCursor] = p.accent;
+    c[ImGuiCol_NavWindowingHighlight] = withAlpha(p.accent, 0.7f);
+    c[ImGuiCol_NavWindowingDimBg] = p.dim;
+    c[ImGuiCol_ModalWindowDimBg] = p.dim;
 }
 } // namespace
 
@@ -164,40 +254,29 @@ void applyDarkTheme()
 {
     ImGuiStyle& style = ImGui::GetStyle();
     style = ImGuiStyle();
-    ImVec4* colors = style.Colors;
-
     ImGui::StyleColorsDark(&style);
     applyCommonStyle();
-
-    colors[ImGuiCol_Text]                 = ImVec4(0.93f, 0.95f, 0.97f, 1.00f);
-    colors[ImGuiCol_TextDisabled]         = ImVec4(0.53f, 0.58f, 0.63f, 1.00f);
-    colors[ImGuiCol_WindowBg]             = ImVec4(0.08f, 0.10f, 0.13f, 1.00f);
-    colors[ImGuiCol_ChildBg]              = ImVec4(0.10f, 0.12f, 0.16f, 1.00f);
-    colors[ImGuiCol_PopupBg]              = ImVec4(0.09f, 0.11f, 0.15f, 1.00f);
-    colors[ImGuiCol_Border]               = ImVec4(0.22f, 0.28f, 0.34f, 0.70f);
-    colors[ImGuiCol_BorderShadow]         = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-
-    colors[ImGuiCol_FrameBg]              = ImVec4(0.14f, 0.17f, 0.22f, 1.00f);
-    colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.18f, 0.23f, 0.29f, 1.00f);
-    colors[ImGuiCol_FrameBgActive]        = ImVec4(0.21f, 0.28f, 0.35f, 1.00f);
-
-    colors[ImGuiCol_TitleBg]              = ImVec4(0.07f, 0.09f, 0.12f, 1.00f);
-    colors[ImGuiCol_TitleBgActive]        = ImVec4(0.10f, 0.13f, 0.17f, 1.00f);
-    colors[ImGuiCol_TitleBgCollapsed]     = ImVec4(0.07f, 0.09f, 0.12f, 0.80f);
-    colors[ImGuiCol_MenuBarBg]            = ImVec4(0.09f, 0.12f, 0.16f, 1.00f);
-
-    colors[ImGuiCol_Button]               = ImVec4(0.18f, 0.25f, 0.31f, 1.00f);
-    colors[ImGuiCol_ButtonHovered]        = ImVec4(0.20f, 0.52f, 0.60f, 1.00f);
-    colors[ImGuiCol_ButtonActive]         = ImVec4(0.24f, 0.60f, 0.68f, 1.00f);
-
-    colors[ImGuiCol_Header]               = ImVec4(0.14f, 0.32f, 0.38f, 0.85f);
-    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.20f, 0.46f, 0.53f, 0.92f);
-    colors[ImGuiCol_HeaderActive]         = ImVec4(0.25f, 0.56f, 0.63f, 1.00f);
-
-    colors[ImGuiCol_CheckMark]            = ImVec4(0.89f, 0.73f, 0.31f, 1.00f);
-    colors[ImGuiCol_SliderGrab]           = ImVec4(0.31f, 0.74f, 0.77f, 0.95f);
-    colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.42f, 0.82f, 0.84f, 1.00f);
-
+    Palette p;
+    p.text = ImVec4(0.90f, 0.92f, 0.95f, 1.00f);
+    p.textMuted = ImVec4(0.56f, 0.60f, 0.66f, 1.00f);
+    p.window = ImVec4(0.105f, 0.115f, 0.135f, 1.00f);
+    p.surface = ImVec4(0.125f, 0.137f, 0.160f, 1.00f);
+    p.popup = ImVec4(0.135f, 0.147f, 0.172f, 1.00f);
+    p.border = ImVec4(0.235f, 0.260f, 0.300f, 1.00f);
+    p.frame = ImVec4(0.155f, 0.170f, 0.198f, 1.00f);
+    p.frameHover = ImVec4(0.185f, 0.203f, 0.237f, 1.00f);
+    p.frameActive = ImVec4(0.215f, 0.240f, 0.282f, 1.00f);
+    p.title = ImVec4(0.115f, 0.126f, 0.148f, 1.00f);
+    p.titleActive = ImVec4(0.140f, 0.153f, 0.180f, 1.00f);
+    p.menuBar = ImVec4(0.120f, 0.131f, 0.154f, 1.00f);
+    p.button = ImVec4(0.180f, 0.197f, 0.230f, 1.00f);
+    p.buttonHover = ImVec4(0.225f, 0.248f, 0.290f, 1.00f);
+    p.buttonActive = ImVec4(0.265f, 0.295f, 0.345f, 1.00f);
+    p.accent = ImVec4(0.33f, 0.63f, 0.93f, 1.00f);
+    p.accentStrong = ImVec4(0.45f, 0.72f, 0.98f, 1.00f);
+    p.separator = ImVec4(0.215f, 0.238f, 0.275f, 1.00f);
+    p.dim = ImVec4(0.02f, 0.03f, 0.05f, 0.55f);
+    applyPalette(p, false);
     captureBaseStyle();
     applyScaledStyle();
 }
@@ -206,42 +285,29 @@ void applyLightTheme()
 {
     ImGuiStyle& style = ImGui::GetStyle();
     style = ImGuiStyle();
-    ImVec4* colors = style.Colors;
-
     ImGui::StyleColorsLight(&style);
     applyCommonStyle();
-
-    colors[ImGuiCol_Text]                 = ImVec4(0.10f, 0.10f, 0.12f, 1.00f);
-    colors[ImGuiCol_TextDisabled]         = ImVec4(0.45f, 0.47f, 0.50f, 1.00f);
-    colors[ImGuiCol_WindowBg]             = ImVec4(0.95f, 0.95f, 0.96f, 1.00f);
-    colors[ImGuiCol_ChildBg]              = ImVec4(0.92f, 0.93f, 0.94f, 1.00f);
-    colors[ImGuiCol_PopupBg]              = ImVec4(0.97f, 0.97f, 0.98f, 1.00f);
-    colors[ImGuiCol_Border]               = ImVec4(0.72f, 0.74f, 0.78f, 0.70f);
-    colors[ImGuiCol_BorderShadow]         = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-
-    colors[ImGuiCol_FrameBg]              = ImVec4(0.88f, 0.89f, 0.91f, 1.00f);
-    colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.82f, 0.84f, 0.87f, 1.00f);
-    colors[ImGuiCol_FrameBgActive]        = ImVec4(0.76f, 0.79f, 0.83f, 1.00f);
-
-    colors[ImGuiCol_TitleBg]              = ImVec4(0.88f, 0.89f, 0.91f, 1.00f);
-    colors[ImGuiCol_TitleBgActive]        = ImVec4(0.82f, 0.84f, 0.87f, 1.00f);
-    colors[ImGuiCol_TitleBgCollapsed]     = ImVec4(0.88f, 0.89f, 0.91f, 0.80f);
-    colors[ImGuiCol_MenuBarBg]            = ImVec4(0.90f, 0.91f, 0.93f, 1.00f);
-
-    colors[ImGuiCol_Button]               = ImVec4(0.83f, 0.89f, 0.93f, 1.00f);
-    colors[ImGuiCol_ButtonHovered]        = ImVec4(0.28f, 0.60f, 0.68f, 1.00f);
-    colors[ImGuiCol_ButtonActive]         = ImVec4(0.18f, 0.45f, 0.52f, 1.00f);
-
-    colors[ImGuiCol_Header]               = ImVec4(0.72f, 0.84f, 0.88f, 0.85f);
-    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.62f, 0.78f, 0.84f, 0.92f);
-    colors[ImGuiCol_HeaderActive]         = ImVec4(0.52f, 0.72f, 0.78f, 1.00f);
-
-    colors[ImGuiCol_CheckMark]            = ImVec4(0.18f, 0.45f, 0.52f, 1.00f);
-    colors[ImGuiCol_SliderGrab]           = ImVec4(0.22f, 0.52f, 0.60f, 0.95f);
-    colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.18f, 0.45f, 0.52f, 1.00f);
-
-    style.FrameBorderSize = 1.0f;
-
+    Palette p;
+    p.text = ImVec4(0.11f, 0.12f, 0.14f, 1.00f);
+    p.textMuted = ImVec4(0.43f, 0.46f, 0.51f, 1.00f);
+    p.window = ImVec4(0.965f, 0.969f, 0.976f, 1.00f);
+    p.surface = ImVec4(1.000f, 1.000f, 1.000f, 1.00f);
+    p.popup = ImVec4(1.000f, 1.000f, 1.000f, 1.00f);
+    p.border = ImVec4(0.800f, 0.820f, 0.850f, 1.00f);
+    p.frame = ImVec4(1.000f, 1.000f, 1.000f, 1.00f);
+    p.frameHover = ImVec4(0.945f, 0.955f, 0.972f, 1.00f);
+    p.frameActive = ImVec4(0.905f, 0.930f, 0.965f, 1.00f);
+    p.title = ImVec4(0.930f, 0.937f, 0.950f, 1.00f);
+    p.titleActive = ImVec4(0.900f, 0.912f, 0.932f, 1.00f);
+    p.menuBar = ImVec4(0.975f, 0.978f, 0.984f, 1.00f);
+    p.button = ImVec4(0.935f, 0.945f, 0.960f, 1.00f);
+    p.buttonHover = ImVec4(0.885f, 0.905f, 0.935f, 1.00f);
+    p.buttonActive = ImVec4(0.830f, 0.865f, 0.915f, 1.00f);
+    p.accent = ImVec4(0.12f, 0.44f, 0.75f, 1.00f);
+    p.accentStrong = ImVec4(0.08f, 0.35f, 0.64f, 1.00f);
+    p.separator = ImVec4(0.865f, 0.880f, 0.900f, 1.00f);
+    p.dim = ImVec4(0.10f, 0.12f, 0.16f, 0.30f);
+    applyPalette(p, true);
     captureBaseStyle();
     applyScaledStyle();
 }

@@ -1,4 +1,5 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
 #include "FileBrowser.h"
 #include "io/StructureLoader.h"
 #include "ElementData.h"
@@ -7,6 +8,7 @@
 #include "util/ApplicationPaths.h"
 #include "app/StructureFileService.h"
 #include "ui/PeriodicTableDialog.h"
+#include "ui/DialogLayout.h"
 
 #include "imgui.h"
 #include <GLFW/glfw3.h>
@@ -14,6 +16,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cfloat>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -503,6 +506,7 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
     if (!ImGui::BeginMainMenuBar())
         return;
 
+    forceTourMenu("File");
     if (ImGui::BeginMenu("File"))
     {
         if (ImGui::MenuItem("Open",  "Ctrl+O"))
@@ -561,6 +565,7 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         ImGui::EndMenu();
     }
 
+    forceTourMenu("Edit");
     if (ImGui::BeginMenu("Edit"))
     {
         if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo))
@@ -597,6 +602,7 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         ImGui::EndMenu();
     }
 
+    forceTourMenu("Build");
     if (ImGui::BeginMenu("Build"))
     {
         bulkCrystalDialog.drawMenuItem(true);
@@ -617,164 +623,101 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         ImGui::EndMenu();
     }
 
+    forceTourMenu("View");
     if (ImGui::BeginMenu("View"))
     {
-        ImGui::MenuItem("Show Element", nullptr, &showElementLabels);
-        ImGui::Separator();
-
-        if (ImGui::BeginMenu("View Structure By"))
+        const bool hasAtoms = !structure.atoms.empty();
+        const auto setColourMode = [&](AtomColorMode mode) {
+            if (atomColorMode == mode) return;
+            atomColorMode = mode;
+            atomColorModeJustChanged = true;
+            updateBuffers(structure);
+        };
+        const auto setDisplayMode = [&](AtomDisplayMode mode) {
+            if (atomDisplayMode == mode) return;
+            atomDisplayMode = mode;
+            updateBuffers(structure);
+        };
+        forceTourSubmenu("Colour Atoms By");
+        if (ImGui::BeginMenu("Colour Atoms By"))
         {
-            if (ImGui::MenuItem("Element Type", nullptr,
-                                atomColorMode == AtomColorMode::ElementType))
-            {
-                if (atomColorMode != AtomColorMode::ElementType)
-                {
-                    atomColorMode = AtomColorMode::ElementType;
-                    atomColorModeJustChanged = true;
-                    updateBuffers(structure);
-                }
-            }
-            if (ImGui::MenuItem("Crystal Orientation", nullptr,
-                                atomColorMode == AtomColorMode::CrystalOrientation))
-            {
-                if (atomColorMode != AtomColorMode::CrystalOrientation)
-                {
-                    atomColorMode = AtomColorMode::CrystalOrientation;
-                    atomColorModeJustChanged = true;
-                    updateBuffers(structure);
-                }
-            }
-            if (ImGui::MenuItem("Grain Boundary", nullptr,
-                                atomColorMode == AtomColorMode::GrainBoundary))
-            {
-                if (atomColorMode != AtomColorMode::GrainBoundary)
-                {
-                    atomColorMode = AtomColorMode::GrainBoundary;
-                    atomColorModeJustChanged = true;
-                    updateBuffers(structure);
-                }
-            }
+            if (ImGui::MenuItem("Element", nullptr, atomColorMode == AtomColorMode::ElementType)) setColourMode(AtomColorMode::ElementType);
+            if (ImGui::MenuItem("Crystal Orientation", nullptr, atomColorMode == AtomColorMode::CrystalOrientation)) setColourMode(AtomColorMode::CrystalOrientation);
+            if (ImGui::MenuItem("Grain Boundaries", nullptr, atomColorMode == AtomColorMode::GrainBoundary)) setColourMode(AtomColorMode::GrainBoundary);
             if (ImGui::MenuItem("Atom Property", nullptr, atomColorMode == AtomColorMode::AtomProperty,
                                 !structure.atomProperty.empty() && structure.atomProperty.size() == structure.atoms.size()))
-            {
-                if (atomColorMode != AtomColorMode::AtomProperty)
-                {
-                    atomColorMode = AtomColorMode::AtomProperty;
-                    atomColorModeJustChanged = true;
-                    updateBuffers(structure);
-                }
-            }
+                setColourMode(AtomColorMode::AtomProperty);
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && structure.atomProperty.empty())
+                ImGui::SetTooltip("Available after a per-atom analysis (Analysis menu or a compute-property step).");
+            ImGui::EndMenu();
+        }
+        forceTourSubmenu("Atom Style");
+        if (ImGui::BeginMenu("Atom Style"))
+        {
+            if (ImGui::MenuItem("Balls", nullptr, atomDisplayMode == AtomDisplayMode::Balls)) setDisplayMode(AtomDisplayMode::Balls);
+            if (ImGui::MenuItem("Ball and Stick", nullptr, atomDisplayMode == AtomDisplayMode::BallAndStick)) setDisplayMode(AtomDisplayMode::BallAndStick);
+            if (ImGui::MenuItem("Space Filling", nullptr, atomDisplayMode == AtomDisplayMode::SpaceFilling)) setDisplayMode(AtomDisplayMode::SpaceFilling);
+            if (!hasAtoms && atomDisplayMode == AtomDisplayMode::Polyhedral) atomDisplayMode = AtomDisplayMode::BallAndStick;
+            if (ImGui::MenuItem("Polyhedral", nullptr, atomDisplayMode == AtomDisplayMode::Polyhedral, hasAtoms)) setDisplayMode(AtomDisplayMode::Polyhedral);
+            if (!hasAtoms && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("Open a structure to use the polyhedral style.");
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Show"))
+        {
+            ImGui::MenuItem("Atoms", nullptr, &showAtoms, hasAtoms);
+            ImGui::MenuItem("Element Labels", nullptr, &showElementLabels);
+            ImGui::MenuItem("Bounding Box", nullptr, &showBoundingBox, structure.hasUnitCell);
             ImGui::Separator();
-            ImGui::MenuItem("Dislocation Lines", nullptr, &showDislocationLines,
-                            !structure.atoms.empty());
+            ImGui::MenuItem("Lattice Planes", nullptr, &showLatticePlanes, structure.hasUnitCell);
+            ImGui::MenuItem("Miller Directions", nullptr, &showMillerDirections, structure.hasUnitCell);
+            ImGui::MenuItem("Voronoi Volumes", nullptr, &showVoronoi, hasAtoms);
+            ImGui::MenuItem("Dislocation Lines", nullptr, &showDislocationLines, hasAtoms);
             ImGui::EndMenu();
         }
-
-        if (ImGui::BeginMenu("View Atoms By"))
+        if (ImGui::BeginMenu("Projection"))
         {
-            if (ImGui::MenuItem("Balls", nullptr, atomDisplayMode == AtomDisplayMode::Balls))
+            if (ImGui::MenuItem("Perspective", nullptr, viewMode == ViewMode::Isometric) && viewMode != ViewMode::Isometric)
             {
-                if (atomDisplayMode != AtomDisplayMode::Balls)
-                {
-                    atomDisplayMode = AtomDisplayMode::Balls;
-                    updateBuffers(structure);
-                }
+                viewMode = ViewMode::Isometric;
+                requestResetDefaultView = true;
             }
-            if (ImGui::MenuItem("Ball and Stick", nullptr, atomDisplayMode == AtomDisplayMode::BallAndStick))
+            if (ImGui::MenuItem("Orthographic", nullptr, viewMode == ViewMode::Orthographic) && viewMode != ViewMode::Orthographic)
             {
-                if (atomDisplayMode != AtomDisplayMode::BallAndStick)
-                {
-                    atomDisplayMode = AtomDisplayMode::BallAndStick;
-                    updateBuffers(structure);
-                }
-            }
-            if (ImGui::MenuItem("Space Filling", nullptr, atomDisplayMode == AtomDisplayMode::SpaceFilling))
-            {
-                if (atomDisplayMode != AtomDisplayMode::SpaceFilling)
-                {
-                    atomDisplayMode = AtomDisplayMode::SpaceFilling;
-                    updateBuffers(structure);
-                }
-            }
-            {
-                const bool polyhedralAllowed = !structure.atoms.empty();
-                if (!polyhedralAllowed && atomDisplayMode == AtomDisplayMode::Polyhedral)
-                    atomDisplayMode = AtomDisplayMode::BallAndStick;
-                if (ImGui::MenuItem("Polyhedral", nullptr, atomDisplayMode == AtomDisplayMode::Polyhedral, polyhedralAllowed))
-                {
-                    if (atomDisplayMode != AtomDisplayMode::Polyhedral)
-                    {
-                        atomDisplayMode = AtomDisplayMode::Polyhedral;
-                        updateBuffers(structure);
-                    }
-                }
-                if (!polyhedralAllowed && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                    ImGui::SetTooltip("Load a structure to use polyhedral view.");
+                viewMode = ViewMode::Orthographic;
+                requestResetDefaultView = true;
             }
             ImGui::EndMenu();
         }
-
+        if (ImGui::MenuItem("Reset View", "R"))
+            requestResetDefaultView = true;
         ImGui::Separator();
-
-        ImGui::MenuItem("Show Lattice Planes", nullptr, &showLatticePlanes, structure.hasUnitCell);
-        if (ImGui::MenuItem("Lattice Planes", nullptr, false, structure.hasUnitCell))
+        if (ImGui::MenuItem("Lattice Planes Settings", nullptr, false, structure.hasUnitCell))
             showLatticePlanesDialog = true;
-
-        ImGui::MenuItem("Show Miller Directions", nullptr, &showMillerDirections, structure.hasUnitCell);
-        if (ImGui::MenuItem("Miller Directions", nullptr, false, structure.hasUnitCell))
+        if (ImGui::MenuItem("Miller Directions Settings", nullptr, false, structure.hasUnitCell))
             showMillerDirectionsDialog = true;
-
+        ImGui::MenuItem("Polyhedral Viewer", nullptr, &showPolyhedralViewer, hasAtoms);
         ImGui::Separator();
-
-        const bool isIsometricView = (viewMode == ViewMode::Isometric);
-        if (ImGui::MenuItem("Isometric View", nullptr, isIsometricView) && !isIsometricView)
-        {
-            viewMode = ViewMode::Isometric;
-            requestResetDefaultView = true;
-        }
-
-        const bool isOrthographicView = (viewMode == ViewMode::Orthographic);
-        if (ImGui::MenuItem("Orthographic View", nullptr, isOrthographicView) && !isOrthographicView)
-        {
-            viewMode = ViewMode::Orthographic;
-            requestResetDefaultView = true;
-        }
-
-        ImGui::Separator();
-        ImGui::MenuItem("Show Voronoi Volume", nullptr, &showVoronoi, !structure.atoms.empty());
-        ImGui::MenuItem("Polyhedral Viewer", nullptr, &showPolyhedralViewer, !structure.atoms.empty());
-        ImGui::MenuItem("Show Dislocation Lines", nullptr, &showDislocationLines,
-                        !structure.atoms.empty());
-        ImGui::Separator();
-        ImGui::MenuItem("Show Atoms", nullptr, &showAtoms, !structure.atoms.empty());
-        ImGui::MenuItem("Show Bounding Box", nullptr, &showBoundingBox, structure.hasUnitCell);
-        ImGui::Separator();
-        if (ImGui::MenuItem("Structure Info"))
+        if (ImGui::MenuItem("Structure Info", nullptr, false, hasAtoms))
             requestStructureInfo = true;
-        if (ImGui::MenuItem("Measure Distance"))
-            requestMeasureDistance = true;
-        if (ImGui::MenuItem("Measure Angle"))
-            requestMeasureAngle = true;
-        if (ImGui::MenuItem("Atom Info"))
+        if (ImGui::MenuItem("Atom Info", nullptr, false, hasAtoms))
             requestAtomInfo = true;
-        if (ImGui::MenuItem("Reset Default View"))
-            requestResetDefaultView = true;
+        if (ImGui::MenuItem("Measure Distance", nullptr, false, hasAtoms))
+            requestMeasureDistance = true;
+        if (ImGui::MenuItem("Measure Angle", nullptr, false, hasAtoms))
+            requestMeasureAngle = true;
         ImGui::Separator();
-        if (ImGui::BeginMenu("Select Theme"))
+        forceTourSubmenu("Theme");
+        if (ImGui::BeginMenu("Theme"))
         {
-            if (ImGui::MenuItem("Dark", nullptr, !useLightTheme))
-            {
-                if (useLightTheme) { useLightTheme = false; applyDarkTheme(); }
-            }
-            if (ImGui::MenuItem("Light", nullptr, useLightTheme))
-            {
-                if (!useLightTheme) { useLightTheme = true; applyLightTheme(); }
-            }
+            if (ImGui::MenuItem("Light", nullptr, useLightTheme) && !useLightTheme) { useLightTheme = true; applyLightTheme(); }
+            if (ImGui::MenuItem("Dark", nullptr, !useLightTheme) && useLightTheme) { useLightTheme = false; applyDarkTheme(); }
             ImGui::EndMenu();
         }
         ImGui::EndMenu();
     }
 
+    forceTourMenu("Analysis");
     if (ImGui::BeginMenu("Analysis"))
     {
         if (ImGui::BeginMenu("Structure and defects")) {
@@ -817,8 +760,10 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         ImGui::EndMenu();
     }
 
+    forceTourMenu("Settings");
     if (ImGui::BeginMenu("Settings"))
     {
+        forceTourSubmenu("Interface size");
         if (ImGui::BeginMenu("Interface size"))
         {
             if (ImGui::MenuItem("Automatic (display scaling)", nullptr, interfaceScale() == 1.0f)) setInterfaceScale(1.0f);
@@ -828,13 +773,21 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
             if (ImGui::MenuItem("Extra large (200%)", nullptr, interfaceScale() == 2.0f)) setInterfaceScale(2.0f);
             ImGui::EndMenu();
         }
-        editMenuDialogs.drawSettingsMenuItems();
         ImGui::Separator();
+        editMenuDialogs.drawSettingsMenuItems();
         if (ImGui::MenuItem("Polyhedral Settings"))
             showPolyhedralSettingsDialog = true;
+        ImGui::Separator();
+        if (ImGui::BeginMenu("Theme"))
+        {
+            if (ImGui::MenuItem("Light", nullptr, useLightTheme) && !useLightTheme) { useLightTheme = true; applyLightTheme(); }
+            if (ImGui::MenuItem("Dark", nullptr, !useLightTheme) && useLightTheme) { useLightTheme = false; applyDarkTheme(); }
+            ImGui::EndMenu();
+        }
         ImGui::EndMenu();
     }
 
+    forceTourMenu("Help");
     if (ImGui::BeginMenu("Help"))
     {
         if (ImGui::MenuItem("Manual"))
@@ -988,29 +941,24 @@ void FileBrowser::drawOpenStructureDialog()
         }
 
         {
-            static const char* kOpenExtHint = ".xyz  .cif  .pdb  .sdf  .mol  .vasp  .mol2  .pwi  .gjf";
-            const float extHintW = ImGui::CalcTextSize(kOpenExtHint).x;
-            const float labelW   = ImGui::CalcTextSize("Filename").x
-                                  + ImGui::GetStyle().ItemInnerSpacing.x * 2.0f;
-            const float spacing  = ImGui::GetStyle().ItemSpacing.x;
-            const float inputW   = ImGui::GetContentRegionAvail().x - labelW - extHintW - spacing * 2.0f;
-            ImGui::SetNextItemWidth(inputW > 120.0f ? inputW : 120.0f);
-            if (ImGui::InputText("Filename##open", openFilename, sizeof(openFilename),
-                                 ImGuiInputTextFlags_EnterReturnsTrue))
-                openFileDoubleClicked = true;
-            ImGui::SameLine(responsive::dp(0.0f), spacing);
             ImGui::AlignTextToFramePadding();
-            ImGui::TextDisabled("%s", kOpenExtHint);
+            ImGui::TextUnformatted("File name");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            if (ImGui::InputTextWithHint("##openFilename", "CIF, POSCAR/.vasp, XYZ, PDB, SDF, MOL2, PWI, GJF, LAMMPS dump or .afcloud",
+                                         openFilename, sizeof(openFilename), ImGuiInputTextFlags_EnterReturnsTrue))
+                openFileDoubleClicked = true;
         }
         if (openStatusMsg[0] != '\0')
-            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", openStatusMsg);
+            dialogLayout::note(dialogLayout::Note::Error, openStatusMsg);
 
         bool doLoad = openFileDoubleClicked;
-        if (responsive::button("Load", responsive::size(120.0f,0.0f)))
-            doLoad = true;
-        ImGui::SameLine(responsive::dp(0.0f), 8.0f);
-        if (responsive::button("Cancel##openCancel", responsive::size(120.0f,0.0f)))
-            ImGui::CloseCurrentPopup();
+        switch (dialogLayout::footer("Open", "Cancel", openFilename[0] != '\0'))
+        {
+            case 1: doLoad = true; break;
+            case 2: ImGui::CloseCurrentPopup(); break;
+            default: break;
+        }
 
         if (doLoad)
         {
@@ -1078,7 +1026,7 @@ void FileBrowser::drawSaveAsDialog(Structure& structure)
         saveStructurePopup = false;
     }
 
-    responsive::windowSize(ImVec2(720.0f, 480.0f), ImGuiCond_Appearing);
+    responsive::windowSize(ImVec2(720.0f, 560.0f), ImGuiCond_Appearing);
     bool saveAsOpen = true;
     if (responsive::beginModal("Save As", &saveAsOpen, 0))
     {
@@ -1199,11 +1147,15 @@ void FileBrowser::drawSaveAsDialog(Structure& structure)
             ImGui::EndChild();
         }
 
-        bool saveEnterPressed = ImGui::InputText("Filename##save", saveFilename, sizeof(saveFilename),
+        dialogLayout::fieldLabel("File name", ImGui::GetFontSize() * 5.5f);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        bool saveEnterPressed = ImGui::InputText("##saveFilename", saveFilename, sizeof(saveFilename),
                                                  ImGuiInputTextFlags_EnterReturnsTrue);
 
         // Format selector
-        if (ImGui::Combo("Format", &selectedSaveFormat,
+        dialogLayout::fieldLabel("Format", ImGui::GetFontSize() * 5.5f);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::Combo("##saveFormat", &selectedSaveFormat,
                          [](void* d, int i) -> const char* {
                              return static_cast<const SaveFormat*>(d)[i].label;
                          }, (void*)kSaveFormats, kNumSaveFormats))
@@ -1217,16 +1169,15 @@ void FileBrowser::drawSaveAsDialog(Structure& structure)
         }
 
         if (saveStatusMsg[0] != '\0')
-            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", saveStatusMsg);
-
-        ImGui::Separator();
+            dialogLayout::note(dialogLayout::Note::Error, saveStatusMsg);
 
         bool doSave = saveEnterPressed;
-        if (responsive::button("Save", responsive::size(120.0f,0.0f)))
-            doSave = true;
-        ImGui::SameLine(responsive::dp(0.0f), 8.0f);
-        if (responsive::button("Cancel##saveCancel", responsive::size(120.0f,0.0f)))
-            ImGui::CloseCurrentPopup();
+        switch (dialogLayout::footer("Save", "Cancel", saveFilename[0] != '\0'))
+        {
+            case 1: doSave = true; break;
+            case 2: ImGui::CloseCurrentPopup(); break;
+            default: break;
+        }
 
         if (doSave)
         {
@@ -1301,7 +1252,7 @@ void FileBrowser::drawExportImageDialog(Structure& structure)
         exportImagePopup = false;
     }
 
-    responsive::windowSize(ImVec2(720.0f, 500.0f), ImGuiCond_Appearing);
+    responsive::windowSize(ImVec2(760.0f, 680.0f), ImGuiCond_Appearing);
     bool exportImageOpen = true;
     if (responsive::beginModal("Export Image", &exportImageOpen, 0))
     {
@@ -1420,9 +1371,14 @@ void FileBrowser::drawExportImageDialog(Structure& structure)
             ImGui::EndChild();
         }
 
-        ImGui::InputText("Filename##export", exportFilename, sizeof(exportFilename));
+        const float labelColumn = ImGui::GetFontSize() * 7.5f;
+        dialogLayout::fieldLabel("File name", labelColumn);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::InputText("##exportFilename", exportFilename, sizeof(exportFilename));
 
-        if (ImGui::Combo("Format##export", &selectedExportFormat,
+        dialogLayout::fieldLabel("Format", labelColumn);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::Combo("##exportFormat", &selectedExportFormat,
                          [](void* d, int i) -> const char* {
                              return static_cast<const ImageExportFormatOption*>(d)[i].label;
                          }, (void*)kImageExportFormats, kNumImageExportFormats))
@@ -1440,16 +1396,19 @@ void FileBrowser::drawExportImageDialog(Structure& structure)
             ImGui::TextDisabled("JPEG has no transparency; transparent areas will be blended on white.");
         ImGui::Checkbox("Include orientation gizmo", &exportIncludeGizmo);
 
-        ImGui::SliderInt("Resolution scale", &exportResolutionScale, 1, 8, "%dx");
+        dialogLayout::fieldLabel("Resolution", labelColumn);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::SliderInt("##exportScale", &exportResolutionScale, 1, 8, "%dx");
         if (exportResolutionScale > 1)
             ImGui::TextDisabled("Output will be %dx the current window size.", exportResolutionScale);
 
         if (exportStatusMsg[0] != '\0')
-            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", exportStatusMsg);
+            dialogLayout::note(dialogLayout::Note::Error, exportStatusMsg);
 
-        ImGui::Separator();
-
-        if (responsive::button("Export", responsive::size(120.0f,0.0f)))
+        const int exportPressed = dialogLayout::footer("Export", "Cancel");
+        if (exportPressed == 2)
+            ImGui::CloseCurrentPopup();
+        if (exportPressed == 1)
         {
             if (structure.atoms.empty())
             {
@@ -1492,9 +1451,6 @@ void FileBrowser::drawExportImageDialog(Structure& structure)
                 ImGui::CloseCurrentPopup();
             }
         }
-        ImGui::SameLine(responsive::dp(0.0f), 8.0f);
-        if (responsive::button("Cancel##exportCancel", responsive::size(120.0f,0.0f)))
-            ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
     if (!exportImageOpen)
@@ -1516,85 +1472,10 @@ void FileBrowser::draw(Structure& structure,
 
     drawMainMenuBar(structure, editMenuDialogs, updateBuffers, canUndo, canRedo);
 
-    // Draw toolbar below menu bar with axis view and measurement options
-    {
-        const bool compactToolbar = ImGui::GetIO().DisplaySize.x < responsive::dp(940);
-        const float toolbarH = (ImGui::GetFontSize() + responsive::dp(8)) * (compactToolbar ? 3 : 1)
-            + (compactToolbar ? ImGui::GetStyle().ItemSpacing.y * 2 : 0)
-            + 2 * ImGui::GetStyle().WindowPadding.y;
-        ImGui::SetNextWindowPos(ImVec2(0.0f, ImGui::GetFrameHeight()), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x, toolbarH), ImGuiCond_Always);
-        if (responsive::begin("##ViewToolbar", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
-        {
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, responsive::size(12.0f,4.0f));
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, responsive::size(8.0f,4.0f));
-            
-            // View Axis section
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("View Axis:");
-            ImGui::SameLine(responsive::dp(0.0f), 8.0f);
-            if (responsive::button("X##axis", responsive::size(40.0f,0.0f)))
-                requestViewAxisX = true;
-            ImGui::SameLine(responsive::dp(0.0f), 4.0f);
-            if (responsive::button("Y##axis", responsive::size(40.0f,0.0f)))
-                requestViewAxisY = true;
-            ImGui::SameLine(responsive::dp(0.0f), 4.0f);
-            if (responsive::button("Z##axis", responsive::size(40.0f,0.0f)))
-                requestViewAxisZ = true;
-
-            ImGui::SameLine(responsive::dp(0.0f), 16.0f);
-
-            const bool hasInputCell = structure.hasUnitCell && !structure.atoms.empty();
-            if (!hasInputCell) ImGui::BeginDisabled();
-            if (responsive::button("a##latview", responsive::size(34.0f,0.0f)))
-                requestViewLatticeA = true;
-            ImGui::SameLine(responsive::dp(0.0f), 4.0f);
-            if (responsive::button("b##latview", responsive::size(34.0f,0.0f)))
-                requestViewLatticeB = true;
-            ImGui::SameLine(responsive::dp(0.0f), 4.0f);
-            if (responsive::button("c##latview", responsive::size(34.0f,0.0f)))
-                requestViewLatticeC = true;
-            if (!hasInputCell) ImGui::EndDisabled();
-
-            if (!compactToolbar) ImGui::SameLine(0, responsive::dp(16));
-
-            // Rotate Crystal section
-            const bool hasAtoms = !structure.atoms.empty();
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Rotate:");
-            ImGui::SameLine(responsive::dp(0.0f), 8.0f);
-            ImGui::SetNextItemWidth(responsive::dp(68.0f));
-            ImGui::DragFloat("##rotangle", &rotateCrystalAngle, 1.0f, -360.0f, 360.0f, "%.1f\xc2\xb0");
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Rotation angle in degrees");
-            ImGui::SameLine(responsive::dp(0.0f), 6.0f);
-            if (!hasAtoms) ImGui::BeginDisabled();
-            if (responsive::button("X##rot", responsive::size(36.0f,0.0f)))
-                requestRotateCrystalX = true;
-            ImGui::SameLine(responsive::dp(0.0f), 4.0f);
-            if (responsive::button("Y##rot", responsive::size(36.0f,0.0f)))
-                requestRotateCrystalY = true;
-            ImGui::SameLine(responsive::dp(0.0f), 4.0f);
-            if (responsive::button("Z##rot", responsive::size(36.0f,0.0f)))
-                requestRotateCrystalZ = true;
-            if (!hasAtoms) ImGui::EndDisabled();
-
-            if (!compactToolbar) ImGui::SameLine(0, responsive::dp(16));
-            
-            // Measure section
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Measure:");
-            ImGui::SameLine(responsive::dp(0.0f), 8.0f);
-            if (responsive::button("Distance##measure", responsive::size(80.0f,0.0f)))
-                requestMeasureDistance = true;
-            ImGui::SameLine(responsive::dp(0.0f), 4.0f);
-            if (responsive::button("Angle##measure", responsive::size(80.0f,0.0f)))
-                requestMeasureAngle = true;
-
-            ImGui::PopStyleVar(2);
-            ImGui::End();
-        }
-    }
+    // The main window around the view: welcome screen, toolbar and status bar.
+    drawWelcome(structure);
+    drawToolbar(structure, canUndo, canRedo);
+    drawStatusBar(structure);
 
     if (StepEdit request; pipelineDialog.consumeDialogRequest(request)) openStepDialog(std::move(request), editMenuDialogs);
     editMenuDialogs.drawPopups(structure, updateBuffers);
@@ -1685,6 +1566,8 @@ void FileBrowser::draw(Structure& structure,
     angularDistributionDialog.drawDialog(structure);
     cellSculptorDialog.drawDialog(structure, updateBuffers);
     runStepDialogCheck(editMenuDialogs);
+    runUiTour(structure, editMenuDialogs, updateBuffers);
+    runTutorialCapture(structure, editMenuDialogs, updateBuffers);
 
     if (loadErrorPopupRequested)
     {
@@ -1715,9 +1598,9 @@ void FileBrowser::draw(Structure& structure,
         showLatticePlanesDialog = false;
     }
 
-    responsive::windowSize(ImVec2(780.0f, 520.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(responsive::dp(780.0f), 0.0f), ImVec2(responsive::dp(780.0f), FLT_MAX));
     bool latticePlanesOpen = true;
-    if (responsive::beginModal("Lattice Planes", &latticePlanesOpen, ImGuiWindowFlags_NoResize))
+    if (responsive::beginModal("Lattice Planes", &latticePlanesOpen, ImGuiWindowFlags_AlwaysAutoResize))
     {
         if (!structure.hasUnitCell)
         {
@@ -1754,7 +1637,7 @@ void FileBrowser::draw(Structure& structure,
             if (invalidMiller)
                 ImGui::TextDisabled("(h, k, l) cannot all be zero.");
 
-            if (responsive::button("Add Plane", responsive::size(140.0f,0.0f)) && !invalidMiller)
+            if ((responsive::button("Add Plane", responsive::size(140.0f,0.0f)) || uiScript::take("lattice.add")) && !invalidMiller)
             {
                 LatticePlane plane;
                 plane.h = latticePlaneInputH;
@@ -1848,9 +1731,9 @@ void FileBrowser::draw(Structure& structure,
         showMillerDirectionsDialog = false;
     }
 
-    responsive::windowSize(ImVec2(680.0f, 480.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(responsive::dp(680.0f), 0.0f), ImVec2(responsive::dp(680.0f), FLT_MAX));
     bool millerDirOpen = true;
-    if (responsive::beginModal("Miller Directions", &millerDirOpen, ImGuiWindowFlags_NoResize))
+    if (responsive::beginModal("Miller Directions", &millerDirOpen, ImGuiWindowFlags_AlwaysAutoResize))
     {
         if (!structure.hasUnitCell)
         {
@@ -1885,7 +1768,7 @@ void FileBrowser::draw(Structure& structure,
             if (invalidDir)
                 ImGui::TextDisabled("(u, v, w) cannot all be zero.");
 
-            if (responsive::button("Add Direction", responsive::size(140.0f,0.0f)) && !invalidDir)
+            if ((responsive::button("Add Direction", responsive::size(140.0f,0.0f)) || uiScript::take("miller.add")) && !invalidDir)
             {
                 MillerDirection md;
                 md.u = millerDirInputU;
@@ -1970,9 +1853,9 @@ void FileBrowser::draw(Structure& structure,
         showPolyhedralSettingsDialog = false;
     }
 
-    responsive::windowSize(ImVec2(620.0f, 520.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(responsive::dp(620.0f), 0.0f), ImVec2(responsive::dp(620.0f), FLT_MAX));
     bool polyhedralSettingsOpen = true;
-    if (responsive::beginModal("Polyhedral Settings", &polyhedralSettingsOpen, ImGuiWindowFlags_NoResize))
+    if (responsive::beginModal("Polyhedral Settings", &polyhedralSettingsOpen, ImGuiWindowFlags_AlwaysAutoResize))
     {
         ImGui::SetNextItemWidth(responsive::dp(240.0f));
         ImGui::SliderInt("Max displayed centers", &polyhedralSettings.maxDisplayedCenters, 1, 2000);
@@ -2764,4 +2647,10 @@ void FileBrowser::openStepDialog(StepEdit request, EditMenuDialogs& editMenuDial
         scientificToolsDialog.editStep(std::move(request));
     // Steps without a dialog of their own use the operation window of their menu entry.
     else operationDialog.editStep(std::move(request));
+}
+
+std::vector<std::string> FileBrowser::recentFiles()
+{
+    loadSharedRecentFilesIfNeeded();
+    return sharedRecentFiles();
 }

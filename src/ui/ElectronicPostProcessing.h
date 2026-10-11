@@ -13,6 +13,9 @@
 struct ElectronicPostProcessingDialog
 {
     void drawMenuItem();
+    // Opens the window, as its menu item does.
+    void close() { m_open = false; }
+    void open() { m_open = true; }
     void drawDialog();
     bool isOpen() const { return m_open; }
     void feedDroppedFile(const std::string& path);

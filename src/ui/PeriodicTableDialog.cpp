@@ -1,4 +1,5 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/DialogLayout.h"
 #include "PeriodicTableDialog.h"
 
 #include "imgui.h"
@@ -374,7 +375,7 @@ bool drawPeriodicTable(std::vector<ElementSelection>& outSelections)
     float btnY = btnAreaY + 25.0f;
     ImGui::SetCursorPos(ImVec2(padX, btnY));
     
-    if (responsive::button("Apply", responsive::size(80,0)) && selectedAtomicNumber >= 0)
+    if (dialogLayout::primaryButton("Apply", responsive::size(80,0)) && selectedAtomicNumber >= 0)
     {
         // Populate outSelections with the single selection
         outSelections.clear();

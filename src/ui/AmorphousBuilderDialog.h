@@ -29,6 +29,8 @@ struct AmorphousBuilderDialog
     AmorphousBuilderDialog();
 
     void drawMenuItem(bool enabled);
+    // Opens the dialog, as its menu item does.
+    void open() { m_step.finish(); m_openRequested = true; }
 
     // elementColors  – size-119 CPK colors (from EditMenuDialogs::elementColors).
     // covalentRadii  – size-119 covalent radii (from makeLiteratureCovalentRadii).

@@ -1,4 +1,5 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
 #include "ShortRangeOrderDialog.h"
 #include "ThemeUtils.h"
 #include <imgui.h>
@@ -363,7 +364,7 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
     ImGui::PushStyleColor(ImGuiCol_Button,        { 0.13f, 0.48f, 0.82f, 1.0f });
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 0.22f, 0.62f, 1.0f,  1.0f });
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,  { 0.08f, 0.33f, 0.62f, 1.0f });
-    if (responsive::button("  Run Analysis  ##SRO", { -1.0f, 32.0f }))
+    if (responsive::button("  Run Analysis  ##SRO", { -1.0f, 32.0f }) || uiScript::take("sro.run"))
     {
         // Join any previous (already-finished) thread
         if (state.workerThread && state.workerThread->joinable())
@@ -506,7 +507,7 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
             // ----------------------------------------------------------
             // Tab 2: Rao-Curtin
             // ----------------------------------------------------------
-            if (ImGui::BeginTabItem(" Rao-Curtin (2022) "))
+            if (ImGui::BeginTabItem(" Rao-Curtin (2022) ", nullptr, uiScript::selectTab("sro.rao")))
             {
                 state.selectedMethod = 1;
                 ImGui::Spacing();

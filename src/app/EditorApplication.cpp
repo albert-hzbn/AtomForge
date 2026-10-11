@@ -25,6 +25,7 @@
 #include "LowPolyMesh.h"
 #include "BillboardMesh.h"
 #include "ui/ImGuiSetup.h"
+#include "ui/UiScript.h"
 #include "ui/LatticePlaneOverlay.h"
 #include "ui/MillerDirectionOverlay.h"
 #include "ui/PolyhedralOverlay.h"
@@ -1014,6 +1015,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             atoms.erase(std::unique(atoms.begin(), atoms.end()), atoms.end());
             state.fileBrowser.setViewSelection(std::move(atoms));
         }
+        state.fileBrowser.setLargeDatasetShown(state.hasCloud());
         state.fileBrowser.draw(
             state.structure,
             state.editMenuDialogs,
@@ -1276,6 +1278,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         handleLassoSelection(activeState, frame.windowWidth, frame.windowHeight,
                              frame.projection, frame.view, drawList);
 
+        if (uiScript::take("atom.context")) activeState.contextMenu.open();
         AtomRequests contextRequests;
         activeState.contextMenu.draw(
             activeState.structure, activeState.sceneBuffers,

@@ -1,5 +1,6 @@
 #include "ui/PipelineDialog.h"
 #include "ui/MenuParity.h"
+#include "ui/DialogLayout.h"
 #include "ui/ModifierEditor.h"
 #include "ui/ResponsiveLayout.h"
 #include "imgui.h"
@@ -18,7 +19,6 @@ using atomforge::pipeline::ModifierType;
 
 namespace
 {
-const ImVec4 kError(0.95f, 0.42f, 0.38f, 1.0f);
 
 std::string titleOf(const atomforge::pipeline::Modifier& m)
 {
@@ -186,7 +186,7 @@ std::string PipelineDialog::drawModifierMenu(const std::string& exclude, const s
         if (!menuOpen) continue;
         if (ImGui::MenuItem(type.title, nullptr, exclude == type.id, exclude != type.id)) chosen = type.id;
         record(prefix + " " + type.id);
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", type.help);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", modifierDescription(type).c_str());
     }
     if (menuOpen) ImGui::EndMenu();
     return chosen;
@@ -333,7 +333,7 @@ void PipelineDialog::drawList()
             const auto& stage = stages[i];
             ImGui::Indent(responsive::dp(34));
             if (!stage.error.empty()) {
-                ImGui::PushStyleColor(ImGuiCol_Text, kError);
+                ImGui::PushStyleColor(ImGuiCol_Text, themeStatusError());
                 ImGui::TextWrapped("%s", stage.error.c_str());
                 ImGui::PopStyleColor();
             } else if (stage.skipped) ImGui::TextDisabled(m.enabled ? "not run (an earlier step failed)" : "bypassed");
@@ -470,7 +470,7 @@ void PipelineDialog::drawEditor()
     record("edit in dialog");
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Open %s on this step", menuPathOf(m.type).c_str());
     ImGui::PushTextWrapPos(0.0f);
-    ImGui::TextDisabled("%s", type->help);
+    ImGui::TextDisabled("%s", modifierDescription(*type).c_str());
     ImGui::PopTextWrapPos();
     char label[128];
     std::snprintf(label, sizeof(label), "%s", m.label.c_str());
@@ -533,7 +533,7 @@ void PipelineDialog::draw(Structure& structure, const std::function<void(Structu
         } else {
             // Edits made outside the pipeline would be overwritten by its next update.
             if (!m_editor.dirty() && !m_editor.isCurrentOutput(structure) && !m_colourSelection) {
-                ImGui::PushStyleColor(ImGuiCol_Text, kError);
+                ImGui::PushStyleColor(ImGuiCol_Text, themeStatusError());
                 ImGui::TextWrapped("The structure was changed outside the pipeline.");
                 ImGui::PopStyleColor();
                 if (responsive::button("Use it as the pipeline input")) m_editor.setInput(structure);
@@ -543,14 +543,14 @@ void PipelineDialog::draw(Structure& structure, const std::function<void(Structu
             if (responsive::button("Use the active structure as input")) m_editor.setInput(structure);
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Restart the pipeline from the structure now in the view.");
             ImGui::SameLine();
-            if (responsive::button("Bake")) {
+            if (dialogLayout::primaryButton("Bake")) {
                 structure = m_editor.bake();
                 m_selected = -1;
                 update(structure);  // a normal edit: it enters undo history
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Make the output the structure and end the pipeline.");
             ImGui::SameLine();
-            if (responsive::button("Discard")) {
+            if (dialogLayout::dangerButton("Discard")) {
                 structure = m_editor.input();
                 m_editor.reset();
                 m_selected = -1;
@@ -586,7 +586,7 @@ void PipelineDialog::draw(Structure& structure, const std::function<void(Structu
             ImGui::EndChild();
         }
         if (!m_message.empty()) {
-            ImGui::PushStyleColor(ImGuiCol_Text, kError);
+            ImGui::PushStyleColor(ImGuiCol_Text, themeStatusError());
             ImGui::TextWrapped("%s", m_message.c_str());
             ImGui::PopStyleColor();
         }

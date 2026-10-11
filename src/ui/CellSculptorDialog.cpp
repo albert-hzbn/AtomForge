@@ -1,4 +1,6 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
+#include "ui/DialogLayout.h"
 #include "ui/CellSculptorDialog.h"
 #include "algorithms/CellSculptorAlgo.h"
 #include "app/SceneView.h"
@@ -855,7 +857,7 @@ void CellSculptorDialog::drawDialog(
     m_isOpen = true;
 
     if (m_step.active())
-        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+        dialogLayout::stepBanner(m_step.step.c_str());
 
     // Lazy rebuild
     if (m_sourceBufDirty) rebuildSourceBuffers();
@@ -895,7 +897,7 @@ void CellSculptorDialog::drawDialog(
             rebuildSourceBuffers(); rebuildFaces(); rebuildResult();
         }
     }
-    else if (responsive::button("Use Scene##scuse"))
+    else if (responsive::button("Use Scene##scuse") || uiScript::take("sculptor.useScene"))
     {
         loadSourceFromScene(structure, "scene");
         rebuildSourceBuffers(); rebuildFaces(); rebuildResult();
@@ -1127,6 +1129,7 @@ void CellSculptorDialog::drawDialog(
                 ImGui::BeginDisabled();
                 slab.usePeriodic = false;
             }
+            if (hasPeriodic && uiScript::take("sculptor.manual")) { slab.usePeriodic = false; changed = true; }
             if (ImGui::Checkbox("Periodic##scper", &slab.usePeriodic))
                 changed = true;
             if (!hasPeriodic)
@@ -1195,7 +1198,7 @@ void CellSculptorDialog::drawDialog(
         ImGui::SameLine();
         ImGui::SetNextItemWidth(responsive::dp(70.0f));
         ImGui::DragFloat("d2##nnd2", &m_newD2, 0.1f, -500.f, 500.f, "%.1f");
-        if (responsive::button("+ Add Slab##nnadd", responsive::size(-1.0f,0.0f)))
+        if (responsive::button("+ Add Slab##nnadd", responsive::size(-1.0f,0.0f)) || uiScript::take("sculptor.addSlab"))
         {
             if (m_newD2 < m_newD1 + 0.05f) m_newD2 = m_newD1 + 0.05f;
             CellSlabPlane slab;
@@ -1258,7 +1261,7 @@ void CellSculptorDialog::drawDialog(
     else
     {
         if (!bounded) ImGui::BeginDisabled();
-        doGenerate = responsive::button("Generate##scgen", responsive::size(100.0f,0.0f));
+        doGenerate = dialogLayout::primaryButton("Generate##scgen", responsive::size(100.0f,0.0f));
         if (!bounded)
         {
             ImGui::EndDisabled();

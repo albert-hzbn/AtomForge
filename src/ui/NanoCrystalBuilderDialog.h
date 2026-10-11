@@ -39,6 +39,8 @@ struct NanoCrystalBuilderDialog
     void initRenderResources(Renderer& renderer);
 
     void drawMenuItem(bool enabled);
+    // Opens the dialog, as its menu item does.
+    void open() { m_step.finish(); m_openRequested = true; }
 
     // elementRadii / elementShininess are used for the 3-D preview and for
     // assigning colours when the nanocrystal is built.

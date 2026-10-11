@@ -1,4 +1,6 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
+#include "ui/DialogLayout.h"
 #include "EditMenuDialogs.h"
 
 #include "ElementData.h"
@@ -120,7 +122,7 @@ atomforge::pipeline::Json EditMenuDialogs::stepParameters() const
 // The Edit Structure dialog on a pipeline step: only the part the step can express.
 void EditMenuDialogs::drawStepEditor()
 {
-    ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+    dialogLayout::stepBanner(m_step.step.c_str());
     ImGui::Separator();
 
     const Structure& input = m_step.input;
@@ -264,7 +266,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
             // ==============================================================
             // TAB: Lighting
             // ==============================================================
-            if (ImGui::BeginTabItem("Lighting"))
+            if (ImGui::BeginTabItem("Lighting", nullptr, uiScript::selectTab("display.lighting")))
             {
                 ImGui::Spacing();
                 ImGui::TextDisabled("Controls the scene illumination model.");
@@ -305,7 +307,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
             // ==============================================================
             // TAB: Material
             // ==============================================================
-            if (ImGui::BeginTabItem("Material"))
+            if (ImGui::BeginTabItem("Material", nullptr, uiScript::selectTab("display.material")))
             {
                 ImGui::Spacing();
                 ImGui::TextDisabled("Global material properties applied to all atoms and bonds.");
@@ -343,7 +345,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
             // ==============================================================
             // TAB: Colors
             // ==============================================================
-            if (ImGui::BeginTabItem("Colors"))
+            if (ImGui::BeginTabItem("Colors", nullptr, uiScript::selectTab("display.colors")))
             {
                 ImGui::Spacing();
                 ImGui::TextDisabled("Per-element display color.");

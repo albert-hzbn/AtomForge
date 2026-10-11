@@ -1,4 +1,5 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/DialogLayout.h"
 #include "AngularDistributionAnalysis.h"
 #include "ThemeUtils.h"
 
@@ -752,7 +753,7 @@ void AngularDistributionAnalysisDialog::drawDialog(const Structure& structure)
         }
         else
         {
-            if (responsive::button("Compute ADF###computebtn", ImVec2(-FLT_MIN, 0.0f)))
+            if (dialogLayout::primaryButton("Compute ADF###computebtn", ImVec2(-FLT_MIN, 0.0f)))
                 startCompute(structure);
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip(m_paramsDirty
@@ -776,7 +777,7 @@ void AngularDistributionAnalysisDialog::drawDialog(const Structure& structure)
             }
             else
             {
-                ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.30f, 1.0f), "Failed:");
+                ImGui::TextColored(themeStatusError(), "Failed:");
                 ImGui::SameLine();
                 ImGui::TextDisabled("%s", m_result.message.c_str());
             }

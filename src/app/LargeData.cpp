@@ -197,7 +197,7 @@ void drawCloudPanel(CloudRenderer& cloudRenderer, float frameMilliseconds)
 {
     const auto& stats = cloudRenderer.stats();
     const auto& info = cloudRenderer.info();
-    ImGui::SetNextWindowPos(ImVec2(12, ImGui::GetIO().DisplaySize.y - 12), ImGuiCond_FirstUseEver, ImVec2(0, 1));
+    ImGui::SetNextWindowPos(ImVec2(12, ImGui::GetIO().DisplaySize.y - ImGui::GetFrameHeight() - 20), ImGuiCond_FirstUseEver, ImVec2(0, 1));
     ImGui::SetNextWindowSize(ImVec2(400, 0), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Large dataset", nullptr, ImGuiWindowFlags_NoCollapse)) {
         ImGui::TextUnformatted(cloudRenderer.path().filename().u8string().c_str());

@@ -27,6 +27,8 @@ struct CustomStructureDialog
     void initRenderResources(Renderer& renderer);
 
     void drawMenuItem(bool enabled);
+    // Opens the dialog, as its menu item does.
+    void open() { m_step.finish(); m_openRequested = true; }
     void drawDialog(Structure& structure,
                     const std::vector<glm::vec3>& elementColors,
                     const std::vector<float>& elementRadii,

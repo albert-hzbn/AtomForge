@@ -90,7 +90,7 @@ void TransformAtomsDialog::drawDialog(const std::function<void()>& onApply)
     if (responsive::beginModal(kTransformPopupTitle, &transformAtomsOpen, ImGuiWindowFlags_AlwaysAutoResize))
     {
         if (m_step.active())
-            ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f), "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+            dialogLayout::stepBanner(m_step.step.c_str());
         dialogLayout::section("Transformation matrix");
         ImGui::TextUnformatted("Enter three rows of integer coefficients.");
 

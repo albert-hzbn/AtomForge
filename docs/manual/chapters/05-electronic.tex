@@ -11,7 +11,7 @@ Choose \ui{Analysis > Electronic structure > Electronic Post-processing}. The le
 \end{enumerate}
 \ui{Clear} clears the electronic session state; save useful results first. \ui{Reload volume} rereads the source. The initial appearance estimates are based on values in the selected data, so two different files need not start with the same threshold.
 
-\uishot{electronic-volume.png}{45bp 67bp 360bp 63bp}{Actual AtomForge window with the supplied CHGCAR loaded. Charge-transfer tools are at the upper left. The 3D density threshold, transparency, 2D slice, and optional contour have independent controls. Transparency was reduced to approximately 0.24 for visibility in this screenshot.}
+\uishot{electronic-volume.png}{0bp 0bp 0bp 0bp}{Actual AtomForge window with the supplied CHGCAR loaded. Charge-transfer tools are at the upper left. The 3D density threshold, transparency, 2D slice, and optional contour have independent controls.}
 
 \section{VASP, Cube, and XSF conventions}
 \begin{longtable}{p{.20\linewidth}p{.71\linewidth}}
@@ -82,7 +82,7 @@ The normal must be finite and nonzero; its length does not set a thickness. For 
 
 Enable \ui{Show slice plane} in the 3D controls to show the same intersection as a translucent guide. Disable it for an unobstructed density view. Rotating the 3D camera helps verify the plane orientation; rotating the 2D image only changes its presentation. To specify a Miller-index plane in scripts, use \code{miller_section}, which converts the reciprocal normal explicitly.
 
-\uishot{electronic-arbitrary.png}{45bp 67bp 360bp 63bp}{An arbitrary section of the supplied CHGCAR with a fractional point and a Cartesian normal. The translucent guide locates the section in the 3D volume.}
+\uishot{electronic-arbitrary.png}{0bp 0bp 0bp 0bp}{An arbitrary section of the supplied CHGCAR with a fractional point and a Cartesian normal. The translucent guide locates the section in the 3D volume.}
 
 \section{Worked CHGCAR walkthrough}
 The documented file was supplied as \code{C:/Users/a.linda/Downloads/CHGCAR}. It is not copied into this repository. The first field has $80^3=512{,}000$ samples, 16 imported sites, periodic geometry, and unit \densityunit. Its cell vectors in \angstrom\ are

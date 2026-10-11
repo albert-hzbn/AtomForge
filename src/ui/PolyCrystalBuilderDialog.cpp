@@ -1,4 +1,6 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
+#include "ui/DialogLayout.h"
 #include "ui/PolyCrystalBuilderDialog.h"
 #include "algorithms/PolyCrystalBuilder.h"
 #include "util/PathUtils.h"
@@ -380,9 +382,7 @@ void PolyCrystalBuilderDialog::drawDialog(
     m_isOpen = true;
 
     if (m_step.active())
-        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f),
-                           "Editing pipeline step %s: Update step writes these settings into the pipeline.",
-                           m_step.step.c_str());
+        dialogLayout::stepBanner(m_step.step.c_str());
 
     if (responsive::button("Load reference##sourcePicker"))
         m_sourcePicker.open("Load reference", false, "");
@@ -539,8 +539,10 @@ void PolyCrystalBuilderDialog::drawDialog(
     const char* modeLabels[] = { "All Random", "All Specified", "Partial (specify some, rest random)" };
     int modeInt = (int)params.orientationMode;
     ImGui::SetNextItemWidth(responsive::dp(-1.0f));
+    uiScript::openCombo("poly.modes", "##polyOrientMode");
     if (ImGui::Combo("##polyOrientMode", &modeInt, modeLabels, 3))
         params.orientationMode = (GrainOrientationMode)modeInt;
+    if (uiScript::take("poly.scroll")) ImGui::ScrollToItem(ImGuiScrollFlags_AlwaysCenterY);
 
     ImGui::Spacing();
 
@@ -646,7 +648,7 @@ void PolyCrystalBuilderDialog::drawDialog(
     }
     else if (!lastResult.message.empty())
     {
-        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "%s", lastResult.message.c_str());
+        ImGui::TextColored(themeStatusError(), "%s", lastResult.message.c_str());
     }
     else
     {
@@ -678,7 +680,7 @@ void PolyCrystalBuilderDialog::drawDialog(
             ImGui::CloseCurrentPopup();
         }
     }
-    else if (responsive::button("Build##poly", responsive::size(100.0f,0.0f)))
+    else if (dialogLayout::primaryButton("Build##poly", responsive::size(100.0f,0.0f)))
     {
         lastResult = buildPolycrystal(structure, m_reference, params, elementColors);
         if (lastResult.success)

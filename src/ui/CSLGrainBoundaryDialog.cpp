@@ -1,4 +1,6 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/UiScript.h"
+#include "ui/DialogLayout.h"
 #include "ui/CSLGrainBoundaryDialog.h"
 #include "algorithms/CSLComputation.h"
 
@@ -407,14 +409,13 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
         m_isOpen = true;
     }
 
-    responsive::windowSize(ImVec2(1060.0f, 460.0f), ImGuiCond_FirstUseEver);
+    responsive::windowSize(ImVec2(1060.0f, 700.0f), ImGuiCond_FirstUseEver);
     responsive::windowConstraints(ImVec2(1060.0f, 340.0f), ImVec2(FLT_MAX, FLT_MAX));
     bool dialogOpen = true;
     if (responsive::beginModal("CSL Grain Boundary Builder", &dialogOpen, ImGuiWindowFlags_None))
     {
         if (m_step.active())
-            ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f),
-                               "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+            dialogLayout::stepBanner(m_step.step.c_str());
         if (responsive::button("Load reference##sourcePicker"))
             m_sourcePicker.open("Load reference", false, "");
         if (const auto path = m_sourcePicker.draw())
@@ -520,7 +521,7 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
             ImGui::InputInt("Max sigma", &sigmaMax);
             if (sigmaMax < 3) sigmaMax = 3;
             ImGui::SameLine();
-            if (responsive::button("Find"))
+            if (responsive::button("Find") || uiScript::take("csl.find"))
             {
                 sigmaCandidates = computeGBInfo(axis, sigmaMax);
                 sigmaSelection = 0;
@@ -661,7 +662,7 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
                 ImGui::CloseCurrentPopup();
             }
         }
-        else if (responsive::button("Build", ImVec2(buildW, 0.0f)))
+        else if (dialogLayout::primaryButton("Build", ImVec2(buildW, 0.0f)))
         {
             if (!inputStructure.hasUnitCell || inputStructure.atoms.empty())
             {
@@ -818,6 +819,7 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
             drawBuildResultSummary(lastResult);
         }
 
+        uiScript::scrollToBottom("csl.scroll");
         ImGui::EndChild(); // ##cslRight
 
         ImGui::EndPopup();

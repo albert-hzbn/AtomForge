@@ -11,6 +11,8 @@ struct TransformAtomsDialog
     void clearTransform();
 
     void drawMenuItem(bool hasUnitCell);
+    // Opens the dialog, as its menu item does.
+    void open() { m_step.finish(); showDialog = true; }
     void drawDialog(const std::function<void()>& onApply);
 
     // Opens the dialog on a pipeline step (supercell): filled from the step's

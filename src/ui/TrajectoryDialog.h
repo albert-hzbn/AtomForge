@@ -12,6 +12,9 @@
 struct TrajectoryDialog
 {
     void drawMenuItem();
+    // Opens the window, as its menu item does.
+    void hide() { open = false; }
+    void show() { open = true; }
     // showAtomProperty switches the view to atom-property colouring (per-frame analysis).
     void draw(Structure& structure, const std::function<void(Structure&)>& update,
               const std::function<void()>& showAtomProperty = {});

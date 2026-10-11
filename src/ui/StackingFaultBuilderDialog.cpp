@@ -1,4 +1,5 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/DialogLayout.h"
 #include "ui/StackingFaultBuilderDialog.h"
 
 #include "app/SceneView.h"
@@ -596,8 +597,7 @@ void StackingFaultBuilderDialog::drawDialog(
         ImGui::CloseCurrentPopup();
     };
     if (m_step.active())
-        ImGui::TextColored(ImVec4(0.45f, 0.75f, 1.0f, 1.0f),
-                           "Editing pipeline step %s: Update step writes these settings into the pipeline.", m_step.step.c_str());
+        dialogLayout::stepBanner(m_step.step.c_str());
 
     ImGui::TextDisabled("Load a crystal, identify whether it is FCC-like, HCP-like, or BCC-like, and build a sliding sequence across the detected stacking-fault family.");
     ImGui::Spacing();
@@ -757,7 +757,7 @@ void StackingFaultBuilderDialog::drawDialog(
         ImGui::DragFloat("Max Displacement", &m_params.maxDisplacementFactor, 0.05f, 0.10f, 4.0f, "%.2f");
 
         ImGui::Spacing();
-        if (responsive::button("Generate Sequence", responsive::size(-1.0f,0.0f)))
+        if (dialogLayout::primaryButton("Generate Sequence", responsive::size(-1.0f,0.0f)))
             regenerateSequence(elementRadii, elementShininess);
         // Without a sequence the step keeps its frame.
         if (m_step.active() && !(m_result.success && !m_result.sequence.empty()) &&

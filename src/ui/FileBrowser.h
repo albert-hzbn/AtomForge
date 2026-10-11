@@ -413,7 +413,30 @@ struct FileBrowser
     // Show a transient notification toast.
     void showNotification(const std::string& message, bool isError = false);
 
+    // The application shows a large dataset (atom cloud) in this tab.
+    void setLargeDatasetShown(bool shown) { largeDatasetShown = shown; }
+
 private:
+    // Main-window chrome (MainWindowChrome.cpp).
+    void drawToolbar(const Structure& structure, bool canUndo, bool canRedo);
+    void drawStatusBar(const Structure& structure);
+    void drawWelcome(const Structure& structure);
+    std::vector<std::string> recentFiles();
+    // UI tour (UiTour.cpp): ATOMFORGE_UI_TOUR=FOLDER screenshots the main window,
+    // its menus and dialogs, then quits.
+    void runUiTour(Structure& structure, EditMenuDialogs& editMenuDialogs, const std::function<void(Structure&)>& updateBuffers);
+    void forceTourMenu(const char* menu);
+    void forceTourSubmenu(const char* menu);
+    const char* tourSubmenu = nullptr;
+    const char* tourMenu = nullptr;
+    struct UiTour;
+    std::shared_ptr<UiTour> uiTour;
+    // Tutorial capture (TutorialCapture.cpp): ATOMFORGE_TUTORIAL_CAPTURE=FOLDER
+    // recaptures the manual's tutorial screenshots, then quits.
+    void runTutorialCapture(Structure& structure, EditMenuDialogs& editMenuDialogs, const std::function<void(Structure&)>& updateBuffers);
+    struct TutorialCapture;
+    std::shared_ptr<TutorialCapture> tutorialCapture;
+    bool largeDatasetShown = false;
     // Opens the Build, Edit or Analysis dialog of a pipeline step on that step.
     void openStepDialog(StepEdit request, EditMenuDialogs& editMenuDialogs);
     // ATOMFORGE_STEP_DIALOG_CHECK=REPORT: opens every pipeline step in its dialog in

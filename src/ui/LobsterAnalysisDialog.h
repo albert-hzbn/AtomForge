@@ -14,6 +14,9 @@
 struct LobsterAnalysisDialog
 {
     void drawMenuItem();
+    // Opens the window, as its menu item does.
+    void close() { m_open = false; }
+    void open() { m_openRequested = true; }
     void drawDialog();
 
 private:

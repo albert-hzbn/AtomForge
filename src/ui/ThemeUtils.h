@@ -17,6 +17,13 @@ inline ImVec4 themeStatusGood()
                           : ImVec4(0.22f, 0.90f, 0.35f, 1.0f);
 }
 
+// Red: errors and failures
+inline ImVec4 themeStatusError()
+{
+    return isLightTheme() ? ImVec4(0.75f, 0.15f, 0.15f, 1.0f)
+                          : ImVec4(1.00f, 0.45f, 0.42f, 1.0f);
+}
+
 // Amber/orange: warning / in-progress hint
 inline ImVec4 themeStatusWarn()
 {

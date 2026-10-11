@@ -3,6 +3,7 @@
 // running live in ScientificToolsDialog.cpp.
 #include "ui/ScientificToolsDialog.h"
 #include "science/ScienceData.h"
+#include "ui/DialogLayout.h"
 #include "ui/ResponsiveLayout.h"
 #include "ui/SciencePlot.h"
 #include "imgui.h"
@@ -234,7 +235,7 @@ void ScientificToolsDialog::drawStatus()
 bool ScientificToolsDialog::drawRunButton(const char* label, const Structure& structure, float width)
 {
     ImGui::BeginDisabled(m_task.running());
-    const bool pressed = responsive::button(m_step.active() ? "Update step" : label, ImVec2(width, responsive::dp(34)));
+    const bool pressed = dialogLayout::primaryButton(m_step.active() ? "Update step" : label, ImVec2(width, responsive::dp(34)));
     ImGui::EndDisabled();
     if (!pressed) return false;
     if (!m_step.active()) { startCalculation(structure); return true; }
@@ -444,7 +445,7 @@ void ScientificToolsDialog::drawPlotLayout(const Structure& structure, const std
     if (!stack) ImGui::SameLine();
     responsive::beginChild("Plot area", ImVec2(0, stack ? 0 : height), false);
     if (m_result.output.empty()) {
-        ImGui::TextDisabled(m_task.running() ? "Calculating..." : "Results appear here.");
+        dialogLayout::emptyState(m_task.running() ? "Calculating..." : "Results appear here after you run the tool.");
     } else {
         const float plotHeight = m_result.plots.empty() ? 0.0f :
             std::max(responsive::dp(240), ImGui::GetContentRegionAvail().y * 0.62f);
@@ -501,7 +502,7 @@ void ScientificToolsDialog::drawPropertiesLayout(const Structure& structure, con
     if (!stack) ImGui::SameLine();
     responsive::beginChild("Property values", ImVec2(0, stack ? 0 : height), true);
     if (m_result.output.empty()) {
-        ImGui::TextDisabled(m_task.running() ? "Calculating..." : "Computed properties appear here.");
+        dialogLayout::emptyState(m_task.running() ? "Calculating..." : "Computed properties appear here after you run the tool.");
         ImGui::EndChild();
         return;
     }

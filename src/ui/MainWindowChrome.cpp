@@ -1,0 +1,299 @@
+// The main window around the 3D view: the toolbar under the menu bar, the
+// status bar at the bottom and the welcome screen shown when nothing is open.
+#include "FileBrowser.h"
+
+#include "ImGuiSetup.h"
+#include "ui/DialogLayout.h"
+#include "ui/Fonts.h"
+#include "ui/ResponsiveLayout.h"
+
+#include "imgui.h"
+#include "imgui_internal.h"
+
+#include <algorithm>
+#include <cfloat>
+#include <cmath>
+#include <cstdio>
+#include <string>
+
+namespace
+{
+// A toolbar button: icon and/or text, with a tooltip.
+bool toolButton(const char* icon, const char* text, const char* tooltip, bool enabled = true, bool iconOnly = false)
+{
+    char label[128];
+    if (uiFonts::icons && icon) std::snprintf(label, sizeof(label), iconOnly ? "%s##%s" : "%s  %s", icon, text);
+    else std::snprintf(label, sizeof(label), "%s", text);
+    ImGui::BeginDisabled(!enabled);
+    const bool pressed = ImGui::Button(label);
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_DelayShort)) ImGui::SetTooltip("%s", tooltip);
+    return pressed;
+}
+
+// A muted caption before a group of toolbar controls.
+void groupCaption(const char* text)
+{
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%s", text);
+    ImGui::SameLine();
+}
+
+// Starts the next toolbar group on this row when it fits, else on a new row,
+// with a thin vertical rule between groups on the same row.
+void nextGroup(float width)
+{
+    ImGui::SameLine();
+    if (ImGui::GetContentRegionAvail().x < width) { ImGui::NewLine(); return; }
+    const ImVec2 p = ImGui::GetCursorScreenPos();
+    const float h = ImGui::GetFrameHeight();
+    ImGui::GetWindowDrawList()->AddLine(ImVec2(p.x + responsive::dp(2), p.y + h * 0.18f), ImVec2(p.x + responsive::dp(2), p.y + h * 0.82f),
+                                        ImGui::GetColorU32(ImGuiCol_Separator), 1.0f);
+    ImGui::Dummy(ImVec2(responsive::dp(5), h));
+    ImGui::SameLine();
+}
+
+const char* colourModeName(AtomColorMode mode)
+{
+    switch (mode) {
+    case AtomColorMode::CrystalOrientation: return "Crystal orientation";
+    case AtomColorMode::GrainBoundary: return "Grain boundaries";
+    case AtomColorMode::AtomProperty: return "Atom property";
+    case AtomColorMode::ElementType: default: return "Element";
+    }
+}
+
+std::string fileNameOf(const std::string& path)
+{
+    const auto slash = path.find_last_of("/\\");
+    return slash == std::string::npos ? path : path.substr(slash + 1);
+}
+}
+
+void FileBrowser::drawToolbar(const Structure& structure, bool canUndo, bool canRedo)
+{
+    const float width = ImGui::GetIO().DisplaySize.x;
+    ImGui::SetNextWindowPos(ImVec2(0.0f, ImGui::GetFrameHeight()), ImGuiCond_Always);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(width, 0), ImVec2(width, FLT_MAX));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, responsive::size(10, 6));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg));
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
+                                   ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar |
+                                   ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus;
+    if (ImGui::Begin("##ViewToolbar", nullptr, flags)) {
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, responsive::size(5, 5));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, responsive::size(9, 4));
+        const bool hasAtoms = !structure.atoms.empty();
+        const bool hasCell = structure.hasUnitCell && hasAtoms;
+        const float unit = ImGui::GetFrameHeight();
+
+        if (toolButton(Icon::Open, "Open", "Open a structure file (Ctrl+O)")) openStructurePopup = true;
+        ImGui::SameLine();
+        if (toolButton(Icon::Save, "Save", "Save the structure (Ctrl+S)", hasAtoms)) requestSaveFile = true;
+
+        nextGroup(unit * 4);
+        if (toolButton(Icon::Undo, "Undo", "Undo (Ctrl+Z)", canUndo, true)) requestUndo = true;
+        ImGui::SameLine();
+        if (toolButton(Icon::Redo, "Redo", "Redo (Ctrl+Y)", canRedo, true)) requestRedo = true;
+
+        nextGroup(unit * 9.5f);
+        groupCaption("View");
+        if (toolButton(nullptr, "X##axis", "Look along x")) requestViewAxisX = true;
+        ImGui::SameLine();
+        if (toolButton(nullptr, "Y##axis", "Look along y")) requestViewAxisY = true;
+        ImGui::SameLine();
+        if (toolButton(nullptr, "Z##axis", "Look along z")) requestViewAxisZ = true;
+        ImGui::SameLine(0, responsive::dp(9));
+        if (toolButton(nullptr, "a##latview", "Look along the lattice vector a", hasCell)) requestViewLatticeA = true;
+        ImGui::SameLine();
+        if (toolButton(nullptr, "b##latview", "Look along the lattice vector b", hasCell)) requestViewLatticeB = true;
+        ImGui::SameLine();
+        if (toolButton(nullptr, "c##latview", "Look along the lattice vector c", hasCell)) requestViewLatticeC = true;
+        ImGui::SameLine(0, responsive::dp(9));
+        if (toolButton(Icon::Home, "Reset", "Reset the view (R)", true, true)) requestResetDefaultView = true;
+
+        nextGroup(unit * 8);
+        groupCaption("Rotate");
+        ImGui::SetNextItemWidth(responsive::dp(62));
+        ImGui::DragFloat("##rotangle", &rotateCrystalAngle, 1.0f, -360.0f, 360.0f, "%.1f\xc2\xb0");
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) ImGui::SetTooltip("Rotation angle (degrees); drag or double-click to type");
+        ImGui::SameLine();
+        if (toolButton(nullptr, "X##rot", "Rotate the crystal about x", hasAtoms)) requestRotateCrystalX = true;
+        ImGui::SameLine();
+        if (toolButton(nullptr, "Y##rot", "Rotate the crystal about y", hasAtoms)) requestRotateCrystalY = true;
+        ImGui::SameLine();
+        if (toolButton(nullptr, "Z##rot", "Rotate the crystal about z", hasAtoms)) requestRotateCrystalZ = true;
+
+        nextGroup(unit * 8);
+        groupCaption("Measure");
+        if (toolButton(Icon::Ruler, "Distance##measure", "Measure the distance between two atoms (pick them in the view)", hasAtoms)) requestMeasureDistance = true;
+        ImGui::SameLine();
+        if (toolButton(nullptr, "Angle##measure", "Measure the angle between three atoms (pick them in the view)", hasAtoms)) requestMeasureAngle = true;
+
+        // Right-aligned: the structure pipeline, the projection and the theme.
+        const char* pipelineLabel = "Pipeline";
+        const char* projectionLabel = viewMode == ViewMode::Orthographic ? "Orthographic" : "Perspective";
+        const float rightWidth = ImGui::CalcTextSize(pipelineLabel).x + ImGui::CalcTextSize("Orthographic").x + ImGui::CalcTextSize("Light theme").x
+                                 + 6 * ImGui::GetStyle().FramePadding.x + 3 * ImGui::GetStyle().ItemSpacing.x + (uiFonts::icons ? unit * 1.2f : 0.0f);
+        ImGui::SameLine();
+        const float space = ImGui::GetContentRegionAvail().x - rightWidth;
+        if (space > 0) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + space);
+        else ImGui::NewLine();
+        if (toolButton(Icon::Pipeline, pipelineLabel, "Edit > Structure pipeline: non-destructive editing steps", hasAtoms || pipelineDialog.isActive()))
+            pipelineDialog.show();
+        ImGui::SameLine();
+        if (toolButton(nullptr, projectionLabel, "Switch between perspective and orthographic projection")) {
+            viewMode = viewMode == ViewMode::Orthographic ? ViewMode::Isometric : ViewMode::Orthographic;
+            requestResetDefaultView = true;
+        }
+        ImGui::SameLine();
+        if (toolButton(nullptr, useLightTheme ? "Dark theme" : "Light theme", "Switch the colour theme")) {
+            useLightTheme = !useLightTheme;
+            if (useLightTheme) applyLightTheme(); else applyDarkTheme();
+        }
+        ImGui::PopStyleVar(2);
+    }
+    ImGui::End();
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(3);
+}
+
+void FileBrowser::drawStatusBar(const Structure& structure)
+{
+    const ImGuiIO& io = ImGui::GetIO();
+    const float height = ImGui::GetFrameHeight() + responsive::dp(4);
+    ImGui::SetNextWindowPos(ImVec2(0.0f, io.DisplaySize.y - height), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, height), ImGuiCond_Always);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, responsive::size(12, 2));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, responsive::size(6, 0));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg));
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
+                                   ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
+                                   ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+    if (ImGui::Begin("##StatusBar", nullptr, flags)) {
+        // A rule along the top edge.
+        const ImVec2 p = ImGui::GetWindowPos();
+        ImGui::GetWindowDrawList()->AddLine(p, ImVec2(p.x + ImGui::GetWindowWidth(), p.y), ImGui::GetColorU32(ImGuiCol_Separator), 1.0f);
+        // Fields separated by bullets.
+        bool first = true;
+        const auto field = [&first](const char* text, ImVec4 colour) {
+            if (!first) { ImGui::SameLine(); ImGui::TextDisabled("\xe2\x80\xa2"); ImGui::SameLine(); }
+            first = false;
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextColored(colour, "%s", text);
+        };
+        const ImVec4 normal = ImGui::GetStyleColorVec4(ImGuiCol_Text), muted = ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
+        char text[256];
+        if (largeDatasetShown) field("Large dataset (view only)", normal);
+        else if (structure.atoms.empty()) field("No structure open", muted);
+        else {
+            const std::string name = currentStructurePath.empty() ? std::string("Untitled") : fileNameOf(currentStructurePath);
+            field(name.c_str(), normal);
+            std::snprintf(text, sizeof(text), "%zu atoms", structure.atoms.size());
+            field(text, muted);
+            if (!viewSelectionAtoms.empty()) {
+                std::snprintf(text, sizeof(text), "%zu selected", viewSelectionAtoms.size());
+                field(text, dialogLayout::accent());
+            }
+            if (structure.hasUnitCell) {
+                double length[3];
+                for (int r = 0; r < 3; ++r)
+                    length[r] = std::sqrt(structure.cellVectors[r][0] * structure.cellVectors[r][0] + structure.cellVectors[r][1] * structure.cellVectors[r][1] +
+                                          structure.cellVectors[r][2] * structure.cellVectors[r][2]);
+                std::snprintf(text, sizeof(text), "Cell %.3f \xc3\x97 %.3f \xc3\x97 %.3f \xc3\x85", length[0], length[1], length[2]);
+                field(text, muted);
+            } else field("No periodic cell", muted);
+        }
+        ImGui::SameLine();
+        // Right side: projection and colouring.
+        std::snprintf(text, sizeof(text), "%s   \xe2\x80\xa2   Colour: %s", viewMode == ViewMode::Orthographic ? "Orthographic" : "Perspective", colourModeName(atomColorMode));
+        const float right = ImGui::CalcTextSize(text).x;
+        ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowWidth() - right - responsive::dp(12)));
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%s", text);
+    }
+    ImGui::End();
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(4);
+}
+
+void FileBrowser::drawWelcome(const Structure& structure)
+{
+    if (!structure.atoms.empty() || largeDatasetShown) return;
+    const ImGuiIO& io = ImGui::GetIO();
+    const float width = std::min(responsive::dp(560), io.DisplaySize.x - responsive::dp(40));
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.52f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSizeConstraints(ImVec2(width, 0), ImVec2(width, io.DisplaySize.y * 0.8f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, responsive::size(28, 24));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, responsive::dp(12));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetStyleColorVec4(ImGuiCol_ChildBg));
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
+                                   ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
+                                   ImGuiWindowFlags_NoFocusOnAppearing;
+    if (ImGui::Begin("##Welcome", nullptr, flags)) {
+        uiFonts::pushHeading(1.9f);
+        ImGui::TextUnformatted("AtomForge");
+        uiFonts::popHeading();
+        ImGui::SameLine();
+        ImGui::AlignTextToFramePadding();
+#ifdef ATOMFORGE_VERSION
+        ImGui::TextDisabled("Version %s", ATOMFORGE_VERSION);
+#endif
+        ImGui::TextDisabled("Build, edit, analyse and render atomic structures.");
+        ImGui::Spacing();
+        ImGui::Spacing();
+
+        const float half = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+        const ImVec2 big(half, ImGui::GetFrameHeight() * 1.6f);
+        char label[96];
+        if (dialogLayout::primaryButton(uiFonts::withIcon(Icon::Open, "Open a structure", label, sizeof(label)), big)) openStructurePopup = true;
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) ImGui::SetTooltip("CIF, POSCAR, XYZ, PDB, LAMMPS and more (Ctrl+O)");
+        ImGui::SameLine();
+        if (dialogLayout::secondaryButton(uiFonts::withIcon(Icon::Cube, "Build a crystal", label, sizeof(label)), big)) bulkCrystalDialog.open();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) ImGui::SetTooltip("Build > Bulk Crystal: a crystal from its space group and lattice");
+        if (dialogLayout::secondaryButton(uiFonts::withIcon(Icon::Folder, "Open a project", label, sizeof(label)), big)) {
+            projectAction = 1;
+            projectPicker.open("Open AtomForge project", false, "project.afproject");
+        }
+        ImGui::SameLine();
+        if (dialogLayout::secondaryButton(uiFonts::withIcon(Icon::Help, "Read the manual", label, sizeof(label)), big)) showManual = true;
+
+        const auto recent = recentFiles();
+        if (!recent.empty()) {
+            dialogLayout::section("Recent files");
+            int shown = 0;
+            for (const std::string& path : recent) {
+                if (++shown > 6) break;
+                ImGui::PushID(path.c_str());
+                const std::string name = fileNameOf(path);
+                if (ImGui::Selectable(name.c_str(), false, ImGuiSelectableFlags_None, ImVec2(0, ImGui::GetFrameHeight()))) {
+                    pendingOpenPath = path;
+                    openStatusMsg[0] = '\0';
+                }
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) ImGui::SetTooltip("%s", path.c_str());
+                // The folder, shortened from the left to fit.
+                const float column = ImGui::GetContentRegionAvail().x * 0.42f;
+                ImGui::SameLine(column);
+                const float room = ImGui::GetContentRegionAvail().x;
+                std::string folderText = path.substr(0, path.size() - name.size());
+                if (ImGui::CalcTextSize(folderText.c_str()).x > room) {
+                    while (folderText.size() > 4 && ImGui::CalcTextSize(("\xe2\x80\xa6" + folderText).c_str()).x > room) folderText.erase(0, 1);
+                    folderText = "\xe2\x80\xa6" + folderText;
+                }
+                ImGui::AlignTextToFramePadding();
+                ImGui::TextDisabled("%s", folderText.c_str());
+                ImGui::PopID();
+            }
+        }
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::TextDisabled("Drop structure files here. Dumps of billions of atoms open with the large-data viewer.");
+    }
+    ImGui::End();
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(2);
+}
