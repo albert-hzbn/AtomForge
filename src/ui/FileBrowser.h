@@ -415,6 +415,8 @@ struct FileBrowser
 
     // The application shows a large dataset (atom cloud) in this tab.
     void setLargeDatasetShown(bool shown) { largeDatasetShown = shown; }
+    // What Undo and Redo would change, for their menu items and tooltips.
+    void setUndoDescriptions(std::string undo, std::string redo) { undoDescription = std::move(undo); redoDescription = std::move(redo); }
 
 private:
     // Main-window chrome (MainWindowChrome.cpp).
@@ -449,6 +451,7 @@ private:
     struct TutorialCapture;
     std::shared_ptr<TutorialCapture> tutorialCapture;
     bool largeDatasetShown = false;
+    std::string undoDescription, redoDescription;
     // Opens the Build, Edit or Analysis dialog of a pipeline step on that step.
     void openStepDialog(StepEdit request, EditMenuDialogs& editMenuDialogs);
     // ATOMFORGE_STEP_DIALOG_CHECK=REPORT: opens every pipeline step in its dialog in

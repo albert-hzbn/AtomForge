@@ -567,9 +567,11 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
     forceTourMenu("Edit");
     if (ImGui::BeginMenu("Edit"))
     {
-        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndo))
+        const std::string undoLabel = (undoDescription.empty() ? std::string("Undo") : "Undo " + undoDescription) + "###undo";
+        const std::string redoLabel = (redoDescription.empty() ? std::string("Redo") : "Redo " + redoDescription) + "###redo";
+        if (ImGui::MenuItem(undoLabel.c_str(), "Ctrl+Z", false, canUndo))
             requestUndo = true;
-        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedo))
+        if (ImGui::MenuItem(redoLabel.c_str(), "Ctrl+Y", false, canRedo))
             requestRedo = true;
         ImGui::Separator();
         if (ImGui::MenuItem("Box Select Mode", nullptr, &boxSelectMode) && boxSelectMode)

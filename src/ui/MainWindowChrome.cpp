@@ -95,9 +95,11 @@ void FileBrowser::drawToolbar(const Structure& structure, bool canUndo, bool can
         if (toolButton(Icon::Save, "Save", "Save the structure (Ctrl+S)", hasAtoms)) requestSaveFile = true;
 
         nextGroup(unit * 4);
-        if (toolButton(Icon::Undo, "Undo", "Undo (Ctrl+Z)", canUndo, true)) requestUndo = true;
+        const std::string undoTip = (undoDescription.empty() ? std::string("Undo") : "Undo " + undoDescription) + " (Ctrl+Z)";
+        const std::string redoTip = (redoDescription.empty() ? std::string("Redo") : "Redo " + redoDescription) + " (Ctrl+Y)";
+        if (toolButton(Icon::Undo, "Undo", undoTip.c_str(), canUndo, true)) requestUndo = true;
         ImGui::SameLine();
-        if (toolButton(Icon::Redo, "Redo", "Redo (Ctrl+Y)", canRedo, true)) requestRedo = true;
+        if (toolButton(Icon::Redo, "Redo", redoTip.c_str(), canRedo, true)) requestRedo = true;
 
         nextGroup(unit * 9.5f);
         groupCaption("View");

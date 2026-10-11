@@ -1140,6 +1140,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             state.fileBrowser.setViewSelection(std::move(atoms));
         }
         state.fileBrowser.setLargeDatasetShown(state.hasCloud());
+        state.fileBrowser.setUndoDescriptions(state.undoRedo.undoDescription(), state.undoRedo.redoDescription());
         state.fileBrowser.draw(
             state.structure,
             state.editMenuDialogs,

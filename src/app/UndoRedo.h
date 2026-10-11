@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <string>
 #include <vector>
 
 struct EditorSnapshot
@@ -59,6 +60,30 @@ inline bool operator==(const EditorSnapshot& lhs, const EditorSnapshot& rhs)
     return true;
 }
 
+// What changed from `before` to `after`, as a short phrase for the Undo and
+// Redo commands ("delete 3 atoms").
+inline std::string describeChange(const EditorSnapshot& before, const EditorSnapshot& after)
+{
+    const std::size_t a = before.structure.atoms.size(), b = after.structure.atoms.size();
+    const auto atoms = [](std::size_t n) { return std::to_string(n) + (n == 1 ? " atom" : " atoms"); };
+    if (a == 0 && b > 0) return "load the structure";
+    if (b > a) return "add " + atoms(b - a);
+    if (b < a) return "delete " + atoms(a - b);
+    std::size_t moved = 0, changed = 0;
+    for (std::size_t i = 0; i < a; ++i) {
+        const AtomSite& p = before.structure.atoms[i];
+        const AtomSite& q = after.structure.atoms[i];
+        if (p.x != q.x || p.y != q.y || p.z != q.z) ++moved;
+        if (p.symbol != q.symbol || p.atomicNumber != q.atomicNumber) ++changed;
+    }
+    const bool cell = before.structure.hasUnitCell != after.structure.hasUnitCell ||
+                      before.structure.cellVectors != after.structure.cellVectors;
+    if (cell) return "change the cell";
+    if (changed) return "change the element of " + atoms(changed);
+    if (moved) return "move " + atoms(moved);
+    return "change display settings";
+}
+
 class UndoRedoManager
 {
 public:
@@ -68,6 +93,7 @@ public:
         m_history.resize(1);
         m_history[0] = initialSnapshot;
         m_ids.assign(1, ++m_nextId);
+        m_descriptions.assign(1, std::string());
         m_index = 0;
     }
 
@@ -85,18 +111,30 @@ public:
             return;
         }
 
+        // Nothing changed (e.g. a view update): no step to undo, and the
+        // document stays as saved.
+        if (m_history[m_index] == snapshot)
+            return;
+
         if (m_index + 1 < m_history.size())
         {
             m_history.erase(m_history.begin() + (std::ptrdiff_t)m_index + 1, m_history.end());
             m_ids.erase(m_ids.begin() + (std::ptrdiff_t)m_index + 1, m_ids.end());
+            m_descriptions.erase(m_descriptions.begin() + (std::ptrdiff_t)m_index + 1, m_descriptions.end());
         }
 
+        // Display-only changes (colours, radii) are undoable but keep the id:
+        // they are not saved in structure files, so the document is unchanged.
+        const std::string description = describeChange(m_history.back(), snapshot);
+        const bool displayOnly = description == "change display settings";
+        m_descriptions.push_back(description);
         m_history.push_back(snapshot);
-        m_ids.push_back(++m_nextId);
+        m_ids.push_back(displayOnly ? m_ids.back() : ++m_nextId);
         if (m_history.size() > kMaxEntries)
         {
             m_history.erase(m_history.begin());
             m_ids.erase(m_ids.begin());
+            m_descriptions.erase(m_descriptions.begin());
         }
         else
         {
@@ -110,6 +148,9 @@ public:
     bool canUndo() const { return !m_history.empty() && m_index > 0; }
     // Identifies the current state: unchanged by undo/redo back to it, so a
     // document is unmodified while this equals the id recorded when saved.
+    // What Undo and Redo would change ("" when unavailable).
+    std::string undoDescription() const { return canUndo() && m_index < m_descriptions.size() ? m_descriptions[m_index] : std::string(); }
+    std::string redoDescription() const { return canRedo() && m_index + 1 < m_descriptions.size() ? m_descriptions[m_index + 1] : std::string(); }
     std::uint64_t currentId() const { return m_ids.empty() ? 0 : m_ids[std::min(m_index, m_ids.size() - 1)]; }
     bool canRedo() const { return !m_history.empty() && m_index + 1 < m_history.size(); }
 
@@ -132,6 +173,7 @@ private:
 
     std::vector<EditorSnapshot> m_history;
     std::vector<std::uint64_t> m_ids;  // one per history entry
+    std::vector<std::string> m_descriptions;  // the change into each entry
     std::uint64_t m_nextId = 0;
     size_t m_index = 0;
 };
