@@ -86,6 +86,7 @@ set(ATOMFORGE_SOURCES
     src/ui/MainWindowChrome.cpp
     src/ui/UiTour.cpp
     src/ui/TutorialCapture.cpp
+    src/ui/CommandPalette.cpp
     src/ui/StepDialogCheck.cpp
     src/cli/ScienceCLI.cpp
     src/app/EditorApplication.cpp

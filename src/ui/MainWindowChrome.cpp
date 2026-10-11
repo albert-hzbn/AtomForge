@@ -343,7 +343,8 @@ void FileBrowser::drawShortcuts()
                    {"Right drag", "Pan (when no box or lasso selection is active)"},
                    {"Wheel", "Zoom"},
                    {"R", "Reset the view"},
-                   {"F1", "This list"}});
+                   {"F1", "This list"},
+                   {"Ctrl+K", "Find any command by name"}});
     ImGui::Spacing();
     if (dialogLayout::footer("Close", nullptr) == 1) ImGui::CloseCurrentPopup();
     ImGui::EndPopup();

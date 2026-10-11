@@ -237,7 +237,7 @@ void drawUnsavedChangesPrompts(GLFWwindow* window, std::vector<std::unique_ptr<S
         else --tab->closeAfterSaveFrames;
     }
 
-    if (uiScript::take("app.quit")) g_userCloseRequested = true;  // the UI tour's stand-in for the close button
+    if (uiScript::take("app.quit") || tabs[activeTabIdx]->state.fileBrowser.consumeQuitRequest()) g_userCloseRequested = true;  // the UI tour's stand-in for the close button
     if (g_userCloseRequested) {
         g_userCloseRequested = false;
         bool modified = false;

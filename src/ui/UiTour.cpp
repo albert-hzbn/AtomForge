@@ -137,6 +137,11 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         t.steps.push_back({"about", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showAbout = true; }});
         t.steps.push_back({"unsaved-close", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { closeStructure(); }});
         t.steps.push_back({"unsaved-quit", [](Structure&, EditMenuDialogs&, const UiTour::Update&) { uiScript::request("app.quit"); }});
+        t.steps.push_back({"command-palette", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showCommandPalette = true; }});
+        t.steps.push_back({"command-palette-search", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            showCommandPalette = true;
+            uiScript::request("palette.query");
+        }});
         t.steps.push_back({"shortcuts", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showShortcuts = true; }});
         t.steps.push_back({"notifications", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
             showNotification("Saved cu_host.cif (500 atoms).");

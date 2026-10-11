@@ -3,7 +3,7 @@
   "files": [
     {
       "source": "CMakeLists.txt",
-      "sha256": "551d2c101ec215e2689209d281647c0addc940e170320aa7c4d068d026b54da2",
+      "sha256": "ed41f8386dfa8676d05984052d868618405f7500537ad526bca819bd0d344016",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -730,7 +730,7 @@
     },
     {
       "source": "src/app/EditorApplication.cpp",
-      "sha256": "bd609bcb8fafa491f31b30841c9d87171e94023afddc9364b2b50e0cb9c7cdc9",
+      "sha256": "660112409e47459778370e3d3528597281ac9c40beaea7de31e8acc9530f4a0c",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -1829,6 +1829,22 @@
         "04-display-controls.tex"
       ],
       "literal_controls": []
+    },
+    {
+      "source": "src/ui/CommandPalette.cpp",
+      "sha256": "6caa33f01b0f1d7cf3b5fa45f482faeaff0cae9054f496834d04a27c3946d0d7",
+      "documentation": [
+        "01-start.tex",
+        "04-analysis.tex",
+        "04-display-controls.tex",
+        "09-installation.tex"
+      ],
+      "literal_controls": [
+        {
+          "line": 188,
+          "declaration_label": "##query"
+        }
+      ]
     },
     {
       "source": "src/ui/CommonNeighbourAnalysis.cpp",
@@ -2937,7 +2953,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "1fb0507d4cc161bd9ad4d8335fe4365200fda073c7d5194f074559de88dd71d3",
+      "sha256": "f254188a5a13aaf5cf04e3e1c768ff23a2565b964cfee9cf626f600eb60b3102",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3155,325 +3171,329 @@
         },
         {
           "line": 797,
-          "declaration_label": "Keyboard Shortcuts"
+          "declaration_label": "Find a Command"
         },
         {
           "line": 800,
+          "declaration_label": "Keyboard Shortcuts"
+        },
+        {
+          "line": 803,
           "declaration_label": "About"
         },
         {
-          "line": 832,
+          "line": 835,
           "declaration_label": "\\xe2\\x86\\x90##openBack"
         },
         {
-          "line": 840,
+          "line": 843,
           "declaration_label": "\\xe2\\x86\\x92##openFwd"
         },
         {
-          "line": 848,
+          "line": 851,
           "declaration_label": "\\xe2\\x86\\x91##openUp"
         },
         {
-          "line": 857,
+          "line": 860,
           "declaration_label": "##openPathBar"
         },
         {
-          "line": 952,
+          "line": 955,
           "declaration_label": "##openFilename"
         },
         {
-          "line": 1053,
+          "line": 1056,
           "declaration_label": "\\xe2\\x86\\x90##saveBack"
         },
         {
-          "line": 1060,
+          "line": 1063,
           "declaration_label": "\\xe2\\x86\\x92##saveFwd"
         },
         {
-          "line": 1067,
+          "line": 1070,
           "declaration_label": "\\xe2\\x86\\x91##saveUp"
         },
         {
-          "line": 1073,
+          "line": 1076,
           "declaration_label": "##savePathBar"
         },
         {
-          "line": 1156,
+          "line": 1159,
           "declaration_label": "##saveFilename"
         },
         {
-          "line": 1162,
+          "line": 1165,
           "declaration_label": "##saveFormat"
         },
         {
-          "line": 1278,
+          "line": 1281,
           "declaration_label": "\\xe2\\x86\\x90##exportBack"
         },
         {
-          "line": 1285,
+          "line": 1288,
           "declaration_label": "\\xe2\\x86\\x92##exportFwd"
         },
         {
-          "line": 1292,
+          "line": 1295,
           "declaration_label": "\\xe2\\x86\\x91##exportUp"
         },
         {
-          "line": 1297,
+          "line": 1300,
           "declaration_label": "##exportPathBar"
         },
         {
-          "line": 1382,
+          "line": 1385,
           "declaration_label": "##exportFilename"
         },
         {
-          "line": 1386,
+          "line": 1389,
           "declaration_label": "##exportFormat"
         },
         {
-          "line": 1399,
+          "line": 1402,
           "declaration_label": "Include background"
         },
         {
-          "line": 1402,
+          "line": 1405,
           "declaration_label": "Include orientation gizmo"
         },
         {
-          "line": 1406,
+          "line": 1409,
           "declaration_label": "##exportScale"
         },
         {
-          "line": 1589,
+          "line": 1592,
           "declaration_label": "OK"
         },
         {
-          "line": 1613,
+          "line": 1616,
           "declaration_label": "Close"
         },
         {
-          "line": 1619,
+          "line": 1622,
           "declaration_label": "Show lattice planes"
         },
         {
-          "line": 1625,
+          "line": 1628,
           "declaration_label": "H##plane"
         },
         {
-          "line": 1628,
+          "line": 1631,
           "declaration_label": "K##plane"
         },
         {
-          "line": 1631,
+          "line": 1634,
           "declaration_label": "L##plane"
         },
         {
-          "line": 1634,
+          "line": 1637,
           "declaration_label": "Offset n##plane"
         },
         {
-          "line": 1636,
+          "line": 1639,
           "declaration_label": "Opacity##plane"
         },
         {
-          "line": 1638,
+          "line": 1641,
           "declaration_label": "Color##plane"
         },
         {
-          "line": 1645,
+          "line": 1648,
           "declaration_label": "Add Plane"
         },
         {
-          "line": 1678,
+          "line": 1681,
           "declaration_label": "##visible"
         },
         {
-          "line": 1683,
+          "line": 1686,
           "declaration_label": "H##plane-h"
         },
         {
-          "line": 1686,
+          "line": 1689,
           "declaration_label": "K##plane-k"
         },
         {
-          "line": 1689,
+          "line": 1692,
           "declaration_label": "L##plane-l"
         },
         {
-          "line": 1692,
+          "line": 1695,
           "declaration_label": "n##plane-offset"
         },
         {
-          "line": 1695,
+          "line": 1698,
           "declaration_label": "a##plane-opacity"
         },
         {
-          "line": 1701,
+          "line": 1704,
           "declaration_label": "##plane-color"
         },
         {
-          "line": 1709,
+          "line": 1712,
           "declaration_label": "Delete"
         },
         {
-          "line": 1724,
+          "line": 1727,
           "declaration_label": "Close"
         },
         {
-          "line": 1746,
+          "line": 1749,
           "declaration_label": "Close"
         },
         {
-          "line": 1752,
+          "line": 1755,
           "declaration_label": "Show Miller directions"
         },
         {
-          "line": 1758,
+          "line": 1761,
           "declaration_label": "U##dir"
         },
         {
-          "line": 1761,
+          "line": 1764,
           "declaration_label": "V##dir"
         },
         {
-          "line": 1764,
+          "line": 1767,
           "declaration_label": "W##dir"
         },
         {
-          "line": 1767,
+          "line": 1770,
           "declaration_label": "Length (A)##dir"
         },
         {
-          "line": 1769,
+          "line": 1772,
           "declaration_label": "Color##dir"
         },
         {
-          "line": 1776,
+          "line": 1779,
           "declaration_label": "Add Direction"
         },
         {
-          "line": 1804,
+          "line": 1807,
           "declaration_label": "##vis"
         },
         {
-          "line": 1809,
+          "line": 1812,
           "declaration_label": "U##du"
         },
         {
-          "line": 1812,
+          "line": 1815,
           "declaration_label": "V##dv"
         },
         {
-          "line": 1815,
+          "line": 1818,
           "declaration_label": "W##dw"
         },
         {
-          "line": 1818,
+          "line": 1821,
           "declaration_label": "L##dl"
         },
         {
-          "line": 1825,
+          "line": 1828,
           "declaration_label": "##dc"
         },
         {
-          "line": 1832,
+          "line": 1835,
           "declaration_label": "Delete##ddel"
         },
         {
-          "line": 1846,
+          "line": 1849,
           "declaration_label": "Close##dclose"
         },
         {
-          "line": 1866,
+          "line": 1869,
           "declaration_label": "Max displayed centers"
         },
         {
-          "line": 1868,
+          "line": 1871,
           "declaration_label": "Nearest neighbors"
         },
         {
-          "line": 1872,
+          "line": 1875,
           "declaration_label": "Specify center atom indices"
         },
         {
-          "line": 1880,
+          "line": 1883,
           "declaration_label": "Center atom IDs##polyIndexFilter"
         },
         {
-          "line": 1892,
+          "line": 1895,
           "declaration_label": "Show polyhedral edges"
         },
         {
-          "line": 1894,
+          "line": 1897,
           "declaration_label": "Face opacity"
         },
         {
-          "line": 1896,
+          "line": 1899,
           "declaration_label": "Edge opacity"
         },
         {
-          "line": 1900,
+          "line": 1903,
           "declaration_label": "Filter center elements"
         },
         {
-          "line": 1909,
+          "line": 1912,
           "declaration_label": "Centers##polyFilter"
         },
         {
-          "line": 1920,
+          "line": 1923,
           "declaration_label": "Filter ligand elements"
         },
         {
-          "line": 1929,
+          "line": 1932,
           "declaration_label": "Ligands##polyFilter"
         },
         {
-          "line": 1939,
+          "line": 1942,
           "declaration_label": "Reset Defaults"
         },
         {
-          "line": 1947,
+          "line": 1950,
           "declaration_label": "Close##polySettings"
         },
         {
-          "line": 2072,
+          "line": 2076,
           "declaration_label": "Manual##about"
         },
         {
-          "line": 2075,
+          "line": 2079,
           "declaration_label": "Close##about"
         },
         {
-          "line": 2137,
+          "line": 2141,
           "declaration_label": "Color"
         },
         {
-          "line": 2184,
+          "line": 2188,
           "declaration_label": "Automatic colour range"
         },
         {
-          "line": 2187,
+          "line": 2191,
           "declaration_label": "Minimum"
         },
         {
-          "line": 2188,
+          "line": 2192,
           "declaration_label": "Maximum"
         },
         {
-          "line": 2190,
+          "line": 2194,
           "declaration_label": "Hide atoms outside the range"
         },
         {
-          "line": 2191,
+          "line": 2195,
           "declaration_label": "Hide atoms without a value"
         },
         {
-          "line": 2192,
+          "line": 2196,
           "declaration_label": "Show element colours"
         }
       ]
     },
     {
       "source": "src/ui/FileBrowser.h",
-      "sha256": "293c6f3d52efd229da919a55bc362238837f48e28041eb4b3da17946259e1080",
+      "sha256": "9d8f245f66f7b00cb3e8a524e53eb9c8fb3cbdf00203e63867c19f5fb3e391a6",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3903,7 +3923,7 @@
     },
     {
       "source": "src/ui/MainWindowChrome.cpp",
-      "sha256": "c8d5fdf2ac975d7835303ef43cd44404c73fe6ef4fe268182b05aa252694cf8d",
+      "sha256": "2e4bbe081812559ddeb7ea317f7e79183f5b4b3f6dd6af88f9c46a4fa9824abc",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5356,7 +5376,7 @@
     },
     {
       "source": "src/ui/UiTour.cpp",
-      "sha256": "57f1cf9d808e3fef3db993e11e3ec2d8a30dfa7d2714abd89801f1cf369d52f0",
+      "sha256": "55a1e23911fcfbf3068c451ca338689e621b41fd925ae8657633a6fbd8084cd9",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

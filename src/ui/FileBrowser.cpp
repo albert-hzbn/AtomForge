@@ -559,7 +559,7 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         if (ImGui::MenuItem("Recover Last Autosave")) projectAction=3;
         ImGui::Separator();
         if (ImGui::MenuItem("Quit"))
-            glfwSetWindowShouldClose(glfwGetCurrentContext(), true);
+            requestQuit = true;
 
         ImGui::EndMenu();
     }
@@ -793,6 +793,9 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
     {
         if (ImGui::MenuItem("Manual"))
             showManual = true;
+
+        if (ImGui::MenuItem("Find a Command", "Ctrl+K"))
+            showCommandPalette = true;
 
         if (ImGui::MenuItem("Keyboard Shortcuts", "F1"))
             showShortcuts = true;
@@ -1969,6 +1972,7 @@ void FileBrowser::draw(Structure& structure,
     if (ImGui::IsKeyPressed(ImGuiKey_F1, false) && !ImGui::GetIO().WantTextInput)
         showShortcuts = true;
     drawShortcuts();
+    drawCommandPalette(structure, editMenuDialogs, updateBuffers);
 
     if (showAbout)
     {

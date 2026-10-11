@@ -423,6 +423,16 @@ private:
     void drawWelcome(const Structure& structure);
     void drawShortcuts();
     bool showShortcuts = false;
+    // Command palette (CommandPalette.cpp, Ctrl+K).
+    void drawCommandPalette(Structure& structure, EditMenuDialogs& editMenuDialogs, const std::function<void(Structure&)>& updateBuffers);
+    bool showCommandPalette = false;
+    char commandQuery[256] = {};
+    int commandSelected = 0;
+    // File > Quit: the application confirms unsaved changes first.
+    bool requestQuit = false;
+public:
+    bool consumeQuitRequest() { const bool requested = requestQuit; requestQuit = false; return requested; }
+private:
     std::vector<std::string> recentFiles();
     // UI tour (UiTour.cpp): ATOMFORGE_UI_TOUR=FOLDER screenshots the main window,
     // its menus and dialogs, then quits.
