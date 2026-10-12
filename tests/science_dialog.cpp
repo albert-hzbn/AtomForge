@@ -89,7 +89,7 @@ int main()
                 ImGui::Render();
             }
             const auto layout = ScientificToolsDialog::layoutFor(tool.id);
-            const std::string title = std::string(tool.title) + ScientificToolsDialog::windowId(layout);
+            const std::string title = ScientificToolsDialog::windowId(layout);  // the id, whatever the shown title
             ImGuiWindow* window = ImGui::FindWindowByName(title.c_str());
             if (!window || !window->WasActive) throw std::runtime_error(std::string("Dialog not shown for ") + tool.id);
             ++layoutCounts[static_cast<int>(layout)];
@@ -178,7 +178,7 @@ int main()
                 restored.draw(copper, [](Structure&) {}, [&](const std::string& name, const std::vector<double>&) { coloured = name; });
                 ImGui::Render();
             }
-            ImGuiWindow* window = ImGui::FindWindowByName("Centrosymmetry parameter###Atom analysis");
+            ImGuiWindow* window = ImGui::FindWindowByName("###Atom analysis");
             if (!window || !window->WasActive) throw std::runtime_error("Restored dialog not shown");
             // Unknown tools (from a newer release) and malformed state leave the dialog closed.
             ScientificToolsDialog unknown;
@@ -213,7 +213,7 @@ int main()
                     ImGui::Render();
                 }
                 const auto& tool = *std::find_if(scienceToolCatalog().begin(), scienceToolCatalog().end(), [&](const auto& t) { return id == t.id; });
-                const std::string title = std::string(tool.title) + ScientificToolsDialog::windowId(ScientificToolsDialog::layoutFor(id));
+                const std::string title = ScientificToolsDialog::windowId(ScientificToolsDialog::layoutFor(id));
                 ImGuiWindow* window = ImGui::FindWindowByName(title.c_str());
                 if (!window || !window->WasActive) throw std::runtime_error("Result layout not shown for " + id);
             }

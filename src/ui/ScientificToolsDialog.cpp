@@ -1,4 +1,5 @@
 #include "ui/ScientificToolsDialog.h"
+#include "ui/TitleCase.h"
 #include "ui/DialogLayout.h"
 #include "science/ScienceCatalog.h"
 #include "science/ScienceTools.h"
@@ -283,7 +284,7 @@ void ScientificToolsDialog::drawMenuItems(const char* category)
     const auto& catalog = scienceToolCatalog();
     for (std::size_t i = 0; i < catalog.size(); ++i)
         if (std::strcmp(catalog[i].category, category) == 0 &&
-            ImGui::MenuItem(catalog[i].title, nullptr, m_open && m_tool == static_cast<int>(i), !m_task.running())) {
+            ImGui::MenuItem(uiText::titleCase(catalog[i].title).c_str(), nullptr, m_open && m_tool == static_cast<int>(i), !m_task.running())) {
             m_step.finish();
             selectTool(static_cast<int>(i));
             m_open = true;
@@ -732,7 +733,7 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
     if (m_tool < 0) selectTool(0);
     const auto& tool = currentTool();
     const Layout layout = layoutFor(tool.id);
-    const std::string title = std::string(tool.title) + windowId(layout);
+    const std::string title = uiText::titleCase(tool.title) + windowId(layout);
     switch (layout) {
     case Layout::Atoms: responsive::windowSize(ImVec2(470, 760), ImGuiCond_FirstUseEver); break;
     case Layout::Plot: responsive::windowSize(ImVec2(1120, 700), ImGuiCond_FirstUseEver); break;
@@ -752,7 +753,7 @@ void ScientificToolsDialog::draw(const Structure& structure, const std::function
                 ImGui::Combo("Cell to keep", &m_stepCell, "Primitive\0Conventional\0Symmetrized\0");
             }
         }
-        ImGui::TextDisabled("%s", tool.category);
+        ImGui::TextDisabled("%s", uiText::titleCase(tool.category).c_str());
         const std::string summary = std::string(tool.help).substr(0, std::string(tool.help).find('\n'));
         ImGui::TextWrapped("%s", summary.c_str());
         ImGui::Spacing();

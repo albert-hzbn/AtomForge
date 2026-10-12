@@ -830,7 +830,7 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
     forceTourMenu("Analysis");
     if (ImGui::BeginMenu("Analysis"))
     {
-        if (ImGui::BeginMenu("Structure and defects")) {
+        if (ImGui::BeginMenu("Structure and Defects")) {
             cnaDialog.drawMenuItem(!structure.atoms.empty());
             rdfDialog.drawMenuItem(!structure.atoms.empty());
             angularDistributionDialog.drawMenuItem(!structure.atoms.empty());
@@ -840,13 +840,13 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
             scientificToolsDialog.drawMenuItems("Structure and defects");
             ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu("Trajectories and transport")) {
+        if (ImGui::BeginMenu("Trajectories and Transport")) {
             trajectoryDialog.drawMenuItem();
             ImGui::Separator();
             scientificToolsDialog.drawMenuItems("Trajectories and transport");
             ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu("Electronic structure")) {
+        if (ImGui::BeginMenu("Electronic Structure")) {
             electronicDialog.drawMenuItem();
             wannierDialog.drawMenuItem();
             lobsterDialog.drawMenuItem();
@@ -854,11 +854,11 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
             scientificToolsDialog.drawMenuItems("Electronic structure");
             ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu("Reciprocal space")) {
+        if (ImGui::BeginMenu("Reciprocal Space")) {
             scientificToolsDialog.drawMenuItems("Reciprocal space");
             ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu("Thermal and mechanical")) {
+        if (ImGui::BeginMenu("Thermal and Mechanical")) {
             scientificToolsDialog.drawMenuItems("Thermal and mechanical");
             ImGui::EndMenu();
         }

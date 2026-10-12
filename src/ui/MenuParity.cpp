@@ -53,10 +53,10 @@ const std::vector<MenuLocation>& menuLocations()
         {"invert-selection", "Edit", "Select Atoms", "Invert Selection", false},
         {"clear-selection", "Edit", "Select Atoms", "Clear Selection", false},
         // Analysis menu: scientific tools whose result is a structure (the tool's window).
-        {"relax", "Analysis", "Simulation", "Structure relaxation", true},
-        {"nvt-dynamics", "Analysis", "Simulation", "NVT dynamics", true},
-        {"npt-dynamics", "Analysis", "Simulation", "NPT dynamics", true},
-        {"standardize-cell", "Analysis", "Reciprocal space", "Symmetry and Wyckoff positions", true},
+        {"relax", "Analysis", "Simulation", "Structure Relaxation", true},
+        {"nvt-dynamics", "Analysis", "Simulation", "NVT Dynamics", true},
+        {"npt-dynamics", "Analysis", "Simulation", "NPT Dynamics", true},
+        {"standardize-cell", "Analysis", "Reciprocal Space", "Symmetry and Wyckoff Positions", true},
     };
     return table;
 }

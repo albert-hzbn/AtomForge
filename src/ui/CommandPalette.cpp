@@ -1,5 +1,6 @@
 // The command palette (Ctrl+K): finds any menu action by name and runs it.
 #include "FileBrowser.h"
+#include "ui/TitleCase.h"
 #include "ImGuiSetup.h"
 #include "ui/DialogLayout.h"
 #include "ui/MenuParity.h"
@@ -114,18 +115,18 @@ void FileBrowser::drawCommandPalette(Structure& structure, EditMenuDialogs& edit
         commands.push_back({location.label, path, [this, step] { operationDialog.open(step); },
                             atoms || step == "build-bulk"});
     }
-    add("Analysis > Structure and defects", "Common Neighbour Analysis", [this] { cnaDialog.open(); }, atoms);
-    add("Analysis > Structure and defects", "Radial Distribution Function", [this] { rdfDialog.open(); }, atoms);
-    add("Analysis > Structure and defects", "Angular Distribution Function", [this] { angularDistributionDialog.open(); }, atoms);
-    add("Analysis > Structure and defects", "Short-Range Order (SRO)", [this] { shortRangeOrderDialog.openRequested = true; }, atoms);
-    add("Analysis > Structure and defects", "Dislocation Post-Processing", [this] { dislocationAnalysisDialog.open(); });
-    add("Analysis > Trajectories and transport", "Trajectory Playback", [this] { trajectoryDialog.show(); });
-    add("Analysis > Electronic structure", "Electronic Post-Processing", [this] { electronicDialog.open(); });
-    add("Analysis > Electronic structure", "Wannier Analysis", [this] { wannierDialog.open(); });
-    add("Analysis > Electronic structure", "LOBSTER Bonding Analysis", [this] { lobsterDialog.open(); });
+    add("Analysis > Structure and Defects", "Common Neighbour Analysis", [this] { cnaDialog.open(); }, atoms);
+    add("Analysis > Structure and Defects", "Radial Distribution Function", [this] { rdfDialog.open(); }, atoms);
+    add("Analysis > Structure and Defects", "Angular Distribution Function", [this] { angularDistributionDialog.open(); }, atoms);
+    add("Analysis > Structure and Defects", "Short-Range Order (SRO)", [this] { shortRangeOrderDialog.openRequested = true; }, atoms);
+    add("Analysis > Structure and Defects", "Dislocation Post-Processing", [this] { dislocationAnalysisDialog.open(); });
+    add("Analysis > Trajectories and Transport", "Trajectory Playback", [this] { trajectoryDialog.show(); });
+    add("Analysis > Electronic Structure", "Electronic Post-Processing", [this] { electronicDialog.open(); });
+    add("Analysis > Electronic Structure", "Wannier Analysis", [this] { wannierDialog.open(); });
+    add("Analysis > Electronic Structure", "LOBSTER Bonding Analysis", [this] { lobsterDialog.open(); });
     for (const auto& tool : scienceToolCatalog()) {
         const std::string id = tool.id;
-        commands.push_back({tool.title, std::string("Analysis > ") + tool.category, [this, id] { scientificToolsDialog.open(id); }});
+        commands.push_back({uiText::titleCase(tool.title), "Analysis > " + uiText::titleCase(tool.category), [this, id] { scientificToolsDialog.open(id); }});
     }
     const auto toggle = [&](const char* label, bool& flag, bool enabled) {
         add("View > Show", label, [&flag] { flag = !flag; }, enabled);

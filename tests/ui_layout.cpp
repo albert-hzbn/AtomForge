@@ -1,6 +1,7 @@
 #include "ui/ResponsiveLayout.h"
 #include "ui/ImGuiSetup.h"
 #include "ui/UnitText.h"
+#include "ui/TitleCase.h"
 #include "imgui_internal.h"
 
 #include <cmath>
@@ -120,6 +121,13 @@ int main()
         require(unitText::display("Neighbor cutoff (Angstrom, 0 = automatic)") == "Neighbor cutoff (\xc3\x85, 0 = automatic)", "Angstrom word");
         require(unitText::display("k (1/A)") == "k (1/\xc3\x85)", "Per Angstrom");
         require(unitText::display("Site A, Alpha (A1)") == "Site A, Alpha (A1)", "Labels that are not units stay");
+        require(unitText::display("2-theta range (degrees)") == "2\xce\xb8 range (\xc2\xb0)", "Angle words");
+        require(unitText::display("Debye-Waller B (Angstrom squared)") == "Debye-Waller B (\xc3\x85\xc2\xb2)", "Squared unit");
+        require(uiText::titleCase("Powder X-ray diffraction") == "Powder X-ray Diffraction", "Title case keeps hyphenated parts");
+        require(uiText::titleCase("Structure and defects") == "Structure and Defects", "Small words stay lower case");
+        require(uiText::titleCase("Trajectory-averaged g(r), coordination and bond angles") == "Trajectory-averaged g(r), Coordination and Bond Angles",
+                "Symbols keep their case");
+        require(uiText::titleCase("NVT dynamics") == "NVT Dynamics", "Acronyms stay");
         // Appearance preferences: read from, and written back to, the home folder.
         {
             const auto home = std::filesystem::temp_directory_path() / "atomforge-ui-layout-home";

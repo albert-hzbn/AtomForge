@@ -51,6 +51,13 @@ inline std::string display(std::string text)
         }
         out += text[i];
     }
+    // Words for units and symbols: "(degrees)", "2-theta", "Å squared".
+    struct Word { const char* from; const char* to; };
+    static const Word kWords[] = {{"(degrees)", "(\xc2\xb0)"}, {"(degrees,", "(\xc2\xb0,"}, {"2-theta", "2\xce\xb8"},
+                                  {"\xc3\x85 squared", "\xc3\x85\xc2\xb2"}, {"\xc3\x85 cubed", "\xc3\x85\xc2\xb3"}};
+    for (const Word& word : kWords)
+        for (std::size_t at = out.find(word.from); at != std::string::npos; at = out.find(word.from, at + std::strlen(word.to)))
+            out.replace(at, std::strlen(word.from), word.to);
     return out;
 }
 }
