@@ -127,7 +127,7 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
     if (responsive::begin("Trajectory Playback###Trajectory playback",&open,ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_AlwaysAutoResize)) {
         const bool exporting=gifFrame>=0;
         ImGui::BeginDisabled(task.running() || exporting);
-        if (responsive::button("Open trajectory")) picker.open("Open trajectory (XYZ/extXYZ, XDATCAR, POSCAR or LAMMPS dump)",false,"trajectory.xyz");
+        if (responsive::button("Open Trajectory")) picker.open("Open Trajectory (XYZ/extXYZ, XDATCAR, POSCAR or LAMMPS dump)",false,"trajectory.xyz");
         ImGui::EndDisabled();
         if (task.running()) { ImGui::TextUnformatted("Indexing frames..."); if (responsive::button("Cancel")) task.cancel(); }
         if (count>0) {
@@ -161,8 +161,11 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
             }
             ImGui::SetNextItemWidth(-FLT_MIN);
             char frameFormat[64];
-            std::snprintf(frameFormat, sizeof(frameFormat), "Frame %%d of %d", count - 1);
-            const bool sliderChanged = ImGui::SliderInt("##frame",&playback.frame,0,count-1,frameFormat) || stepped;
+            std::snprintf(frameFormat, sizeof(frameFormat), "Frame %%d of %d", count);
+            int shownFrame = playback.frame + 1;  // counted from 1 for display
+            const bool dragged = ImGui::SliderInt("##frame",&shownFrame,1,count,frameFormat);
+            if (dragged) playback.frame = shownFrame - 1;
+            const bool sliderChanged = dragged || stepped;
             ImGui::TextUnformatted("Frames per second"); ImGui::SetNextItemWidth(-FLT_MIN);
             ImGui::SliderFloat("##fps",&fps,1,60,"%.0f");
             if (!exporting) changed |= playback.tick(togglePlay,jumpToFirst,sliderChanged,count,fps,ImGui::GetTime());

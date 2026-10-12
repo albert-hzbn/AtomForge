@@ -15,7 +15,7 @@ struct TrajectoryDialog
     // Opens the window, as its menu item does.
     void hide() { open = false; }
     void show() { open = true; }
-    // Indexes a trajectory file in the background, as Open trajectory does.
+    // Indexes a trajectory file in the background, as Open Trajectory does.
     void load(const std::string& path);
     // True once after a trajectory finished loading (its first frame is shown).
     bool consumeLoaded() { const bool was = justLoaded; justLoaded = false; return was; }
