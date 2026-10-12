@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <cctype>
+#include <mutex>
 #include <stdexcept>
 
 namespace
@@ -96,6 +97,37 @@ std::vector<Structure> loadXyzTrajectory(const std::string& path)
     return frames;
 }
 
+namespace
+{
+std::mutex g_typeMutex;
+std::vector<std::string> g_typeElements;
+std::string g_typeText;
+}
+
+void setLammpsTypeElements(const std::string& symbols)
+{
+    std::string text = symbols;
+    for (char& c : text) if (c == ',' || c == ';') c = ' ';
+    std::istringstream words(text);
+    std::vector<std::string> elements;
+    for (std::string word; words >> word;) {
+        const std::string symbol = standardSymbol(word);
+        int z = 0;
+        for (int k = 1; k <= 118 && !z; ++k) if (symbol == elementSymbol(k)) z = k;
+        if (!z) throw std::runtime_error("Unknown element in the LAMMPS types: " + word);
+        elements.push_back(symbol);
+    }
+    std::lock_guard<std::mutex> lock(g_typeMutex);
+    g_typeElements = elements;
+    g_typeText = symbols;
+}
+
+std::string lammpsTypeElements()
+{
+    std::lock_guard<std::mutex> lock(g_typeMutex);
+    return g_typeText;
+}
+
 std::vector<Structure> loadLammpsTrajectory(const std::string& path)
 {
     std::ifstream input(std::filesystem::u8path(path));
@@ -139,12 +171,13 @@ std::vector<Structure> loadLammpsFrames(std::istream& input, std::size_t maxFram
         { std::istringstream header(line.substr(std::string("ITEM: ATOMS ").size())); for (std::string token; header>>token;) columns.push_back(token); }
         // Cartesian (x, xu) or scaled (xs, xsu: fractions of the box, as
         // LAMMPS's default "dump atom" writes) positions; atoms ordered by id.
-        int elementCol=-1, xCol=-1, yCol=-1, zCol=-1, idCol=-1;
+        int elementCol=-1, xCol=-1, yCol=-1, zCol=-1, idCol=-1, typeCol=-1;
         bool scaled=false;
         for (std::size_t i=0;i<columns.size();++i) {
             const std::string& c=columns[i];
             if (c=="element") elementCol=static_cast<int>(i);
             else if (c=="id") idCol=static_cast<int>(i);
+            else if (c=="type") typeCol=static_cast<int>(i);
             else if (c=="x" || c=="xu") xCol=static_cast<int>(i);
             else if (c=="y" || c=="yu") yCol=static_cast<int>(i);
             else if (c=="z" || c=="zu") zCol=static_cast<int>(i);
@@ -152,9 +185,12 @@ std::vector<Structure> loadLammpsFrames(std::istream& input, std::size_t maxFram
             else if (c=="ys" || c=="ysu") yCol=static_cast<int>(i);
             else if (c=="zs" || c=="zsu") zCol=static_cast<int>(i);
         }
-        if (elementCol<0)
-            throw std::runtime_error("LAMMPS dump has no 'element' column; add 'dump_modify <id> element <symbols...>' "
-                                      "to your LAMMPS input so atom types map to chemical symbols");
+        std::vector<std::string> typeElements;
+        { std::lock_guard<std::mutex> lock(g_typeMutex); typeElements=g_typeElements; }
+        if (elementCol<0 && (typeCol<0 || typeElements.empty()))
+            throw std::runtime_error("LAMMPS dump has no 'element' column: name the elements of types 1, 2, ... "
+                                      "(LAMMPS types in the Trajectory window, --types on the command line), "
+                                      "or add 'dump_modify <id> element <symbols...>' to the LAMMPS input");
         if (xCol<0 || yCol<0 || zCol<0) throw std::runtime_error("LAMMPS dump is missing x/y/z (or xu, xs, xsu) position columns");
         Structure frame;
         // Convert LAMMPS's bounding-box convention to true (tilted) cell
@@ -165,7 +201,7 @@ std::vector<Structure> loadLammpsFrames(std::istream& input, std::size_t maxFram
         frame.cellOffset={xloB,yloB,lo[2]};
         frame.cellVectors={{ {xhiB-xloB,0,0}, {xyT,yhiB-yloB,0}, {xzT,yzT,hi[2]-lo[2]} }};
         frame.hasUnitCell=true;
-        const int maxColumn=std::max({elementCol,xCol,yCol,zCol,idCol});
+        const int maxColumn=std::max({elementCol,xCol,yCol,zCol,idCol,typeCol});
         std::vector<std::pair<long long, AtomSite>> rows;
         rows.reserve(static_cast<std::size_t>(count));
         for (long long i=0;i<count;++i) {
@@ -176,7 +212,15 @@ std::vector<Structure> loadLammpsFrames(std::istream& input, std::size_t maxFram
             for (std::string token; row>>token;) values.push_back(token);
             if (static_cast<int>(values.size())<=maxColumn) throw std::runtime_error("LAMMPS atom row has too few columns");
             AtomSite atom;
-            atom.symbol=standardSymbol(values[static_cast<std::size_t>(elementCol)]);
+            if (elementCol>=0) atom.symbol=standardSymbol(values[static_cast<std::size_t>(elementCol)]);
+            else {
+                long type=0;
+                if (!(std::istringstream(values[static_cast<std::size_t>(typeCol)])>>type) || type<1 ||
+                    type>static_cast<long>(typeElements.size()))
+                    throw std::runtime_error("LAMMPS atom type "+values[static_cast<std::size_t>(typeCol)]+" has no element in the LAMMPS types ("+
+                                             std::to_string(typeElements.size())+" given)");
+                atom.symbol=typeElements[static_cast<std::size_t>(type-1)];
+            }
             if (!(std::istringstream(values[static_cast<std::size_t>(xCol)])>>atom.x) || !std::isfinite(atom.x))
                 throw std::runtime_error("Invalid LAMMPS x coordinate");
             if (!(std::istringstream(values[static_cast<std::size_t>(yCol)])>>atom.y) || !std::isfinite(atom.y))

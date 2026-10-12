@@ -14,6 +14,13 @@ std::vector<Structure> loadXyzTrajectory(const std::string& path);
 // inferred from "type" alone. Accepts wrapped (x y z) or unwrapped
 // (xu yu zu) coordinates, and orthogonal or triclinic box bounds.
 std::vector<Structure> loadLammpsTrajectory(const std::string& path);
+
+// The elements of LAMMPS atom types 1, 2, ... ("Cu Ni" or "Cu,Ni"), used for a
+// dump with a type column but no element column (the default "dump atom").
+// Process-wide; empty restores the requirement for an element column.
+// Throws for an unknown element symbol.
+void setLammpsTypeElements(const std::string& symbols);
+std::string lammpsTypeElements();
 // Up to maxFrames dump frames from the current stream position.
 std::vector<Structure> loadLammpsFrames(std::istream& input, std::size_t maxFrames);
 

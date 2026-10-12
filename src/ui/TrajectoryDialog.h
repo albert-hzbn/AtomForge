@@ -63,4 +63,5 @@ private:
     int analysis=0;
     float analysisCutoff=3.0f;
     std::string analysisMessage;
+    char lammpsTypes[128] = "";  // elements of LAMMPS types 1, 2, ... ("Cu Ni")
 };

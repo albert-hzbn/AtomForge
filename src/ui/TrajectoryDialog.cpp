@@ -1,6 +1,7 @@
 #include "ui/TrajectoryDialog.h"
 #include "ui/DialogLayout.h"
 #include "ui/Fonts.h"
+#include "io/Trajectory.h"
 #include "science/ScienceTools.h"
 #include "ui/ResponsiveLayout.h"
 #include "util/ElementData.h"
@@ -128,6 +129,16 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
         const bool exporting=gifFrame>=0;
         ImGui::BeginDisabled(task.running() || exporting);
         if (responsive::button("Open Trajectory")) picker.open("Open Trajectory (XYZ/extXYZ, XDATCAR, POSCAR or LAMMPS dump)",false,"trajectory.xyz");
+        // A LAMMPS dump without an element column names its types here.
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(responsive::dp(220));
+        if (ImGui::InputTextWithHint("##lammpsTypes", "LAMMPS types, e.g. Cu Ni", lammpsTypes, sizeof(lammpsTypes))) {
+            try { setLammpsTypeElements(lammpsTypes); error.clear(); }
+            catch (const std::exception& e) { error=e.what(); }
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Elements of LAMMPS atom types 1, 2, ... for a dump without an element column\n"
+                              "(the default dump atom); not needed with dump_modify ... element.");
         ImGui::EndDisabled();
         if (task.running()) { ImGui::TextUnformatted("Indexing frames..."); if (responsive::button("Cancel")) task.cancel(); }
         if (count>0) {

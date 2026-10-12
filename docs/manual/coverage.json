@@ -964,7 +964,7 @@
     },
     {
       "source": "src/cli/RenderCLI.cpp",
-      "sha256": "9daf63e559f953cf9168a2a4c9e517a2cefdb2c226ca53f58c291ec10e9e437e",
+      "sha256": "d2bcd6b21d750a83c8bddf5d784b57098ecc50b1828e5ee5af22ff5677ed81be",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -5115,69 +5115,73 @@
     },
     {
       "source": "src/ui/TrajectoryDialog.cpp",
-      "sha256": "3d1e4a0accffe5fba07abc550a55cb1b05d4645efe19506e2988d8d2ced0ec91",
+      "sha256": "f6aae6deb8631147a1a358bf3aebeaddbaff16373f434b93a3f4b82590b6fe08",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": [
         {
-          "line": 18,
+          "line": 19,
           "declaration_label": "Trajectory Playback"
         },
         {
-          "line": 130,
+          "line": 131,
           "declaration_label": "Open Trajectory"
         },
         {
-          "line": 132,
-          "declaration_label": "Cancel"
+          "line": 135,
+          "declaration_label": "##lammpsTypes"
         },
         {
           "line": 143,
+          "declaration_label": "Cancel"
+        },
+        {
+          "line": 154,
           "declaration_label": "<##previous"
         },
         {
-          "line": 151,
+          "line": 162,
           "declaration_label": ">##next"
         },
         {
-          "line": 166,
+          "line": 177,
           "declaration_label": "##frame"
         },
         {
-          "line": 170,
+          "line": 181,
           "declaration_label": "##fps"
         },
         {
-          "line": 175,
+          "line": 186,
           "declaration_label": "Analyse every displayed frame"
         },
         {
-          "line": 177,
+          "line": 188,
           "declaration_label": "##frameanalysis"
         },
         {
-          "line": 184,
+          "line": 195,
           "declaration_label": "Neighbour cutoff (\\xc3\\x85)"
         },
         {
-          "line": 189,
+          "line": 200,
           "declaration_label": "##gifstride"
         },
         {
-          "line": 191,
+          "line": 202,
           "declaration_label": "Export GIF"
         },
         {
-          "line": 195,
+          "line": 206,
           "declaration_label": "Stop Export"
         }
       ]
     },
     {
       "source": "src/ui/TrajectoryDialog.h",
-      "sha256": "98890c8b8fb3d8122d18cc1ea3c69017461268dd84bba37130c76a5e80ad2be6",
+      "sha256": "fee1f5d67c2cc5609c5b8f21ac3b0161c3a0c5af782a64b6cdad16286a52263b",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"

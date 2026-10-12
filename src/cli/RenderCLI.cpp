@@ -1,5 +1,6 @@
 #include "cli/RenderCLI.h"
 #include "cli/OptionCheck.h"
+#include "io/Trajectory.h"
 #include "cli/CliArgs.h"
 
 #include "app/EditorOps.h"
@@ -194,6 +195,8 @@ void printHelp()
 "  --yaw-step D           Turntable: yaw increment per frame, degrees\n"
 "  --fps N                Animated GIF frame rate          (default: 12)\n"
 "  --every N              Animated GIF: use every Nth trajectory frame (default: 1)\n"
+"  --types \"Cu Ni\"        Elements of LAMMPS dump types 1, 2, ... (a dump\n"
+"                         without an element column)\n"
 "\n"
 "Animated GIF: with --output FILE.gif a trajectory input (XYZ/extXYZ, XDATCAR,\n"
 "LAMMPS dump) becomes one frame per trajectory frame, using every Nth frame with\n"
@@ -242,6 +245,7 @@ int runRenderCLI(int argc, char* argv[])
 
     try
     {
+        if (const char* types = findArg(argc, argv, "--types")) setLammpsTypeElements(types);
         const char* inputPath = findArg(argc, argv, "--input");
         const char* outputPath = findArg(argc, argv, "--output");
         if (!inputPath || !outputPath)
@@ -295,27 +299,37 @@ int runRenderCLI(int argc, char* argv[])
         // Trajectory frames are read one at a time while rendering.
         std::vector<Structure> structures;
         std::unique_ptr<atomforge::science::TrajectoryStream> trajectory;
-        if (gifOutput)
-        {
-            // Trajectory formats first; anything else is read as one structure.
+        std::string trajectoryError;
+        const auto openTrajectory = [&] {
             try
             {
                 trajectory = std::make_unique<atomforge::science::TrajectoryStream>(std::filesystem::u8path(inputPath));
                 structures.push_back(trajectory->frame(0).structure);
             }
-            catch (const std::exception&)
+            catch (const std::exception& e)
             {
+                trajectoryError = e.what();
                 trajectory.reset();
                 structures.clear();
             }
-        }
+        };
+        // A GIF reads trajectory formats first; anything else is one structure.
+        if (gifOutput) openTrajectory();
         if (structures.empty())
         {
             Structure loaded;
             std::string loadError;
-            if (!loadStructureFromFile(inputPath, loaded, loadError))
-                throw std::runtime_error("Error loading input structure: " + loadError);
-            structures.push_back(std::move(loaded));
+            if (loadStructureFromFile(inputPath, loaded, loadError))
+                structures.push_back(std::move(loaded));
+            else
+            {
+                // A still image of a trajectory (a LAMMPS dump, say) shows its first frame.
+                if (!gifOutput) openTrajectory();
+                if (structures.empty())
+                    throw std::runtime_error("Error loading input structure: " +
+                                             (trajectoryError.empty() || !isLargeDataFile(inputPath) ? loadError : trajectoryError));
+                trajectory.reset();  // one frame: not an animation
+            }
         }
         if (structures.empty() || structures.front().atoms.empty())
             throw std::runtime_error("Error loading input structure: no atoms found");

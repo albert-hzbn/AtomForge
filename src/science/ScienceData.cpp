@@ -751,7 +751,10 @@ NdArray framesField(const std::vector<FrameData>& frames, const std::string& fie
 
 StructureInput resolveStructure(const Json& value, const std::filesystem::path& base, const StructureReader& reader)
 {
-    if (value.isObject() && value.size() == 1 && value.contains("file")) {
+    if (value.isObject() && value.contains("file") &&
+        (value.size() == 1 || (value.size() == 2 && value.contains("types")))) {
+        // "types" names the elements of a LAMMPS dump's atom types 1, 2, ...
+        if (const Json* types = value.find("types")) setLammpsTypeElements(types->string());
         const auto path = (base / std::filesystem::u8path(value.at("file").string())).lexically_normal();
         if (lower(path.extension().u8string()) == ".json") {
             const Json parsed = Json::parse(readFile(path));
@@ -812,8 +815,9 @@ Parameters::Parameters(const std::string& tool, const Json& request, const std::
             continue;
         }
         for (const auto& member : value.members())
-            if (member.first != "file" && member.first != "field" && member.first != "column")
+            if (member.first != "file" && member.first != "field" && member.first != "column" && member.first != "types")
                 throw std::runtime_error("Unknown data-reference options for " + name);
+        if (const Json* types = value.find("types")) setLammpsTypeElements(types->string());
         const auto path = (base / std::filesystem::u8path(value.at("file").string())).lexically_normal();
         std::optional<std::string> field;
         if (const Json* f = value.find("field"); f && !f->isNull()) field = f->string();

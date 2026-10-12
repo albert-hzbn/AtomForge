@@ -47,6 +47,19 @@ int main()
               "LAMMPS orthogonal box bounds lost");
         check(lammpsFrames[1].atoms[0].x==0.1,"LAMMPS second frame not read");
         check(loadTrajectory(lammpsOrtho.string()).size()==2,"loadTrajectory must auto-detect a LAMMPS dump");
+        // Types without an element column: refused until their elements are named.
+        const auto lammpsTypes=root/"types.lammpstrj";
+        { std::ofstream file(lammpsTypes);
+          file << "ITEM: TIMESTEP\n0\nITEM: NUMBER OF ATOMS\n2\nITEM: BOX BOUNDS pp pp pp\n"
+                  "0.0 4.0\n0.0 4.0\n0.0 4.0\nITEM: ATOMS id type x y z\n1 2 0 0 0\n2 1 2 2 2\n"; }
+        bool unnamed=false;
+        try { loadLammpsTrajectory(lammpsTypes.string()); } catch (const std::exception&) { unnamed=true; }
+        check(unnamed,"A dump without elements must be refused until its types are named");
+        setLammpsTypeElements("cu, Ni");
+        const auto typed=loadLammpsTrajectory(lammpsTypes.string());
+        check(typed[0].atoms[0].symbol=="Ni" && typed[0].atoms[1].symbol=="Cu" && typed[0].atoms[1].atomicNumber==29,
+              "LAMMPS types must map to the named elements");
+        setLammpsTypeElements("");
         // Scaled coordinates (LAMMPS's default dump) and atoms listed out of id order.
         const auto lammpsScaled=root/"scaled.lammpstrj";
         { std::ofstream file(lammpsScaled);
