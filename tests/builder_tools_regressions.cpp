@@ -1,6 +1,7 @@
 // Physical-invariant checks for the vacancy, strain, surface, SQS, nanowire
 // and core-shell builders (src/algorithms). Neighbour counting uses the
 // independent native neighbour list from src/science.
+#include "algorithms/InterfaceMatching.h"
 #include "algorithms/NanostructureTools.h"
 #include "algorithms/SQSBuilder.h"
 #include "algorithms/ShortRangeOrderAnalysis.h"
@@ -205,6 +206,84 @@ int main()
             for (int c : cn) surface += c == surfaceCn;
             check(surface >= 2 * r.atomsPerLayer, "two exposed faces");
         }
+    });
+
+    test("interfaces: lattice matching (Stradi et al.) and assembly", [] {
+        namespace iface = atomforge::interfaces;
+        const auto slab = [](const Structure& crystal, int h, int k, int l, int layers) {
+            iface::Side side;
+            side.crystal = crystal;
+            side.h = h; side.k = k; side.l = l;
+            side.layers = layers;
+            Structure out;
+            std::string error;
+            check(iface::prepareSlab(side, out, error), error);
+            return out;
+        };
+        // Cu(111) on Ni(111): the 1x1 cell, B strained by the lattice misfit in
+        // both directions and not rotated; no rotation is mistaken for strain.
+        const Structure cu = slab(fcc(3.615, 1), 1, 1, 1, 4), ni = slab(fcc(3.524, 1), 1, 1, 1, 4);
+        iface::SearchParams search;
+        search.maxStrain = 0.05;
+        const auto matches = iface::findMatches(cu, ni, search);
+        check(!matches.empty(), "Cu/Ni matches");
+        const int best = iface::suggestedMatch(matches);
+        check(best == 0, "the 1x1 cell is suggested");
+        const auto& m = matches[0];
+        const double misfit = 3.615 / 3.524 - 1;
+        check(m.cellsA == 1 && m.cellsB == 1 && m.atoms == 8, "one surface cell of each (8 atoms)");
+        close(m.strain[0], misfit, 1e-9, "e11 is the misfit");
+        close(m.strain[1], misfit, 1e-9, "e22 is the misfit");
+        close(m.strain[2], 0, 1e-9, "no shear");
+        close(m.meanStrain, 2 * misfit / 3, 1e-9, "mean |strain|");
+        close(m.thetaDeg, 0, 1e-6, "no rotation");
+        for (const auto& other : matches)
+            check(other.meanStrain >= m.meanStrain - 1e-9 || other.atoms > m.atoms, "sorted by atoms with Pareto marks");
+        // Assembled: periodic, fcc stacking kept (bulk-like atoms have 12
+        // neighbours), the gap between the facing layers as asked.
+        iface::Assembly assembly;
+        assembly.gap = 2.05;
+        const Structure joined = iface::buildInterface(cu, ni, m, assembly);
+        check(joined.atoms.size() == 8, "8 atoms");
+        const Mat3 cell = cellOf(joined);
+        close(science::norm(cell[0]), 3.615 / std::sqrt(2.0), 1e-9, "B strained onto A's lattice");
+        const auto cn = coordination(joined, 2.8);
+        check(*std::max_element(cn.begin(), cn.end()) == 12, "fcc stacking kept in the slabs");
+        // A's atoms come first (the helper names both crystals' atoms Cu).
+        double lowestNi = 1e9, highestCu = -1e9;
+        for (std::size_t i = 0; i < joined.atoms.size(); ++i)
+        {
+            if (i >= cu.atoms.size()) lowestNi = std::min(lowestNi, joined.atoms[i].z);
+            else highestCu = std::max(highestCu, joined.atoms[i].z);
+        }
+        close(lowestNi - highestCu, 2.05, 1e-9, "the gap between the facing layers");
+        // Strained on both: the common lattice lies between the two.
+        assembly.strainOn = iface::StrainOn::Both;
+        const double both = science::norm(cellOf(iface::buildInterface(cu, ni, m, assembly))[0]);
+        close(both, 0.5 * (3.615 + 3.524) / std::sqrt(2.0), 1e-9, "average lattice when both are strained");
+        // The same crystal on itself: a strain-free match; Cu(100) on Cu(111)
+        // finds a commensurate low-strain cell.
+        const auto self = iface::findMatches(cu, cu, search);
+        check(!self.empty() && self[0].meanStrain < 1e-12 && self[0].atoms == 8, "Cu(111) on Cu(111) needs no strain");
+        search.maxStrain = 0.03;
+        const Structure cu100 = slab(fcc(3.615, 1), 1, 0, 0, 4);
+        const auto mixed = iface::findMatches(cu100, cu, search);
+        check(!mixed.empty(), "Cu(100)/Cu(111) matches");
+        double lowest = 1;
+        for (const auto& x : mixed) lowest = std::min(lowest, x.meanStrain);
+        check(lowest < 0.005, "a Cu(100)/Cu(111) cell under 0.5% strain (lowest " + std::to_string(lowest * 100) + "%)");
+        // No duplicate atoms anywhere in a large supercell.
+        const auto big = iface::buildInterface(cu100, cu, mixed.back(), iface::Assembly());
+        check(big.atoms.size() == static_cast<std::size_t>(mixed.back().atoms), "atom count as listed");
+        double closest = 1e9;
+        for (std::size_t i = 0; i < big.atoms.size(); ++i)
+            for (std::size_t j = i + 1; j < big.atoms.size(); ++j)
+            {
+                const auto& p = big.atoms[i];
+                const auto& q = big.atoms[j];
+                closest = std::min(closest, std::hypot(p.x - q.x, p.y - q.y, p.z - q.z));
+            }
+        check(closest > 1.0, "no overlapping atoms (closest " + std::to_string(closest) + ")");
     });
 #endif
 

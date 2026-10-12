@@ -88,7 +88,7 @@ class WorkflowTests(unittest.TestCase):
         source = self.root / "source.vasp"
         structure.save(source)
         result = af.build("interface", ["--layerA", str(source), "--layerB", str(source),
-            "--nmax", "1", "--maxcells", "1", "--gap", "2", "--vacuum", "4"])
+            "--repeats", "1", "--max-area", "10", "--layersA", "1", "--layersB", "1", "--gap", "2", "--vacuum", "4"])
         self.assertEqual(len(result.structure), 2)
         atoms = result.structure.atoms
         self.assertAlmostEqual(atoms[0].x, atoms[1].x, places=5)

@@ -154,6 +154,7 @@ set(ATOMFORGE_SOURCES
     src/algorithms/PolyCrystalBuilder.cpp
     src/algorithms/BulkCrystalBuilder.cpp
     src/algorithms/InterfaceBuilder.cpp
+    src/algorithms/InterfaceMatching.cpp
     src/algorithms/DislocationBuilder.cpp
     src/algorithms/ElasticConstants.cpp
     src/algorithms/AnisotropicDislocation.cpp

@@ -70,7 +70,7 @@ void sample(atomforge::pipeline::Modifier& m, const std::filesystem::path& folde
     if (t == "build-bulk") options("--system hexagonal --spacegroup 194 --a 3.21 --c 5.21 --atom \"Mg 0.3333333333 0.6666666667 0.25\"");
     else if (t == "build-sss") options("--frac \"Cu=0.75,Ni=0.25\" --seed 3");
     else if (t == "build-gb") options("--axis \"0 0 1\" --sigma 5 --uca 2 --ucb 2 --vacuum 2");
-    else if (t == "build-interface") options("--layerB " + quoted(folder / "layer-b.cif") + " --align --nmax 3 --mmax 4 --maxcells 9 --maxcellsB 16 --layersA 2 --layersB 2 --gap 2.5");
+    else if (t == "build-interface") options("--layerB " + quoted(folder / "layer-b.cif") + " --hklA \"1 1 1\" --hklB \"1 1 1\" --repeats 3 --max-area 60 --layersA 2 --layersB 2 --gap 2.5");
     else if (t == "build-nano") options("--shape sphere --radius 6 --vacuum 3");
     else if (t == "build-custom") options("--mesh " + quoted(folder / "cube.obj") + " --scale 1 --vacuum 3");
     else if (t == "build-poly") options("--sizex 20 --sizey 20 --sizez 20 --grains 3 --seed 5");

@@ -194,6 +194,17 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
         built = run("--build", "bulk", "--spacegroup", "227", "--a", "5.431", "--atom", site, "--origin", origin, "--output", silicon)
         assert f"origin choice {origin}" in built.stdout and silicon.read_text().splitlines()[0] == "8", (built.stdout, silicon.read_text())
     run("--build", "bulk", "--spacegroup", "225", "--atom", "Cu 0 0 0", "--origin", "2", "--output", root / "no.xyz", success=False)
+    # Interface builder: Cu(111) under Ni(111), matched by their surface
+    # lattices; the 1x1 cell (8 atoms with 4 layers each) is suggested.
+    for name, a in (("cu_bulk", 3.615), ("ni_bulk", 3.524)):
+        run("--build", "bulk", "--spacegroup", "225", "--a", str(a), "--atom", f"{'Cu' if name == 'cu_bulk' else 'Ni'} 0 0 0", "--output", root / f"{name}.cif")
+    joined = root / "cu_ni_111.xyz"
+    built = run("--build", "interface", "--layerA", root / "cu_bulk.cif", "--hklA", "1 1 1", "--layerB", root / "ni_bulk.cif",
+                "--hklB", "1 1 1", "--max-strain", "0.05", "--gap", "2.05", "--output", joined)
+    assert "matches" in built.stdout and joined.read_text().splitlines()[0] == "8", (built.stdout, joined.read_text())
+    assert sorted(line.split()[0] for line in joined.read_text().splitlines()[2:]) == ["Cu"] * 4 + ["Ni"] * 4, joined.read_text()
+    run("--build", "interface", "--layerA", root / "cu_bulk.cif", "--hklA", "1 1 1", "--layerB", root / "ni_bulk.cif",
+        "--hklB", "1 1 1", "--max-strain", "0.001", "--output", root / "none.xyz", success=False)
     # Rounded fractions (0.3333 for 1/3) are one site; a value the crystal
     # system fixes is refused rather than overwritten.
     boron = root / "boron.xyz"

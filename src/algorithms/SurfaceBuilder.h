@@ -11,7 +11,7 @@
 // already build vacuum-padded, plane-oriented cells but only for a pair of
 // grains. This finds the smallest integer lattice basis whose first two
 // vectors lie in the (hkl) plane family via a bounded search (same bounded
-// "nmax" convention InterfaceBuilder.h's generateUniqueSupercells uses),
+// "nmax" convention as the interface builder's supercell search),
 // then reuses the CSL module's supercell/orthogonalization primitives
 // (CSLComputation.h) to build and vacuum-pad the resulting cell.
 namespace atomforge

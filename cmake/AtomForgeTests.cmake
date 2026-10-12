@@ -187,7 +187,10 @@ if(TARGET AtomForge)
         ${PROJECT_SOURCE_DIR}/src/algorithms/SurfaceBuilder.cpp
         ${PROJECT_SOURCE_DIR}/src/algorithms/CSLComputation.cpp
         ${PROJECT_SOURCE_DIR}/src/algorithms/SQSBuilder.cpp
-        ${PROJECT_SOURCE_DIR}/src/algorithms/NanostructureTools.cpp)
+        ${PROJECT_SOURCE_DIR}/src/algorithms/NanostructureTools.cpp
+        ${PROJECT_SOURCE_DIR}/src/algorithms/InterfaceBuilder.cpp
+        ${PROJECT_SOURCE_DIR}/src/algorithms/InterfaceMatching.cpp
+        ${PROJECT_SOURCE_DIR}/src/graphics/StructureInstanceBuilder.cpp)
     target_include_directories(atomforge_builder_tools_tests PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/src/util)
     target_link_libraries(atomforge_builder_tools_tests PRIVATE atomforge_science)
     if(TARGET PkgConfig::SPGLIB)

@@ -2672,6 +2672,9 @@ BULK CRYSTAL  (--build bulk)
                                hexagonal | cubic   (default: that of
                                the space group)
   --spacegroup <N>            Space-group number 1-230  (default: 225)
+  --origin <1|2>              Origin choice of the 24 groups that have two,
+                               such as Fd-3m (default: 1; Si is at
+                               0 0 0 in choice 1 and 1/8 1/8 1/8 in 2)
   --a   <Ang>                 Lattice parameter a       (default: 4.0)
   --b   <Ang>                 Lattice parameter b       (default: a)
   --c   <Ang>                 Lattice parameter c       (default: a)
@@ -2939,40 +2942,47 @@ Example:
 ------------------------------------------------------------------
 HETEROGENEOUS INTERFACE  (--build interface)
 ------------------------------------------------------------------
-  --layerA <file>             Structure for layer A (must have a unit cell)
-  --layerB <file>             Structure for layer B (must have a unit cell)
-  --nmax   <N>                Max supercell search index  (default: 4)
-  --maxcells <N>              Max supercell area (unit cells)  (default: 16)
-  --pick   <N>                Index of strain-matched supercell pair to use
-                               (0 = best match, default: 0)
-  --layersA <N>               Z repetitions of layer A  (default: 1)
-  --layersB <N>               Z repetitions of layer B  (default: 1)
-  --gap    <Ang>              Interface gap  (default: 2.0)
-  --vacuum <Ang>              Vacuum above/below  (default: 10.0)
-  --repx   <N>                XY repeat X  (default: 1)
-  --repy   <N>                XY repeat Y  (default: 1)
+Matches the surface lattices of two crystals (Stradi et al. 2017, the
+method of QuantumATK's InterfaceBuilder): B is rotated about the interface
+normal, supercells of the two surfaces that coincide within the strain
+limit are listed (fewest atoms first), and one is built with B strained onto
+A (or A onto B, or both onto their average).
+
+  --layerA <file>             Crystal A (bottom), with a unit cell
+  --layerB <file>             Crystal B (top), with a unit cell
+  --hklA "h k l"              Plane of A at the interface (default: the file's
+                               a-b plane, for a structure that is already a slab)
+  --hklB "h k l"              Plane of B at the interface (default: as for A)
+  --layersA <N>               Surface layers of A  (default: 4)
+  --layersB <N>               Surface layers of B  (default: 4)
+
+  Matching:
+  --max-strain <f>            Largest mean |strain|, (|e11|+|e22|+|e12|)/3  (default: 0.03)
+  --max-area <A2>             Largest interface cell area  (default: 150)
+  --repeats <N>               Largest repetition of B's surface vectors  (default: 6)
+  --nmax <N>                  Older name of --repeats
+  --min-angle <deg>           Smallest angle between the cell vectors  (default: 20)
+  --angle-min <deg>           Rotations of B searched, from  (default: 0)
+  --angle-max <deg>           ... to  (default: 180)
+  --angle-step <deg>          ... in steps of  (default: 1)
+  --list                      Print every match
+  --pick <N>                  Build match N of the list (default: the suggested
+                               match: the Pareto-optimal one with the lowest
+                               strain (%) + area / 25 A^2)
+
+  Assembly:
+  --strain-on <B|A|both>      Side strained to fit the other  (default: B)
+  --gap <Ang>                 Distance between the facing layers  (default: 2.0)
+  --vacuum <Ang>              Vacuum along the normal; 0 makes the cell periodic,
+                               with two interfaces each at the gap  (default: 0)
+  --shift "fa fb"             In-plane shift of B, fractions of the cell  (default: 0 0)
+  --repx <N>  --repy <N>      Repeats of the interface cell in plane  (default: 1)
   --output <file>             Output file (format from extension)
 
-  Rotated matching (the Interface Builder window's search): layer B's
-  supercell is rotated onto layer A's before its strain is measured.
-  --align                      Use rotated matching
-  --mmax <N>                   Max supercell search index of layer B (default: --nmax)
-  --maxcellsB <N>              Max supercell area of layer B (default: --maxcells)
-  --max-strain <f>             Largest mean |strain| kept (default: 0.1)
-  --max-rotation <deg>         Largest rotation of layer B kept (default: 10)
-  --or-angle <deg>             Orientation relationship: keep rotations near this angle
-  --or-plane-a "h k l" --or-dir-a "u v w"
-  --or-plane-b "h k l" --or-dir-b "u v w"
-                               Orientation relationship from a plane and a direction
-                               of each layer (replaces --or-angle)
-  --or-tol <deg>               Orientation relationship tolerance (default: 2)
-  --candidate <N>              Match number N in search order, as numbered by the
-                               Interface Builder window (replaces --pick)
-
 Example:
-  AtomForge --build interface --layerA cu.cif --layerB ni.cif ^
-            --nmax 4 --layersA 3 --layersB 3 ^
-            --gap 2.0 --vacuum 10.0 --output cu_ni_interface.cif
+  AtomForge --build interface --layerA cu.cif --hklA "1 1 1" ^
+            --layerB ni.cif --hklB "1 1 1" --layersA 4 --layersB 4 ^
+            --max-strain 0.05 --output cu_ni_interface.cif
 \end{lstlisting}
 
 \clearpage
@@ -3033,7 +3043,7 @@ SURFACE (--build surface)
 --input FILE --output FILE [--h 1] [--k 1] [--l 1]
 [--layers 4] [--vacuum 15] [--nmax 8] [--no-primitive] [--symprec 1e-3]
 Cleaves a bulk crystal along Miller plane (h k l) into a 2D-periodic,
-vacuum-padded slab.
+vacuum-padded slab; --vacuum is the gap (A) between its surfaces.
 \end{lstlisting}
 
 \clearpage

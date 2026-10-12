@@ -5,6 +5,7 @@
 #include "algorithms/CSLComputation.h"
 #include "algorithms/DislocationBuilder.h"
 #include "algorithms/InterfaceBuilder.h"
+#include "algorithms/InterfaceMatching.h"
 #include "algorithms/StackingFaultBuilder.h"
 #include "io/StructureLoader.h"
 
@@ -548,45 +549,53 @@ void printHelpInterface()
 "------------------------------------------------------------------\n"
 "HETEROGENEOUS INTERFACE  (--build interface)\n"
 "------------------------------------------------------------------\n"
-"  --layerA <file>             Structure for layer A (must have a unit cell)\n"
-"  --layerB <file>             Structure for layer B (must have a unit cell)\n"
-"  --nmax   <N>                Max supercell search index  (default: 4)\n"
-"  --maxcells <N>              Max supercell area (unit cells)  (default: 16)\n"
-"  --pick   <N>                Index of strain-matched supercell pair to use\n"
-"                               (0 = best match, default: 0)\n"
-"  --layersA <N>               Z repetitions of layer A  (default: 1)\n"
-"  --layersB <N>               Z repetitions of layer B  (default: 1)\n"
-"  --gap    <Ang>              Interface gap  (default: 2.0)\n"
-"  --vacuum <Ang>              Vacuum above/below  (default: 10.0)\n"
-"  --repx   <N>                XY repeat X  (default: 1)\n"
-"  --repy   <N>                XY repeat Y  (default: 1)\n"
+"Matches the surface lattices of two crystals (Stradi et al. 2017, the\n"
+"method of QuantumATK's InterfaceBuilder): B is rotated about the interface\n"
+"normal, supercells of the two surfaces that coincide within the strain\n"
+"limit are listed (fewest atoms first), and one is built with B strained onto\n"
+"A (or A onto B, or both onto their average).\n"
+"\n"
+"  --layerA <file>             Crystal A (bottom), with a unit cell\n"
+"  --layerB <file>             Crystal B (top), with a unit cell\n"
+"  --hklA \"h k l\"              Plane of A at the interface (default: the file's\n"
+"                               a-b plane, for a structure that is already a slab)\n"
+"  --hklB \"h k l\"              Plane of B at the interface (default: as for A)\n"
+"  --layersA <N>               Surface layers of A  (default: 4)\n"
+"  --layersB <N>               Surface layers of B  (default: 4)\n"
+"\n"
+"  Matching:\n"
+"  --max-strain <f>            Largest mean |strain|, (|e11|+|e22|+|e12|)/3  (default: 0.03)\n"
+"  --max-area <A2>             Largest interface cell area  (default: 150)\n"
+"  --repeats <N>               Largest repetition of B's surface vectors  (default: 6)\n"
+"  --nmax <N>                  Older name of --repeats\n"
+"  --min-angle <deg>           Smallest angle between the cell vectors  (default: 20)\n"
+"  --angle-min <deg>           Rotations of B searched, from  (default: 0)\n"
+"  --angle-max <deg>           ... to  (default: 180)\n"
+"  --angle-step <deg>          ... in steps of  (default: 1)\n"
+"  --list                      Print every match\n"
+"  --pick <N>                  Build match N of the list (default: the suggested\n"
+"                               match: the Pareto-optimal one with the lowest\n"
+"                               strain (%) + area / 25 A^2)\n"
+"\n"
+"  Assembly:\n"
+"  --strain-on <B|A|both>      Side strained to fit the other  (default: B)\n"
+"  --gap <Ang>                 Distance between the facing layers  (default: 2.0)\n"
+"  --vacuum <Ang>              Vacuum along the normal; 0 makes the cell periodic,\n"
+"                               with two interfaces each at the gap  (default: 0)\n"
+"  --shift \"fa fb\"             In-plane shift of B, fractions of the cell  (default: 0 0)\n"
+"  --repx <N>  --repy <N>      Repeats of the interface cell in plane  (default: 1)\n"
 "  --output <file>             Output file (format from extension)\n"
 "\n"
-"  Rotated matching (the Interface Builder window's search): layer B's\n"
-"  supercell is rotated onto layer A's before its strain is measured.\n"
-"  --align                      Use rotated matching\n"
-"  --mmax <N>                   Max supercell search index of layer B (default: --nmax)\n"
-"  --maxcellsB <N>              Max supercell area of layer B (default: --maxcells)\n"
-"  --max-strain <f>             Largest mean |strain| kept (default: 0.1)\n"
-"  --max-rotation <deg>         Largest rotation of layer B kept (default: 10)\n"
-"  --or-angle <deg>             Orientation relationship: keep rotations near this angle\n"
-"  --or-plane-a \"h k l\" --or-dir-a \"u v w\"\n"
-"  --or-plane-b \"h k l\" --or-dir-b \"u v w\"\n"
-"                               Orientation relationship from a plane and a direction\n"
-"                               of each layer (replaces --or-angle)\n"
-"  --or-tol <deg>               Orientation relationship tolerance (default: 2)\n"
-"  --candidate <N>              Match number N in search order, as numbered by the\n"
-"                               Interface Builder window (replaces --pick)\n"
-"\n"
 "Example:\n"
-"  AtomForge --build interface --layerA cu.cif --layerB ni.cif ^\n"
-"            --nmax 4 --layersA 3 --layersB 3 ^\n"
-"            --gap 2.0 --vacuum 10.0 --output cu_ni_interface.cif\n"
+"  AtomForge --build interface --layerA cu.cif --hklA \"1 1 1\" ^\n"
+"            --layerB ni.cif --hklB \"1 1 1\" --layersA 4 --layersB 4 ^\n"
+"            --max-strain 0.05 --output cu_ni_interface.cif\n"
 << std::endl;
 }
 
 int runInterface(int argc, char* argv[])
 {
+    namespace iface = atomforge::interfaces;
     const char* pathA = findArg(argc, argv, "--layerA");
     const char* pathB = findArg(argc, argv, "--layerB");
     if (!pathA || !pathB)
@@ -594,7 +603,6 @@ int runInterface(int argc, char* argv[])
         std::cerr << "Error: --layerA <file> and --layerB <file> are required\n";
         return 1;
     }
-
     const char* outPath = findArg(argc, argv, "--output");
     if (!outPath)
     {
@@ -602,197 +610,108 @@ int runInterface(int argc, char* argv[])
         return 1;
     }
 
-    Structure sA, sB;
+    iface::Side sideA, sideB;
     std::string err;
-    if (!loadStructureFromFile(pathA, sA, err))
+    if (!loadStructureFromFile(pathA, sideA.crystal, err))
     {
         std::cerr << "Error loading layer A: " << err << "\n";
         return 1;
     }
-    if (!loadStructureFromFile(pathB, sB, err))
+    if (!loadStructureFromFile(pathB, sideB.crystal, err))
     {
         std::cerr << "Error loading layer B: " << err << "\n";
         return 1;
     }
-    if (!sA.hasUnitCell || !sB.hasUnitCell)
-    {
-        std::cerr << "Error: both input structures must have a unit cell\n";
-        return 1;
-    }
-
-    int  nmax      = argInt   (argc, argv, "--nmax",     4);
-    int  maxCells  = argInt   (argc, argv, "--maxcells", 16);
-    int  pickIdx   = argInt   (argc, argv, "--pick",     0);
-    int  layersA   = argInt   (argc, argv, "--layersA",  1);
-    int  layersB   = argInt   (argc, argv, "--layersB",  1);
-    double gap     = argDouble(argc, argv, "--gap",      2.0);
-    double vacuum  = argDouble(argc, argv, "--vacuum",   10.0);
-    int  repx      = argInt   (argc, argv, "--repx",     1);
-    int  repy      = argInt   (argc, argv, "--repy",     1);
-
-    const bool align = hasFlag(argc, argv, "--align");
-    int  mmax      = argInt   (argc, argv, "--mmax",      nmax);
-    int  maxCellsB = argInt   (argc, argv, "--maxcellsB", maxCells);
-    int  candidate = argInt   (argc, argv, "--candidate", -1);
-    if (!align) { mmax = nmax; maxCellsB = maxCells; candidate = -1; }
-
-    if (nmax < 1 || nmax > 10 || maxCells < 1 || maxCells > 400 || pickIdx < 0 ||
-        mmax < 1 || mmax > 10 || maxCellsB < 1 || maxCellsB > 400 ||
-        layersA < 1 || layersB < 1 || layersA > 1000 || layersB > 1000 ||
-        repx < 1 || repy < 1 || repx > 100 || repy > 100 || gap < 0 || vacuum < 0)
-        throw std::invalid_argument("Invalid interface search bounds, repeats, gap or vacuum");
-
-    // Build 2D bases
-    double basisA[2][2], basisB[2][2];
-    get2DBasis(sA, basisA);
-    get2DBasis(sB, basisB);
-
-    // Enumerate supercell candidates for both layers
-    auto cellsA = generateUniqueSupercells(basisA, nmax, maxCells);
-    auto cellsB = generateUniqueSupercells(basisB, mmax, maxCellsB);
-
-    if (cellsA.empty() || cellsB.empty())
-    {
-        std::cerr << "Error: no supercell candidates found (try increasing --nmax or --maxcells)\n";
-        return 1;
-    }
-
-    // Rotated matching keeps the Interface Builder window's single-precision
-    // thresholds, so it finds the same matches in the same order.
-    const float maxStrain   = static_cast<float>(argDouble(argc, argv, "--max-strain",   0.1));
-    const float maxRotation = static_cast<float>(argDouble(argc, argv, "--max-rotation", 10.0));
-    const float orTol       = static_cast<float>(argDouble(argc, argv, "--or-tol",       2.0));
-    bool  useOr   = false;
-    float orAngle = 0.0f;
-    if (align)
-    {
-        const char* planeA = findArg(argc, argv, "--or-plane-a");
-        const char* dirA   = findArg(argc, argv, "--or-dir-a");
-        const char* planeB = findArg(argc, argv, "--or-plane-b");
-        const char* dirB   = findArg(argc, argv, "--or-dir-b");
-        if (planeA || dirA || planeB || dirB)
-        {
-            glm::vec3 hklA, uvwA, hklB, uvwB;
-            if (!planeA || !dirA || !planeB || !dirB || !parseVec3(planeA, hklA) || !parseVec3(dirA, uvwA) ||
-                !parseVec3(planeB, hklB) || !parseVec3(dirB, uvwB))
-                throw std::invalid_argument("--or-plane-a, --or-dir-a, --or-plane-b and --or-dir-b need three numbers each");
-            const float pA[3] = {hklA.x, hklA.y, hklA.z}, dA[3] = {uvwA.x, uvwA.y, uvwA.z};
-            const float pB[3] = {hklB.x, hklB.y, hklB.z}, dB[3] = {uvwB.x, uvwB.y, uvwB.z};
-            orAngle = orientationAngleFromPlaneDir(sA, pA, dA) - orientationAngleFromPlaneDir(sB, pB, dB);
-            useOr = true;
-        }
-        else if (findArg(argc, argv, "--or-angle"))
-        {
-            orAngle = static_cast<float>(argDouble(argc, argv, "--or-angle", 0.0));
-            useOr = true;
-        }
-    }
-
-    // Find best-strain pair
-    struct Candidate {
-        int iA, iB;
-        double strain;
-        double vA[2][2], vB[2][2];
+    const auto plane = [&](const char* flag, iface::Side& side) {
+        const char* text = findArg(argc, argv, flag);
+        side.cleave = text != nullptr;
+        if (!text) return;
+        glm::vec3 hkl;
+        if (!parseVec3(text, hkl) || hkl != glm::round(hkl))
+            throw std::invalid_argument(std::string(flag) + " needs three whole numbers, e.g. \"1 1 1\"");
+        side.h = static_cast<int>(hkl.x);
+        side.k = static_cast<int>(hkl.y);
+        side.l = static_cast<int>(hkl.z);
     };
-    std::vector<Candidate> ranked;
-    for (int iA = 0; iA < (int)cellsA.size(); ++iA)
-    {
-        for (int iB = 0; iB < (int)cellsB.size(); ++iB)
-        {
-            double exx, eyy, exy;
-            if (align)
-            {
-                // Rotate B's supercell onto A's; keep small rotations near the orientation relationship.
-                const auto& va = cellsA[iA].vecs;
-                const auto& ub = cellsB[iB].vecs;
-                const double thetaDeg = wrapDegPm180(angleOf(va[0][0], va[0][1]) * 180.0 / M_PI
-                                                     - angleOf(ub[0][0], ub[0][1]) * 180.0 / M_PI);
-                if (std::abs(thetaDeg) > maxRotation) continue;
-                if (useOr && static_cast<float>(std::abs(wrapDegPm180(thetaDeg - orAngle))) > orTol) continue;
-                const Mat2 rot = rotation2D(thetaDeg * M_PI / 180.0);
-                double uRot[2][2];
-                for (int i = 0; i < 2; ++i)
-                {
-                    uRot[i][0] = ub[i][0]*rot.m[0][0] + ub[i][1]*rot.m[1][0];
-                    uRot[i][1] = ub[i][0]*rot.m[0][1] + ub[i][1]*rot.m[1][1];
-                }
-                if (!strainComponents(va, uRot, exx, eyy, exy)) continue;
-                if (meanAbsStrain(exx, eyy, exy) > maxStrain) continue;
-            }
-            else if (!strainComponents(cellsA[iA].vecs, cellsB[iB].vecs, exx, eyy, exy))
-                continue;
-            Candidate c;
-            c.iA = iA; c.iB = iB;
-            c.strain = meanAbsStrain(exx, eyy, exy);
-            std::memcpy(c.vA, cellsA[iA].vecs, sizeof(c.vA));
-            std::memcpy(c.vB, cellsB[iB].vecs, sizeof(c.vB));
-            ranked.push_back(c);
-        }
-    }
+    plane("--hklA", sideA);
+    plane("--hklB", sideB);
 
-    if (ranked.empty())
+    const int layersA = argInt(argc, argv, "--layersA", 4);
+    const int layersB = argInt(argc, argv, "--layersB", 4);
+    sideA.layers = layersA;
+    sideB.layers = layersB;
+    iface::SearchParams search;
+    search.maxStrain = argDouble(argc, argv, "--max-strain", 0.03);
+    search.maxArea = argDouble(argc, argv, "--max-area", 150.0);
+    search.maxRepeats = argInt(argc, argv, "--repeats", argInt(argc, argv, "--nmax", 6));
+    search.minCellAngle = argDouble(argc, argv, "--min-angle", 20.0);
+    search.angleMin = argDouble(argc, argv, "--angle-min", 0.0);
+    search.angleMax = argDouble(argc, argv, "--angle-max", 180.0);
+    search.angleStep = argDouble(argc, argv, "--angle-step", 1.0);
+    iface::Assembly assembly;
+    assembly.gap = argDouble(argc, argv, "--gap", 2.0);
+    assembly.vacuum = argDouble(argc, argv, "--vacuum", 0.0);
+    const std::string strainOn = findArg(argc, argv, "--strain-on") ? findArg(argc, argv, "--strain-on") : "B";
+    if (strainOn == "B" || strainOn == "b") assembly.strainOn = iface::StrainOn::B;
+    else if (strainOn == "A" || strainOn == "a") assembly.strainOn = iface::StrainOn::A;
+    else if (strainOn == "both") assembly.strainOn = iface::StrainOn::Both;
+    else throw std::invalid_argument("--strain-on must be B, A or both");
+    if (const char* text = findArg(argc, argv, "--shift"))
     {
-        std::cerr << "Error: no matching supercell pairs found\n";
+        std::istringstream in(text);
+        if (!(in >> assembly.shift[0] >> assembly.shift[1]))
+            throw std::invalid_argument("--shift needs two fractions, e.g. \"0.5 0\"");
+    }
+    const int repx = argInt(argc, argv, "--repx", 1);
+    const int repy = argInt(argc, argv, "--repy", 1);
+    if (layersA < 1 || layersB < 1 || layersA > 1000 || layersB > 1000 || search.maxStrain <= 0 || search.maxArea <= 0 ||
+        search.maxRepeats < 1 || search.maxRepeats > 30 || search.angleStep <= 0 || search.angleMax < search.angleMin ||
+        assembly.gap < 0 || assembly.vacuum < 0 || repx < 1 || repy < 1 || repx > 100 || repy > 100)
+        throw std::invalid_argument("Invalid interface layers, search limits, gap, vacuum or repeats");
+
+    Structure slabA, slabB;
+    if (!iface::prepareSlab(sideA, slabA, err))
+    {
+        std::cerr << "Error: layer A " << err << "\n";
         return 1;
     }
-
-    // --candidate counts matches in search order; --pick counts them by strain.
-    int chosen = candidate;
-    if (candidate >= 0)
+    if (!iface::prepareSlab(sideB, slabB, err))
     {
-        if (candidate >= (int)ranked.size())
-        {
-            std::cerr << "Error: --candidate " << candidate << " is out of range ("
-                      << ranked.size() << " candidates available)\n";
-            return 1;
-        }
+        std::cerr << "Error: layer B " << err << "\n";
+        return 1;
     }
-    else
+    const auto matches = iface::findMatches(slabA, slabB, search);
+    if (matches.empty())
     {
-        std::stable_sort(ranked.begin(), ranked.end(),
-                         [](const Candidate& a, const Candidate& b){ return a.strain < b.strain; });
-        if (pickIdx >= (int)ranked.size())
-        {
-            std::cerr << "Error: --pick " << pickIdx << " is out of range ("
-                      << ranked.size() << " candidates available)\n";
-            return 1;
-        }
-        chosen = pickIdx;
+        std::cerr << "Error: no matches within " << search.maxStrain * 100 << "% strain and " << search.maxArea
+                  << " A^2; raise --max-strain, --max-area or --repeats\n";
+        return 1;
     }
+    const int suggested = iface::suggestedMatch(matches);
+    const int pick = argInt(argc, argv, "--pick", suggested);
+    if (pick < 0 || pick >= static_cast<int>(matches.size()))
+    {
+        std::cerr << "Error: --pick " << pick << " is out of range (" << matches.size() << " matches)\n";
+        return 1;
+    }
+    const bool list = hasFlag(argc, argv, "--list");
+    std::cout << matches.size() << " matches (fewest atoms first; * Pareto-optimal, > built):\n"
+              << "   #   atoms  strain%   area A2  angle  theta   cells A/B\n";
+    for (int i = 0; i < static_cast<int>(matches.size()); ++i)
+    {
+        if (!list && i >= 12 && i != pick) continue;
+        const auto& m = matches[static_cast<std::size_t>(i)];
+        char line[160];
+        std::snprintf(line, sizeof(line), "%c%c%3d %7d %8.3f %9.2f %6.1f %6.1f   %d/%d\n", i == pick ? '>' : ' ', m.pareto ? '*' : ' ',
+                      i, m.atoms, m.meanStrain * 100, m.area, m.cellAngle, m.thetaDeg, m.cellsA, m.cellsB);
+        std::cout << line;
+    }
+    if (!list && matches.size() > 12) std::cout << "  ... (--list prints all)\n";
 
-    const Candidate& best = ranked[chosen];
-    std::cout << "Selected supercell pair " << chosen
-              << " (mean |strain| = " << best.strain << ")\n";
-
-    // Build layer supercells
-    Structure superA = makeSupercell2D(sA, cellsA[best.iA].mat);
-    Structure superB = makeSupercell2D(sB, cellsB[best.iB].mat);
-
-    if (layersA > 1) superA = repeatLayersZ(superA, layersA);
-    if (layersB > 1) superB = repeatLayersZ(superB, layersB);
-
-    // Strain layer B to match A's 2D cell
-    const auto& u = best.vB;
-    const auto& v = best.vA;
-    const double determinant = u[0][0]*u[1][1] - u[1][0]*u[0][1];
-    if (std::abs(determinant) < 1e-12) throw std::invalid_argument("Singular layer B basis");
-    const double transform[2][2] = {
-        {(v[0][0]*u[1][1]-v[1][0]*u[0][1])/determinant,
-         (-v[0][0]*u[1][0]+v[1][0]*u[0][0])/determinant},
-        {(v[0][1]*u[1][1]-v[1][1]*u[0][1])/determinant,
-         (-v[0][1]*u[1][0]+v[1][1]*u[0][0])/determinant}};
-    Structure strainedB = applyTransform2D(superB, transform);
-
-    // Stack into interface
-    Structure iface = assembleInterface(superA, strainedB, gap, vacuum);
-
-    if (repx > 1 || repy > 1)
-        iface = repeatInterfaceXY(iface, repx, repy);
-
-    std::cout << "Built interface: " << (int)iface.atoms.size() << " atoms\n";
-
-    std::string fmt = detectFormat(outPath);
-    if (!saveStructure(iface, outPath, fmt))
+    Structure result = iface::buildInterface(slabA, slabB, matches[static_cast<std::size_t>(pick)], assembly);
+    if (repx > 1 || repy > 1) result = repeatInterfaceXY(result, repx, repy);
+    std::cout << "Built interface: " << result.atoms.size() << " atoms\n";
+    if (!saveStructure(result, outPath, detectFormat(outPath)))
     {
         std::cerr << "Error: failed to save structure to '" << outPath << "'\n";
         return 1;

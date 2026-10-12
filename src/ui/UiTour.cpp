@@ -110,6 +110,9 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
             dockRightRequested = "Structure Pipeline###Structure pipeline";
         }});
         t.steps.push_back({"pipeline-undocked", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { pipelineDialog.show(); resetLayoutRequested = true; }});
+        t.steps.push_back({"builder-interface-matches", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            interfaceBuilderDialog.openExample();
+        }});
         t.steps.push_back({"operation-replicate", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { operationDialog.open("replicate"); }});
         t.steps.push_back({"operation-select", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { operationDialog.open("select-expression"); }});
         t.steps.push_back({"builder-bulk", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { bulkCrystalDialog.open(); }});
