@@ -1,4 +1,6 @@
 #include "algorithms/PolyCrystalBuilder.h"
+#include <cstdlib>
+#include <cstdio>
 
 #include "ElementData.h"
 
@@ -449,10 +451,17 @@ PolyBuildResult buildPolycrystal(Structure& structure,
     structure.atoms.swap(generatedAtoms);
     structure.hasUnitCell  = true;
     structure.cellOffset   = {{ 0.0, 0.0, 0.0 }};
+    // The box lengths as typed: a float 7.22 is 7.2199998, so take the
+    // shortest decimal that reads back as the same float.
+    const auto typed = [](float value) {
+        char text[32];
+        std::snprintf(text, sizeof(text), "%.7g", value);
+        return std::strtod(text, nullptr);
+    };
     structure.cellVectors  = {{
-        {{ (double)params.sizeX, 0.0, 0.0 }},
-        {{ 0.0, (double)params.sizeY, 0.0 }},
-        {{ 0.0, 0.0, (double)params.sizeZ }}
+        {{ typed(params.sizeX), 0.0, 0.0 }},
+        {{ 0.0, typed(params.sizeY), 0.0 }},
+        {{ 0.0, 0.0, typed(params.sizeZ) }}
     }};
 
     // Populate per-atom grain orientation colors (IPF-Z) for EBSD-style display

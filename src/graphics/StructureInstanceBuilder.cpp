@@ -338,27 +338,29 @@ StructureInstanceData buildStructureInstanceData(
         if (!structure.hasUnitCell)
             return structure;
 
-        glm::vec3 origin((float)structure.cellOffset[0],
-                         (float)structure.cellOffset[1],
-                         (float)structure.cellOffset[2]);
+        // In double precision: each atom is placed at its own position plus
+        // whole cell vectors, so coordinates keep every digit (3.61, not
+        // 3.6099998951).
+        const glm::dvec3 origin(structure.cellOffset[0], structure.cellOffset[1], structure.cellOffset[2]);
+        const glm::dvec3 a(structure.cellVectors[0][0], structure.cellVectors[0][1], structure.cellVectors[0][2]);
+        const glm::dvec3 b(structure.cellVectors[1][0], structure.cellVectors[1][1], structure.cellVectors[1][2]);
+        const glm::dvec3 c(structure.cellVectors[2][0], structure.cellVectors[2][1], structure.cellVectors[2][2]);
 
-        glm::vec3 a((float)structure.cellVectors[0][0], (float)structure.cellVectors[0][1], (float)structure.cellVectors[0][2]);
-        glm::vec3 b((float)structure.cellVectors[1][0], (float)structure.cellVectors[1][1], (float)structure.cellVectors[1][2]);
-        glm::vec3 c((float)structure.cellVectors[2][0], (float)structure.cellVectors[2][1], (float)structure.cellVectors[2][2]);
+        const glm::dmat3 cellMat(a, b, c);
+        if (std::abs(glm::determinant(cellMat)) <= 1e-12)
+            return structure;
+        const glm::dmat3 invCellMat = glm::inverse(cellMat);
 
-        glm::mat3 cellMat(a, b, c);
-        glm::mat3 invCellMat = glm::inverse(cellMat);
-
-        glm::mat3 transform(1.0f);
+        glm::dmat3 transform(1.0);
         for (int row = 0; row < 3; ++row)
             for (int col = 0; col < 3; ++col)
-                transform[col][row] = (float)transformMatrix[row][col];
+                transform[col][row] = static_cast<double>(transformMatrix[row][col]);
 
-        float det = glm::determinant(transform);
+        const double det = glm::determinant(transform);
         if (std::abs(det) <= kEpsilon)
             return structure;
 
-        glm::mat3 invTransform = glm::inverse(transform);
+        const glm::dmat3 invTransform = glm::inverse(transform);
 
         int nMin[3] = {0, 0, 0};
         int nMax[3] = {0, 0, 0};
@@ -380,39 +382,42 @@ StructureInstanceData buildStructureInstanceData(
         const bool hasGrainColors = structure.grainColors.size() == structure.atoms.size();
         const bool hasGrainRegionIds = structure.grainRegionIds.size() == structure.atoms.size();
 
-        glm::vec3 aT = (float)transformMatrix[0][0]*a + (float)transformMatrix[0][1]*b + (float)transformMatrix[0][2]*c;
-        glm::vec3 bT = (float)transformMatrix[1][0]*a + (float)transformMatrix[1][1]*b + (float)transformMatrix[1][2]*c;
-        glm::vec3 cT = (float)transformMatrix[2][0]*a + (float)transformMatrix[2][1]*b + (float)transformMatrix[2][2]*c;
-        result.cellVectors[0] = { (double)aT.x, (double)aT.y, (double)aT.z };
-        result.cellVectors[1] = { (double)bT.x, (double)bT.y, (double)bT.z };
-        result.cellVectors[2] = { (double)cT.x, (double)cT.y, (double)cT.z };
+        const auto row = [&](int r) {
+            return static_cast<double>(transformMatrix[r][0]) * a + static_cast<double>(transformMatrix[r][1]) * b +
+                   static_cast<double>(transformMatrix[r][2]) * c;
+        };
+        const glm::dvec3 aT = row(0), bT = row(1), cT = row(2);
+        result.cellVectors[0] = { aT.x, aT.y, aT.z };
+        result.cellVectors[1] = { bT.x, bT.y, bT.z };
+        result.cellVectors[2] = { cT.x, cT.y, cT.z };
 
         for (size_t atomIndex = 0; atomIndex < structure.atoms.size(); ++atomIndex)
         {
             const auto& atom = structure.atoms[atomIndex];
-            glm::vec3 worldPos((float)atom.x, (float)atom.y, (float)atom.z);
-            glm::vec3 frac = invCellMat * (worldPos - origin);
-            frac.x -= std::floor(frac.x);
-            frac.y -= std::floor(frac.y);
-            frac.z -= std::floor(frac.z);
+            const glm::dvec3 worldPos(atom.x, atom.y, atom.z);
+            const glm::dvec3 rawFrac = invCellMat * (worldPos - origin);
+            const glm::dvec3 cellOf = glm::floor(rawFrac);
+            const glm::dvec3 frac = rawFrac - cellOf;
 
             for (int ix = nMin[0]; ix <= nMax[0]; ++ix)
             for (int iy = nMin[1]; iy <= nMax[1]; ++iy)
             for (int iz = nMin[2]; iz <= nMax[2]; ++iz)
             {
-                glm::vec3 shiftedFrac = frac + glm::vec3((float)ix, (float)iy, (float)iz);
-                glm::vec3 mappedFrac  = invTransform * shiftedFrac;
+                const glm::dvec3 shiftedFrac = frac + glm::dvec3(ix, iy, iz);
+                const glm::dvec3 mappedFrac  = invTransform * shiftedFrac;
 
                 if (mappedFrac.x < -kEpsilon || mappedFrac.y < -kEpsilon || mappedFrac.z < -kEpsilon)
                     continue;
-                if (mappedFrac.x >= 1.0f - kEpsilon || mappedFrac.y >= 1.0f - kEpsilon || mappedFrac.z >= 1.0f - kEpsilon)
+                if (mappedFrac.x >= 1.0 - kEpsilon || mappedFrac.y >= 1.0 - kEpsilon || mappedFrac.z >= 1.0 - kEpsilon)
                     continue;
 
-                glm::vec3 newWorld = origin + shiftedFrac.x*a + shiftedFrac.y*b + shiftedFrac.z*c;
+                // The atom moved by whole cells: (ix, iy, iz) less the cell it was in.
+                const glm::dvec3 cells = glm::dvec3(ix, iy, iz) - cellOf;
+                const glm::dvec3 newWorld = worldPos + cells.x * a + cells.y * b + cells.z * c;
                 AtomSite site = atom;
-                site.x = (double)newWorld.x;
-                site.y = (double)newWorld.y;
-                site.z = (double)newWorld.z;
+                site.x = newWorld.x;
+                site.y = newWorld.y;
+                site.z = newWorld.z;
                 result.atoms.push_back(site);
                 if (hasGrainColors)
                     result.grainColors.push_back(structure.grainColors[atomIndex]);
