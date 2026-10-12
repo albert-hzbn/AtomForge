@@ -100,6 +100,10 @@ public:
     float maxPointSize() const { return m_maxPointSize; }
     bool preciseOcclusion() const { return m_preciseOcclusion; }
     float timestampPeriod() const { return m_timestampPeriod; }  // ns per tick; 0: no timestamps
+    // The subpass dependencies of every pass sharing the scene pipelines
+    // (the window's and the canvases'): earlier reads or copies of the
+    // attachments before drawing, and sampling or copying them afterwards.
+    static std::array<VkSubpassDependency, 2> passDependencies();
     const std::string& deviceName() const { return m_deviceName; }
 
 private:

@@ -77,6 +77,8 @@ bool Context::init(GLFWwindow* window, std::string& error)
                 instanceInfo.enabledLayerCount = 1;
                 instanceInfo.ppEnabledLayerNames = &validation;
             }
+        std::cout << (instanceInfo.enabledLayerCount ? "[Vulkan] Validation layer enabled." : "[Vulkan] Validation layer not found.")
+                  << std::endl;
     }
     if (!check(vkCreateInstance(&instanceInfo, nullptr, &m_instance), "vkCreateInstance", error)) return false;
     vkload::loadInstance(m_instance);
@@ -170,6 +172,9 @@ bool Context::init(GLFWwindow* window, std::string& error)
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 64},
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 64},
         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 64},
+        // The ImGui backend binds textures as a sampled image plus a sampler.
+        {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 512},
+        {VK_DESCRIPTOR_TYPE_SAMPLER, 16},
     };
     VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
@@ -252,19 +257,16 @@ bool Context::init(GLFWwindow* window, std::string& error)
     subpass.pColorAttachments = &colorRef;
     subpass.pDepthStencilAttachment = &depthRef;
     if (m_samples != VK_SAMPLE_COUNT_1_BIT) subpass.pResolveAttachments = &resolveRef;
-    VkSubpassDependency dependency{};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    // The same dependencies as the canvases' pass (render passes are only
+    // compatible, so share pipelines, when their dependencies are identical).
+    const auto dependencies = passDependencies();
     VkRenderPassCreateInfo passInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
     passInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
     passInfo.pAttachments = attachments.data();
     passInfo.subpassCount = 1;
     passInfo.pSubpasses = &subpass;
-    passInfo.dependencyCount = 1;
-    passInfo.pDependencies = &dependency;
+    passInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+    passInfo.pDependencies = dependencies.data();
     if (!check(vkCreateRenderPass(m_device, &passInfo, nullptr, &m_mainPass), "vkCreateRenderPass", error)) return false;
 
     return createSwapchain(error);
@@ -636,6 +638,26 @@ void Context::destroyBuffer(Buffer& buffer)
         vkFreeMemory(device, doomed.memory, nullptr);
     });
     buffer = Buffer();
+}
+
+std::array<VkSubpassDependency, 2> Context::passDependencies()
+{
+    std::array<VkSubpassDependency, 2> dependencies{};
+    dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependencies[0].dstSubpass = 0;
+    dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT |
+                                   VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependencies[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                                    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dependencies[1].srcSubpass = 0;
+    dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+    dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
+    dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
+    return dependencies;
 }
 
 void Context::destroyBufferNow(Buffer& buffer)
