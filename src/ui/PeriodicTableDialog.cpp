@@ -5,7 +5,10 @@
 #include "imgui.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
+#include <cstring>
+#include <string>
 
 // ---------------------------------------------------------------------------
 // Element data
@@ -211,15 +214,9 @@ bool drawPeriodicTable(std::vector<ElementSelection>& outSelections)
     const float cellH    = std::max(34.0f, fontSize * 2.1f);
     const float padX     = 6.0f;
     const float fGap     = 10.0f;
-    // Approximate top padding (title bar + small margin) — refined inside the popup.
-    const float approxPadY = ImGui::GetFrameHeight() + 8.0f;
-    const float neededW  = padX * 2.0f + 18.0f * cellW + ImGui::GetStyle().WindowPadding.x * 2.0f;
-    const float neededH  = approxPadY + 7.0f * cellH + fGap + 2.0f * cellH + 65.0f + ImGui::GetStyle().WindowPadding.y * 2.0f;
-    ImGui::SetNextWindowSize(ImVec2(neededW, neededH), ImGuiCond_Always);
-
     bool open = true;
     if (!responsive::beginModal("Periodic Table##picker", &open,
-                                ImGuiWindowFlags_NoResize |
+                                ImGuiWindowFlags_AlwaysAutoResize |
                                 ImGuiWindowFlags_NoScrollbar))
     {
         // Dialog just closed - reset state
@@ -232,11 +229,34 @@ bool drawPeriodicTable(std::vector<ElementSelection>& outSelections)
     }
 
     // Dialog just opened - clear selection
+    static std::string typed;
+    static double typedAt = 0.0;
     if (!isPopupOpen)
     {
         selectedAtomicNumber = -1;
         isPopupOpen = true;
+        typed.clear();
     }
+
+    // Typing a symbol ("cu", "o") picks that element.
+    const ImGuiIO& io = ImGui::GetIO();
+    for (ImWchar c : io.InputQueueCharacters)
+    {
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))) continue;
+        if (ImGui::GetTime() - typedAt > 1.0 || typed.size() >= 2) typed.clear();
+        typedAt = ImGui::GetTime();
+        typed += static_cast<char>(c);
+        for (int i = 0; i < kElemCount; ++i)
+        {
+            const char* sym = kElements[i].sym;
+            if (std::strlen(sym) != typed.size()) continue;
+            bool same = true;
+            for (std::size_t k = 0; k < typed.size(); ++k)
+                same = same && std::tolower(static_cast<unsigned char>(sym[k])) == std::tolower(static_cast<unsigned char>(typed[k]));
+            if (same) { selectedAtomicNumber = kElements[i].z; break; }
+        }
+    }
+    bool applyNow = false;
 
     const float padY  = ImGui::GetCursorPosY() + 4.0f; // start below title bar + small margin
 
@@ -265,10 +285,15 @@ bool drawPeriodicTable(std::vector<ElementSelection>& outSelections)
         bool clicked = ImGui::InvisibleButton(btnId, ImVec2(cellW - 1.0f, cellH - 1.0f));
         bool hovered = ImGui::IsItemHovered();
         
-        // Single click to select (replaces previous selection)
+        // Single click to select (replaces previous selection), double-click to apply
         if (clicked)
         {
             selectedAtomicNumber = e.z;
+        }
+        if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+        {
+            selectedAtomicNumber = e.z;
+            applyNow = true;
         }
 
         // Draw background
@@ -335,65 +360,45 @@ bool drawPeriodicTable(std::vector<ElementSelection>& outSelections)
 
         ImVec2 pMin = ImGui::GetItemRectMin();
         ImVec2 pMax = ImGui::GetItemRectMax();
-        dl->AddRectFilled(pMin, pMax, IM_COL32(80, 80, 80, 130), 3.0f);
-        dl->AddRect(pMin, pMax, IM_COL32(0, 0, 0, 40), 3.0f);
+        // Tinted like the f-block row it points to.
+        ImVec4 tint = kCatColors[s == 0 ? 3 : 4];
+        tint.w = 0.55f;
+        dl->AddRectFilled(pMin, pMax, toU32(tint), 3.0f);
+        dl->AddRect(pMin, pMax, IM_COL32(0, 0, 0, 55), 3.0f);
 
-        const float lblFontSz = std::min(fontSize * 0.72f, cellH * 0.45f);
+        const float lblFontSz = std::min(fontSize * 0.8f, cellH * 0.45f);
         ImVec2 lsz = ImGui::GetFont()->CalcTextSizeA(lblFontSz, FLT_MAX, 0.0f, kStars[s].lbl);
         dl->AddText(ImGui::GetFont(), lblFontSz,
                     ImVec2(pMin.x + ((cellW - 1.0f) - lsz.x) * 0.5f,
                            pMin.y + ((cellH - 1.0f) - lsz.y) * 0.5f),
-                    IM_COL32(210, 210, 210, 255), kStars[s].lbl);
+                    IM_COL32(40, 40, 40, 255), kStars[s].lbl);
     }
 
     // ---- Selection summary and buttons ----
-    float btnAreaY = rowLocalY(9) + cellH + 10.0f;
-    
-    // Display selected element
-    ImGui::SetCursorPos(ImVec2(padX, btnAreaY));
-    
-    if (selectedAtomicNumber >= 0)
-    {
-        // Find the element name
-        const char* elemName = "Unknown";
-        for (int i = 0; i < kElemCount; ++i)
-        {
-            if (kElements[i].z == selectedAtomicNumber)
-            {
-                elemName = kElements[i].sym;
-                break;
-            }
-        }
-        ImGui::Text("Selected: Z=%d (%s)", selectedAtomicNumber, elemName);
-    }
-    else
-    {
-        ImGui::Text("Selected: None");
-    }
+    ImGui::SetCursorPos(ImVec2(padX, rowLocalY(9) + cellH));
+    ImGui::Dummy(ImVec2(0, ImGui::GetStyle().ItemSpacing.y));
+    ImGui::SetCursorPosX(padX);
 
-    // Buttons
-    float btnY = btnAreaY + 25.0f;
-    ImGui::SetCursorPos(ImVec2(padX, btnY));
-    
-    if (dialogLayout::primaryButton("Apply", responsive::size(80,0)) && selectedAtomicNumber >= 0)
+    const ElemDef* picked = nullptr;
+    for (int i = 0; i < kElemCount; ++i)
+        if (kElements[i].z == selectedAtomicNumber) picked = &kElements[i];
+    if (picked)
+        ImGui::Text("%s (%s, Z = %d)", picked->nm, picked->sym, picked->z);
+    else
+        ImGui::TextDisabled("Click an element or type its symbol; double-click or Enter applies it.");
+
+    if (picked && (ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false)))
+        applyNow = true;
+    const int pressed = dialogLayout::footer("Apply", "Cancel", picked != nullptr);
+    if ((pressed == 1 || applyNow) && picked)
     {
-        // Populate outSelections with the single selection
         outSelections.clear();
-        for (int i = 0; i < kElemCount; ++i)
-        {
-            if (kElements[i].z == selectedAtomicNumber)
-            {
-                outSelections.push_back({kElements[i].sym, selectedAtomicNumber});
-                break;
-            }
-        }
+        outSelections.push_back({picked->sym, picked->z});
         applied = true;
         selectedAtomicNumber = -1;
         ImGui::CloseCurrentPopup();
     }
-
-    ImGui::SameLine();
-    if (responsive::button("Cancel", responsive::size(80,0)))
+    else if (pressed == 2)
     {
         selectedAtomicNumber = -1;
         ImGui::CloseCurrentPopup();
@@ -488,15 +493,18 @@ bool drawPeriodicTableInlineSelector(int& selectedAtomicNumber)
 
         ImVec2 pMin = ImGui::GetItemRectMin();
         ImVec2 pMax = ImGui::GetItemRectMax();
-        dl->AddRectFilled(pMin, pMax, IM_COL32(80, 80, 80, 130), 3.0f);
-        dl->AddRect(pMin, pMax, IM_COL32(0, 0, 0, 40), 3.0f);
+        // Tinted like the f-block row it points to.
+        ImVec4 tint = kCatColors[s == 0 ? 3 : 4];
+        tint.w = 0.55f;
+        dl->AddRectFilled(pMin, pMax, toU32(tint), 3.0f);
+        dl->AddRect(pMin, pMax, IM_COL32(0, 0, 0, 55), 3.0f);
 
-        const float lblFontSz = std::min(fontSize * 0.72f, cellH * 0.45f);
+        const float lblFontSz = std::min(fontSize * 0.8f, cellH * 0.45f);
         ImVec2 lsz = ImGui::GetFont()->CalcTextSizeA(lblFontSz, FLT_MAX, 0.0f, kStars[s].lbl);
         dl->AddText(ImGui::GetFont(), lblFontSz,
                     ImVec2(pMin.x + ((cellW - 1.0f) - lsz.x) * 0.5f,
                            pMin.y + ((cellH - 1.0f) - lsz.y) * 0.5f),
-                    IM_COL32(210, 210, 210, 255), kStars[s].lbl);
+                    IM_COL32(40, 40, 40, 255), kStars[s].lbl);
     }
 
     ImGui::EndChild();

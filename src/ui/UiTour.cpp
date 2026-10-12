@@ -188,6 +188,12 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         t.steps.push_back({"hover-atom", [](Structure&, EditMenuDialogs&, const UiTour::Update&) {
             ImGui::GetIO().AddMousePosEvent(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f);
         }});
+        t.steps.push_back({"periodic-table", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            requestedSelection = {100};
+            selectionRequested = true;
+            uiScript::request("atom.substitute");
+            ImGui::GetIO().AddInputCharactersUTF8("cu");  // typed symbol picks Cu
+        }});
         t.steps.push_back({"command-palette", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showCommandPalette = true; }});
         t.steps.push_back({"command-palette-search", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
             showCommandPalette = true;

@@ -1458,6 +1458,8 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
 
         if (uiScript::take("atom.context"))
             activeState.contextMenu.openAt(ImGui::GetIO().DisplaySize.x * 0.55f, ImGui::GetIO().DisplaySize.y * 0.62f);
+        if (uiScript::take("atom.substitute"))
+            activeState.contextMenu.openSubstitute();
         AtomRequests contextRequests;
         activeState.contextMenu.draw(
             activeState.structure, activeState.sceneBuffers,
