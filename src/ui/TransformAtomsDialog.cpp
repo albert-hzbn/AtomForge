@@ -101,7 +101,22 @@ void TransformAtomsDialog::drawDialog(const std::function<void()>& onApply)
             ImGui::PopID();
         }
 
-        const int pressed = dialogLayout::footer(m_step.active() ? "Update Step" : "Apply", "Cancel");
+        // The determinant is the number of current cells in the new one.
+        const auto& m = pendingMatrix;
+        const long long det = static_cast<long long>(m[0][0]) * (static_cast<long long>(m[1][1]) * m[2][2] - static_cast<long long>(m[1][2]) * m[2][1])
+                            - static_cast<long long>(m[0][1]) * (static_cast<long long>(m[1][0]) * m[2][2] - static_cast<long long>(m[1][2]) * m[2][0])
+                            + static_cast<long long>(m[0][2]) * (static_cast<long long>(m[1][0]) * m[2][1] - static_cast<long long>(m[1][1]) * m[2][0]);
+        ImGui::Spacing();
+        if (det == 0)
+            dialogLayout::note(dialogLayout::Note::Warning, "The determinant is 0: these rows would collapse the cell.");
+        else if (det < 0)
+            dialogLayout::notef(dialogLayout::Note::Warning, "The determinant is %lld: the new cell would be left-handed. Negate a row to keep it right-handed.", det);
+        else if (det == 1)
+            ImGui::TextDisabled("Determinant 1: the same volume and number of atoms.");
+        else
+            ImGui::TextDisabled("Determinant %lld: the new cell holds %lld times the atoms.", det, det);
+
+        const int pressed = dialogLayout::footer(m_step.active() ? "Update Step" : "Apply", "Cancel", det != 0);
         if (pressed == 1 && m_step.active())
         {
             m_step.commitParameters(stepParameters());
