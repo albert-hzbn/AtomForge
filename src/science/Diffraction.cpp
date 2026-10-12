@@ -1,5 +1,6 @@
 #include "science/Diffraction.h"
 #include "science/ScatteringFactors.h"
+#include "science/Symmetry.h"
 #include "util/TaskControl.h"
 
 #include <algorithm>
@@ -131,23 +132,53 @@ ToolOutput powderXrd(const StructureInput& structure, const Parameters& p)
     }
     double maximum = 0;
     for (const auto& [key, peak] : peaks) maximum = std::max(maximum, peak.intensity);
+    // Indices of the conventional standard cell too, so a supercell's peaks
+    // read as the crystal's ((1 1 1), not (2 1 1) of a 2x1x1 supercell).
+    Mat3 toConventional{};
+    bool conventional = false;
+    {
+        std::vector<int> numbers;
+        for (const auto& atom : structure.structure.atoms) numbers.push_back(atom.atomicNumber);
+        conventional = conventionalIndexTransform(c.cell, c.fractional, numbers, 1e-3, toConventional);
+    }
+    // The representative of equivalent reflections is the one that reads most
+    // simply: fewest negative indices, then the smallest |h|+|k|+|l|, then the
+    // largest indices first ((1 0 0) for hexagonal {1 0 0}, not (1 -1 0)).
+    const auto canonicalLess = [](const std::array<int, 3>& a, const std::array<int, 3>& b) {
+        const auto key = [](const std::array<int, 3>& h) {
+            const int negatives = (h[0] < 0) + (h[1] < 0) + (h[2] < 0);
+            const int sum = std::abs(h[0]) + std::abs(h[1]) + std::abs(h[2]);
+            return std::make_tuple(-negatives, -sum, h[0], h[1], h[2]);
+        };
+        return key(a) < key(b);
+    };
     Json list = Json::array();
     std::vector<std::pair<double, double>> kept;
     for (const auto& [key, peak] : peaks) {
         const double scaled = maximum > 0 ? 100 * peak.intensity / maximum : 0;
         if (scaled < 1e-3) continue;  // systematic absences and negligible peaks
-        // Representative index: the reflection with the largest (h, k, l) in sorted order.
-        auto representative = *std::max_element(peak.hkls.begin(), peak.hkls.end(), [](const auto& a, const auto& b) {
-            std::array<int, 3> x = {std::abs(a[0]), std::abs(a[1]), std::abs(a[2])}, y = {std::abs(b[0]), std::abs(b[1]), std::abs(b[2])};
-            std::sort(x.rbegin(), x.rend()); std::sort(y.rbegin(), y.rend());
-            return x < y || (x == y && a < b);
-        });
+        auto representative = *std::max_element(peak.hkls.begin(), peak.hkls.end(), canonicalLess);
         Json entry = Json::object();
         entry["two_theta_deg"] = peak.twoTheta;
         entry["d_A"] = peak.d;
         entry["intensity"] = scaled;
         entry["hkl"] = hklJson(representative);
         entry["multiplicity"] = peak.hkls.size();
+        if (conventional) {
+            std::vector<std::array<int, 3>> indices;
+            bool whole = true;
+            for (const auto& hkl : peak.hkls) {
+                const Vec3 h = rowTimes({double(hkl[0]), double(hkl[1]), double(hkl[2])}, toConventional);
+                std::array<int, 3> rounded{};
+                for (int k = 0; k < 3; ++k) {
+                    rounded[(size_t)k] = static_cast<int>(std::lround(h[k]));
+                    whole = whole && std::abs(h[k] - rounded[(size_t)k]) < 1e-6;
+                }
+                indices.push_back(rounded);
+            }
+            if (whole && !indices.empty())
+                entry["hkl_conventional"] = hklJson(*std::max_element(indices.begin(), indices.end(), canonicalLess));
+        }
         list.push(entry);
         kept.push_back({peak.twoTheta, scaled});
     }

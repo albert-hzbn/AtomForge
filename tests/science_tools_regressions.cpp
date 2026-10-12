@@ -1448,6 +1448,20 @@ int main()
             check(indices[0] == expected[i][0] && indices[1] == expected[i][1] && indices[2] == expected[i][2], "reflection family");
         }
         close(peaks[0].at("intensity").number(), 100, 1e-9, "(111) strongest");
+        check(peaks[0].at("hkl").items()[0].number() == 1 && peaks[0].at("hkl").items()[2].number() == 1, "(1 1 1) reads as such");
+        // A 2x1x1 supercell indexes its own cell, (2 1 1), but also the conventional (1 1 1).
+        Crystal doubled = fccCubic(a, 1);
+        const std::size_t base = doubled.positions.size();
+        doubled.cell[0] = {2 * a, 0, 0};
+        for (std::size_t i = 0; i < base; ++i) {
+            doubled.symbols.push_back(doubled.symbols[i]);
+            doubled.positions.push_back(add(doubled.positions[i], {a, 0, 0}));
+        }
+        const Json super = run("powder-xrd", object({{"structure", structureJsonOf(doubled)}, {"two_theta_range_deg", window}}));
+        const auto& superFirst = super.at("peaks").items()[0];
+        check(superFirst.at("hkl").items()[0].number() == 2 && superFirst.contains("hkl_conventional") &&
+              superFirst.at("hkl_conventional").items()[0].number() == 1 && superFirst.at("hkl_conventional").items()[1].number() == 1 &&
+              superFirst.at("hkl_conventional").items()[2].number() == 1, "supercell peaks indexed in the conventional cell");
         const double i200 = peaks[1].at("intensity").number(), i220 = peaks[2].at("intensity").number(), i311 = peaks[3].at("intensity").number();
         check(i200 > 35 && i200 < 60 && i220 > 12 && i220 < 35 && i311 > 12 && i311 < 35, "Cu relative intensities (200 " + std::to_string(i200) + ")");
         // Rock salt: (111) is the weak difference reflection, (200) the strongest.

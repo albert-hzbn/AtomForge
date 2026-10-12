@@ -95,6 +95,32 @@ Structure standardized(const Mat3& cell, std::vector<Vec3> fractions, std::vecto
 #endif
 }
 
+bool conventionalIndexTransform(const Mat3& cell, const std::vector<Vec3>& fractions, const std::vector<int>& numbers,
+                                double symprec, Mat3& transform)
+{
+#ifndef ATOMS_ENABLE_SPGLIB
+    (void)cell; (void)fractions; (void)numbers; (void)symprec; (void)transform;
+    return false;
+#else
+    if (fractions.empty() || fractions.size() != numbers.size()) return false;
+    double lattice[3][3];
+    toSpglib(cell, lattice);
+    std::vector<Vec3> positions = fractions;
+    std::vector<int> types = numbers;
+    SpglibDataset* dataset = spg_get_dataset(lattice, reinterpret_cast<double (*)[3]>(positions.data()), types.data(),
+                                             static_cast<int>(types.size()), symprec);
+    if (!dataset) return false;
+    // spglib: (a_s b_s c_s) = (a b c) P^-1, so indices transform as h_s = h P^-1.
+    Mat3 p{};
+    for (int r = 0; r < 3; ++r)
+        for (int c = 0; c < 3; ++c) p[r][c] = dataset->transformation_matrix[r][c];
+    spg_free_dataset(dataset);
+    if (std::abs(determinant(p)) < 1e-9) return false;
+    transform = inverse(p);
+    return true;
+#endif
+}
+
 ToolOutput symmetryAnalysis(const StructureInput& input, const Parameters& p)
 {
     const Structure& structure = input.structure;

@@ -1292,7 +1292,7 @@
     },
     {
       "source": "src/science/Symmetry.h",
-      "sha256": "62293dc45a1074dd86be6a3b84d3add027eb727dd66eb18551edddcb95134143",
+      "sha256": "556702613dfaa1b548c30aef9711ec60d119c5cd4fbb1298470090fc29a96195",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"

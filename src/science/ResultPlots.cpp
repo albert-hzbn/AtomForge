@@ -191,9 +191,14 @@ void powderXrdPlots(const Json& result, std::vector<PlotSpec>& plots)
     if (const Json* peaks = result.find("peaks"); peaks && peaks->isArray())
         for (const auto& peak : peaks->items())
             if (peak.at("intensity").number() >= 5) {
-                const auto& h = peak.at("hkl").items();
-                spec.markers.push_back({peak.at("two_theta_deg").number(),
-                    std::to_string(static_cast<int>(h[0].number())) + std::to_string(static_cast<int>(h[1].number())) + std::to_string(static_cast<int>(h[2].number()))});
+                // The conventional cell's indices when known; digits run together
+                // only when each is a single non-negative digit ("111", "1 10 0").
+                const Json* conventional = peak.find("hkl_conventional");
+                const auto& h = (conventional ? *conventional : peak.at("hkl")).items();
+                std::string label;
+                const bool compact = std::all_of(h.begin(), h.end(), [](const Json& v) { return v.number() >= 0 && v.number() <= 9; });
+                for (const auto& v : h) label += (label.empty() || compact ? "" : " ") + std::to_string(static_cast<int>(v.number()));
+                spec.markers.push_back({peak.at("two_theta_deg").number(), label});
             }
     plots.push_back(spec);
 }
