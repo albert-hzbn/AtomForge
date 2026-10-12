@@ -465,6 +465,14 @@ int runSSS(int argc, char* argv[])
             std::cerr << "Error: --frac string parsed no valid entries\n";
             return 1;
         }
+        // Fractions, not the desktop's percentages: they must sum to 1.
+        float total = 0.0f;
+        for (const auto& entry : params.composition) total += entry.fraction;
+        if (std::abs(total - 1.0f) > 1e-3f)
+        {
+            std::cerr << "Error: --frac fractions sum to " << total << "; they must sum to 1 (e.g. \"Cu=0.7,Zn=0.3\")\n";
+            return 1;
+        }
     }
 
     SSSResult result = buildSubstitutionalSolidSolution(base, params);

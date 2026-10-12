@@ -1,4 +1,5 @@
 #include "cli/BuildModifiers.h"
+#include "cli/OptionCheck.h"
 #include "cli/AnalysisCLI.h"
 #include "cli/BuildModes.h"
 
@@ -118,6 +119,9 @@ void runMode(const Mode& mode, const Json& parameters, PipelineData& data)
         const auto output = folder / (sculpt ? "output.vasp" : "output.xyz");
         args.push_back("--output");
         args.push_back(output.u8string());
+        if (!sculpt)
+            if (const std::string problem = cliOptions::unknownOption(args, mode.help, mode.id); !problem.empty())
+                throw std::runtime_error(problem);
         std::vector<char*> argv;
         for (auto& a : args) argv.push_back(a.data());
         // The mode reports on stdout/stderr; keep that out of the pipeline's own output.

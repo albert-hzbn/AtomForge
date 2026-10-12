@@ -377,6 +377,12 @@ int runGB(int argc, char* argv[])
     }
 
     int sigmaTarget = argInt(argc, argv, "--sigma",    0);
+    // An explicit sigma names a coincidence site lattice: an odd number >= 3.
+    if (findArg(argc, argv, "--sigma") && (sigmaTarget < 3 || sigmaTarget % 2 == 0))
+    {
+        std::cerr << "Error: --sigma must be an odd number of at least 3 (omit it to search up to --sigmamax)\n";
+        return 1;
+    }
     int sigmaMax    = argInt(argc, argv, "--sigmamax", 100);
     int planeIdx    = argInt(argc, argv, "--plane",    0);
     int ucA         = argInt(argc, argv, "--uca",      1);

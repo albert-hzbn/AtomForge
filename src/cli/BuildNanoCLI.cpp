@@ -268,6 +268,10 @@ int runNano(int argc, char* argv[])
     else if (!facets.empty())
         throw std::invalid_argument("--facet requires --shape wulff");
 
+    // Sizes are lengths: a zero or negative one is a mistake, not a shape.
+    for (const char* size : {"--radius", "--rx", "--ry", "--rz", "--hx", "--hy", "--hz", "--trunc", "--cylradius", "--cylheight"})
+        if (findArg(argc, argv, size) && !(argDouble(argc, argv, size, 1.0) > 0.0))
+            throw std::invalid_argument(std::string(size) + " must be a positive length in Angstrom");
     float defaultRadius = static_cast<float>(argDouble(argc, argv, "--radius", 15.0));
     params.sphereRadius   = defaultRadius;
     params.octRadius      = defaultRadius;

@@ -1,4 +1,5 @@
 #include "cli/CLIMode.h"
+#include "cli/OptionCheck.h"
 #include "cli/AnalysisCLI.h"
 #include "cli/BuildModes.h"
 #include "cli/CliArgs.h"
@@ -224,7 +225,15 @@ int runCLI(int argc, char* argv[])
     try
     {
         if (const auto* entry = findBuildMode(mode))
+        {
+            const std::vector<std::string> args(argv + 1, argv + argc);
+            if (const std::string problem = cliOptions::unknownOption(args, entry->printHelp, std::string(entry->name)); !problem.empty())
+            {
+                std::cerr << "Error: " << problem << "\n";
+                return 1;
+            }
             return entry->run(argc, argv);
+        }
 
         std::cerr << "Error: unknown build mode '" << mode
                   << "'.  Valid modes: " << buildModeNames() << "\n";
