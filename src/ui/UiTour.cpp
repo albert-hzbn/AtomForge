@@ -165,7 +165,7 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         t.steps.push_back({"about", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showAbout = true; }});
         t.steps.push_back({"unsaved-close", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { closeStructure(); }});
         t.steps.push_back({"unsaved-quit", [](Structure&, EditMenuDialogs&, const UiTour::Update&) { uiScript::request("app.quit"); }});
-        t.steps.push_back({"selection-one", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { requestedSelection = {100}; selectionRequested = true; }});
+        t.steps.push_back({"selection-one", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { requestedSelection = {0}; selectionRequested = true; }});
         t.steps.push_back({"selection-many", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
             requestedSelection.clear();
             for (int i = 0; i <= 20; ++i) requestedSelection.push_back(i);

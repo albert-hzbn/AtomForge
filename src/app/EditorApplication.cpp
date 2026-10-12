@@ -262,16 +262,16 @@ void drawUnsavedChangesPrompts(GLFWwindow* window, std::vector<std::unique_ptr<S
     const ImGuiWindowFlags flags = ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings;
     // Each prompt opens once per request; closed any other way, it is cancelled.
     static bool closeShown = false, quitShown = false;
-    if (closePromptTab >= 0 && !closeShown) { ImGui::OpenPopup("Unsaved changes##close"); closeShown = true; }
-    if (!ImGui::IsPopupOpen("Unsaved changes##close") && closeShown) { closeShown = false; closePromptTab = -1; }
-    if (ImGui::BeginPopupModal("Unsaved changes##close", nullptr, flags)) {
+    if (closePromptTab >= 0 && !closeShown) { ImGui::OpenPopup("Unsaved Changes##close"); closeShown = true; }
+    if (!ImGui::IsPopupOpen("Unsaved Changes##close") && closeShown) { closeShown = false; closePromptTab = -1; }
+    if (ImGui::BeginPopupModal("Unsaved Changes##close", nullptr, flags)) {
         if (closePromptTab < 0) ImGui::CloseCurrentPopup();
         else {
             StructureTab& tab = *tabs[closePromptTab];
             ImGui::Text("Save the changes to %s before closing it?", tab.title);
             ImGui::TextDisabled("Changes that are not saved are lost.");
             ImGui::Spacing();
-            switch (unsavedPromptButtons("Don't save", "Save")) {
+            switch (unsavedPromptButtons("Don't Save", "Save")) {
             case 1: tab.pendingClose = true; closePromptTab = -1; ImGui::CloseCurrentPopup(); break;
             case 2: closePromptTab = -1; ImGui::CloseCurrentPopup(); break;
             case 3:
@@ -287,9 +287,9 @@ void drawUnsavedChangesPrompts(GLFWwindow* window, std::vector<std::unique_ptr<S
         ImGui::EndPopup();
     }
 
-    if (quitPrompt && !quitShown) { ImGui::OpenPopup("Unsaved changes##quit"); quitShown = true; }
-    if (!ImGui::IsPopupOpen("Unsaved changes##quit") && quitShown) { quitShown = false; quitPrompt = false; }
-    if (ImGui::BeginPopupModal("Unsaved changes##quit", nullptr, flags)) {
+    if (quitPrompt && !quitShown) { ImGui::OpenPopup("Unsaved Changes##quit"); quitShown = true; }
+    if (!ImGui::IsPopupOpen("Unsaved Changes##quit") && quitShown) { quitShown = false; quitPrompt = false; }
+    if (ImGui::BeginPopupModal("Unsaved Changes##quit", nullptr, flags)) {
         std::string names;
         int count = 0;
         for (const auto& tab : tabs)
@@ -297,7 +297,7 @@ void drawUnsavedChangesPrompts(GLFWwindow* window, std::vector<std::unique_ptr<S
         ImGui::Text("%s unsaved changes: %s", count == 1 ? "One structure has" : (std::to_string(count) + " structures have").c_str(), names.c_str());
         ImGui::TextDisabled("Quit anyway and lose them, or cancel and save them first.");
         ImGui::Spacing();
-        switch (unsavedPromptButtons("Quit without saving", nullptr)) {
+        switch (unsavedPromptButtons("Quit Without Saving", nullptr)) {
         case 1: quitPrompt = false; glfwSetWindowShouldClose(window, GLFW_TRUE); ImGui::CloseCurrentPopup(); break;
         case 2: quitPrompt = false; ImGui::CloseCurrentPopup(); break;
         default: break;
