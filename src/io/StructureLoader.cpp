@@ -1610,19 +1610,21 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
     }
 
     OpenBabel::OBAtomIterator ai;
-    constexpr size_t kWarningAtomCount = 10000;
-    constexpr size_t kMaxAtomCount = 500000;
+    // Larger XYZ files open as atom clouds (app/LargeData.h, same limit);
+    // never keep only part of a structure, which a save would then write.
+    constexpr size_t kMaxAtomCount = 5000000;
+    if (mol.NumAtoms() > kMaxAtomCount)
+    {
+        errorMessage = "The file has " + std::to_string(mol.NumAtoms()) + " atoms, more than the " +
+                       std::to_string(kMaxAtomCount) + " that can be edited; save it as extended XYZ to view it as an atom cloud.";
+        return false;
+    }
+    structure.atoms.reserve(mol.NumAtoms());
 
     for(OpenBabel::OBAtom* atom = mol.BeginAtom(ai);
         atom;
         atom = mol.NextAtom(ai))
     {
-        if (structure.atoms.size() >= kMaxAtomCount)
-        {
-            std::cerr << "Warning: Atom count capped at " << kMaxAtomCount 
-                      << " to prevent memory exhaustion." << std::endl;
-            break;
-        }
 
         AtomSite site;
 
@@ -1636,18 +1638,6 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
         getDefaultElementColor(site.atomicNumber, site.r, site.g, site.b);
 
         structure.atoms.push_back(site);
-
-        if (structure.atoms.size() == kWarningAtomCount)
-        {
-            std::cerr << "Loading large structure with " << kWarningAtomCount 
-                      << " atoms (bond computation: O(n) with spatial hashing)..." << std::endl;
-        }
-    }
-
-    if (structure.atoms.size() > kWarningAtomCount)
-    {
-        std::cerr << "Loaded structure with " << structure.atoms.size() 
-                  << " atoms." << std::endl;
     }
 
     if (structure.hasUnitCell)
