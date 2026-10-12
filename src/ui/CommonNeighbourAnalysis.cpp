@@ -1,5 +1,6 @@
 #include "ui/ResponsiveLayout.h"
 #include "ui/DialogLayout.h"
+#include "ui/UiScript.h"
 #include "ui/CommonNeighbourAnalysis.h"
 
 #include "ui/ThemeUtils.h"
@@ -177,7 +178,7 @@ void CommonNeighbourAnalysisDialog::drawDialog(const Structure& structure)
         ImGui::Spacing();
         
         bool computeRequested = false;
-        if (dialogLayout::primaryButton("Run CNA") && !m_task.running())
+        if ((dialogLayout::primaryButton("Run CNA") || uiScript::take("cna.run")) && !m_task.running())
             computeRequested = true;
         
         ImGui::SameLine();

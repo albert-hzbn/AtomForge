@@ -1,5 +1,6 @@
 #include "ui/ResponsiveLayout.h"
 #include "ui/DialogLayout.h"
+#include "ui/UiScript.h"
 #include "AngularDistributionAnalysis.h"
 #include "ThemeUtils.h"
 
@@ -753,7 +754,7 @@ void AngularDistributionAnalysisDialog::drawDialog(const Structure& structure)
         }
         else
         {
-            if (dialogLayout::primaryButton("Compute ADF###computebtn", ImVec2(-FLT_MIN, 0.0f)))
+            if (dialogLayout::primaryButton("Compute ADF###computebtn", ImVec2(-FLT_MIN, 0.0f)) || uiScript::take("adf.run"))
                 startCompute(structure);
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip(m_paramsDirty

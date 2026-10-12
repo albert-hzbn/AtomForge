@@ -135,8 +135,10 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         }});
         t.steps.push_back({"science-plot", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { scientificToolsDialog.open("powder-xrd"); }});
         t.steps.push_back({"science-simulation", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { scientificToolsDialog.open("relax"); }});
+        t.steps.push_back({"analysis-cna-result", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { cnaDialog.open(); uiScript::request("cna.run"); }});
         t.steps.push_back({"analysis-cna", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { cnaDialog.open(); }});
         t.steps.push_back({"analysis-rdf", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { rdfDialog.open(); }});
+        t.steps.push_back({"analysis-adf-result", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { angularDistributionDialog.open(); uiScript::request("adf.run"); }});
         t.steps.push_back({"analysis-adf", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { angularDistributionDialog.open(); }});
         t.steps.push_back({"analysis-sro", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { shortRangeOrderDialog.openRequested = true; }});
         t.steps.push_back({"analysis-dislocations", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { dislocationAnalysisDialog.open(); }});
