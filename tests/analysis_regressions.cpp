@@ -84,14 +84,17 @@ int main()
     check(!computeRdf(structure, options).valid, "RDF must reject a non-finite radius");
 
     // Ideal periodic crystals exercise the full signature distribution, not just pairs.
+    // A single unit cell too: every image of a neighbour counts, as in a supercell.
+    for (int repeat : {4, 1})
     for (bool bcc : {false, true}) {
         Structure crystal;
         crystal.hasUnitCell = true;
-        crystal.cellVectors = {{{4, 0, 0}, {0, 4, 0}, {0, 0, 4}}};
+        const double side = repeat;
+        crystal.cellVectors = {{{side, 0, 0}, {0, side, 0}, {0, 0, side}}};
         const std::vector<std::array<double, 3>> basis = bcc
             ? std::vector<std::array<double, 3>>{{0,0,0}, {.5,.5,.5}}
             : std::vector<std::array<double, 3>>{{0,0,0}, {0,.5,.5}, {.5,0,.5}, {.5,.5,0}};
-        for (int x=0; x<4; ++x) for (int y=0; y<4; ++y) for (int z=0; z<4; ++z)
+        for (int x=0; x<repeat; ++x) for (int y=0; y<repeat; ++y) for (int z=0; z<repeat; ++z)
             for (const auto& point : basis) {
                 AtomSite atom = iron;
                 atom.x=x+point[0]; atom.y=y+point[1]; atom.z=z+point[2];
@@ -106,12 +109,12 @@ int main()
                   "CNA must identify every atom in ideal periodic FCC/BCC");
     }
 
-    {
+    for (int repeat : {4, 1}) {
         Structure hcp;
         const double root3=std::sqrt(3.0),height=std::sqrt(8.0/3);
         hcp.hasUnitCell=true;
-        hcp.cellVectors={{{4,0,0},{-2,2*root3,0},{0,0,4*height}}};
-        for(int x=0;x<4;++x) for(int y=0;y<4;++y) for(int z=0;z<4;++z)
+        hcp.cellVectors={{{1.0*repeat,0,0},{-.5*repeat,root3/2*repeat,0},{0,0,height*repeat}}};
+        for(int x=0;x<repeat;++x) for(int y=0;y<repeat;++y) for(int z=0;z<repeat;++z)
             for(int basis=0;basis<2;++basis) {
                 AtomSite atom=iron;
                 atom.x=x-.5*y+.5*basis; atom.y=root3*y/2+root3*basis/6;

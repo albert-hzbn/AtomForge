@@ -6,30 +6,26 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <queue>
-#include <unordered_map>
-#include <unordered_set>
 
 namespace atomforge::analysis
 {
 namespace
 {
-constexpr float kSpatialHashCellSize = 4.0f;
-
-struct Vec3iHash
+// A neighbour: atom j in periodic image n (cell translations), relative to
+// the central atom in image 0. Without periodicity n is always 0.
+struct Neighbour
 {
-    size_t operator()(const glm::ivec3& value) const
+    int j = 0;
+    glm::ivec3 n{0};
+    bool operator<(const Neighbour& o) const
     {
-        return ((size_t)value.x * 73856093u) ^ ((size_t)value.y * 19349663u) ^ ((size_t)value.z * 83492791u);
+        if (j != o.j) return j < o.j;
+        if (n.x != o.n.x) return n.x < o.n.x;
+        if (n.y != o.n.y) return n.y < o.n.y;
+        return n.z < o.n.z;
     }
+    bool operator==(const Neighbour& o) const { return j == o.j && n == o.n; }
 };
-
-glm::ivec3 getGridCell(const glm::vec3& position)
-{
-    return glm::ivec3((int)std::floor(position.x / kSpatialHashCellSize),
-                      (int)std::floor(position.y / kSpatialHashCellSize),
-                      (int)std::floor(position.z / kSpatialHashCellSize));
-}
 
 std::string classifyEnvironment(const std::map<Signature, int>& signatures, int coordination)
 {
@@ -44,29 +40,23 @@ std::string classifyEnvironment(const std::map<Signature, int>& signatures, int 
     return "Unknown";
 }
 
-uint64_t edgeKey(int a, int b)
-{
-    if (a > b) std::swap(a, b);
-    return ((uint64_t)(uint32_t)a << 32) | (uint32_t)b;
-}
-
-int longestChainLength(const std::vector<int>& commonNodes,
-                       const std::unordered_set<uint64_t>& edgeSet)
+template <typename Bonded>
+int longestChainLength(int nodeCount, Bonded&& bonded)
 {
     // Count bonds, not vertices. A ring includes its closing bond.
     // Bound the exponential search for highly coordinated, non-crystalline graphs.
-    if (commonNodes.size() > 16) return -1;
-    std::vector<std::vector<int>> adjacency(commonNodes.size());
-    for (int i = 0; i < (int)commonNodes.size(); ++i)
-        for (int j = i + 1; j < (int)commonNodes.size(); ++j)
-            if (edgeSet.count(edgeKey(commonNodes[i], commonNodes[j]))) {
+    if (nodeCount > 16) return -1;
+    std::vector<std::vector<int>> adjacency(static_cast<std::size_t>(nodeCount));
+    for (int i = 0; i < nodeCount; ++i)
+        for (int j = i + 1; j < nodeCount; ++j)
+            if (bonded(i, j)) {
                 adjacency[i].push_back(j);
                 adjacency[j].push_back(i);
             }
     int best = 0;
     int visits = 0;
     bool exhausted = false;
-    for (int start = 0; start < (int)commonNodes.size(); ++start) {
+    for (int start = 0; start < nodeCount; ++start) {
         const auto visit = [&](const auto& self, int node, unsigned visited, int length) -> void {
             if (++visits > 200000) { exhausted=true; return; }
             best = std::max(best, length);
@@ -106,41 +96,6 @@ CnaResult runCna(const Structure& structure, float cutoffScale, bool usePbcReque
     }
     result.pbcUsed = usePbc;
 
-    std::vector<glm::vec3> positions(structure.atoms.size());
-    for (int i = 0; i < (int)structure.atoms.size(); ++i)
-    {
-        positions[i] = glm::vec3((float)structure.atoms[i].x,
-                                 (float)structure.atoms[i].y,
-                                 (float)structure.atoms[i].z);
-    }
-
-    std::vector<std::vector<int>> neighbors(structure.atoms.size());
-    std::unordered_set<uint64_t> edgeSet;
-
-    auto tryAddBond = [&](int i, int j)
-    {
-        if (j <= i)
-            return;
-
-        int zi = structure.atoms[i].atomicNumber;
-        float ri = (zi >= 0 && zi < (int)radii.size()) ? radii[zi] : 1.0f;
-        int zj = structure.atoms[j].atomicNumber;
-        float rj = (zj >= 0 && zj < (int)radii.size()) ? radii[zj] : 1.0f;
-
-        glm::vec3 delta = minimumImageDelta(positions[j] - positions[i], usePbc, cell, invCell);
-        float d = glm::length(delta);
-        if (d <= kMinBondDistance)
-            return;
-
-        float cutoff = cutoffRadius > 0.0f ? cutoffRadius : (ri + rj) * cutoffScale;
-        if (d > cutoff)
-            return;
-
-        neighbors[i].push_back(j);
-        neighbors[j].push_back(i);
-        edgeSet.insert(edgeKey(i, j));
-    };
-
     float maximumCutoff = cutoffRadius;
     if (maximumCutoff == 0.0f)
         for (const auto& atom : structure.atoms) {
@@ -148,79 +103,82 @@ CnaResult runCna(const Structure& structure, float cutoffScale, bool usePbcReque
             const float radius = z >= 0 && z < (int)radii.size() ? radii[z] : 1.0f;
             maximumCutoff = std::max(maximumCutoff, 2.0f * radius * cutoffScale);
         }
-    const int reach = (int)std::ceil(maximumCutoff / kSpatialHashCellSize);
-    if (!usePbc && reach <= 8)
-    {
-        std::unordered_map<glm::ivec3, std::vector<int>, Vec3iHash> grid;
-        grid.reserve(positions.size());
-        for (int i = 0; i < (int)positions.size(); ++i)
-            grid[getGridCell(positions[i])].push_back(i);
 
-        for (int i = 0; i < (int)positions.size(); ++i)
-        {
-            const glm::ivec3 cellCoord = getGridCell(positions[i]);
-            for (int dx = -reach; dx <= reach; ++dx)
-            {
-                for (int dy = -reach; dy <= reach; ++dy)
-                {
-                    for (int dz = -reach; dz <= reach; ++dz)
-                    {
-                        const glm::ivec3 neighborCell(cellCoord.x + dx,
-                                                      cellCoord.y + dy,
-                                                      cellCoord.z + dz);
-                        std::unordered_map<glm::ivec3, std::vector<int>, Vec3iHash>::const_iterator it = grid.find(neighborCell);
-                        if (it == grid.end())
-                            continue;
-
-                        const std::vector<int>& candidates = it->second;
-                        for (int index = 0; index < (int)candidates.size(); ++index)
-                            tryAddBond(i, candidates[index]);
-                    }
-                }
-            }
+    // Every image of every neighbour within the cutoff, so a small periodic
+    // cell gives the same environments as a supercell of it.
+    std::vector<neighbours::Pair> pairs;
+    try {
+        pairs = neighbours::within(structure, maximumCutoff, usePbc);
+    } catch (const std::runtime_error& error) {
+        result.valid = false;
+        result.message = error.what();
+        return result;
+    }
+    glm::dmat3 cellD(1.0), inverseD(1.0);
+    if (usePbc) {
+        for (int r = 0; r < 3; ++r)
+            for (int c = 0; c < 3; ++c) cellD[r][c] = structure.cellVectors[static_cast<std::size_t>(r)][static_cast<std::size_t>(c)];
+        inverseD = glm::inverse(cellD);
+    }
+    std::vector<std::vector<Neighbour>> neighbors(structure.atoms.size());
+    for (const neighbours::Pair& pair : pairs) {
+        if (pair.r <= kMinBondDistance) continue;
+        const int zi = structure.atoms[pair.i].atomicNumber;
+        const int zj = structure.atoms[pair.j].atomicNumber;
+        const float ri = (zi >= 0 && zi < (int)radii.size()) ? radii[zi] : 1.0f;
+        const float rj = (zj >= 0 && zj < (int)radii.size()) ? radii[zj] : 1.0f;
+        const double cutoff = cutoffRadius > 0.0f ? cutoffRadius : (ri + rj) * cutoffScale;
+        if (pair.r > cutoff) continue;
+        Neighbour neighbour;
+        neighbour.j = pair.j;
+        if (usePbc) {
+            const auto& from = structure.atoms[pair.i];
+            const auto& to = structure.atoms[pair.j];
+            const glm::dvec3 image = inverseD * (pair.d - glm::dvec3(to.x - from.x, to.y - from.y, to.z - from.z));
+            neighbour.n = glm::ivec3((int)std::lround(image.x), (int)std::lround(image.y), (int)std::lround(image.z));
         }
+        neighbors[pair.i].push_back(neighbour);
     }
-    else
-    {
-        // Candidate pairs from a cell list over the periodic images; each is
-        // then judged by its minimum-image distance and own cutoff.
-        neighbours::forEachCandidatePair(structure, maximumCutoff, usePbc, tryAddBond);
+    for (auto& list : neighbors) {
+        std::sort(list.begin(), list.end());
+        list.erase(std::unique(list.begin(), list.end()), list.end());
     }
-
-    for (int i = 0; i < (int)neighbors.size(); ++i)
-        std::sort(neighbors[i].begin(), neighbors[i].end());
+    // Is atom b in image n a neighbour of atom a in image 0?
+    const auto bonded = [&](int a, int b, const glm::ivec3& n) {
+        const auto& list = neighbors[a];
+        Neighbour key;
+        key.j = b;
+        key.n = n;
+        return std::binary_search(list.begin(), list.end(), key);
+    };
 
     std::vector<std::map<Signature, int>> atomSignatures(structure.atoms.size());
-
+    std::vector<Neighbour> common;
     for (int i = 0; i < (int)structure.atoms.size(); ++i)
     {
-        for (int t = 0; t < (int)neighbors[i].size(); ++t)
+        for (const Neighbour& partner : neighbors[i])
         {
-            int j = neighbors[i][t];
-            if (j <= i)
-                continue;
+            // Each bonded pair once: from the lower index (or, for an atom
+            // and its own image, from the image with the positive offset).
+            const int j = partner.j;
+            if (j < i) continue;
+            if (j == i && !(Neighbour{i, glm::ivec3(0)} < Neighbour{i, partner.n})) continue;
 
-            std::vector<int> common;
-            common.reserve(std::min(neighbors[i].size(), neighbors[j].size()));
-            std::set_intersection(neighbors[i].begin(), neighbors[i].end(),
-                                  neighbors[j].begin(), neighbors[j].end(),
-                                  std::back_inserter(common));
+            common.clear();
+            for (const Neighbour& k : neighbors[i])
+                if (bonded(j, k.j, k.n - partner.n)) common.push_back(k);
 
-            int commonCount = (int)common.size();
             int bondCount = 0;
-            for (int a = 0; a < (int)common.size(); ++a)
-            {
-                for (int b = a + 1; b < (int)common.size(); ++b)
-                {
-                    if (edgeSet.find(edgeKey(common[a], common[b])) != edgeSet.end())
-                        ++bondCount;
-                }
-            }
+            for (std::size_t x = 0; x < common.size(); ++x)
+                for (std::size_t y = x + 1; y < common.size(); ++y)
+                    if (bonded(common[x].j, common[y].j, common[y].n - common[x].n)) ++bondCount;
 
-            int chainLen = longestChainLength(common, edgeSet);
+            const int chainLen = longestChainLength((int)common.size(), [&](int x, int y) {
+                return bonded(common[x].j, common[y].j, common[y].n - common[x].n);
+            });
 
             Signature sig;
-            sig.common = commonCount;
+            sig.common = (int)common.size();
             sig.bonds = bondCount;
             sig.chain = chainLen;
 

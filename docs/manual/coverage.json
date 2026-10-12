@@ -149,7 +149,7 @@
     },
     {
       "source": "python/atomforge/analysis.py",
-      "sha256": "b1b39632c18b2c25cb7c15d309600bf8362c9f3fa62d62b87691f926f27b2b6d",
+      "sha256": "521c126cec0a06f28225a0a7d17d799bdbfad8e965907a7339b1226d8181c24d",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -158,7 +158,7 @@
     },
     {
       "source": "python/atomforge/builders.py",
-      "sha256": "4a8c8cdb6702d35638d703d3382c09c791958d0df8c3b711ee4e9b03a382847f",
+      "sha256": "165e0ec520abf0b428a61ffdaa9c7f71379ea3f60db3de9be48c5c5c0b37cae4",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -279,7 +279,7 @@
     },
     {
       "source": "python/atomforge/pipeline.py",
-      "sha256": "8cf8399b42aba6c9f3e6696f2d56710daeb3c2908b1b057d1f428c4f629a8008",
+      "sha256": "9e2c7a9cbdef6ba6b94215afb1d249887355b6a9e45b4c0ec889becc9fa04859",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -288,7 +288,7 @@
     },
     {
       "source": "python/atomforge/render.py",
-      "sha256": "4c1fa72bbb622f671d1088e1d50137d2925501b03f8d96943331f09739e5f820",
+      "sha256": "dd0657a373055f2995fa93993e0230c5fa6e8f0a9df0dd070d5ebe2193811019",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -809,7 +809,7 @@
     },
     {
       "source": "src/cli/AnalysisCLI.cpp",
-      "sha256": "a288100d97d0292b02c6e4687a200b92f2776dd37039fff16c1846ef5615121f",
+      "sha256": "567a6ebf52bf32ab2b47868a9c8ea7d848d3527f4f99f3198f49e1fc06586168",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -827,7 +827,7 @@
     },
     {
       "source": "src/cli/BuildCrystalCLI.cpp",
-      "sha256": "91f75c6c856f84cfe94acd09688be5dbe95358420e574103492df5a7ee34dca2",
+      "sha256": "d2b7a1933c5bb7a2c90e2a1b025f077222081c212de7c5d43d47f8e14f83a9e9",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -836,7 +836,7 @@
     },
     {
       "source": "src/cli/BuildDefectCLI.cpp",
-      "sha256": "23feb2f2e9152526339d4381c09a11cae1fe736bd2ded22d273fadfe990486a5",
+      "sha256": "0d0ec36a9e364ead3f60857c6f9dad92b4455b69a3bc3630cc349b5e9d97a9b4",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -854,7 +854,7 @@
     },
     {
       "source": "src/cli/BuildModifiers.cpp",
-      "sha256": "b4a160c28886aaba923c3f81681ad8ce09ef9d8146be38224e7dcf991f9d2c8c",
+      "sha256": "af18d9fcd03367ab835685f9aa479087d7fbd3c8d85f129fd067a315a20839bc",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -872,7 +872,7 @@
     },
     {
       "source": "src/cli/BuildNanoCLI.cpp",
-      "sha256": "3d16ae1603f7cfa77598dc72793667bbeb956098f6e9625c4409944af4895a77",
+      "sha256": "9f5b8a0107466e9f8e76d797f2de0c8e29619afc3c0b09091b02b7010e33c9f1",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -899,7 +899,7 @@
     },
     {
       "source": "src/cli/CLIMode.cpp",
-      "sha256": "7d71626a9544521326bb8949255e080c0c45a471de18224523ca88632735a549",
+      "sha256": "5bab711b2eba9e9555154445f985eb3b6361a82a0cd778d219d8686e8208de75",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -936,8 +936,17 @@
       "literal_controls": []
     },
     {
+      "source": "src/cli/OptionCheck.h",
+      "sha256": "71365debe5cb6abc126041479c55fa3df1ca3c43046b57b87bb26c5d2dfcae63",
+      "documentation": [
+        "08-python.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
       "source": "src/cli/PipelineCLI.cpp",
-      "sha256": "9e70df39c2ac84b8e873e79a0796c88451bd94d424649488a11a0a814462f4af",
+      "sha256": "99baa3be159c25ef65f6afcc6d3ca74fa978ee216a852ca7995b8a245b9bca6f",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -955,7 +964,7 @@
     },
     {
       "source": "src/cli/RenderCLI.cpp",
-      "sha256": "09a644b4c902c514bdaa028ea0acb23906f79d249740f513ba2964b313438527",
+      "sha256": "981214e7dad6d71c12b6f9071c6888bd7c8cdf6230871406bd6d567df667b04f",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -1067,7 +1076,7 @@
     },
     {
       "source": "src/pipeline/Pipeline.cpp",
-      "sha256": "94f93a6dbed7ed570a30f8c53e7566831a23e1f26eda7aa558eb245279f507e3",
+      "sha256": "42d4db4446604df070a8c41843d6a4e8df16c5bcc53861c9bf50a1effc4fc1e0",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -1804,7 +1813,7 @@
     },
     {
       "source": "src/ui/CommonNeighbourAnalysis.cpp",
-      "sha256": "47a6d3b2fc9b13890da8bfb508ec91c1cb58b070fc769721907bfd1bd6955704",
+      "sha256": "808da19645167ae19e07bca0b16424a0773e2be31831bae9e395cb4a6fba297e",
       "documentation": [
         "11-coverage.tex"
       ],
@@ -2035,7 +2044,7 @@
     },
     {
       "source": "src/ui/DialogLayout.h",
-      "sha256": "d8061037e61768011f7205b89a8f94c99f1d2db8391c807ced2308d7dd76896a",
+      "sha256": "aac4b5e61e77eb5fd225fd630d6d670396c8f9c07b1063de1962aae81b43dde4",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2873,7 +2882,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "c4e908fa3dad20488115db8605cdec654e86bc396d663fda76c502590f68e137",
+      "sha256": "d07e0ab06e755cc54c806fdf1dd8edab1575fd2f7729b451f58a6ff25e6f52ea",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2882,479 +2891,479 @@
       ],
       "literal_controls": [
         {
-          "line": 592,
+          "line": 603,
           "declaration_label": "Open"
         },
         {
-          "line": 623,
+          "line": 634,
           "declaration_label": "Close"
         },
         {
-          "line": 629,
+          "line": 640,
           "declaration_label": "Save"
         },
         {
-          "line": 632,
+          "line": 643,
           "declaration_label": "Save As"
         },
         {
-          "line": 635,
+          "line": 646,
           "declaration_label": "Export Image"
         },
         {
-          "line": 650,
+          "line": 661,
           "declaration_label": "Open Project"
         },
         {
-          "line": 651,
+          "line": 662,
           "declaration_label": "Save Project As"
         },
         {
-          "line": 652,
+          "line": 663,
           "declaration_label": "Autosave project every minute"
         },
         {
-          "line": 653,
+          "line": 664,
           "declaration_label": "Recover Last Autosave"
         },
         {
-          "line": 655,
+          "line": 666,
           "declaration_label": "Quit"
         },
         {
-          "line": 684,
+          "line": 695,
           "declaration_label": "Box Select Mode"
         },
         {
-          "line": 686,
+          "line": 697,
           "declaration_label": "Lasso Select Mode"
         },
         {
-          "line": 752,
+          "line": 763,
           "declaration_label": "Element"
         },
         {
-          "line": 753,
+          "line": 764,
           "declaration_label": "Crystal Orientation"
         },
         {
-          "line": 754,
+          "line": 765,
           "declaration_label": "Grain Boundaries"
         },
         {
-          "line": 755,
+          "line": 766,
           "declaration_label": "Atom Property"
         },
         {
-          "line": 765,
+          "line": 776,
           "declaration_label": "Balls"
         },
         {
-          "line": 766,
+          "line": 777,
           "declaration_label": "Ball and Stick"
         },
         {
-          "line": 767,
+          "line": 778,
           "declaration_label": "Space Filling"
         },
         {
-          "line": 769,
+          "line": 780,
           "declaration_label": "Polyhedral"
         },
         {
-          "line": 776,
+          "line": 787,
           "declaration_label": "Atoms"
         },
         {
-          "line": 777,
+          "line": 788,
           "declaration_label": "Element Labels"
         },
         {
-          "line": 778,
+          "line": 789,
           "declaration_label": "Element Legend"
         },
         {
-          "line": 779,
+          "line": 790,
           "declaration_label": "Bounding Box"
         },
         {
-          "line": 781,
+          "line": 792,
           "declaration_label": "Lattice Planes"
         },
         {
-          "line": 782,
+          "line": 793,
           "declaration_label": "Miller Directions"
         },
         {
-          "line": 783,
+          "line": 794,
           "declaration_label": "Voronoi Volumes"
         },
         {
-          "line": 784,
+          "line": 795,
           "declaration_label": "Dislocation Lines"
         },
         {
-          "line": 789,
+          "line": 800,
           "declaration_label": "Perspective"
         },
         {
-          "line": 794,
+          "line": 805,
           "declaration_label": "Orthographic"
         },
         {
-          "line": 801,
+          "line": 812,
           "declaration_label": "Reset View"
         },
         {
-          "line": 804,
+          "line": 815,
           "declaration_label": "Lattice Planes Settings"
         },
         {
-          "line": 806,
+          "line": 817,
           "declaration_label": "Miller Directions Settings"
         },
         {
-          "line": 808,
+          "line": 819,
           "declaration_label": "Polyhedral Viewer"
         },
         {
-          "line": 810,
+          "line": 821,
           "declaration_label": "Structure Info"
         },
         {
-          "line": 812,
+          "line": 823,
           "declaration_label": "Atom Info"
         },
         {
-          "line": 814,
+          "line": 825,
           "declaration_label": "Measure Distance"
         },
         {
-          "line": 816,
+          "line": 827,
           "declaration_label": "Measure Angle"
         },
         {
-          "line": 822,
+          "line": 833,
           "declaration_label": "Light"
         },
         {
-          "line": 823,
+          "line": 834,
           "declaration_label": "Dark"
         },
         {
-          "line": 824,
+          "line": 835,
           "declaration_label": "Match the system"
         },
         {
-          "line": 879,
+          "line": 890,
           "declaration_label": "Automatic (display scaling)"
         },
         {
-          "line": 880,
+          "line": 891,
           "declaration_label": "Compact (85%)"
         },
         {
-          "line": 881,
+          "line": 892,
           "declaration_label": "Larger (125%)"
         },
         {
-          "line": 882,
+          "line": 893,
           "declaration_label": "Large (150%)"
         },
         {
-          "line": 883,
+          "line": 894,
           "declaration_label": "Extra Large (200%)"
         },
         {
-          "line": 888,
+          "line": 899,
           "declaration_label": "Polyhedral Settings"
         },
         {
-          "line": 893,
+          "line": 904,
           "declaration_label": "Light"
         },
         {
-          "line": 894,
+          "line": 905,
           "declaration_label": "Dark"
         },
         {
-          "line": 895,
+          "line": 906,
           "declaration_label": "Match the system"
         },
         {
-          "line": 904,
+          "line": 915,
           "declaration_label": "Manual"
         },
         {
-          "line": 907,
+          "line": 918,
           "declaration_label": "Find a Command"
         },
         {
-          "line": 910,
+          "line": 921,
           "declaration_label": "Keyboard Shortcuts"
         },
         {
-          "line": 913,
+          "line": 924,
           "declaration_label": "About"
         },
         {
-          "line": 945,
+          "line": 956,
           "declaration_label": "\\xe2\\x86\\x90##openBack"
         },
         {
-          "line": 953,
+          "line": 964,
           "declaration_label": "\\xe2\\x86\\x92##openFwd"
         },
         {
-          "line": 961,
+          "line": 972,
           "declaration_label": "\\xe2\\x86\\x91##openUp"
         },
         {
-          "line": 970,
+          "line": 981,
           "declaration_label": "##openPathBar"
         },
         {
-          "line": 1053,
+          "line": 1064,
           "declaration_label": "##openFilename"
         },
         {
-          "line": 1159,
+          "line": 1170,
           "declaration_label": "\\xe2\\x86\\x90##saveBack"
         },
         {
-          "line": 1166,
+          "line": 1177,
           "declaration_label": "\\xe2\\x86\\x92##saveFwd"
         },
         {
-          "line": 1173,
+          "line": 1184,
           "declaration_label": "\\xe2\\x86\\x91##saveUp"
         },
         {
-          "line": 1179,
+          "line": 1190,
           "declaration_label": "##savePathBar"
         },
         {
-          "line": 1252,
+          "line": 1263,
           "declaration_label": "##saveFilename"
         },
         {
-          "line": 1258,
+          "line": 1269,
           "declaration_label": "##saveFormat"
         },
         {
-          "line": 1374,
+          "line": 1385,
           "declaration_label": "\\xe2\\x86\\x90##exportBack"
         },
         {
-          "line": 1381,
+          "line": 1392,
           "declaration_label": "\\xe2\\x86\\x92##exportFwd"
         },
         {
-          "line": 1388,
+          "line": 1399,
           "declaration_label": "\\xe2\\x86\\x91##exportUp"
         },
         {
-          "line": 1393,
+          "line": 1404,
           "declaration_label": "##exportPathBar"
         },
         {
-          "line": 1468,
+          "line": 1479,
           "declaration_label": "##exportFilename"
         },
         {
-          "line": 1472,
+          "line": 1483,
           "declaration_label": "##exportFormat"
         },
         {
-          "line": 1485,
+          "line": 1496,
           "declaration_label": "Include background"
         },
         {
-          "line": 1488,
+          "line": 1499,
           "declaration_label": "Include orientation gizmo"
         },
         {
-          "line": 1498,
+          "line": 1509,
           "declaration_label": "##exportScale"
         },
         {
-          "line": 1691,
+          "line": 1702,
           "declaration_label": "OK"
         },
         {
-          "line": 1721,
+          "line": 1732,
           "declaration_label": "Show lattice planes"
         },
         {
-          "line": 1726,
+          "line": 1737,
           "declaration_label": "h##plane"
         },
         {
-          "line": 1729,
+          "line": 1740,
           "declaration_label": "k##plane"
         },
         {
-          "line": 1732,
+          "line": 1743,
           "declaration_label": "l##plane"
         },
         {
-          "line": 1735,
+          "line": 1746,
           "declaration_label": "Offset n##plane"
         },
         {
-          "line": 1737,
+          "line": 1748,
           "declaration_label": "Opacity##plane"
         },
         {
-          "line": 1739,
+          "line": 1750,
           "declaration_label": "Colour##plane"
         },
         {
-          "line": 1783,
+          "line": 1794,
           "declaration_label": "##visible"
         },
         {
-          "line": 1788,
+          "line": 1799,
           "declaration_label": "h##plane-h"
         },
         {
-          "line": 1791,
+          "line": 1802,
           "declaration_label": "k##plane-k"
         },
         {
-          "line": 1794,
+          "line": 1805,
           "declaration_label": "l##plane-l"
         },
         {
-          "line": 1797,
+          "line": 1808,
           "declaration_label": "n##plane-offset"
         },
         {
-          "line": 1800,
+          "line": 1811,
           "declaration_label": "opacity##plane-opacity"
         },
         {
-          "line": 1806,
+          "line": 1817,
           "declaration_label": "##plane-color"
         },
         {
-          "line": 1857,
+          "line": 1868,
           "declaration_label": "Show Miller directions"
         },
         {
-          "line": 1862,
+          "line": 1873,
           "declaration_label": "u##dir"
         },
         {
-          "line": 1865,
+          "line": 1876,
           "declaration_label": "v##dir"
         },
         {
-          "line": 1868,
+          "line": 1879,
           "declaration_label": "w##dir"
         },
         {
-          "line": 1871,
+          "line": 1882,
           "declaration_label": "Length (\\xc3\\x85)##dir"
         },
         {
-          "line": 1873,
+          "line": 1884,
           "declaration_label": "Colour##dir"
         },
         {
-          "line": 1912,
+          "line": 1923,
           "declaration_label": "##vis"
         },
         {
-          "line": 1917,
+          "line": 1928,
           "declaration_label": "u##du"
         },
         {
-          "line": 1920,
+          "line": 1931,
           "declaration_label": "v##dv"
         },
         {
-          "line": 1923,
+          "line": 1934,
           "declaration_label": "w##dw"
         },
         {
-          "line": 1926,
+          "line": 1937,
           "declaration_label": "\\xc3\\x85##dl"
         },
         {
-          "line": 1933,
+          "line": 1944,
           "declaration_label": "##dc"
         },
         {
-          "line": 1975,
+          "line": 1986,
           "declaration_label": "Max displayed centers"
         },
         {
-          "line": 1977,
+          "line": 1988,
           "declaration_label": "Nearest neighbors"
         },
         {
-          "line": 1979,
+          "line": 1990,
           "declaration_label": "Specify center atom indices"
         },
         {
-          "line": 1987,
+          "line": 1998,
           "declaration_label": "Center atom IDs##polyIndexFilter"
         },
         {
-          "line": 1998,
+          "line": 2009,
           "declaration_label": "Show polyhedral edges"
         },
         {
-          "line": 2000,
+          "line": 2011,
           "declaration_label": "Face opacity"
         },
         {
-          "line": 2002,
+          "line": 2013,
           "declaration_label": "Edge opacity"
         },
         {
-          "line": 2005,
+          "line": 2016,
           "declaration_label": "Filter center elements"
         },
         {
-          "line": 2014,
+          "line": 2025,
           "declaration_label": "Centers##polyFilter"
         },
         {
-          "line": 2025,
+          "line": 2036,
           "declaration_label": "Filter ligand elements"
         },
         {
-          "line": 2034,
+          "line": 2045,
           "declaration_label": "Ligands##polyFilter"
         },
         {
-          "line": 2249,
+          "line": 2260,
           "declaration_label": "Color"
         },
         {
-          "line": 2298,
+          "line": 2309,
           "declaration_label": "Automatic colour range"
         },
         {
-          "line": 2301,
+          "line": 2312,
           "declaration_label": "Minimum"
         },
         {
-          "line": 2302,
+          "line": 2313,
           "declaration_label": "Maximum"
         },
         {
-          "line": 2304,
+          "line": 2315,
           "declaration_label": "Hide atoms outside the range"
         },
         {
-          "line": 2305,
+          "line": 2316,
           "declaration_label": "Hide atoms without a value"
         },
         {
-          "line": 2306,
+          "line": 2317,
           "declaration_label": "Show Element Colours"
         }
       ]
@@ -3803,7 +3812,7 @@
     },
     {
       "source": "src/ui/MeasurementOverlay.cpp",
-      "sha256": "35a276076e2a8095dab012bb6802d588037c61df1e9804c2ecb3f24a0b9ec657",
+      "sha256": "48829783ec8e9e0d8a245b681ba21aa45f6c89f8a61781b34dad6e6a2b00b4e6",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4272,7 +4281,7 @@
     },
     {
       "source": "src/ui/PipelineDialog.cpp",
-      "sha256": "332b06a2cd6a1ef3e8fd0bdf043f46136a59be04f6d19b3c88e23c9a2211f22c",
+      "sha256": "07ac0861b398d17e4ea0cbda8205c02ff0f1dfdecc257d78a47396be0b8f75e3",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -4291,107 +4300,107 @@
           "declaration_label": "##enabled"
         },
         {
-          "line": 286,
+          "line": 287,
           "declaration_label": "Edit in dialog"
         },
         {
-          "line": 306,
+          "line": 307,
           "declaration_label": "Move up"
         },
         {
-          "line": 307,
+          "line": 308,
           "declaration_label": "Move down"
         },
         {
-          "line": 308,
+          "line": 309,
           "declaration_label": "Duplicate"
         },
         {
-          "line": 311,
+          "line": 312,
           "declaration_label": "Delete"
         },
         {
-          "line": 328,
+          "line": 329,
           "declaration_label": "##remove"
         },
         {
-          "line": 461,
+          "line": 462,
           "declaration_label": "Move Up"
         },
         {
-          "line": 466,
+          "line": 467,
           "declaration_label": "Move Down"
         },
         {
-          "line": 470,
+          "line": 471,
           "declaration_label": "Duplicate"
         },
         {
-          "line": 473,
+          "line": 474,
           "declaration_label": "Remove"
         },
         {
-          "line": 477,
+          "line": 478,
           "declaration_label": "Enabled"
         },
         {
-          "line": 479,
+          "line": 480,
           "declaration_label": "Edit in Dialog"
         },
         {
-          "line": 488,
+          "line": 489,
           "declaration_label": "Name##label"
         },
         {
-          "line": 500,
+          "line": 501,
           "declaration_label": "Copy as Command"
         },
         {
-          "line": 508,
+          "line": 509,
           "declaration_label": "##pipelinetext"
         },
         {
-          "line": 509,
+          "line": 510,
           "declaration_label": "Apply Text"
         },
         {
-          "line": 536,
+          "line": 537,
           "declaration_label": "Start from the Active Structure"
         },
         {
-          "line": 549,
+          "line": 550,
           "declaration_label": "Use It as the Pipeline Input"
         },
         {
-          "line": 551,
+          "line": 552,
           "declaration_label": "Restore the Pipeline Output"
         },
         {
-          "line": 553,
+          "line": 554,
           "declaration_label": "Use the Active Structure as Input"
         },
         {
-          "line": 556,
+          "line": 557,
           "declaration_label": "Bake"
         },
         {
-          "line": 586,
+          "line": 587,
           "declaration_label": "Update automatically"
         },
         {
-          "line": 590,
+          "line": 591,
           "declaration_label": "Update"
         },
         {
-          "line": 593,
+          "line": 594,
           "declaration_label": "Colour atoms by selection"
         },
         {
-          "line": 598,
+          "line": 599,
           "declaration_label": "Save Pipeline"
         },
         {
-          "line": 600,
+          "line": 601,
           "declaration_label": "Load Pipeline"
         }
       ]
