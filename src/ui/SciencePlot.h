@@ -1,5 +1,6 @@
 #pragma once
 #include "ui/UnitText.h"
+#include <cfloat>
 
 #include "science/ResultPlots.h"
 #include "ui/ResponsiveLayout.h"
@@ -104,9 +105,21 @@ inline void drawSciencePlot(const char* id, const atomforge::science::PlotSpec& 
         const double y = transform(h);
         if (std::isfinite(y)) draw->AddLine(ImVec2(gMin.x, py(y)), ImVec2(gMax.x, py(y)), frame, 1.0f);
     }
-    for (const auto& marker : spec.markers) {
-        draw->AddLine(ImVec2(px(marker.x), gMin.y), ImVec2(px(marker.x), gMax.y), frame, 1.0f);
-        draw->AddText(ImVec2(px(marker.x) + 2, gMin.y + 2), text, marker.label.c_str());
+    {
+        // Marker labels go on the first of three rows where they do not
+        // overlap an earlier label; with all rows taken, the label is left out.
+        float rowEnd[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+        for (const auto& marker : spec.markers) {
+            const float x = px(marker.x);
+            draw->AddLine(ImVec2(x, gMin.y), ImVec2(x, gMax.y), frame, 1.0f);
+            const float width = ImGui::CalcTextSize(marker.label.c_str()).x;
+            for (int row = 0; row < 3; ++row) {
+                if (x + 2 <= rowEnd[row] + 4) continue;
+                draw->AddText(ImVec2(x + 2, gMin.y + 2 + row * lineHeight), text, marker.label.c_str());
+                rowEnd[row] = x + 2 + width;
+                break;
+            }
+        }
     }
     double bestDistance = 12.0 * 12.0, bestX = 0, bestY = 0;
     std::string bestName;
