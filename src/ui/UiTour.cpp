@@ -237,6 +237,10 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
             showNotification("Saved cu_host.cif (500 atoms).");
             showNotification("Error: failed to save (format may not support this structure).", true);
         }});
+        t.steps.push_back({"dark-builder-interface", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            interfaceBuilderDialog.openExample(true);
+            uiScript::request("interface.find");
+        }});
         t.steps.push_back({"dark-welcome", [this](Structure& structure, EditMenuDialogs&, const UiTour::Update& updateBuffers) {
             pipelineDialog.restore(R"({"format":"atomforge-pipeline","version":1,"active":false,"open":false,"modifiers":[]})", nullptr);
             structure = Structure();
@@ -247,7 +251,7 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         // Build pressed in the Interface Builder; the view shows the built Cu/Ni interface.
         t.steps.push_back({"builder-interface-built", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
             applyLightTheme();
-            interfaceBuilderDialog.openExample();
+            interfaceBuilderDialog.openExample(true);
             uiScript::request("interface.find");
             uiScript::request("interface.build");  // taken once the search's preview exists
         }});

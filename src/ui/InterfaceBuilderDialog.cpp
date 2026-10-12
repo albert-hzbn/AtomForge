@@ -272,7 +272,7 @@ std::string InterfaceBuilderDialog::stepOptions() const
     return out.str();
 }
 
-void InterfaceBuilderDialog::openExample()
+void InterfaceBuilderDialog::openExample(bool cubeOnHexagonal)
 {
     m_step.finish();
     const auto fcc = [](const char* symbol, int z, double a) {
@@ -297,6 +297,7 @@ void InterfaceBuilderDialog::openExample()
     m_a.cleave = m_b.cleave = true;
     m_a.hkl[0] = m_a.hkl[1] = m_a.hkl[2] = 1;
     m_b.hkl[0] = m_b.hkl[1] = m_b.hkl[2] = 1;
+    if (cubeOnHexagonal) m_a.hkl[1] = m_a.hkl[2] = 0;
     m_search.maxStrain = 0.03;
     m_matches.clear();
     m_searched = false;
@@ -739,7 +740,7 @@ void InterfaceBuilderDialog::drawDialog(Structure& structure, const std::vector<
     // leaves, so the dialog itself never scrolls.
     const float footer = ImGui::GetFrameHeight() + 3.0f * style.ItemSpacing.y + 2.0f;
     const float bodyHeight = std::max(responsive::dp(300), ImGui::GetContentRegionAvail().y - footer);
-    responsive::beginChild("##body", ImVec2(ImGui::GetContentRegionAvail().x, bodyHeight), 0, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    responsive::beginChild("##body", ImVec2(ImGui::GetContentRegionAvail().x, bodyHeight), ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     if (ImGui::BeginTable("##layout", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_BordersInnerV, ImVec2(0, bodyHeight)))
     {
         ImGui::TableSetupColumn("settings", ImGuiTableColumnFlags_WidthFixed, responsive::dp(370));
@@ -748,7 +749,7 @@ void InterfaceBuilderDialog::drawDialog(Structure& structure, const std::vector<
 
         // Left: the two crystals and the search.
         ImGui::TableSetColumnIndex(0);
-        responsive::beginChild("##settings", ImVec2(0, bodyHeight), 0);
+        responsive::beginChild("##settings", ImVec2(0, bodyHeight), ImGuiChildFlags_NavFlattened);
         drawInput("Crystal A (bottom)", m_a, 1, structure);
         ImGui::Spacing();
         drawInput("Crystal B (top)", m_b, 2, structure);
@@ -770,7 +771,7 @@ void InterfaceBuilderDialog::drawDialog(Structure& structure, const std::vector<
 
         // Right: the matches, the plot, the preview and how the interface is put together.
         ImGui::TableSetColumnIndex(1);
-        responsive::beginChild("##results", ImVec2(0, bodyHeight), 0, ImGuiWindowFlags_NoScrollbar);
+        responsive::beginChild("##results", ImVec2(0, bodyHeight), ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoScrollbar);
         if (m_matches.empty())
         {
             if (m_searched) dialogLayout::note(dialogLayout::Note::Warning, m_searchMessage.c_str());

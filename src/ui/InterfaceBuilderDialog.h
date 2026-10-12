@@ -53,7 +53,9 @@ struct InterfaceBuilderDialog
     // Opens on an example (UI tour): fcc Cu (1 1 1) under fcc Ni (1 1 1);
     // the tour then presses Find Matches and Build ("interface.find",
     // "interface.build").
-    void openExample();
+    // With cubeOnHexagonal, Cu (1 0 0) under Ni (1 1 1) instead: a larger,
+    // rotated match.
+    void openExample(bool cubeOnHexagonal = false);
 
 private:
     struct Input
