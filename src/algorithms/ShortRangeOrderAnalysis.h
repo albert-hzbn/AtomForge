@@ -91,6 +91,23 @@ std::vector<double> buildSroShellDistances(const Structure& structure,
                                             double toleranceAng);
 
 /**
+ * An ordered neighbour pair: atom j lies in shell `shell` around atom i.
+ */
+struct SroPair {
+    int i = 0;
+    int j = 0;
+    int shell = 0;
+};
+
+/**
+ * Every ordered neighbour pair within the given shells (minimum image). Only
+ * geometry: it stays valid while atoms change species, as in an SQS search.
+ */
+std::vector<SroPair> buildSroPairs(const Structure& structure,
+                                   const std::vector<double>& shellDistances,
+                                   double toleranceAng);
+
+/**
  * Perform Warren-Cowley SRO analysis.
  */
 SroReport analyzeWarrenCowleySRO(const Structure& structure,

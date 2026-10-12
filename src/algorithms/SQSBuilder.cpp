@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <random>
+#include <utility>
 #include <vector>
 
 namespace atomforge
@@ -26,11 +27,26 @@ void setSpecies(AtomSite& atom, int z)
     getDefaultElementColor(z, atom.r, atom.g, atom.b);
 }
 
-double objective(const Structure& structure, int shells, double tolerance)
+// Sum of squared Warren-Cowley parameters over the neighbour pairs, as
+// analyzeWarrenCowleySRO reports them; `kind` is each site's species index.
+double objective(const std::vector<SroPair>& pairs, int shells, const std::vector<int>& kind, const std::vector<double>& concentration)
 {
-    const SroReport report = analyzeWarrenCowleySRO(structure, shells, tolerance);
+    const std::size_t m = concentration.size();
+    std::vector<double> n(static_cast<std::size_t>(shells) * m * m, 0.0);
+    for (const SroPair& p : pairs)
+        n[(static_cast<std::size_t>(p.shell) * m + static_cast<std::size_t>(kind[static_cast<std::size_t>(p.i)])) * m
+          + static_cast<std::size_t>(kind[static_cast<std::size_t>(p.j)])] += 1.0;
     double sum = 0.0;
-    for (const auto& entry : report.entries) sum += entry.alpha * entry.alpha;
+    for (std::size_t s = 0; s < static_cast<std::size_t>(shells); ++s)
+        for (std::size_t a = 0; a < m; ++a) {
+            double z = 0.0;
+            for (std::size_t b = 0; b < m; ++b) z += n[(s * m + a) * m + b];
+            if (z == 0.0) continue;
+            for (std::size_t b = 0; b < m; ++b) {
+                const double alpha = concentration[b] > 1e-12 ? 1.0 - n[(s * m + a) * m + b] / z / concentration[b] : 0.0;
+                sum += alpha * alpha;
+            }
+        }
     return sum;
 }
 }
@@ -110,8 +126,24 @@ SQSResult buildSQS(const Structure& source, const SQSParams& params)
     Structure structure = source;
     for (int i = 0; i < n; ++i) setSpecies(structure.atoms[(size_t)i], species[(size_t)i]);
 
-    result.initialObjective = objective(structure, params.shells, params.shellTolerance);
+    // The geometry never changes: find the neighbour pairs once, then each
+    // swap only recounts species over them.
+    const std::vector<double> shellDistances = buildSroShellDistances(structure, params.shells, params.shellTolerance);
+    const std::vector<SroPair> pairs = buildSroPairs(structure, shellDistances, params.shellTolerance);
+    const int shells = static_cast<int>(shellDistances.size());
+    std::vector<double> concentration(fractions.size());
+    for (size_t k = 0; k < fractions.size(); ++k) concentration[k] = static_cast<double>(counts[k]) / n;
+    std::vector<int> kind((size_t)n);
+    for (int i = 0; i < n; ++i)
+        for (size_t k = 0; k < fractions.size(); ++k)
+            if (fractions[k].first == species[(size_t)i]) kind[(size_t)i] = static_cast<int>(k);
+
+    result.initialObjective = objective(pairs, shells, kind, concentration);
     double current = result.initialObjective;
+    // Uphill moves at a finite temperature can end the walk above its best
+    // point: keep and return the best arrangement seen.
+    Structure best = structure;
+    double bestObjective = current;
 
     std::uniform_int_distribution<int> pick(0, n - 1);
     std::uniform_real_distribution<double> unit(0.0, 1.0);
@@ -129,8 +161,9 @@ SQSResult buildSQS(const Structure& source, const SQSParams& params)
         const int zj = structure.atoms[(size_t)j].atomicNumber;
         setSpecies(structure.atoms[(size_t)i], zj);
         setSpecies(structure.atoms[(size_t)j], zi);
+        std::swap(kind[(size_t)i], kind[(size_t)j]);
 
-        const double candidate = objective(structure, params.shells, params.shellTolerance);
+        const double candidate = objective(pairs, shells, kind, concentration);
         const double delta = candidate - current;
         const double t = params.startTemperature
             + (params.endTemperature - params.startTemperature) * (params.steps > 1 ? (double)step / (double)(params.steps - 1) : 1.0);
@@ -139,16 +172,22 @@ SQSResult buildSQS(const Structure& source, const SQSParams& params)
         {
             current = candidate;
             ++result.acceptedSwaps;
+            if (current < bestObjective)
+            {
+                bestObjective = current;
+                best = structure;
+            }
         }
         else
         {
             setSpecies(structure.atoms[(size_t)i], zi);
             setSpecies(structure.atoms[(size_t)j], zj);
+            std::swap(kind[(size_t)i], kind[(size_t)j]);
         }
     }
 
-    result.structure = structure;
-    result.finalObjective = current;
+    result.structure = std::move(best);
+    result.finalObjective = bestObjective;
     result.success = true;
     result.message = "SQS optimization: sum(alpha^2) over " + std::to_string(params.shells) + " shells went from "
         + std::to_string(result.initialObjective) + " to " + std::to_string(result.finalObjective) + " over "

@@ -101,6 +101,30 @@ std::vector<double> buildSroShellDistances(const Structure& structure,
     return shells;
 }
 
+std::vector<SroPair> buildSroPairs(const Structure& structure,
+                                   const std::vector<double>& shellDistances,
+                                   double toleranceAng) {
+    std::vector<SroPair> pairs;
+    if (structure.atoms.empty() || !structure.hasUnitCell || shellDistances.empty()) return pairs;
+    const glm::dmat3 cell = buildCell(structure);
+    const std::vector<glm::dvec3> frac = fractionalPositions(structure, cell);
+    const int N = static_cast<int>(structure.atoms.size());
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < N; ++j) {
+            if (i == j) continue;
+            const double d = sroPeriodicDist(cell, frac[static_cast<std::size_t>(i)], frac[static_cast<std::size_t>(j)]);
+            if (d < 1e-6) continue;
+            for (int sh = 0; sh < static_cast<int>(shellDistances.size()); ++sh) {
+                if (std::abs(d - shellDistances[static_cast<std::size_t>(sh)]) < toleranceAng) {
+                    pairs.push_back({i, j, sh});
+                    break;
+                }
+            }
+        }
+    }
+    return pairs;
+}
+
 SroReport analyzeWarrenCowleySRO(const Structure& structure,
                                   int nShells,
                                   double shellTolerance) {
@@ -121,33 +145,14 @@ SroReport analyzeWarrenCowleySRO(const Structure& structure,
         return report;
     }
 
-    glm::dmat3 cell = buildCell(structure);
-    const std::vector<glm::dvec3> frac = fractionalPositions(structure, cell);
-    int N = report.nAtoms;
-
     // Count directional pairs
     std::map<std::tuple<int, std::string, std::string>, int> pairs;
     std::map<std::pair<int, std::string>, int> coordZ;
-
-    for (int i = 0; i < N; ++i) {
-        const glm::dvec3& fi = frac[static_cast<std::size_t>(i)];
-        const std::string& si = structure.atoms[i].symbol;
-
-        for (int j = 0; j < N; ++j) {
-            if (i == j) continue;
-            const glm::dvec3& fj = frac[static_cast<std::size_t>(j)];
-            const std::string& sj = structure.atoms[j].symbol;
-            double d = sroPeriodicDist(cell, fi, fj);
-            if (d < 1e-6) continue;
-
-            for (int s = 0; s < report.nShells; ++s) {
-                if (std::abs(d - report.shellDistances[s]) < shellTolerance) {
-                    pairs[{s, si, sj}]++;
-                    coordZ[{s, si}]++;
-                    break;
-                }
-            }
-        }
+    for (const SroPair& p : buildSroPairs(structure, report.shellDistances, shellTolerance)) {
+        const std::string& si = structure.atoms[static_cast<std::size_t>(p.i)].symbol;
+        const std::string& sj = structure.atoms[static_cast<std::size_t>(p.j)].symbol;
+        pairs[{p.shell, si, sj}]++;
+        coordZ[{p.shell, si}]++;
     }
 
     for (int s = 0; s < report.nShells; ++s) {

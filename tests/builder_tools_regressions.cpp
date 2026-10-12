@@ -3,6 +3,7 @@
 // independent native neighbour list from src/science.
 #include "algorithms/NanostructureTools.h"
 #include "algorithms/SQSBuilder.h"
+#include "algorithms/ShortRangeOrderAnalysis.h"
 #include "algorithms/StrainTool.h"
 #include "algorithms/SurfaceBuilder.h"
 #include "algorithms/VacancyBuilder.h"
@@ -219,6 +220,9 @@ int main()
         for (const auto& a : r.structure.atoms) { cu += a.symbol == "Cu"; ni += a.symbol == "Ni"; }
         check(cu == 128 && ni == 128, "exact 50/50 composition");
         check(r.finalObjective <= r.initialObjective, "annealing does not worsen the objective");
+        double reported = 0;
+        for (const auto& e : analyzeWarrenCowleySRO(r.structure, p.shells, p.shellTolerance).entries) reported += e.alpha * e.alpha;
+        check(std::abs(reported - r.finalObjective) < 1e-9, "SQS objective matches the Warren-Cowley analysis of its result");
         // Independent first-shell Warren-Cowley parameter: alpha = 1 - P(Ni|Cu)/c_Ni.
         double unlike = 0, pairs = 0;
         for (const auto& n : science::neighborList(positionsOf(r.structure), cellOf(r.structure), {true, true, true}, 2.8)) {
