@@ -1305,10 +1305,6 @@ void wrapAtomsIntoPrimaryCell(Structure& structure)
 
 
 
-// XYZ element symbols in standard case ("NI", "cu" -> "Ni", "Cu"): Open Babel
-// only capitalises the first letter, so an all-capitals symbol would load as
-// an unknown element. Returns false (text unchanged) if the frames do not
-// follow the XYZ layout.
 // The cell of an extended XYZ file: Lattice="ax ay az bx by bz cx cy cz" on
 // the first frame's comment line (Open Babel does not read it).
 static bool readExtendedXyzLattice(const std::string& text, std::array<std::array<double, 3>, 3>& cell)
@@ -1457,66 +1453,6 @@ static bool extendedXyzColumns(const std::string& comment, int& speciesColumn, i
         column += n;
     }
     return speciesColumn >= 0 && positionColumn >= 0;
-}
-
-static bool normalizeXyzSymbols(std::string& text)
-{
-    std::string out;
-    out.reserve(text.size());
-    std::size_t pos = 0;
-    const auto nextLine = [&](std::string& line) {
-        if (pos >= text.size()) return false;
-        const std::size_t end = text.find('\n', pos);
-        line = text.substr(pos, end == std::string::npos ? std::string::npos : end - pos + 1);
-        pos = end == std::string::npos ? text.size() : end + 1;
-        return true;
-    };
-    std::string line;
-    while (nextLine(line))
-    {
-        char* endPtr = nullptr;
-        const long count = std::strtol(line.c_str(), &endPtr, 10);
-        if (endPtr == line.c_str() || count < 0)
-        {
-            // Trailing blank lines are fine; anything else is not XYZ.
-            if (line.find_first_not_of(" \t\r\n") != std::string::npos) return false;
-            out += line;
-            continue;
-        }
-        out += line;
-        if (!nextLine(line)) return false;  // the comment line
-        out += line;
-        // Open Babel reads "symbol x y z": reorder the columns of an extended
-        // XYZ frame that lists others first (an id, say).
-        int speciesColumn = 0, positionColumn = 1;
-        const bool reorder = extendedXyzColumns(line, speciesColumn, positionColumn) &&
-                             (speciesColumn != 0 || positionColumn != 1);
-        for (long n = 0; n < count; ++n)
-        {
-            if (!nextLine(line)) return false;
-            if (reorder)
-            {
-                std::istringstream fields(line);
-                std::vector<std::string> values;
-                for (std::string value; fields >> value;) values.push_back(value);
-                if ((int)values.size() <= std::max(speciesColumn, positionColumn + 2)) return false;
-                line = values[(size_t)speciesColumn] + ' ' + values[(size_t)positionColumn] + ' ' +
-                       values[(size_t)positionColumn + 1] + ' ' + values[(size_t)positionColumn + 2] + '\n';
-            }
-            const std::size_t start = line.find_first_not_of(" \t");
-            std::size_t stop = start;
-            while (stop < line.size() && std::isalpha(static_cast<unsigned char>(line[stop]))) ++stop;
-            if (start != std::string::npos && stop > start)
-            {
-                line[start] = static_cast<char>(std::toupper(static_cast<unsigned char>(line[start])));
-                for (std::size_t k = start + 1; k < stop; ++k)
-                    line[k] = static_cast<char>(std::tolower(static_cast<unsigned char>(line[k])));
-            }
-            out += line;
-        }
-    }
-    text.swap(out);
-    return true;
 }
 
 bool isSupportedStructureFile(const std::string& filename)
@@ -2040,16 +1976,7 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
     bool read = false;
     bool selectiveDynamics = false;
     std::vector<std::uint8_t> poscarFixed;  // per atom, in file order
-    bool xyzLattice = false;
-    std::array<std::array<double, 3>, 3> xyzCell{};
-    if (extLower == ".xyz" || extLower == ".extxyz")
-    {
-        std::ifstream in(filename, std::ios::binary);
-        std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-        xyzLattice = readExtendedXyzLattice(text, xyzCell);
-        read = normalizeXyzSymbols(text) ? conv.ReadString(&mol, text) : conv.ReadFile(&mol, filename);
-    }
-    else if (extLower == ".vasp" || extLower == ".poscar" || detectedPoscar)
+    if (extLower == ".vasp" || extLower == ".poscar" || detectedPoscar)
     {
         std::ifstream in(filename, std::ios::binary);
         std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
@@ -2131,12 +2058,6 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
                 }
             }
         }
-    }
-
-    if (!structure.hasUnitCell && xyzLattice)
-    {
-        structure.hasUnitCell = true;
-        structure.cellVectors = xyzCell;
     }
 
     OpenBabel::OBAtomIterator ai;
