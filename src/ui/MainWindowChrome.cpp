@@ -337,17 +337,17 @@ void FileBrowser::drawWelcome(const Structure& structure)
         const float half = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
         const ImVec2 big(half, ImGui::GetFrameHeight() * 1.6f);
         char label[96];
-        if (dialogLayout::primaryButton(uiFonts::withIcon(Icon::Open, "Open a structure", label, sizeof(label)), big)) openStructurePopup = true;
+        if (dialogLayout::primaryButton(uiFonts::withIcon(Icon::Open, "Open Structure", label, sizeof(label)), big)) openStructurePopup = true;
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) ImGui::SetTooltip("CIF, POSCAR, XYZ, PDB, LAMMPS and more (Ctrl+O)");
         ImGui::SameLine();
-        if (dialogLayout::secondaryButton(uiFonts::withIcon(Icon::Cube, "Build a crystal", label, sizeof(label)), big)) bulkCrystalDialog.open();
+        if (dialogLayout::secondaryButton(uiFonts::withIcon(Icon::Cube, "Build Crystal", label, sizeof(label)), big)) bulkCrystalDialog.open();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) ImGui::SetTooltip("Build > Bulk Crystal: a crystal from its space group and lattice");
-        if (dialogLayout::secondaryButton(uiFonts::withIcon(Icon::Folder, "Open a project", label, sizeof(label)), big)) {
+        if (dialogLayout::secondaryButton(uiFonts::withIcon(Icon::Folder, "Open Project", label, sizeof(label)), big)) {
             projectAction = 1;
             projectPicker.open("Open AtomForge project", false, "project.afproject");
         }
         ImGui::SameLine();
-        if (dialogLayout::secondaryButton(uiFonts::withIcon(Icon::Help, "Read the manual", label, sizeof(label)), big)) showManual = true;
+        if (dialogLayout::secondaryButton(uiFonts::withIcon(Icon::Help, "Read Manual", label, sizeof(label)), big)) showManual = true;
 
         // Example structures, when installed (or in the source tree).
         static const std::filesystem::path examples = findExamplesDirectory(applicationDirectory());
@@ -361,7 +361,7 @@ void FileBrowser::drawWelcome(const Structure& structure)
                 {"cu_polycrystal.cif", "Polycrystal", "A four-grain copper polycrystal"},
                 {"cu_dislocation.cif", "Dislocation", "A copper crystal containing an edge dislocation"},
                 {"cu_sphere.xyz", "Nanoparticle", "A spherical copper nanoparticle"},
-                {"sio2_pack.xyz", "Amorphous SiO2", "A 120-atom amorphous silica packing"}};
+                {"sio2_pack.xyz", "Amorphous SiO₂", "A 120-atom amorphous silica packing"}};
             dialogLayout::section("Examples");
             const float right = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;
             bool first = true;
