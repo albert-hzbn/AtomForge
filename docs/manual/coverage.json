@@ -1816,7 +1816,7 @@
     },
     {
       "source": "src/ui/CommandPalette.cpp",
-      "sha256": "c5545d2896a32ffbfc3b015c67630b4c6c27c7572f1c051241049e078e91c6eb",
+      "sha256": "d14d0bcacccc36af42a54b29b632c294d7cfce5842bd7b039f8fc0c662093715",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2901,7 +2901,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "d9f1c0fec7643d0b7d2ba0957f663c49d025711ef803ec7f8f533875d27d0ee9",
+      "sha256": "4288e7073452c0aec0f3ac67899868492c968af82ea621438000928235507ed7",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3354,31 +3354,31 @@
           "declaration_label": "Ligands##polyFilter"
         },
         {
-          "line": 2280,
+          "line": 2281,
           "declaration_label": "Color"
         },
         {
-          "line": 2329,
+          "line": 2330,
           "declaration_label": "Automatic colour range"
         },
         {
-          "line": 2332,
+          "line": 2333,
           "declaration_label": "Minimum"
         },
         {
-          "line": 2333,
+          "line": 2334,
           "declaration_label": "Maximum"
         },
         {
-          "line": 2335,
+          "line": 2336,
           "declaration_label": "Hide atoms outside the range"
         },
         {
-          "line": 2336,
+          "line": 2337,
           "declaration_label": "Hide atoms without a value"
         },
         {
-          "line": 2337,
+          "line": 2338,
           "declaration_label": "Show Element Colours"
         }
       ]
@@ -3429,84 +3429,84 @@
     },
     {
       "source": "src/ui/InterfaceBuilderDialog.cpp",
-      "sha256": "e40c76f6788aea2529a21cbb1ab43acb0a3e37c8ac26722451312cb831577297",
+      "sha256": "f5a377db0749ce3f3a3871cf6bb16c93727d1fbf9e79a07cc1c6224cac09c70a",
       "documentation": [
         "11-coverage.tex"
       ],
       "literal_controls": [
         {
-          "line": 85,
+          "line": 86,
           "declaration_label": "Interface Builder"
         },
         {
-          "line": 314,
+          "line": 319,
           "declaration_label": "Load File..."
         },
         {
-          "line": 321,
+          "line": 326,
           "declaration_label": "Use Active Structure"
         },
         {
-          "line": 329,
+          "line": 334,
           "declaration_label": "Cut along (h k l)"
         },
         {
-          "line": 334,
+          "line": 339,
           "declaration_label": "##hkl"
         },
         {
-          "line": 337,
+          "line": 342,
           "declaration_label": "##layers"
         },
         {
-          "line": 354,
+          "line": 359,
           "declaration_label": "##strain"
         },
         {
-          "line": 362,
+          "line": 367,
           "declaration_label": "##area"
         },
         {
-          "line": 369,
+          "line": 374,
           "declaration_label": "##repeats"
         },
         {
-          "line": 377,
+          "line": 382,
           "declaration_label": "##minangle"
         },
         {
-          "line": 385,
+          "line": 390,
           "declaration_label": "##rotation"
         },
         {
-          "line": 646,
+          "line": 652,
           "declaration_label": "##strainon"
         },
         {
-          "line": 653,
+          "line": 659,
           "declaration_label": "##gap"
         },
         {
-          "line": 662,
+          "line": 668,
           "declaration_label": "##vacuum"
         },
         {
-          "line": 670,
+          "line": 676,
           "declaration_label": "##shift"
         },
         {
-          "line": 680,
+          "line": 686,
           "declaration_label": "##repeat"
         },
         {
-          "line": 756,
+          "line": 762,
           "declaration_label": "Find Matches"
         }
       ]
     },
     {
       "source": "src/ui/InterfaceBuilderDialog.h",
-      "sha256": "b3d0869f1085a9bff97a5d595af11291db9477ad114274ac43b0aad600ee8933",
+      "sha256": "0a9ad1b5a16d0b1b6adc3566f1df1588a4562940a8af9f4c858843670a9a37e2",
       "documentation": [
         "11-coverage.tex"
       ],
@@ -4573,7 +4573,7 @@
     },
     {
       "source": "src/ui/ResponsiveLayout.cpp",
-      "sha256": "9d22b85fc3b45d897ee98c4e33900e75afc664d23a20896bba2f9e43421cd850",
+      "sha256": "cda9829cf06e8903e265218a18276c608d41ad8fe88a484643f61e6fdfbb47fa",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4584,7 +4584,7 @@
     },
     {
       "source": "src/ui/ResponsiveLayout.h",
-      "sha256": "d603cf0fcbdea29151ba62ea7a8e2c631411e517823f5fc9cd78e35c0544c9ab",
+      "sha256": "b695f29fe74008bd13df4c79695754a93f6c7c29fa7a15156d2db6d29a776c47",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5192,7 +5192,7 @@
     },
     {
       "source": "src/ui/UiTour.cpp",
-      "sha256": "684a6e4b736acb7d42a16e598630d5f2277d33050a0c89218e356e73259292ee",
+      "sha256": "9eb63cdd9bd46b384d38d26d4eb1c3fc2ac802c10c34ab6e4ce4738414229a8e",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
