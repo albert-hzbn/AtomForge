@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <numeric>
@@ -1233,8 +1234,11 @@ bool filenameIsPoscarOrContcar(const std::string& filename)
     const std::string basename = (slashPos != std::string::npos)
                                ? filename.substr(slashPos + 1)
                                : filename;
-    return basename.compare(0, 6, "POSCAR") == 0
-        || basename.compare(0, 7, "CONTCAR") == 0;
+    // POSCAR, CONTCAR_relaxed, Cu_POSCAR, NaCl.poscar, POSCAR-001 (phonopy) ...
+    std::string upper = basename;
+    std::transform(upper.begin(), upper.end(), upper.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    return upper.find("POSCAR") != std::string::npos
+        || upper.find("CONTCAR") != std::string::npos;
 }
 
 void wrapAtomsIntoPrimaryCell(Structure& structure)
@@ -1303,6 +1307,87 @@ static bool readExtendedXyzLattice(const std::string& text, std::array<std::arra
     for (auto& row : cell)
         for (double& value : row)
             if (!(values >> value) || !std::isfinite(value)) return false;
+    return true;
+}
+
+// POSCAR details Open Babel misreads: a negative scale factor is the cell
+// volume, and a VASP 4 file has no element line (the species are named on
+// the title line, as other tools write them). Returns false when the text
+// is left unchanged.
+static bool normalizePoscar(std::string& text)
+{
+    std::vector<std::string> lines;
+    for (std::size_t pos = 0; pos < text.size();)
+    {
+        const std::size_t end = text.find('\n', pos);
+        lines.push_back(text.substr(pos, end == std::string::npos ? std::string::npos : end - pos + 1));
+        pos = end == std::string::npos ? text.size() : end + 1;
+    }
+    if (lines.size() < 7) return false;
+    const auto tokens = [](const std::string& line) {
+        std::istringstream in(line);
+        std::vector<std::string> out;
+        for (std::string token; in >> token;) out.push_back(token);
+        return out;
+    };
+    bool changed = false;
+
+    // Scale line: one negative value is the volume of the cell.
+    const auto scale = tokens(lines[1]);
+    if (scale.size() == 1)
+    {
+        char* end = nullptr;
+        const double value = std::strtod(scale[0].c_str(), &end);
+        if (end != scale[0].c_str() && value < 0.0)
+        {
+            double m[3][3];
+            for (int r = 0; r < 3; ++r)
+            {
+                const auto row = tokens(lines[static_cast<std::size_t>(2 + r)]);
+                if (row.size() < 3) return false;
+                for (int c = 0; c < 3; ++c) m[r][c] = std::atof(row[static_cast<std::size_t>(c)].c_str());
+            }
+            const double det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+                             - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+                             + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+            if (std::abs(det) < 1e-12) return false;
+            char buffer[64];
+            std::snprintf(buffer, sizeof(buffer), "%.12g\n", std::cbrt(-value / std::abs(det)));
+            lines[1] = buffer;
+            changed = true;
+        }
+    }
+
+    // VASP 4: the line after the cell holds the counts; take the species from
+    // the title ("Na Cl", "Fe_pv O") when it names one per count.
+    const auto counts = tokens(lines[5]);
+    bool allCounts = !counts.empty();
+    for (const auto& count : counts)
+        allCounts = allCounts && count.find_first_not_of("0123456789") == std::string::npos;
+    if (allCounts)
+    {
+        std::vector<std::string> species;
+        for (const auto& word : tokens(lines[0]))
+        {
+            std::size_t letters = 0;
+            while (letters < word.size() && std::isalpha(static_cast<unsigned char>(word[letters]))) ++letters;
+            if (letters == 0 || letters > 2) { species.clear(); break; }
+            std::string symbol = word.substr(0, letters);
+            symbol[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(symbol[0])));
+            if (symbol.size() == 2) symbol[1] = static_cast<char>(std::tolower(static_cast<unsigned char>(symbol[1])));
+            species.push_back(symbol);
+        }
+        if (species.size() == counts.size())
+        {
+            std::string line;
+            for (const auto& symbol : species) line += (line.empty() ? "" : " ") + symbol;
+            lines.insert(lines.begin() + 5, line + "\n");
+            changed = true;
+        }
+    }
+    if (!changed) return false;
+    text.clear();
+    for (const auto& line : lines) text += line;
     return true;
 }
 
@@ -1442,6 +1527,26 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
         std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         xyzLattice = readExtendedXyzLattice(text, xyzCell);
         read = normalizeXyzSymbols(text) ? conv.ReadString(&mol, text) : conv.ReadFile(&mol, filename);
+    }
+    else if (extLower == ".vasp" || extLower == ".poscar" || detectedPoscar)
+    {
+        std::ifstream in(filename, std::ios::binary);
+        std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        if (normalizePoscar(text))
+        {
+            // Open Babel's VASP reader needs a file, not a string.
+            std::error_code error;
+            const auto temporary = std::filesystem::temp_directory_path(error) /
+                                   ("atomforge-" + std::to_string(std::hash<std::string>{}(filename)) + "-POSCAR");
+            {
+                std::ofstream out(temporary, std::ios::binary);
+                out << text;
+            }
+            read = conv.ReadFile(&mol, temporary.string());
+            std::filesystem::remove(temporary, error);
+        }
+        else
+            read = conv.ReadFile(&mol, filename);
     }
     else
         read = conv.ReadFile(&mol, filename);
@@ -1615,7 +1720,9 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
     {
         OpenBabel::OBAtom* atom = mol.NewAtom();
         atom->SetAtomicNum(site.atomicNumber);
-        atom->SetVector(site.x, site.y, site.z);
+        // Rounding noise would print as "-0.00000".
+        const auto clean = [](double v) { return std::abs(v) < 5e-6 ? 0.0 : v; };
+        atom->SetVector(clean(site.x), clean(site.y), clean(site.z));
     }
 
     if (src->hasUnitCell)

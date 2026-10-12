@@ -143,6 +143,19 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
     symbols = root / "upper_out.xyz"
     run("--convert", "--input", upper, "--output", symbols, "--format", "xyz")
     assert [line.split()[0] for line in symbols.read_text().splitlines()[2:5]] == ["Cu", "Ni", "O"], symbols.read_text()
+    # POSCAR: a negative scale is the cell volume; VASP 4 names the species on
+    # the title line instead of an element line.
+    for name, text, expected in (
+        ("vol_POSCAR", "volume\n-64.0\n1 0 0\n0 1 0\n0 0 1\nCu\n1\nDirect\n0 0 0\n", ["Cu"]),
+        ("v4_POSCAR", "Na Cl\n1.0\n4 0 0\n0 4 0\n0 0 4\n1 1\nDirect\n0 0 0\n0.5 0.5 0.5\n", ["Na", "Cl"]),
+    ):
+        poscar = root / name
+        poscar.write_text(text)
+        converted = root / (name + ".xyz")
+        run("--convert", "--input", poscar, "--output", converted, "--format", "xyz")
+        lines = converted.read_text().splitlines()
+        assert lines[1].startswith('Lattice="4 0 0 0 4 0 0 0 4"'), (name, lines[1])
+        assert [line.split()[0] for line in lines[2:]] == expected, (name, lines)
     run("--build", "bulk", "--a", "nan", "--output", root / "invalid.cif", success=False)
     run("--build", "unknown", success=False)
 print("CLI smoke tests passed (version, 15 help modes, 12 builders, 6 invalid inputs)")
