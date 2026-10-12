@@ -195,7 +195,7 @@ int main()
             for (double z : heights) if (z - planes.back() > 1e-4) planes.push_back(z);
             check(planes.size() == 6, "six atomic planes");
             for (std::size_t i = 1; i < planes.size(); ++i) close(planes[i] - planes[i - 1], c.spacing, 1e-6, "fcc d(hkl) layer spacing");
-            close(cell[2][2] - (planes.back() - planes.front()), 12 + c.spacing, 1e-6, "vacuum plus one interlayer gap");
+            close(cell[2][2] - (planes.back() - planes.front()), 12, 1e-6, "the vacuum is the gap between the surfaces");
             const auto cn = coordination(r.structure, 2.8);
             const int low = *std::min_element(cn.begin(), cn.end()), high = *std::max_element(cn.begin(), cn.end());
             check(high == 12, "bulk-like interior (CN range " + std::to_string(low) + "-" + std::to_string(high) + ", " + std::to_string(r.structure.atoms.size()) + " atoms)");

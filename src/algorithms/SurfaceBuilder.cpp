@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <numeric>
+#include <sstream>
 #include <cmath>
 #include <utility>
 #include <vector>
@@ -218,16 +219,26 @@ SurfaceResult buildSurface(const Structure& source, const SurfaceParams& params)
     if (!isOrthogonal(slab.cell))
         slab = setOrthogonalGrain(slab, 2);
 
-    // -- 3. Vacuum, centered along the surface normal (cell direction 2).
-    if (params.vacuum > 0.0)
+    // -- 3. Vacuum, centered along the surface normal (cell direction 2): the
+    // gap between the top surface and the periodic image of the bottom one.
+    if (params.vacuum > 0.0 && !slab.atoms.empty())
     {
         const double len = cellVecLen(slab.cell[2]);
         if (len > 1e-9)
         {
             const double unit[3] = {slab.cell[2][0] / len, slab.cell[2][1] / len, slab.cell[2][2] / len};
-            const double newLen = len + params.vacuum;
+            double low = 0.0, high = 0.0;
+            for (std::size_t i = 0; i < slab.atoms.size(); ++i)
+            {
+                const auto& atom = slab.atoms[i];
+                const double h = atom.x * unit[0] + atom.y * unit[1] + atom.z * unit[2];
+                if (i == 0 || h < low) low = h;
+                if (i == 0 || h > high) high = h;
+            }
+            const double newLen = (high - low) + params.vacuum;
             for (int c = 0; c < 3; ++c) slab.cell[2][c] = unit[c] * newLen;
-            const double shift[3] = {unit[0] * (params.vacuum * 0.5), unit[1] * (params.vacuum * 0.5), unit[2] * (params.vacuum * 0.5)};
+            const double offset = params.vacuum * 0.5 - low;
+            const double shift[3] = {unit[0] * offset, unit[1] * offset, unit[2] * offset};
             for (auto& atom : slab.atoms)
             {
                 atom.x += shift[0];
@@ -241,7 +252,7 @@ SurfaceResult buildSurface(const Structure& source, const SurfaceParams& params)
     result.success = true;
     result.message = "Built a (" + std::to_string(params.h) + " " + std::to_string(params.k) + " "
         + std::to_string(params.l) + ") surface: " + std::to_string(params.layers) + " layers, "
-        + std::to_string(result.structure.atoms.size()) + " atoms, " + std::to_string(params.vacuum) + " A vacuum.";
+        + std::to_string(result.structure.atoms.size()) + " atoms, " + (std::ostringstream() << params.vacuum).str() + " A vacuum.";
     return result;
 }
 

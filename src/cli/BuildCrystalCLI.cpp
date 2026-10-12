@@ -576,7 +576,7 @@ void printHelpSurface()
         "--input FILE --output FILE [--h 1] [--k 1] [--l 1]\n"
         "[--layers 4] [--vacuum 15] [--nmax 8] [--no-primitive] [--symprec 1e-3]\n"
         "Cleaves a bulk crystal along Miller plane (h k l) into a 2D-periodic,\n"
-        "vacuum-padded slab.\n";
+        "vacuum-padded slab; --vacuum is the gap (A) between its surfaces.\n";
 }
 
 int runSurface(int argc, char* argv[])
