@@ -1990,6 +1990,53 @@ static bool readLammpsData(const std::string& text, Structure& structure, std::s
     return true;
 }
 
+// The cell of lengths a, b, c and angles alpha, beta, gamma (degrees), as
+// columns with a along x and b in the xy plane (the CIF and PDB frame).
+// False when the angles make no cell.
+static bool cellFromParameters(const double length[3], const double angle[3], glm::dmat3& cell)
+{
+    const auto cosine = [](double degrees) {
+        if (std::abs(degrees - 90.0) < 1e-10) return 0.0;
+        if (std::abs(degrees - 60.0) < 1e-10) return 0.5;
+        if (std::abs(degrees - 120.0) < 1e-10) return -0.5;
+        return std::cos(degrees * 3.14159265358979323846 / 180.0);
+    };
+    const double ca = cosine(angle[0]), cb = cosine(angle[1]), cg = cosine(angle[2]);
+    const double sg = std::sqrt(1.0 - cg * cg);
+    if (sg < 1e-9) return false;
+    const double cy = (ca - cb * cg) / sg;
+    const double cz2 = 1.0 - cb * cb - cy * cy;
+    if (cz2 <= 1e-12) return false;
+    cell = glm::dmat3(glm::dvec3(length[0], 0.0, 0.0), glm::dvec3(length[1] * cg, length[1] * sg, 0.0),
+                      glm::dvec3(length[2] * cb, length[2] * cy, length[2] * std::sqrt(cz2)));
+    return true;
+}
+
+// The cell on a PDB CRYST1 line at the precision written (Open Babel keeps
+// it in single precision). False without one.
+static bool readPdbCell(const std::string& filename, glm::dmat3& cell)
+{
+    std::ifstream in(filename);
+    for (std::string line; std::getline(in, line);)
+    {
+        if (line.rfind("CRYST1", 0) != 0) continue;
+        double length[3], angle[3];
+        const int widths[6][2] = {{6, 9}, {15, 9}, {24, 9}, {33, 7}, {40, 7}, {47, 7}};
+        for (int k = 0; k < 6; ++k)
+        {
+            if (line.size() < (std::size_t)(widths[k][0] + 1)) return false;
+            const std::string field = line.substr((std::size_t)widths[k][0], (std::size_t)widths[k][1]);
+            char* end = nullptr;
+            const double value = std::strtod(field.c_str(), &end);
+            if (end == field.c_str()) return false;
+            (k < 3 ? length[k] : angle[k - 3]) = value;
+        }
+        if (length[0] <= 0.0 || length[1] <= 0.0 || length[2] <= 0.0) return false;
+        return cellFromParameters(length, angle, cell);
+    }
+    return false;
+}
+
 // ---------------------------------------------------------------- CIF
 // A CIF 1.1 (or CIF 2 / mmCIF-style dotted tags) file as data blocks of
 // items and loops. Tags are lowercased with dots as underscores.
@@ -2396,19 +2443,8 @@ static int readCif(const std::string& text, Structure& structure, std::string& e
         const std::string value = block.item(angleTags[k]);
         if (!value.empty() && (!cifNumber(value, angle[k]) || angle[k] <= 0.0 || angle[k] >= 180.0)) return fail(std::string(angleTags[k]) + " is not an angle.");
     }
-    const auto cosine = [](double degrees) {
-        if (std::abs(degrees - 90.0) < 1e-10) return 0.0;
-        if (std::abs(degrees - 60.0) < 1e-10) return 0.5;
-        if (std::abs(degrees - 120.0) < 1e-10) return -0.5;
-        return std::cos(degrees * 3.14159265358979323846 / 180.0);
-    };
-    const double ca = cosine(angle[0]), cb = cosine(angle[1]), cg = cosine(angle[2]);
-    const double sg = std::sqrt(1.0 - cg * cg);
-    const double cy = (ca - cb * cg) / sg;
-    const double cz2 = 1.0 - cb * cb - cy * cy;
-    if (cz2 <= 1e-12) return fail("the cell angles do not make a cell.");
-    glm::dmat3 cell(glm::dvec3(length[0], 0.0, 0.0), glm::dvec3(length[1] * cg, length[1] * sg, 0.0),
-                    glm::dvec3(length[2] * cb, length[2] * cy, length[2] * std::sqrt(cz2)));
+    glm::dmat3 cell(1.0);
+    if (!cellFromParameters(length, angle, cell)) return fail("the cell angles do not make a cell.");
 
     // Atom sites.
     const CifLoop& loop = *block.loopWith("_atom_site_fract_x");
@@ -2669,7 +2705,13 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
             structure.hasUnitCell = true;
 
             auto vecs = cell->GetCellVectors();
-            if (vecs.size() >= 3)
+            glm::dmat3 exact(1.0);
+            if ((extLower == ".pdb" || extLower == ".ent") && readPdbCell(filename, exact))
+            {
+                for (int i = 0; i < 3; ++i)
+                    structure.cellVectors[(size_t)i] = {exact[i][0], exact[i][1], exact[i][2]};
+            }
+            else if (vecs.size() >= 3)
             {
                 for (int i = 0; i < 3; ++i)
                 {
