@@ -1,8 +1,10 @@
 #include "algorithms/CommonNeighbourAnalysis.h"
 #include "algorithms/AngularDistributionAnalysis.h"
 #include "algorithms/RadialDistributionAnalysis.h"
+#include "algorithms/ShortRangeOrderAnalysis.h"
 #include "util/BackgroundTask.h"
 
+#include <array>
 #include <atomic>
 #include <algorithm>
 #include <chrono>
@@ -189,6 +191,34 @@ int main()
     check(task.start([] { atomforge::taskProgress(.5); return 3; }), "Cancelled task must be reusable");
     awaitResult(task);
     check(task.result()==3 && task.progress()==1, "Completed task must report full progress");
+
+    {
+        // L1_2 Cu3Au (Cartesian positions, a = 3.6 Å): the first shell is
+        // a/sqrt(2) with 12 neighbours, every one of an Au atom's is Cu.
+        Structure ordered;
+        ordered.hasUnitCell = true;
+        const double a = 3.6;
+        ordered.cellVectors = {{{3 * a, 0, 0}, {0, 3 * a, 0}, {0, 0, 3 * a}}};
+        const std::array<std::array<double, 3>, 4> basis{{{0, 0, 0}, {0, .5, .5}, {.5, 0, .5}, {.5, .5, 0}}};
+        for (int x = 0; x < 3; ++x) for (int y = 0; y < 3; ++y) for (int z = 0; z < 3; ++z)
+            for (std::size_t b = 0; b < basis.size(); ++b) {
+                AtomSite atom;
+                atom.symbol = b == 0 ? "Au" : "Cu";
+                atom.atomicNumber = b == 0 ? 79 : 29;
+                atom.x = (x + basis[b][0]) * a; atom.y = (y + basis[b][1]) * a; atom.z = (z + basis[b][2]) * a;
+                ordered.atoms.push_back(atom);
+            }
+        const SroReport sro = analyzeWarrenCowleySRO(ordered, 2, 0.05);
+        check(sro.nShells == 2 && std::abs(sro.shellDistances[0] - a / std::sqrt(2.0)) < 1e-6
+              && std::abs(sro.shellDistances[1] - a) < 1e-6, "SRO shells must use Cartesian positions");
+        bool foundAuAu = false;
+        for (const auto& e : sro.entries)
+            if (e.shell == 0 && e.centerElement == "Au" && e.neighborElement == "Au") {
+                foundAuAu = true;
+                check(e.zi == 27 * 12 && e.nij == 0 && std::abs(e.alpha - 1.0) < 1e-9, "L1_2 Au-Au first-shell SRO changed");
+            }
+        check(foundAuAu, "SRO must report the Au-Au pair");
+    }
 
     std::atomic<bool> finished{false};
     std::promise<void> entered;

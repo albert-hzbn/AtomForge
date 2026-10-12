@@ -30,6 +30,17 @@ static glm::dmat3 buildCell(const Structure& s) {
     return cell;
 }
 
+// Atom positions are Cartesian; the minimum-image distances need them in
+// fractional coordinates of the cell.
+static std::vector<glm::dvec3> fractionalPositions(const Structure& s, const glm::dmat3& cell) {
+    const glm::dmat3 inverse = glm::inverse(cell);
+    std::vector<glm::dvec3> frac;
+    frac.reserve(s.atoms.size());
+    for (const auto& a : s.atoms)
+        frac.push_back(inverse * glm::dvec3(a.x, a.y, a.z));
+    return frac;
+}
+
 // ---------------------------------------------------------------------------
 // Public functions
 // ---------------------------------------------------------------------------
@@ -51,16 +62,17 @@ std::vector<double> buildSroShellDistances(const Structure& structure,
     if (structure.atoms.empty() || !structure.hasUnitCell) return {};
 
     glm::dmat3 cell = buildCell(structure);
+    const std::vector<glm::dvec3> frac = fractionalPositions(structure, cell);
     int N = static_cast<int>(structure.atoms.size());
 
     std::vector<double> dists;
     dists.reserve(N * N);
 
     for (int i = 0; i < N; ++i) {
-        glm::dvec3 fi(structure.atoms[i].x, structure.atoms[i].y, structure.atoms[i].z);
+        const glm::dvec3& fi = frac[static_cast<std::size_t>(i)];
         for (int j = 0; j < N; ++j) {
             if (i == j) continue;
-            glm::dvec3 fj(structure.atoms[j].x, structure.atoms[j].y, structure.atoms[j].z);
+            const glm::dvec3& fj = frac[static_cast<std::size_t>(j)];
             double d = sroPeriodicDist(cell, fi, fj);
             if (d > 1e-6) dists.push_back(d);
         }
@@ -110,6 +122,7 @@ SroReport analyzeWarrenCowleySRO(const Structure& structure,
     }
 
     glm::dmat3 cell = buildCell(structure);
+    const std::vector<glm::dvec3> frac = fractionalPositions(structure, cell);
     int N = report.nAtoms;
 
     // Count directional pairs
@@ -117,12 +130,12 @@ SroReport analyzeWarrenCowleySRO(const Structure& structure,
     std::map<std::pair<int, std::string>, int> coordZ;
 
     for (int i = 0; i < N; ++i) {
-        glm::dvec3 fi(structure.atoms[i].x, structure.atoms[i].y, structure.atoms[i].z);
+        const glm::dvec3& fi = frac[static_cast<std::size_t>(i)];
         const std::string& si = structure.atoms[i].symbol;
 
         for (int j = 0; j < N; ++j) {
             if (i == j) continue;
-            glm::dvec3 fj(structure.atoms[j].x, structure.atoms[j].y, structure.atoms[j].z);
+            const glm::dvec3& fj = frac[static_cast<std::size_t>(j)];
             const std::string& sj = structure.atoms[j].symbol;
             double d = sroPeriodicDist(cell, fi, fj);
             if (d < 1e-6) continue;
@@ -184,18 +197,19 @@ SroReportRC analyzeRaoCurtinSRO(const Structure& structure,
     }
 
     glm::dmat3 cell = buildCell(structure);
+    const std::vector<glm::dvec3> frac = fractionalPositions(structure, cell);
     int N = report.nAtoms;
 
     std::map<std::tuple<int, std::string, std::string>, int> pairs;
     std::vector<int> totalPerShell(report.nShells, 0);
 
     for (int i = 0; i < N; ++i) {
-        glm::dvec3 fi(structure.atoms[i].x, structure.atoms[i].y, structure.atoms[i].z);
+        const glm::dvec3& fi = frac[static_cast<std::size_t>(i)];
         const std::string& si = structure.atoms[i].symbol;
 
         for (int j = 0; j < N; ++j) {
             if (i == j) continue;
-            glm::dvec3 fj(structure.atoms[j].x, structure.atoms[j].y, structure.atoms[j].z);
+            const glm::dvec3& fj = frac[static_cast<std::size_t>(j)];
             const std::string& sj = structure.atoms[j].symbol;
             double d = sroPeriodicDist(cell, fi, fj);
             if (d < 1e-6) continue;
