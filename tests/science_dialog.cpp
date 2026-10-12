@@ -9,6 +9,7 @@
 #include "ui/MenuParity.h"
 #include "ui/ModifierEditor.h"
 #include "ui/SciencePlot.h"
+#include "ui/PathField.h"
 #include <cmath>
 #include <cstdio>
 #include "imgui.h"
@@ -57,6 +58,42 @@ int main()
                     for (const auto& p : type->parameters)
                         if (std::string(p.kind) == "options" && modifierFlags::parse(type->help).flags.empty())
                             throw std::runtime_error(std::string("No option fields for ") + location.step);
+        }
+        // The file dialogs' folder field: a long path shows its end until
+        // clicked, then edits as text until focus leaves it.
+        {
+            char path[256] = "C:/Users/someone/AppData/Local/Temp/a-rather-long-folder-name/scratchpad";
+            ImGuiID id = 0;
+            ImVec2 centre;
+            const auto draw = [&] {
+                ImGui::NewFrame();
+                ImGui::SetNextWindowPos(ImVec2(0, 0));
+                ImGui::SetNextWindowSize(ImVec2(400, 200));
+                ImGui::Begin("Path field test");
+                id = ImGui::GetID("##path");
+                ImGui::SetNextItemWidth(150);
+                pathField("##path", path, sizeof(path));
+                centre = ImVec2((ImGui::GetItemRectMin().x + ImGui::GetItemRectMax().x) / 2,
+                                (ImGui::GetItemRectMin().y + ImGui::GetItemRectMax().y) / 2);
+                ImGui::End();
+                ImGui::Render();
+            };
+            const auto click = [&](ImVec2 at) {
+                io.AddMousePosEvent(at.x, at.y); draw();
+                io.AddMouseButtonEvent(0, true); draw();
+                io.AddMouseButtonEvent(0, false); draw();
+            };
+            draw(); draw();
+            if (ImGui::GetActiveID() == id) throw std::runtime_error("Path field must start as a label");
+            click(centre);
+            for (int i = 0; i < 4; ++i) draw();
+            if (ImGui::GetActiveID() != id) throw std::runtime_error("Clicking the path field must edit it");
+            click(ImVec2(300, 150));
+            for (int i = 0; i < 3; ++i) draw();
+            if (ImGui::GetActiveID() == id) throw std::runtime_error("Clicking elsewhere must end the edit");
+            ImGuiWindow* window = ImGui::FindWindowByName("Path field test");
+            if (!window || window->StateStorage.GetInt(id, -1) != 0) throw std::runtime_error("Path field must show its end again");
+            io.AddMousePosEvent(-1, -1);
         }
         ScientificToolsDialog dialog;
         if (dialog.open("no-such-tool")) throw std::runtime_error("Unknown tool ids must be rejected");

@@ -121,6 +121,7 @@ set(ATOMFORGE_SOURCES
     src/ui/CommonNeighbourAnalysis.cpp
     src/ui/EditMenuDialogs.cpp
     src/ui/FileBrowser.cpp
+    src/ui/PathField.cpp
     src/ui/ElectronicPostProcessing.cpp
     src/ui/WannierAnalysisDialog.cpp
     src/ui/LobsterAnalysisDialog.cpp

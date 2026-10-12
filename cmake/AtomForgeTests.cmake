@@ -208,6 +208,7 @@ if(TARGET AtomForge)
         ${PROJECT_SOURCE_DIR}/src/ui/MenuParity.cpp
         ${PROJECT_SOURCE_DIR}/src/io/Trajectory.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/PathPicker.cpp
+        ${PROJECT_SOURCE_DIR}/src/ui/PathField.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/ResponsiveLayout.cpp
         ${PROJECT_SOURCE_DIR}/src/util/PathUtils.cpp
         ${PROJECT_SOURCE_DIR}/src/io/StructureLoader.cpp
