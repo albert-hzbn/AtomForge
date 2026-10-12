@@ -202,6 +202,27 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
     pinned = root / "pinned.vasp"
     run("--pipe", "select-element Cl | fix-atoms axes=z", "--input", rewritten, "--output", pinned)
     assert pinned.read_text().splitlines()[10].endswith("F F F"), pinned.read_text()
+    # LAMMPS data: force-field labels (CA, HO) do not override the masses; a
+    # six-column file that could be charge or molecular is refused.
+    ff = root / "ff.data"
+    ff.write_text("x\n\n2 atoms\n2 atom types\n0 4 xlo xhi\n0 4 ylo yhi\n0 4 zlo zhi\n\nMasses\n\n1 12.011 # CA\n2 1.008 # HO\n\n"
+                  "Atoms # full\n\n1 1 1 0.0 1 1 1\n2 1 2 0.0 2 2 2\n")
+    ff_out = root / "ff.xyz"
+    run("--convert", "--input", ff, "--output", ff_out, "--format", "xyz")
+    assert [line.split()[0] for line in ff_out.read_text().splitlines()[2:]] == ["C", "H"], ff_out.read_text()
+    ambiguous = root / "mol.data"
+    ambiguous.write_text("x\n\n2 atoms\n2 atom types\n0 4 xlo xhi\n0 4 ylo yhi\n0 4 zlo zhi\n\nMasses\n\n1 63.546\n2 58.693\n\n"
+                         "Atoms\n\n1 1 2 1 1 1\n2 1 1 2 2 2\n")
+    run("--convert", "--input", ambiguous, "--output", root / "mol.xyz", "--format", "xyz", success=False)
+    # Two species a hair apart on one site are one site.
+    straddle = root / "straddle.cif"
+    straddle.write_text("data_x\n_cell_length_a 3.61\n_cell_length_b 3.61\n_cell_length_c 3.61\n"
+                        "_cell_angle_alpha 90\n_cell_angle_beta 90\n_cell_angle_gamma 90\n"
+                        "loop_\n_atom_site_label\n_atom_site_type_symbol\n_atom_site_fract_x\n_atom_site_fract_y\n"
+                        "_atom_site_fract_z\n_atom_site_occupancy\nCu1 Cu 0.5 0.5 0.5 0.4\nNi1 Ni 0.49999 0.49999 0.49999 0.6\n")
+    straddle_out = root / "straddle.xyz"
+    run("--convert", "--input", straddle, "--output", straddle_out, "--format", "xyz")
+    assert straddle_out.read_text().splitlines()[0].strip() == "1", straddle_out.read_text()
     # Output files named the VASP way are written as POSCAR, without an extension too.
     vasp_dir = root / "vasp.run"
     vasp_dir.mkdir()

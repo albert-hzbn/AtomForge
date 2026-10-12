@@ -1,4 +1,5 @@
 #include "StructureLoader.h"
+#include "math/StructureMath.h"
 
 #include <openbabel3/openbabel/obconversion.h>
 #include <openbabel3/openbabel/mol.h>
@@ -1282,7 +1283,13 @@ void wrapAtomsIntoPrimaryCell(Structure& structure)
             cells[k] = std::floor(frac[k]);
             if (frac[k] - cells[k] >= 1.0 - kWrapTol) cells[k] += 1.0;
         }
-        const glm::dvec3 wrapped = pos - (cells.x * a + cells.y * b + cells.z * c);
+        glm::dvec3 wrapped = pos - (cells.x * a + cells.y * b + cells.z * c);
+        // A moved atom that lands a hair below a face (it was a hair below the
+        // opposite one) sits on it, as before.
+        const glm::dvec3 moved = invCellMat * (wrapped - origin);
+        const glm::dvec3 vectors[3] = {a, b, c};
+        for (int k = 0; k < 3; ++k)
+            if (cells[k] != 0.0 && moved[k] < 0.0 && moved[k] > -kWrapTol) wrapped -= moved[k] * vectors[k];
         atom.x = wrapped.x;
         atom.y = wrapped.y;
         atom.z = wrapped.z;
@@ -1534,17 +1541,42 @@ static void resolvePartialOccupancy(Structure& structure, const std::vector<doub
     if (std::none_of(occupancies.begin(), occupancies.end(), [](double o) { return o < 1.0 - 1e-6; })) return;
     if (structure.hasUnitCell) wrapAtomsIntoPrimaryCell(structure);
 
-    // Group atoms by position, to 0.01 A; atoms at fractional 0 and 1 are
-    // the same site after wrapping.
-    std::map<std::array<long long, 3>, std::vector<std::size_t>> sites;
-    for (std::size_t i = 0; i < structure.atoms.size(); ++i)
-    {
+    // Partially occupied atoms within 0.05 A of each other (through the
+    // periodic boundary too) share a site; every other atom is a site alone.
+    glm::dmat3 cell(1.0), inverse(1.0);
+    const bool periodic = cellMatricesD(structure, cell, inverse);
+    const auto separation = [&](std::size_t i, std::size_t j) {
         const auto& a = structure.atoms[i];
-        sites[{std::llround(a.x * 100.0), std::llround(a.y * 100.0), std::llround(a.z * 100.0)}].push_back(i);
+        const auto& b = structure.atoms[j];
+        glm::dvec3 d(b.x - a.x, b.y - a.y, b.z - a.z);
+        if (periodic)
+        {
+            glm::dvec3 f = inverse * d;
+            f -= glm::round(f);
+            d = cell * f;
+        }
+        return glm::length(d);
+    };
+    std::vector<std::size_t> partials;
+    for (std::size_t i = 0; i < structure.atoms.size(); ++i)
+        if (occupancies[i] < 1.0 - 1e-6) partials.push_back(i);
+    std::vector<int> siteOf(structure.atoms.size(), -1);
+    std::vector<std::vector<std::size_t>> sites;
+    for (std::size_t i : partials)
+    {
+        if (siteOf[i] >= 0) continue;
+        siteOf[i] = static_cast<int>(sites.size());
+        sites.push_back({i});
+        for (std::size_t j : partials)
+            if (siteOf[j] < 0 && separation(i, j) < 0.05)
+            {
+                siteOf[j] = siteOf[i];
+                sites.back().push_back(j);
+            }
     }
     std::vector<char> keep(structure.atoms.size(), 1);
     std::size_t shared = 0, partial = 0;
-    for (const auto& [key, members] : sites)
+    for (const auto& members : sites)
     {
         if (members.size() > 1)
         {
@@ -1587,7 +1619,9 @@ static int lammpsTypeElement(const std::string& label, double mass)
         symbol[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(symbol[0])));
         for (std::size_t k = 1; k < symbol.size(); ++k) symbol[k] = static_cast<char>(std::tolower(static_cast<unsigned char>(symbol[k])));
         const int z = static_cast<int>(OpenBabel::OBElements::GetAtomicNum(symbol.c_str()));
-        if (z > 0) return z;
+        // Force-field type names (CA carbon, HO hydroxyl hydrogen) look like
+        // elements: trust a label only when its mass agrees with the given one.
+        if (z > 0 && (mass <= 0.0 || std::abs(elementAtomicMass(z) - mass) <= std::max(1.0, 0.03 * mass))) return z;
     }
     int best = 0;
     double bestDifference = 0.5;
@@ -1700,7 +1734,25 @@ static bool readLammpsData(const std::string& text, Structure& structure, std::s
         return false;
     }
     else if (columns == 5 || columns == 8) { typeColumn = 1; xColumn = 2; }
-    else if (columns == 6 || columns == 9) { typeColumn = 1; xColumn = 3; }
+    else if (columns == 6 || columns == 9)
+    {
+        // charge (id type q x y z) or molecular (id mol type x y z): a
+        // non-integer or undeclared third column is a charge.
+        bool charge = false;
+        for (const auto& row : atomRows)
+        {
+            char* end = nullptr;
+            const double value = std::strtod(row[2].c_str(), &end);
+            if (*end || value != std::floor(value) || value < 1 || value > std::max(typeCount, 1)) { charge = true; break; }
+        }
+        if (!charge)
+        {
+            errorMessage = "Cannot tell whether the LAMMPS atoms are in the charge or the molecular style; "
+                           "add it after the section name, e.g. \"Atoms # charge\".";
+            return false;
+        }
+        typeColumn = 1; xColumn = 3;
+    }
     else if (columns == 7 || columns == 10) { typeColumn = 2; xColumn = 4; }
     else
     {

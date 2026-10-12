@@ -19,23 +19,12 @@ def _load_lammps(path: str) -> "Structure":
     """
     from .._structure import Atom, Structure
 
-    # Common atomic masses → symbol
-    _MASS_TO_SYM = {
-        1.008: "H",   4.003: "He",  6.941: "Li",  9.012: "Be", 10.811: "B",
-        12.011: "C",  14.007: "N",  15.999: "O",  18.998: "F",  20.180: "Ne",
-        22.990: "Na", 24.305: "Mg", 26.982: "Al", 28.086: "Si", 30.974: "P",
-        32.065: "S",  35.453: "Cl", 39.948: "Ar", 39.098: "K",  40.078: "Ca",
-        47.867: "Ti", 51.996: "Cr", 54.938: "Mn", 55.845: "Fe", 58.933: "Co",
-        58.693: "Ni", 63.546: "Cu", 65.38:  "Zn", 107.868: "Ag",183.84: "W",
-        195.084: "Pt", 196.967: "Au",
-    }
-
     def _closest_mass(m: float):
         """The element whose standard mass is within 0.5 u, else None."""
         best, sym = 1e9, None
-        for mass, s in _MASS_TO_SYM.items():
+        for s_, mass in _MASSES.items():
             if abs(m - mass) < best:
-                best, sym = abs(m - mass), s
+                best, sym = abs(m - mass), s_
         return sym if best < 0.5 else None
 
     with open(path, encoding="utf-8", errors="replace") as fh:
@@ -78,7 +67,13 @@ def _load_lammps(path: str) -> "Structure":
                 tid = int(parts[0])
                 mass = float(parts[1])
                 cm = re.search(r"#\s*([A-Za-z]+)", mline)
-                sym = _clean_symbol(cm.group(1)) if cm else _closest_mass(mass)
+                label = _clean_symbol(cm.group(1)) if cm else None
+                # Force-field type names (CA, HO) look like elements: trust a
+                # label only when its mass agrees with the given one.
+                if label in _MASSES and abs(_MASSES[label] - mass) <= max(1.0, 0.03 * mass):
+                    sym = label
+                else:
+                    sym = _closest_mass(mass)
                 if sym:
                     type_to_sym[tid] = sym
             continue
@@ -102,8 +97,20 @@ def _load_lammps(path: str) -> "Structure":
                 # full:   id mol type q x y z;  molecular: id mol type x y z
                 # (image flags may follow). Without a style comment the
                 # column count decides, as in the desktop.
-                row_style = style or {5: "atomic", 8: "atomic", 6: "charge", 9: "charge",
+                row_style = style or {5: "atomic", 8: "atomic", 6: "ambiguous", 9: "ambiguous",
                                       7: "full", 10: "full"}.get(len(parts))
+                if row_style == "ambiguous":
+                    # charge (id type q x y z) or molecular (id mol type x y z):
+                    # a non-integer or undeclared third column is a charge.
+                    try:
+                        third = float(parts[2])
+                        declared = third == int(third) and 1 <= third <= max(len(type_to_sym), 1)
+                    except ValueError:
+                        declared = False
+                    if declared:
+                        raise ValueError("cannot tell whether the LAMMPS atoms are in the charge or the molecular "
+                                         "style; name it after the section, e.g. 'Atoms # charge'")
+                    row_style = "charge"
                 if row_style is None:
                     raise ValueError(f"cannot tell the LAMMPS atom style of {aline!r}; "
                                      "name it after the section, e.g. 'Atoms # atomic'")

@@ -1,4 +1,5 @@
 #include "cli/CliArgs.h"
+#include "io/StructureLoader.h"
 
 #include <cctype>
 #include <cmath>
@@ -90,8 +91,9 @@ std::string detectFormat(const std::string& path)
     std::string upper = name;
     for (char& c : upper) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
     const bool vaspName = upper.find("POSCAR") != std::string::npos || upper.find("CONTCAR") != std::string::npos;
-    const bool otherFormat = ext == "cif" || ext == "xyz" || ext == "extxyz" || ext == "pdb" || ext == "data" ||
-                             ext == "lmp" || ext == "mol2" || ext == "sdf" || ext == "mol";
+    const bool otherFormat = !ext.empty() && ext != "vasp" && ext != "poscar" && ext != "contcar" &&
+                             ext.find_first_not_of("0123456789") != std::string::npos &&
+                             (isSupportedStructureFile("file." + ext) || ext == "pwi" || ext == "gjf" || ext == "lammps" || ext == "json");
     if (vaspName && !otherFormat)
         return "vasp";
     if (ext.empty())

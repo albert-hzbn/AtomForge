@@ -181,9 +181,17 @@ std::vector<Structure> loadLammpsFrames(std::istream& input, std::size_t maxFram
             else if (c=="x" || c=="xu") xCol=static_cast<int>(i);
             else if (c=="y" || c=="yu") yCol=static_cast<int>(i);
             else if (c=="z" || c=="zu") zCol=static_cast<int>(i);
-            else if (c=="xs" || c=="xsu") { xCol=static_cast<int>(i); scaled=true; }
-            else if (c=="ys" || c=="ysu") yCol=static_cast<int>(i);
-            else if (c=="zs" || c=="zsu") zCol=static_cast<int>(i);
+        }
+        // Scaled positions only when the dump has no Cartesian ones.
+        if (xCol<0 || yCol<0 || zCol<0) {
+            xCol=yCol=zCol=-1;
+            for (std::size_t i=0;i<columns.size();++i) {
+                const std::string& c=columns[i];
+                if (c=="xs" || c=="xsu") xCol=static_cast<int>(i);
+                else if (c=="ys" || c=="ysu") yCol=static_cast<int>(i);
+                else if (c=="zs" || c=="zsu") zCol=static_cast<int>(i);
+            }
+            scaled=true;
         }
         std::vector<std::string> typeElements;
         { std::lock_guard<std::mutex> lock(g_typeMutex); typeElements=g_typeElements; }
