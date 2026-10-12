@@ -509,7 +509,8 @@ void InterfaceBuilderDialog::drawPlot(float width, float height)
         const ImVec2 size = ImGui::CalcTextSize(buffer);
         draw->AddText(ImVec2(std::clamp(X(x) - size.x * 0.5f, lo.x - size.x * 0.5f, hi.x - size.x), hi.y + 2.0f), text, buffer);
         std::snprintf(buffer, sizeof(buffer), "%.0f", y);
-        draw->AddText(ImVec2(lo.x - ImGui::CalcTextSize(buffer).x - 4.0f, Y(y) - ImGui::GetTextLineHeight() * 0.5f), text, buffer);
+        // The lowest label sits above the axis, clear of the strain labels below it.
+        draw->AddText(ImVec2(lo.x - ImGui::CalcTextSize(buffer).x - 4.0f, Y(y) - ImGui::GetTextLineHeight() * (t == 0 ? 1.0f : 0.5f)), text, buffer);
     }
     const char* xLabel = "mean strain (%)";
     draw->AddText(ImVec2(0.5f * (lo.x + hi.x - ImGui::CalcTextSize(xLabel).x), hi.y + ImGui::GetTextLineHeight() + 2.0f), text, xLabel);
@@ -783,7 +784,7 @@ void InterfaceBuilderDialog::drawDialog(Structure& structure, const std::vector<
             ImGui::AlignTextToFramePadding();
             ImGui::Text("%s", m_searchMessage.c_str());
             ImGui::SameLine();
-            ImGui::TextDisabled("(fewest atoms first; dimmed atoms: another match has as few and less strain;\xe2\x80\xa2 suggested)");
+            ImGui::TextDisabled("(fewest atoms first; dimmed: another match has as few atoms and less strain; \xe2\x80\xa2 suggested)");
             const float assemblyHeight = 3.0f * ImGui::GetFrameHeightWithSpacing() + 2.0f * ImGui::GetTextLineHeightWithSpacing() + 3.0f * style.ItemSpacing.y;
             const float rest = ImGui::GetContentRegionAvail().y - assemblyHeight;
             const float tableHeight = std::max(responsive::dp(120), rest * 0.42f);
