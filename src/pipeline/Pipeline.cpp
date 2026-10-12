@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 
@@ -269,30 +270,55 @@ Pipeline Pipeline::parse(const std::string& text)
         const ModifierType& type = requireType(modifier.type);
         std::size_t positional = 0;
         std::vector<std::string> pending;  // positional tokens
+        std::set<std::string> named;       // parameters given as name=value
+        const auto takesRest = [](const std::string& kind) { return kind == "expression" || kind == "elements" || kind == "options"; };
+        // The rest of the step as one value; words that were quoted (they
+        // contain spaces) keep their quotes (command-line options only: there
+        // quotes group a flag's value).
+        const auto joinRest = [](const std::string& kind, std::string value, const std::vector<std::string>& words, std::size_t from) {
+            for (std::size_t w = from; w < words.size(); ++w) {
+                const std::string& word = words[w];
+                const bool spaced = kind == "options" && word.find_first_of(" \t") != std::string::npos;
+                const char mark = word.find('"') != std::string::npos ? '\'' : '"';
+                value += (value.empty() ? "" : " ") + (spaced ? mark + word + mark : word);
+            }
+            return value;
+        };
+        // key=value (but not comparisons such as x==1 or x<=1 inside expressions)
+        const auto keyOf = [&](const std::string& token) -> const ModifierParameter* {
+            const auto equals = token.find('=');
+            if (equals == std::string::npos || equals == 0 || token[equals - 1] == '<' || token[equals - 1] == '>' || token[equals - 1] == '!' ||
+                (equals + 1 < token.size() && token[equals + 1] == '='))
+                return nullptr;
+            return findParameter(type, token.substr(0, equals));
+        };
         for (std::size_t t = 1; t < parts.size(); ++t) {
             const std::string& token = parts[t];
-            const auto equals = token.find('=');
-            // key=value (but not comparisons such as x==1 or x<=1 inside expressions)
-            if (equals != std::string::npos && equals > 0 && token[equals - 1] != '<' && token[equals - 1] != '>' && token[equals - 1] != '!' &&
-                (equals + 1 >= token.size() || token[equals + 1] != '=') && findParameter(type, token.substr(0, equals))) {
-                const ModifierParameter& p = *findParameter(type, token.substr(0, equals));
-                modifier.parameters[p.name] = valueFor(p, token.substr(equals + 1));
+            if (const ModifierParameter* key = keyOf(token)) {
+                const ModifierParameter& p = *key;
+                named.insert(p.name);
+                std::string value = token.substr(token.find('=') + 1);
+                if (takesRest(p.kind)) {
+                    // options=--core-radius 8 --core-element Cu: the following words
+                    // too, up to the next name=value of this step.
+                    std::size_t end = t + 1;
+                    while (end < parts.size() && !keyOf(parts[end])) ++end;
+                    value = joinRest(p.kind, value, std::vector<std::string>(parts.begin() + static_cast<std::ptrdiff_t>(t + 1), parts.begin() + static_cast<std::ptrdiff_t>(end)), 0);
+                    t = end - 1;
+                }
+                modifier.parameters[p.name] = valueFor(p, value);
             } else pending.push_back(token);
         }
         for (std::size_t t = 0; t < pending.size();) {
+            // Positional values fill the parameters not given by name, in order.
+            while (positional < type.parameters.size() && named.count(type.parameters[positional].name)) ++positional;
             if (positional >= type.parameters.size()) throw std::runtime_error(std::string(type.id) + ": too many values (" + pending[t] + ")");
             const ModifierParameter& p = type.parameters[positional++];
             const std::string kind = p.kind;
             std::string value;
-            if (kind == "expression" || kind == "elements" || kind == "options") {  // the rest of the step
-                // Words that were quoted (they contain spaces) keep their quotes.
-                for (; t < pending.size(); ++t) {
-                    const std::string& word = pending[t];
-                    // (Command-line options only: there quotes group a flag's value.)
-                    const bool spaced = kind == "options" && word.find_first_of(" \t") != std::string::npos;
-                    const char mark = word.find('"') != std::string::npos ? '\'' : '"';
-                    value += (value.empty() ? "" : " ") + (spaced ? mark + word + mark : word);
-                }
+            if (takesRest(kind)) {  // the rest of the step
+                value = joinRest(kind, "", pending, t);
+                t = pending.size();
             } else if ((kind == "vector" || kind == "ivec3") && pending[t].find(',') == std::string::npos) {
                 if (t + 3 > pending.size()) throw std::runtime_error(std::string(type.id) + ": " + p.name + " needs three numbers");
                 value = pending[t] + " " + pending[t + 1] + " " + pending[t + 2];

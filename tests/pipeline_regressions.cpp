@@ -134,6 +134,16 @@ int main()
         check(keyed.modifiers[1].parameters.at("counts").items()[0].number() == 3, "comma vector");
         const Pipeline quoted = Pipeline::parse("select-expression 'element == \"O\" && x > 1' mode=intersect");
         check(quoted.modifiers[0].parameters.at("expression").string() == "element == \"O\" && x > 1", "quoted expression");
+        // A named rest-of-step value keeps its following words, up to the next name=value.
+        const Pipeline namedRest = Pipeline::parse("select-expression expression=fz > 0.5 mode=intersect");
+        check(namedRest.modifiers[0].parameters.at("expression").string() == "fz > 0.5" &&
+              namedRest.modifiers[0].parameters.at("mode").string() == "intersect", "named expression takes the following words");
+        // (Build steps' options=... follow the same rule; they live in the application.)
+        const Pipeline namedList = Pipeline::parse("select-element mode=add elements=Cu Ni");
+        check(namedList.modifiers[0].parameters.at("elements").string().find("Cu") != std::string::npos &&
+              namedList.modifiers[0].parameters.at("elements").string().find("Ni") != std::string::npos &&
+              namedList.modifiers[0].parameters.at("mode").string() == "add",
+              "a named list takes the rest of the step, and positions skip named parameters");
         // Text and JSON round trips.
         for (const Pipeline& original : {p, keyed, quoted}) {
             const Pipeline again = Pipeline::parse(original.toText());

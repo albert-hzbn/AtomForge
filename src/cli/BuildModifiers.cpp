@@ -100,19 +100,22 @@ void runMode(const Mode& mode, const Json& parameters, PipelineData& data)
         else { args.push_back("--build"); args.push_back(mode.id); }
         const auto options = atomforge::pipeline::options::tokens(parameters.contains("options") ? parameters.at("options").string() : mode.defaults);
         args.insert(args.end(), options.begin(), options.end());
-        // The pipeline's structure is the input (CIF keeps the cell and the atom order).
+        // The pipeline's structure is the input (extended XYZ keeps the cell, if
+        // any, the atom order and full precision).
         const bool haveAtoms = !data.structure.atoms.empty();
         const bool useInput = parameters.contains("use_input") ? parameters.at("use_input").boolean() : true;
         if ((mode.input == Input::Required || mode.input == Input::LayerA || (mode.input == Input::Optional && useInput)) && haveAtoms) {
             const char* flag = mode.input == Input::LayerA ? "--layerA" : "--input";
             if (!mentions(args, flag)) {
-                const auto input = folder / "input.cif";
-                if (!saveStructure(data.structure, input.u8string(), "cif")) throw std::runtime_error("Cannot pass the structure to " + std::string(mode.id));
+                const auto input = folder / "input.xyz";
+                if (!saveStructure(data.structure, input.u8string(), "xyz"))
+                    throw std::runtime_error("Cannot pass the structure to " + std::string(mode.id) + ": " + lastSaveError());
                 args.push_back(flag);
                 args.push_back(input.u8string());
             }
         } else if (mode.input == Input::Required) throw std::runtime_error(std::string(mode.title) + " needs a structure from earlier steps");
-        const auto output = folder / (sculpt ? "output.vasp" : "output.cif");
+        // A build may make a structure without a cell (core-shell, a finite nanocrystal).
+        const auto output = folder / (sculpt ? "output.vasp" : "output.xyz");
         args.push_back("--output");
         args.push_back(output.u8string());
         std::vector<char*> argv;
