@@ -116,6 +116,10 @@ int main()
         require(unitText::display("(e/A^3)^2*A^3") == "(e/\xc3\x85\xc2\xb3)^2*\xc3\x85\xc2\xb3", "Nested unit");
         require(unitText::display("A^-1") == "\xc3\x85\xe2\x81\xbb\xc2\xb9", "Inverse length");
         require(unitText::display("DATA^3 and MSD (A^2)") == "DATA^3 and MSD (\xc3\x85\xc2\xb2)", "Only a lone A is an Angstrom sign");
+        require(unitText::display("Cutoff (A)") == "Cutoff (\xc3\x85)", "Bracketed unit");
+        require(unitText::display("Neighbor cutoff (Angstrom, 0 = automatic)") == "Neighbor cutoff (\xc3\x85, 0 = automatic)", "Angstrom word");
+        require(unitText::display("k (1/A)") == "k (1/\xc3\x85)", "Per Angstrom");
+        require(unitText::display("Site A, Alpha (A1)") == "Site A, Alpha (A1)", "Labels that are not units stay");
         // Appearance preferences: read from, and written back to, the home folder.
         {
             const auto home = std::filesystem::temp_directory_path() / "atomforge-ui-layout-home";

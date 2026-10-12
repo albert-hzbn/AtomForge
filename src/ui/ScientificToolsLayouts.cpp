@@ -1,3 +1,4 @@
+#include "ui/UnitText.h"
 // Drawing of the scientific tool windows: parameter widgets, result views and
 // one layout per tool view (see ScienceToolView). State, persistence and
 // running live in ScientificToolsDialog.cpp.
@@ -27,16 +28,17 @@ void ScientificToolsDialog::drawField(std::size_t i, const Structure& structure)
     const std::string kind = parameter.kind;
     const bool optional = !parameter.required && parameter.value[0] == '\0';
     ImGui::PushID(static_cast<int>(i));
+    const std::string label = unitText::display(parameter.label);
     if (kind == "structure" && m_step.active()) {
         // The pipeline supplies the structure of a step.
-        ImGui::TextWrapped("%s", parameter.label);
+        ImGui::TextWrapped("%s", label.c_str());
         drawStepInput();
         ImGui::Spacing();
         ImGui::PopID();
         return;
     }
-    if (optional) ImGui::Checkbox(parameter.label, &field.enabled);
-    else if (kind != "bool") ImGui::TextWrapped("%s", parameter.label);
+    if (optional) ImGui::Checkbox(label.c_str(), &field.enabled);
+    else if (kind != "bool") ImGui::TextWrapped("%s", label.c_str());
     if (optional && !field.enabled) {
         ImGui::Spacing();
         ImGui::PopID();
@@ -45,7 +47,7 @@ void ScientificToolsDialog::drawField(std::size_t i, const Structure& structure)
     ImGui::BeginDisabled(!field.enabled);
     if (kind == "bool") {
         bool value = std::string(field.value.data()) == "true";
-        if (ImGui::Checkbox(parameter.label, &value)) std::snprintf(field.value.data(), field.value.size(), "%s", value ? "true" : "false");
+        if (ImGui::Checkbox(label.c_str(), &value)) std::snprintf(field.value.data(), field.value.size(), "%s", value ? "true" : "false");
     } else if (kind == "axes") {
         std::istringstream input(field.value.data());
         char bracket;
@@ -272,7 +274,7 @@ void ScientificToolsDialog::drawSummary(const char* id, int pairsPerRow)
         for (std::size_t n = 0; n < m_result.summary.size(); ++n) {
             if (n % static_cast<std::size_t>(pairsPerRow) == 0) ImGui::TableNextRow();
             const auto& [label, value] = m_result.summary[n];
-            ImGui::TableNextColumn(); ImGui::TextWrapped("%s", label.c_str());
+            ImGui::TableNextColumn(); ImGui::TextWrapped("%s", unitText::display(label).c_str());
             ImGui::TableNextColumn(); ImGui::TextUnformatted(value.c_str());
         }
         ImGui::EndTable();
@@ -350,7 +352,7 @@ void ScientificToolsDialog::drawComparison()
         ImGui::TableHeadersRow();
         for (const auto& [label, value] : m_result.summary) {
             ImGui::TableNextRow();
-            ImGui::TableNextColumn(); ImGui::TextUnformatted(label.c_str());
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(unitText::display(label).c_str());
             for (const auto& run : m_kept) {
                 ImGui::TableNextColumn();
                 const auto found = std::find_if(run.summary.begin(), run.summary.end(), [&](const auto& row) { return row.first == label; });

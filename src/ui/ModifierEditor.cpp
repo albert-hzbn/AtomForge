@@ -1,3 +1,4 @@
+#include "ui/UnitText.h"
 #include "ui/ModifierEditor.h"
 #include "ui/ResponsiveLayout.h"
 #include "imgui.h"
@@ -229,7 +230,7 @@ void drawModifierParameters(const atomforge::pipeline::ModifierType& type, const
         ImGui::TableSetColumnIndex(0);
         ImGui::AlignTextToFramePadding();
         ImGui::PushTextWrapPos(0.0f);
-        ImGui::TextUnformatted(p.label);
+        ImGui::TextUnformatted(unitText::display(p.label).c_str());
         ImGui::PopTextWrapPos();
         ImGui::TableSetColumnIndex(1);
         ImGui::SetNextItemWidth(-FLT_MIN);
