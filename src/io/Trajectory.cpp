@@ -137,17 +137,25 @@ std::vector<Structure> loadLammpsFrames(std::istream& input, std::size_t maxFram
             throw std::runtime_error("Expected 'ITEM: ATOMS <columns>'");
         std::vector<std::string> columns;
         { std::istringstream header(line.substr(std::string("ITEM: ATOMS ").size())); for (std::string token; header>>token;) columns.push_back(token); }
-        int elementCol=-1, xCol=-1, yCol=-1, zCol=-1;
+        // Cartesian (x, xu) or scaled (xs, xsu: fractions of the box, as
+        // LAMMPS's default "dump atom" writes) positions; atoms ordered by id.
+        int elementCol=-1, xCol=-1, yCol=-1, zCol=-1, idCol=-1;
+        bool scaled=false;
         for (std::size_t i=0;i<columns.size();++i) {
-            if (columns[i]=="element") elementCol=static_cast<int>(i);
-            else if (columns[i]=="x" || columns[i]=="xu") xCol=static_cast<int>(i);
-            else if (columns[i]=="y" || columns[i]=="yu") yCol=static_cast<int>(i);
-            else if (columns[i]=="z" || columns[i]=="zu") zCol=static_cast<int>(i);
+            const std::string& c=columns[i];
+            if (c=="element") elementCol=static_cast<int>(i);
+            else if (c=="id") idCol=static_cast<int>(i);
+            else if (c=="x" || c=="xu") xCol=static_cast<int>(i);
+            else if (c=="y" || c=="yu") yCol=static_cast<int>(i);
+            else if (c=="z" || c=="zu") zCol=static_cast<int>(i);
+            else if (c=="xs" || c=="xsu") { xCol=static_cast<int>(i); scaled=true; }
+            else if (c=="ys" || c=="ysu") yCol=static_cast<int>(i);
+            else if (c=="zs" || c=="zsu") zCol=static_cast<int>(i);
         }
         if (elementCol<0)
             throw std::runtime_error("LAMMPS dump has no 'element' column; add 'dump_modify <id> element <symbols...>' "
                                       "to your LAMMPS input so atom types map to chemical symbols");
-        if (xCol<0 || yCol<0 || zCol<0) throw std::runtime_error("LAMMPS dump is missing x/y/z (or xu/yu/zu) position columns");
+        if (xCol<0 || yCol<0 || zCol<0) throw std::runtime_error("LAMMPS dump is missing x/y/z (or xu, xs, xsu) position columns");
         Structure frame;
         // Convert LAMMPS's bounding-box convention to true (tilted) cell
         // edges: LAMMPS manual, "Triclinic simulation boxes".
@@ -157,7 +165,9 @@ std::vector<Structure> loadLammpsFrames(std::istream& input, std::size_t maxFram
         frame.cellOffset={xloB,yloB,lo[2]};
         frame.cellVectors={{ {xhiB-xloB,0,0}, {xyT,yhiB-yloB,0}, {xzT,yzT,hi[2]-lo[2]} }};
         frame.hasUnitCell=true;
-        const int maxColumn=std::max({elementCol,xCol,yCol,zCol});
+        const int maxColumn=std::max({elementCol,xCol,yCol,zCol,idCol});
+        std::vector<std::pair<long long, AtomSite>> rows;
+        rows.reserve(static_cast<std::size_t>(count));
         for (long long i=0;i<count;++i) {
             atomforge::taskCheckpoint();
             if (!std::getline(input,line)) throw std::runtime_error("Truncated LAMMPS trajectory");
@@ -176,8 +186,22 @@ std::vector<Structure> loadLammpsFrames(std::istream& input, std::size_t maxFram
             for (int z=1;z<=118;++z) if (atom.symbol==elementSymbol(z)) { atom.atomicNumber=z; break; }
             if (!atom.atomicNumber) throw std::runtime_error("Unknown LAMMPS element: "+atom.symbol);
             getDefaultElementColor(atom.atomicNumber,atom.r,atom.g,atom.b);
-            frame.atoms.push_back(atom);
+            if (scaled) {
+                const auto& cv=frame.cellVectors;
+                const double fa=atom.x, fb=atom.y, fc=atom.z;
+                atom.x=frame.cellOffset[0]+fa*cv[0][0]+fb*cv[1][0]+fc*cv[2][0];
+                atom.y=frame.cellOffset[1]+fa*cv[0][1]+fb*cv[1][1]+fc*cv[2][1];
+                atom.z=frame.cellOffset[2]+fa*cv[0][2]+fb*cv[1][2]+fc*cv[2][2];
+            }
+            long long id=i;
+            if (idCol>=0 && !(std::istringstream(values[static_cast<std::size_t>(idCol)])>>id))
+                throw std::runtime_error("Invalid LAMMPS atom id");
+            rows.push_back({id,atom});
         }
+        // Parallel runs write atoms in a different order in every frame.
+        std::stable_sort(rows.begin(),rows.end(),[](const auto& a,const auto& b){ return a.first<b.first; });
+        frame.atoms.reserve(rows.size());
+        for (auto& row:rows) frame.atoms.push_back(std::move(row.second));
         frames.push_back(std::move(frame));
     }
     if (frames.empty()) throw std::runtime_error("Trajectory contains no frames");

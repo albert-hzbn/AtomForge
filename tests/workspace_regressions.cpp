@@ -47,6 +47,15 @@ int main()
               "LAMMPS orthogonal box bounds lost");
         check(lammpsFrames[1].atoms[0].x==0.1,"LAMMPS second frame not read");
         check(loadTrajectory(lammpsOrtho.string()).size()==2,"loadTrajectory must auto-detect a LAMMPS dump");
+        // Scaled coordinates (LAMMPS's default dump) and atoms listed out of id order.
+        const auto lammpsScaled=root/"scaled.lammpstrj";
+        { std::ofstream file(lammpsScaled);
+          file << "ITEM: TIMESTEP\n0\nITEM: NUMBER OF ATOMS\n2\nITEM: BOX BOUNDS pp pp pp\n"
+                  "1.0 5.0\n0.0 5.0\n0.0 6.0\nITEM: ATOMS id element xs ys zs\n2 O 0.5 0.5 0.5\n1 Cu 0.25 0 0\n"; }
+        const auto scaledFrames=loadLammpsTrajectory(lammpsScaled.string());
+        check(scaledFrames[0].atoms[0].atomicNumber==29 && scaledFrames[0].atoms[0].x==2.0 &&
+              scaledFrames[0].atoms[1].y==2.5 && scaledFrames[0].atoms[1].z==3.0,
+              "LAMMPS scaled positions must be converted and atoms ordered by id");
         const auto xyzFresh=root/"fresh.xyz";
         { std::ofstream file(xyzFresh); file << "1\nfixture\nCu 0 0 0\n"; }
         check(loadTrajectory(xyzFresh.string()).size()==1,"loadTrajectory must still auto-detect XYZ");
