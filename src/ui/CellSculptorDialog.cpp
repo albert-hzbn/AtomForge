@@ -51,13 +51,14 @@ static const float kSlabColors[5][3] = {
 };
 
 #ifdef ATOMFORGE_VULKAN
-// Patches the atom scales of the buffers' Vulkan copy (host-visible).
+// Sets the atom radii of the buffers' Vulkan copy (copied before the next frame).
 void scSetVulkanScales(SceneBuffers& buffers, const float* scales, size_t count)
 {
     vkr::SceneResources* scene = buffers.vulkan.get();
-    if (!scene || !scene->scales.mapped) return;
+    if (!scene) return;
     count = std::min(count, (size_t)scene->atomCount);
-    std::memcpy(scene->scales.mapped, scales, count * sizeof(float));
+    for (size_t i = 0; i < count; ++i)
+        vkr::sceneRenderer().setInstanceRadius(buffers, static_cast<int>(i), scales[i]);
 }
 #endif
 } // namespace

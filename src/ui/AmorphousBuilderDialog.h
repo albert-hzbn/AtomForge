@@ -41,6 +41,10 @@ struct AmorphousBuilderDialog
 
     bool isOpen() const { return m_isOpen; }
 
+    // Open, or opening this frame (it may build and replace the structure).
+
+    bool active() const { return m_isOpen || m_openRequested; }
+
     // Opens the dialog on a pipeline step: filled from the step's settings, with
     // "Update step" writing them back instead of building.
     bool editStep(StepEdit edit);

@@ -1,4 +1,5 @@
 #include "graphics/vulkan/VulkanSceneRenderer.h"
+#include "graphics/vulkan/VulkanPipelineSpec.h"
 
 #include "graphics/BillboardMesh.h"
 #include "graphics/CylinderMesh.h"
@@ -49,9 +50,17 @@ glm::mat4 clipCorrection(bool flipY)
 SceneResources::~SceneResources()
 {
     Context& ctx = context();
-    for (Buffer* buffer : {&positions, &colors, &scales, &shininess, &bondStart, &bondEnd, &bondColorA, &bondColorB,
-                           &bondRadius, &bondShininessA, &bondShininessB, &boxLines, &loop})
+    for (Buffer* buffer : {&positions, &colors, &bondStart, &bondEnd, &bondColorA, &bondColorB, &boxLines, &loop, &lists, &visibility})
         ctx.destroyBuffer(*buffer);
+    std::vector<VkDescriptorSet> sets;
+    for (VkDescriptorSet set : {drawSet, cullSet})
+        if (set) sets.push_back(set);
+    if (!sets.empty() && ctx.ready())
+    {
+        const VkDevice device = ctx.device();
+        const VkDescriptorPool pool = ctx.descriptorPool();
+        ctx.destroyLater([device, pool, sets] { vkFreeDescriptorSets(device, pool, static_cast<uint32_t>(sets.size()), sets.data()); });
+    }
 }
 
 namespace
@@ -98,16 +107,17 @@ VkVertexInputAttributeDescription attribute(uint32_t location, uint32_t bindingI
     return {location, bindingIndex, format, offset};
 }
 
-// Per-atom streams: vertex positions, then instance position, colour, scale and shininess.
+// Per-atom streams: vertex positions, then the packed instance position and
+// radius (xyz, w) and colour and shininess (rgb, a).
 std::vector<VkVertexInputBindingDescription> atomBindings()
 {
-    return {binding(0, 12, false), binding(1, 16, true), binding(2, 16, true), binding(3, 4, true), binding(4, 4, true)};
+    return {binding(0, 12, false), binding(1, 16, true), binding(2, 16, true)};
 }
 
+// Per bond: start and radius, end and shininess A, colour A and shininess B, colour B.
 std::vector<VkVertexInputBindingDescription> bondBindings()
 {
-    return {binding(0, 12, false), binding(1, 12, true), binding(2, 12, true), binding(3, 12, true), binding(4, 12, true),
-            binding(5, 4, true), binding(6, 4, true), binding(7, 4, true)};
+    return {binding(0, 12, false), binding(1, 16, true), binding(2, 16, true), binding(3, 16, true), binding(4, 16, true)};
 }
 
 Buffer hostBuffer(const void* data, std::size_t bytes, VkBufferUsageFlags usage)
@@ -124,26 +134,6 @@ Buffer deviceBuffer(const std::vector<T>& values, VkBufferUsageFlags usage)
     return context().createDeviceBuffer(values.data(), values.size() * sizeof(T), usage);
 }
 }
-
-enum class Blend { None, Alpha, ConstantAlpha };
-
-struct SceneRenderer::PipelineSpec
-{
-    const uint32_t* vertexCode = nullptr;
-    size_t vertexBytes = 0;
-    const uint32_t* fragmentCode = nullptr;
-    size_t fragmentBytes = 0;
-    std::vector<VkVertexInputBindingDescription> bindings;
-    std::vector<VkVertexInputAttributeDescription> attributes;
-    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    bool shadowPass = false;  // the shadow map's pass (else the window's and the canvases')
-    bool depthTest = true;
-    bool depthWrite = true;
-    VkCompareOp depthOp = VK_COMPARE_OP_LESS;
-    Blend blend = Blend::None;
-    bool lines = false;       // line width set per draw
-    bool polygonOffset = false;
-};
 
 VkPipeline SceneRenderer::makePipeline(const PipelineSpec& spec)
 {
@@ -206,7 +196,7 @@ VkPipeline SceneRenderer::makePipeline(const PipelineSpec& spec)
     depth.depthWriteEnable = spec.depthWrite ? VK_TRUE : VK_FALSE;
     depth.depthCompareOp = spec.depthTest ? spec.depthOp : VK_COMPARE_OP_ALWAYS;
     VkPipelineColorBlendAttachmentState colorBlend{};
-    colorBlend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlend.colorWriteMask = spec.colorWrite ? (VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT) : 0u;
     if (spec.blend != Blend::None)
     {
         const bool constant = spec.blend == Blend::ConstantAlpha;
@@ -239,7 +229,7 @@ VkPipeline SceneRenderer::makePipeline(const PipelineSpec& spec)
     info.pDepthStencilState = &depth;
     info.pColorBlendState = &blendState;
     info.pDynamicState = &dynamic;
-    info.layout = m_layout;
+    info.layout = spec.gpu ? m_gpuLayout : m_layout;
     info.renderPass = spec.shadowPass ? m_shadowPass : ctx.mainRenderPass();
     VkPipeline pipeline = VK_NULL_HANDLE;
     vkCreateGraphicsPipelines(ctx.device(), VK_NULL_HANDLE, 1, &info, nullptr, &pipeline);
@@ -437,17 +427,17 @@ bool SceneRenderer::init(const SphereMesh& sphere, const LowPolyMesh& lowPoly, c
     // Pipelines.
     const auto atomAttributes = std::vector<VkVertexInputAttributeDescription>{
         attribute(0, 0, VK_FORMAT_R32G32B32_SFLOAT), attribute(1, 1, VK_FORMAT_R32G32B32_SFLOAT),
-        attribute(2, 2, VK_FORMAT_R32G32B32_SFLOAT), attribute(3, 3, VK_FORMAT_R32_SFLOAT), attribute(4, 4, VK_FORMAT_R32_SFLOAT)};
+        attribute(2, 2, VK_FORMAT_R32G32B32_SFLOAT), attribute(3, 1, VK_FORMAT_R32_SFLOAT, 12), attribute(4, 2, VK_FORMAT_R32_SFLOAT, 12)};
     const auto bondAttributes = std::vector<VkVertexInputAttributeDescription>{
         attribute(0, 0, VK_FORMAT_R32G32B32_SFLOAT), attribute(1, 1, VK_FORMAT_R32G32B32_SFLOAT),
         attribute(2, 2, VK_FORMAT_R32G32B32_SFLOAT), attribute(3, 3, VK_FORMAT_R32G32B32_SFLOAT),
-        attribute(4, 4, VK_FORMAT_R32G32B32_SFLOAT), attribute(5, 5, VK_FORMAT_R32_SFLOAT),
-        attribute(6, 6, VK_FORMAT_R32_SFLOAT), attribute(7, 7, VK_FORMAT_R32_SFLOAT)};
+        attribute(4, 4, VK_FORMAT_R32G32B32_SFLOAT), attribute(5, 1, VK_FORMAT_R32_SFLOAT, 12),
+        attribute(6, 2, VK_FORMAT_R32_SFLOAT, 12), attribute(7, 3, VK_FORMAT_R32_SFLOAT, 12)};
     const auto shadowAtomAttributes = std::vector<VkVertexInputAttributeDescription>{
-        attribute(0, 0, VK_FORMAT_R32G32B32_SFLOAT), attribute(1, 1, VK_FORMAT_R32G32B32_SFLOAT), attribute(3, 3, VK_FORMAT_R32_SFLOAT)};
+        attribute(0, 0, VK_FORMAT_R32G32B32_SFLOAT), attribute(1, 1, VK_FORMAT_R32G32B32_SFLOAT), attribute(3, 1, VK_FORMAT_R32_SFLOAT, 12)};
     const auto shadowBondAttributes = std::vector<VkVertexInputAttributeDescription>{
         attribute(0, 0, VK_FORMAT_R32G32B32_SFLOAT), attribute(1, 1, VK_FORMAT_R32G32B32_SFLOAT),
-        attribute(2, 2, VK_FORMAT_R32G32B32_SFLOAT), attribute(5, 5, VK_FORMAT_R32_SFLOAT)};
+        attribute(2, 2, VK_FORMAT_R32G32B32_SFLOAT), attribute(5, 1, VK_FORMAT_R32_SFLOAT, 12)};
 #define SPV(vs, fs) spec.vertexCode = vs, spec.vertexBytes = sizeof(vs), spec.fragmentCode = fs, spec.fragmentBytes = sizeof(fs)
     {
         PipelineSpec spec;
@@ -531,6 +521,7 @@ bool SceneRenderer::init(const SphereMesh& sphere, const LowPolyMesh& lowPoly, c
     }
 #undef SPV
     m_ready = m_pipelines.size() == 15;
+    if (m_ready) initGpu();
     return m_ready;
 }
 
@@ -540,6 +531,7 @@ void SceneRenderer::shutdown()
     if (!ctx.ready()) return;
     VkDevice device = ctx.device();
     vkDeviceWaitIdle(device);
+    shutdownGpu();
     for (VkPipeline pipeline : m_pipelines) vkDestroyPipeline(device, pipeline, nullptr);
     for (VkShaderModule module : m_modules) vkDestroyShaderModule(device, module, nullptr);
     for (Buffer* buffer : {&m_sphereVertices, &m_sphereIndices, &m_lowPolyVertices, &m_lowPolyIndices, &m_billboardVertices,
@@ -569,27 +561,40 @@ void SceneRenderer::upload(SceneBuffers& buffers, const std::vector<glm::vec4>& 
                            const std::vector<float>& bondShininessB, const std::vector<glm::vec3>& boxLines)
 {
     // A new set of buffers; the old ones go when no frame in flight uses them.
+    // Device-local and packed (an atom is 32 bytes): vertex input for canvases,
+    // storage buffers for the GPU-culled main view; edits are copied in batches.
     auto scene = std::make_shared<SceneResources>();
-    const VkBufferUsageFlags vertex = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    const VkBufferUsageFlags usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     scene->atomCount = static_cast<uint32_t>(std::min({positions.size(), colors.size(), scales.size(), shininess.size()}));
     if (scene->atomCount)
     {
-        scene->positions = hostBuffer(positions.data(), positions.size() * sizeof(glm::vec4), vertex);
-        scene->colors = hostBuffer(colors.data(), colors.size() * sizeof(glm::vec4), vertex);
-        scene->scales = hostBuffer(scales.data(), scales.size() * sizeof(float), vertex);
-        scene->shininess = hostBuffer(shininess.data(), shininess.size() * sizeof(float), vertex);
+        std::vector<glm::vec4> packedPositions(scene->atomCount), packedColors(scene->atomCount);
+        for (uint32_t i = 0; i < scene->atomCount; ++i)
+        {
+            packedPositions[i] = glm::vec4(glm::vec3(positions[i]), scales[i]);
+            packedColors[i] = glm::vec4(glm::vec3(colors[i]), shininess[i]);
+        }
+        scene->positions = deviceBuffer(packedPositions, usage);
+        scene->colors = deviceBuffer(packedColors, usage);
     }
-    scene->bondCount = static_cast<uint32_t>(bondStart.size());
+    scene->bondCount = static_cast<uint32_t>(std::min({bondStart.size(), bondEnd.size(), bondColorA.size(), bondColorB.size(),
+                                                       bondRadius.size(), bondShininessA.size(), bondShininessB.size()}));
     if (scene->bondCount)
     {
-        scene->bondStart = deviceBuffer(bondStart, vertex);
-        scene->bondEnd = deviceBuffer(bondEnd, vertex);
-        scene->bondColorA = deviceBuffer(bondColorA, vertex);
-        scene->bondColorB = deviceBuffer(bondColorB, vertex);
-        scene->bondRadius = deviceBuffer(bondRadius, vertex);
-        scene->bondShininessA = deviceBuffer(bondShininessA, vertex);
-        scene->bondShininessB = deviceBuffer(bondShininessB, vertex);
+        std::vector<glm::vec4> starts(scene->bondCount), ends(scene->bondCount), colorsA(scene->bondCount), colorsB(scene->bondCount);
+        for (uint32_t i = 0; i < scene->bondCount; ++i)
+        {
+            starts[i] = glm::vec4(bondStart[i], bondRadius[i]);
+            ends[i] = glm::vec4(bondEnd[i], bondShininessA[i]);
+            colorsA[i] = glm::vec4(bondColorA[i], bondShininessB[i]);
+            colorsB[i] = glm::vec4(bondColorB[i], 0.0f);
+        }
+        scene->bondStart = deviceBuffer(starts, usage);
+        scene->bondEnd = deviceBuffer(ends, usage);
+        scene->bondColorA = deviceBuffer(colorsA, usage);
+        scene->bondColorB = deviceBuffer(colorsB, usage);
     }
+    const VkBufferUsageFlags vertex = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     scene->boxVertexCount = static_cast<uint32_t>(boxLines.size());
     if (scene->boxVertexCount) scene->boxLines = hostBuffer(boxLines.data(), boxLines.size() * sizeof(glm::vec3), vertex);
     if (buffers.vulkan && buffers.vulkan->loopVertexCount)
@@ -599,23 +604,89 @@ void SceneRenderer::upload(SceneBuffers& buffers, const std::vector<glm::vec4>& 
         scene->loopVertexCount = buffers.vulkan->loopVertexCount;
         buffers.vulkan->loop = Buffer();
     }
+    createGpuResources(*scene);
     buffers.vulkan = scene;
+}
+
+void SceneRenderer::queuePatch(SceneBuffers& buffers, int index, bool color, uint32_t first, uint32_t count, const float* values)
+{
+    SceneResources* scene = buffers.vulkan.get();
+    if (!scene || index < 0 || static_cast<uint32_t>(index) >= scene->atomCount) return;
+    SceneResources::Patch patch;
+    patch.color = color;
+    patch.offset = static_cast<VkDeviceSize>(index) * sizeof(glm::vec4) + first * sizeof(float);
+    patch.count = count;
+    std::copy(values, values + count, patch.values);
+    if (scene->patches.empty()) m_patched.push_back(buffers.vulkan);
+    scene->patches.push_back(patch);
 }
 
 void SceneRenderer::setInstanceColor(SceneBuffers& buffers, int index, const glm::vec3& color)
 {
-    SceneResources* scene = buffers.vulkan.get();
-    if (!scene || index < 0 || static_cast<uint32_t>(index) >= scene->atomCount || !scene->colors.mapped) return;
-    const glm::vec4 packed(color, 1.0f);
-    std::memcpy(static_cast<char*>(scene->colors.mapped) + static_cast<std::size_t>(index) * sizeof(glm::vec4), &packed, sizeof(packed));
+    queuePatch(buffers, index, true, 0, 3, &color.x);
 }
 
 void SceneRenderer::setInstancePosition(SceneBuffers& buffers, int index, const glm::vec3& position)
 {
-    SceneResources* scene = buffers.vulkan.get();
-    if (!scene || index < 0 || static_cast<uint32_t>(index) >= scene->atomCount || !scene->positions.mapped) return;
-    const glm::vec4 packed(position, 1.0f);
-    std::memcpy(static_cast<char*>(scene->positions.mapped) + static_cast<std::size_t>(index) * sizeof(glm::vec4), &packed, sizeof(packed));
+    queuePatch(buffers, index, false, 0, 3, &position.x);
+}
+
+void SceneRenderer::setInstanceRadius(SceneBuffers& buffers, int index, float radius)
+{
+    queuePatch(buffers, index, false, 3, 1, &radius);
+}
+
+void SceneRenderer::flushPatches(VkCommandBuffer cmd)
+{
+    // Every queued edit in one staging buffer and two copies per scene, after
+    // the reads of earlier frames and before this frame's.
+    if (m_patched.empty()) return;
+    Context& ctx = context();
+    std::size_t total = 0;
+    for (const auto& weak : m_patched)
+        if (const auto scene = weak.lock()) total += scene->patches.size();
+    if (total)
+    {
+        Buffer staging = ctx.createBuffer(total * 3 * sizeof(float), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, true);
+        if (staging.mapped)
+        {
+            VkMemoryBarrier before{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+            before.srcAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_SHADER_READ_BIT;
+            before.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                 VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &before, 0, nullptr, 0, nullptr);
+            float* out = static_cast<float*>(staging.mapped);
+            VkDeviceSize cursor = 0;
+            for (const auto& weak : m_patched)
+            {
+                const auto scene = weak.lock();
+                if (!scene) continue;
+                std::vector<VkBufferCopy> colorCopies, positionCopies;
+                for (const SceneResources::Patch& patch : scene->patches)
+                {
+                    std::copy(patch.values, patch.values + patch.count, out + cursor / sizeof(float));
+                    (patch.color ? colorCopies : positionCopies).push_back({cursor, patch.offset, patch.count * sizeof(float)});
+                    cursor += 3 * sizeof(float);
+                }
+                if (!colorCopies.empty() && scene->colors.buffer)
+                    vkCmdCopyBuffer(cmd, staging.buffer, scene->colors.buffer, static_cast<uint32_t>(colorCopies.size()), colorCopies.data());
+                if (!positionCopies.empty() && scene->positions.buffer)
+                {
+                    vkCmdCopyBuffer(cmd, staging.buffer, scene->positions.buffer, static_cast<uint32_t>(positionCopies.size()), positionCopies.data());
+                    ++scene->revision;
+                }
+                scene->patches.clear();
+            }
+            VkMemoryBarrier after{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+            after.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            after.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_SHADER_READ_BIT;
+            vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                 VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                 0, 1, &after, 0, nullptr, 0, nullptr);
+        }
+        ctx.destroyBuffer(staging);
+    }
+    m_patched.clear();
 }
 
 void SceneRenderer::uploadLoop(SceneBuffers& buffers, const std::vector<glm::vec3>& points)
@@ -634,6 +705,8 @@ void SceneRenderer::uploadLoop(SceneBuffers& buffers, const std::vector<glm::vec
 
 void SceneRenderer::newFrame()
 {
+    // Edits queued since the last frame (none can be recorded inside a pass).
+    if (context().inFrame()) flushPatches(context().commandBuffer());
     m_uniformCursor = 0;
     m_streamCursor = 0;
 }
@@ -709,9 +782,9 @@ uint32_t SceneRenderer::bindAtoms(VkCommandBuffer cmd, const SceneResources& sce
 {
     const Buffer& vertices = billboards ? m_billboardVertices : lowPoly ? m_lowPolyVertices : m_sphereVertices;
     const Buffer& indices = billboards ? m_billboardIndices : lowPoly ? m_lowPolyIndices : m_sphereIndices;
-    const VkBuffer streams[] = {vertices.buffer, scene.positions.buffer, scene.colors.buffer, scene.scales.buffer, scene.shininess.buffer};
-    const VkDeviceSize offsets[5] = {};
-    vkCmdBindVertexBuffers(cmd, 0, 5, streams, offsets);
+    const VkBuffer streams[] = {vertices.buffer, scene.positions.buffer, scene.colors.buffer};
+    const VkDeviceSize offsets[3] = {};
+    vkCmdBindVertexBuffers(cmd, 0, 3, streams, offsets);
     vkCmdBindIndexBuffer(cmd, indices.buffer, 0, VK_INDEX_TYPE_UINT32);
     return billboards ? m_billboardIndexCount : lowPoly ? m_lowPolyIndexCount : m_sphereIndexCount;
 }
@@ -719,13 +792,14 @@ uint32_t SceneRenderer::bindAtoms(VkCommandBuffer cmd, const SceneResources& sce
 void SceneRenderer::bindBonds(VkCommandBuffer cmd, const SceneResources& scene)
 {
     const VkBuffer streams[] = {m_cylinderVertices.buffer, scene.bondStart.buffer, scene.bondEnd.buffer, scene.bondColorA.buffer,
-                                scene.bondColorB.buffer, scene.bondRadius.buffer, scene.bondShininessA.buffer, scene.bondShininessB.buffer};
-    const VkDeviceSize offsets[8] = {};
-    vkCmdBindVertexBuffers(cmd, 0, 8, streams, offsets);
+                                scene.bondColorB.buffer};
+    const VkDeviceSize offsets[5] = {};
+    vkCmdBindVertexBuffers(cmd, 0, 5, streams, offsets);
 }
 
 void SceneRenderer::renderShadowMap(VkCommandBuffer cmd, const SceneBuffers& buffers, uint32_t frameOffset, const SceneFlags& flags)
 {
+    m_shadowValid = false;  // the cached map of the GPU-driven view is overwritten
     const SceneResources* scene = buffers.vulkan.get();
     VkClearValue clear{};
     clear.depthStencil = {1.0f, 0};
@@ -777,6 +851,16 @@ void SceneRenderer::drawScene(VkCommandBuffer cmd, const SceneBuffers& buffers, 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, billboards ? m_billboard : m_atom);
         vkCmdDrawIndexed(cmd, bindAtoms(cmd, *scene, billboards, lowPoly), scene->atomCount, 0, 0, 0);
     }
+    drawOverlays(cmd, buffers, frameOffset, flags, target, boxColor);
+}
+
+void SceneRenderer::drawOverlays(VkCommandBuffer cmd, const SceneBuffers& buffers, uint32_t frameOffset, const SceneFlags& flags,
+                                 VkExtent2D target, const glm::vec3& boxColor)
+{
+    const SceneResources* scene = buffers.vulkan.get();
+    if (!scene) return;
+    setViewport(cmd, target);
+    bindFrame(cmd, frameOffset);
     if (flags.box && scene->boxVertexCount)
     {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lineList);

@@ -1,0 +1,23 @@
+#version 450
+// The next Hi-Z level: the farthest depth of each 2 x 2 block of the level
+// above (3 wide or tall at the end of an odd-sized row or column).
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(set = 0, binding = 1, r32f) uniform readonly image2D src;
+layout(set = 0, binding = 2, r32f) uniform writeonly image2D dst;
+
+void main()
+{
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 extent = imageSize(dst);
+    if (p.x >= extent.x || p.y >= extent.y) return;
+    ivec2 source = imageSize(src);
+    ivec2 from = p * 2;
+    ivec2 to = min(from + 1, source - 1);
+    if (p.x == extent.x - 1) to.x = source.x - 1;
+    if (p.y == extent.y - 1) to.y = source.y - 1;
+    float farthest = 0.0;
+    for (int y = from.y; y <= to.y; ++y)
+        for (int x = from.x; x <= to.x; ++x)
+            farthest = max(farthest, imageLoad(src, ivec2(x, y)).r);
+    imageStore(dst, p, vec4(farthest));
+}

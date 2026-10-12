@@ -212,7 +212,8 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
     responsive::windowSize(ImVec2(720.0f, 450.0f), ImGuiCond_FirstUseEver);
     responsive::windowConstraints(ImVec2(640,520),ImVec2(FLT_MAX,FLT_MAX));
     bool dialogOpen = true;
-    if (responsive::beginModal("Build Bulk Crystal", &dialogOpen, ImGuiWindowFlags_None))
+    m_isOpen = responsive::beginModal("Build Bulk Crystal", &dialogOpen, ImGuiWindowFlags_None);
+    if (m_isOpen)
     {
         if (m_step.active())
             dialogLayout::stepBanner(m_step.step.c_str());

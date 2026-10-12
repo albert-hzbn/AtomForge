@@ -27,9 +27,12 @@ struct BulkCrystalBuilderDialog
     // The dialog's current settings as the step's options (command-line flags of
     // AtomForge --build bulk).
     std::string stepOptions() const;
+    // Open, or opening this frame (it may build and replace the structure).
+    bool active() const { return m_isOpen || m_openRequested; }
 
 private:
     bool m_openRequested = false;
+    bool m_isOpen = false;
     StepEdit m_step;
 
     // Builder settings.

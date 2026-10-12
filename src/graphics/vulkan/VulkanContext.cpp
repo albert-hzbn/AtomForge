@@ -171,14 +171,16 @@ bool Context::init(GLFWwindow* window, std::string& error)
         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 512},
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 64},
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 64},
-        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 64},
+        // Each scene's GPU culling holds 12 (a tab, a dialog preview).
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4096},
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 64},
         // The ImGui backend binds textures as a sampled image plus a sampler.
         {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 512},
         {VK_DESCRIPTOR_TYPE_SAMPLER, 16},
     };
     VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    poolInfo.maxSets = 640;
+    poolInfo.maxSets = 1024;
     poolInfo.poolSizeCount = static_cast<uint32_t>(std::size(sizes));
     poolInfo.pPoolSizes = sizes;
     if (!check(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_descriptorPool), "vkCreateDescriptorPool", error)) return false;
@@ -269,6 +271,27 @@ bool Context::init(GLFWwindow* window, std::string& error)
     passInfo.pDependencies = dependencies.data();
     if (!check(vkCreateRenderPass(m_device, &passInfo, nullptr, &m_mainPass), "vkCreateRenderPass", error)) return false;
 
+    // A main pass paused in the middle (the scene's depth pyramid is built from
+    // its depth): the first half keeps colour and depth, the second loads them.
+    // Compatible with the main pass: only load/store operations and layouts differ.
+    std::vector<VkAttachmentDescription> first = attachments, second = attachments;
+    first[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    first[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    first[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    second[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    second[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    second[1].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    second[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    if (m_samples != VK_SAMPLE_COUNT_1_BIT)
+    {
+        first[2].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;  // resolved in the second half
+        first[2].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    }
+    passInfo.pAttachments = first.data();
+    if (!check(vkCreateRenderPass(m_device, &passInfo, nullptr, &m_firstHalfPass), "vkCreateRenderPass", error)) return false;
+    passInfo.pAttachments = second.data();
+    if (!check(vkCreateRenderPass(m_device, &passInfo, nullptr, &m_secondHalfPass), "vkCreateRenderPass", error)) return false;
+
     return createSwapchain(error);
 }
 
@@ -328,10 +351,12 @@ bool Context::createSwapchain(std::string& error)
     for (VkImage image : m_swapImages) m_swapViews.push_back(makeView(m_device, image, m_colorFormat, VK_IMAGE_ASPECT_COLOR_BIT));
 
     if (m_samples != VK_SAMPLE_COUNT_1_BIT)
-        m_msaaColor = createImage(m_extent.width, m_extent.height, m_colorFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT,
+        m_msaaColor = createImage(m_extent.width, m_extent.height, m_colorFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                                   m_samples, VK_IMAGE_ASPECT_COLOR_BIT);
-    m_depth = createImage(m_extent.width, m_extent.height, m_depthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT,
+    // Sampled too: the scene's occlusion culling reads it (Hi-Z).
+    m_depth = createImage(m_extent.width, m_extent.height, m_depthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                           m_samples, VK_IMAGE_ASPECT_DEPTH_BIT);
+    ++m_swapchainGeneration;
     m_framebuffers.clear();
     m_renderFinished.clear();
     for (std::size_t i = 0; i < m_swapImages.size(); ++i)
@@ -428,14 +453,16 @@ bool Context::beginFrame()
     return true;
 }
 
-void Context::beginMainPass(const float clear[4])
+void Context::beginMainPass(const float clear[4], bool pausable)
 {
+    m_paused = false;
+    m_pausable = pausable;
     VkClearValue values[3];
     values[0].color = {{clear[0], clear[1], clear[2], clear[3]}};
     values[1].depthStencil = {1.0f, 0};
     values[2].color = values[0].color;
     VkRenderPassBeginInfo begin{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-    begin.renderPass = m_mainPass;
+    begin.renderPass = pausable ? m_firstHalfPass : m_mainPass;
     begin.framebuffer = m_framebuffers[m_imageIndex];
     begin.renderArea = {{0, 0}, m_extent};
     begin.clearValueCount = m_samples == VK_SAMPLE_COUNT_1_BIT ? 2u : 3u;
@@ -443,9 +470,54 @@ void Context::beginMainPass(const float clear[4])
     vkCmdBeginRenderPass(commandBuffer(), &begin, VK_SUBPASS_CONTENTS_INLINE);
 }
 
+void Context::pauseMainPass()
+{
+    if (!m_pausable || m_paused) return;
+    VkCommandBuffer cmd = commandBuffer();
+    vkCmdEndRenderPass(cmd);
+    m_paused = true;
+    // The depth for compute shaders to read.
+    VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = m_depth.image;
+    barrier.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+}
+
+void Context::resumeMainPass()
+{
+    if (!m_paused) return;
+    VkCommandBuffer cmd = commandBuffer();
+    VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = m_depth.image;
+    barrier.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                         VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+    VkRenderPassBeginInfo begin{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+    begin.renderPass = m_secondHalfPass;
+    begin.framebuffer = m_framebuffers[m_imageIndex];
+    begin.renderArea = {{0, 0}, m_extent};
+    vkCmdBeginRenderPass(cmd, &begin, VK_SUBPASS_CONTENTS_INLINE);
+    m_paused = false;
+    m_pausable = false;
+}
+
 void Context::endMainPass()
 {
     VkCommandBuffer cmd = commandBuffer();
+    // A pausable pass ends with its second half (which presents).
+    if (m_pausable && !m_paused) pauseMainPass();
+    resumeMainPass();
     vkCmdEndRenderPass(cmd);
     if (!m_captureRequested && !m_continuousCapture) return;
     // A copy of the presented image for a screenshot.
@@ -564,6 +636,8 @@ void Context::shutdown()
     for (Frame& frame : m_frames) runDeletions(frame);
     vkDestroyCommandPool(m_device, m_immediatePool, nullptr);
     vkDestroyRenderPass(m_device, m_mainPass, nullptr);
+    vkDestroyRenderPass(m_device, m_firstHalfPass, nullptr);
+    vkDestroyRenderPass(m_device, m_secondHalfPass, nullptr);
     vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
     vkDestroyDevice(m_device, nullptr);
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);

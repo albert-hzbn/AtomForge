@@ -17,6 +17,7 @@
 #include <openbabel3/openbabel/elements.h>
 
 #include <algorithm>
+#include <optional>
 #include <filesystem>
 #include <ctime>
 #include <chrono>
@@ -1638,10 +1639,24 @@ void FileBrowser::draw(Structure& structure,
 
     // Callback for builder dialogs: captures the built result and opens it in a new tab,
     // restoring the current tab's structure to its pre-build state.
-    Structure preBuilderState = structure;
+    // Builders replace the structure with their result; it is restored from a
+    // copy taken while one is open (a copy every frame would cost as much as
+    // drawing a structure of millions of atoms).
+    bool builderActive = bulkCrystalDialog.active() || cslDialog.active() || nanoCrystalDialog.active() ||
+                         customStructureDialog.active() || mergeStructuresDialog.active() || interfaceBuilderDialog.active() ||
+                         polyCrystalDialog.active() || amorphousBuilderDialog.active();
+#if ATOMFORGE_ENABLE_SFE_BUILDER
+    builderActive = builderActive || stackingFaultDialog.active();
+#endif
+#if ATOMFORGE_ENABLE_SSS_BUILDER
+    builderActive = builderActive || substitutionalSolidSolutionDialog.active();
+#endif
+    std::optional<Structure> preBuilderState;
+    if (builderActive) preBuilderState = structure;
     auto updateFromBuilderToNewTab = [&](Structure& s) {
         Structure result = std::move(s);
-        s = std::move(preBuilderState);
+        if (preBuilderState) s = std::move(*preBuilderState);
+        else s = result;  // not expected: every builder is active while it builds
         // Say where the result went (a new tab, or this empty one).
         showNotification("Built " + std::to_string(result.atoms.size()) + (result.atoms.size() == 1 ? " atom" : " atoms") +
                          (s.atoms.empty() ? "." : " in a new tab."));

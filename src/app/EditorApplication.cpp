@@ -7,6 +7,7 @@
 #include "app/ImageExport.h"
 #include "app/InteractionHandlers.h"
 #include "app/LargeData.h"
+#include "app/SceneBenchmark.h"
 #include "app/StructureFileService.h"
 #include "app/WindowSetup.h"
 
@@ -70,6 +71,25 @@ const glm::vec4 kLightBackground(0.92f, 0.93f, 0.94f, 1.0f);
 // Starts from an initial estimate (set by SceneBuffers::upload based on atom
 // count) and adjusts up or down if the GPU can handle a better mode or is
 // struggling with the current one.
+// Seconds the main loop has slept waiting for events since the adaptive
+// renderer last measured (idle time is not drawing time).
+double g_idleSeconds = 0.0;
+
+// The Vulkan main view culls and picks a level of detail per atom on the GPU
+// (unless ATOMFORGE_GPU_CULLING=0), so the whole-scene modes below are not used.
+bool gpuDrivenScene()
+{
+#ifdef ATOMFORGE_VULKAN
+    static const bool enabled = [] {
+        const char* value = std::getenv("ATOMFORGE_GPU_CULLING");
+        return !(value && value[0] == '0');
+    }();
+    return enabled && graphics::usingVulkan() && vkr::sceneRenderer().gpuDriven();
+#else
+    return false;
+#endif
+}
+
 struct AdaptiveRenderState
 {
     static constexpr int    kWindowSize          = 30;     // rolling window (frames)
@@ -96,7 +116,8 @@ struct AdaptiveRenderState
             return;
         }
 
-        double dtMs = (now - lastTime) * 1000.0;
+        double dtMs = (now - lastTime - g_idleSeconds) * 1000.0;
+        g_idleSeconds = 0.0;
         lastTime = now;
 
         // Reset measurements when the structure changes.
@@ -774,9 +795,23 @@ void drawSceneVulkan(const Renderer& renderer,
         return;
     }
     const uint32_t offset = scene.prepare(view, lighting);
-    scene.renderShadowMap(cmd, sceneBuffers, offset, flags);
-    ctx.beginMainPass(clear);
-    scene.drawScene(cmd, sceneBuffers, offset, flags, ctx.extent(), lightTheme ? glm::vec3(0.25f) : glm::vec3(0.85f));
+    const glm::vec3 boxColor = lightTheme ? glm::vec3(0.25f) : glm::vec3(0.85f);
+    if (gpuDrivenScene())
+    {
+        scene.beginGpuScene(cmd, sceneBuffers, view, offset, flags, ctx.extent());
+        ctx.beginMainPass(clear, scene.occlusionCulling());
+        scene.drawGpuFirst(cmd, sceneBuffers, offset, flags, ctx.extent());
+        ctx.pauseMainPass();
+        scene.cullGpuSecond(cmd, sceneBuffers, flags, ctx.extent());
+        ctx.resumeMainPass();
+        scene.drawGpuSecond(cmd, sceneBuffers, offset, flags, ctx.extent(), boxColor);
+    }
+    else
+    {
+        scene.renderShadowMap(cmd, sceneBuffers, offset, flags);
+        ctx.beginMainPass(clear);
+        scene.drawScene(cmd, sceneBuffers, offset, flags, ctx.extent(), boxColor);
+    }
     scene.drawHalos(cmd, offset, haloPositions, haloRadii, ctx.extent());
 }
 #endif
@@ -933,13 +968,13 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
     // the defaults so their screenshots do not depend on them.
     {
         bool harness = false;
-        for (const char* mode : {"ATOMFORGE_UI_TOUR", "ATOMFORGE_TUTORIAL_CAPTURE", "ATOMFORGE_STEP_DIALOG_CHECK", "ATOMFORGE_CLOUD_BENCHMARK"})
+        for (const char* mode : {"ATOMFORGE_UI_TOUR", "ATOMFORGE_TUTORIAL_CAPTURE", "ATOMFORGE_STEP_DIALOG_CHECK", "ATOMFORGE_CLOUD_BENCHMARK", "ATOMFORGE_SCENE_BENCHMARK"})
             if (const char* value = std::getenv(mode); value && *value) harness = true;
         if (!harness) loadAppearancePreferences();
         // Modes taking screenshots keep every frame (the cloud benchmark only
         // with ATOMFORGE_CLOUD_SHOTS, as copying them would skew its timings).
         bool screenshots = false;
-        for (const char* mode : {"ATOMFORGE_UI_TOUR", "ATOMFORGE_TUTORIAL_CAPTURE", "ATOMFORGE_STEP_DIALOG_CHECK", "ATOMFORGE_CLOUD_SHOTS"})
+        for (const char* mode : {"ATOMFORGE_UI_TOUR", "ATOMFORGE_TUTORIAL_CAPTURE", "ATOMFORGE_STEP_DIALOG_CHECK", "ATOMFORGE_CLOUD_SHOTS", "ATOMFORGE_SCENE_SHOTS"})
             if (const char* value = std::getenv(mode); value && *value) screenshots = true;
         if (screenshots) graphics::enableFrameCapture();
     }
@@ -1030,6 +1065,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
 
     CloudConversion cloudConversion;
     std::unique_ptr<CloudBenchmark> cloudBenchmark = CloudBenchmark::fromEnvironment();
+    std::unique_ptr<SceneBenchmark> sceneBenchmark = SceneBenchmark::fromEnvironment();
     double lastFrameTime = glfwGetTime();
     float frameMilliseconds = 0.0f;
 
@@ -1054,7 +1090,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         {
             static double lastActivity = 0.0;
             static const bool harness = [] {
-                for (const char* mode : {"ATOMFORGE_UI_TOUR", "ATOMFORGE_TUTORIAL_CAPTURE", "ATOMFORGE_STEP_DIALOG_CHECK", "ATOMFORGE_CLOUD_BENCHMARK"})
+                for (const char* mode : {"ATOMFORGE_UI_TOUR", "ATOMFORGE_TUTORIAL_CAPTURE", "ATOMFORGE_STEP_DIALOG_CHECK", "ATOMFORGE_CLOUD_BENCHMARK", "ATOMFORGE_SCENE_BENCHMARK"})
                     if (const char* value = std::getenv(mode); value && *value) return true;
                 return false;
             }();
@@ -1069,7 +1105,11 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                 ImGui::IsAnyMouseDown() || keyDown || io.WantTextInput || animating)
                 lastActivity = now;
             if (harness || now - lastActivity < 1.0) glfwPollEvents();
-            else glfwWaitEventsTimeout(0.1);
+            else
+            {
+                glfwWaitEventsTimeout(0.1);
+                g_idleSeconds += glfwGetTime() - now;
+            }
         }
 
         // Route app-level drops to the active tab
@@ -1226,6 +1266,8 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             if (cloudBenchmark)
                 cloudBenchmark->beforeFrame(camera, *state.cloud, frame.framebufferWidth, frame.framebufferHeight);
         }
+        if (sceneBenchmark && !state.hasCloud())
+            sceneBenchmark->beforeFrame(camera, state.sceneBuffers);
         buildFrameView(camera, state.sceneBuffers, state.fileBrowser.isOrthographicViewEnabled(), frame);
         if (state.hasCloud())
             adjustCloudProjection(frame, camera, *state.cloud, state.fileBrowser.isOrthographicViewEnabled());
@@ -1747,7 +1789,10 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         }
 
         // --- 3D scene rendering ---
-        tabs[activeTabIdx]->adaptiveRender.update(activeState.sceneBuffers);
+        if (gpuDrivenScene())
+            activeState.sceneBuffers.renderMode = RenderingMode::StandardInstancing;
+        else
+            tabs[activeTabIdx]->adaptiveRender.update(activeState.sceneBuffers);
 #ifdef ATOMFORGE_VULKAN
         if (graphics::usingVulkan())
         {
@@ -1772,6 +1817,11 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             {
                 cloudBenchmark->afterFrame(*activeState.cloud, frame.framebufferWidth, frame.framebufferHeight);
                 if (cloudBenchmark->done()) glfwSetWindowShouldClose(window, true);
+            }
+            if (sceneBenchmark && !activeState.hasCloud())
+            {
+                sceneBenchmark->afterFrame(activeState.sceneBuffers);
+                if (sceneBenchmark->done()) glfwSetWindowShouldClose(window, true);
             }
             continue;
         }
@@ -1803,6 +1853,11 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             if (cloudBenchmark->done()) glfwSetWindowShouldClose(window, true);
         }
         glfwSwapBuffers(window);
+        if (sceneBenchmark && !activeState.hasCloud())
+        {
+            sceneBenchmark->afterFrame(activeState.sceneBuffers);
+            if (sceneBenchmark->done()) glfwSetWindowShouldClose(window, true);
+        }
     }
 
 #ifdef ATOMFORGE_VULKAN

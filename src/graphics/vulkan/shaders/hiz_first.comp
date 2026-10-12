@@ -1,0 +1,18 @@
+#version 450
+// Hi-Z level 0 from the window's multisampled depth: per pixel, the farthest
+// of its samples (full resolution: the disc test of cull.glsl reads it).
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(set = 0, binding = 0) uniform sampler2DMS depth;
+layout(set = 0, binding = 2, r32f) uniform writeonly image2D dst;
+layout(push_constant) uniform Push { ivec4 size; } push;  // source width, height, samples
+
+void main()
+{
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 extent = imageSize(dst);
+    if (p.x >= extent.x || p.y >= extent.y) return;
+    float farthest = 0.0;
+    for (int s = 0; s < push.size.z; ++s)
+        farthest = max(farthest, texelFetch(depth, p, s).r);
+    imageStore(dst, p, vec4(farthest));
+}

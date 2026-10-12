@@ -256,13 +256,13 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
         m_openRequested = false;
     }
 
-    std::vector<std::pair<int, std::string>> speciesOptions = buildSpeciesOptions(structure);
-    clampSpeciesSelectionIndices(refSpeciesIndex, targetSpeciesIndex, (int)speciesOptions.size());
-
     responsive::windowSize(ImVec2(1180.0f, 820.0f), ImGuiCond_FirstUseEver);
     bool dialogOpen = true;
     if (responsive::beginModal("Radial Distribution Function", &dialogOpen, ImGuiWindowFlags_None))
     {
+        // Only while shown: the species list scans every atom.
+        std::vector<std::pair<int, std::string>> speciesOptions = buildSpeciesOptions(structure);
+        clampSpeciesSelectionIndices(refSpeciesIndex, targetSpeciesIndex, (int)speciesOptions.size());
         bool changed = false;
         const bool stackPanels = responsive::stacked(1050);
         // Side by side, the panels leave room for the footer.

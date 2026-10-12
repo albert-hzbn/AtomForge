@@ -1,0 +1,12 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#include "cull.glsl"
+// Without subgroup operations: one atomic per visible instance.
+void main()
+{
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= cull.counts.x) return;
+    uint level = classify(i);
+    if (level == ~0u) return;
+    append(i, level, atomicAdd(commands[cull.slots[level].x * 5u + 1u], 1u));
+}

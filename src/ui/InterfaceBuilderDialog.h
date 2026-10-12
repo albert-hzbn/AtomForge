@@ -44,6 +44,10 @@ struct InterfaceBuilderDialog
 
     bool isOpen() const { return m_isOpen; }
 
+    // Open, or opening this frame (it may build and replace the structure).
+
+    bool active() const { return m_isOpen || m_openRequested; }
+
     // A dropped file: slotHint 0 fills A, then B; 1 forces A, 2 forces B.
     void feedDroppedFile(const std::string& path, int slotHint = 0);
 

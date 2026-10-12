@@ -20,6 +20,7 @@
     X(vkEnumeratePhysicalDevices) \
     X(vkGetPhysicalDeviceProperties) \
     X(vkGetPhysicalDeviceFeatures) \
+    X(vkGetPhysicalDeviceProperties2) \
     X(vkGetPhysicalDeviceQueueFamilyProperties) \
     X(vkGetPhysicalDeviceMemoryProperties) \
     X(vkGetPhysicalDeviceFormatProperties) \
@@ -113,7 +114,12 @@
     X(vkCmdResetQueryPool) \
     X(vkCmdBeginQuery) \
     X(vkCmdEndQuery) \
-    X(vkCmdWriteTimestamp)
+    X(vkCmdWriteTimestamp) \
+    X(vkCreateComputePipelines) \
+    X(vkCmdDispatch) \
+    X(vkCmdDrawIndexedIndirect) \
+    X(vkCmdUpdateBuffer) \
+    X(vkCmdFillBuffer)
 
 #define ATOMFORGE_VK_DECLARE(name) extern PFN_##name name;
 ATOMFORGE_VK_GLOBAL_FUNCTIONS(ATOMFORGE_VK_DECLARE)

@@ -338,7 +338,7 @@ void applyLightTheme()
 static const char* layoutFile()
 {
     for (const char* mode : {"ATOMFORGE_UI_TOUR", "ATOMFORGE_TUTORIAL_CAPTURE", "ATOMFORGE_STEP_DIALOG_CHECK",
-                             "ATOMFORGE_CLOUD_BENCHMARK", "ATOMFORGE_NO_LAYOUT"})
+                             "ATOMFORGE_CLOUD_BENCHMARK", "ATOMFORGE_SCENE_BENCHMARK", "ATOMFORGE_NO_LAYOUT"})
         if (const char* value = std::getenv(mode); value && *value) return nullptr;
     static std::string path;
     try {

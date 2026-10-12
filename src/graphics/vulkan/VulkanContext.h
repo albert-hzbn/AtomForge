@@ -50,7 +50,14 @@ public:
     bool beginFrame();
     bool inFrame() const { return m_inFrame; }
     VkCommandBuffer commandBuffer() const { return m_frames[m_frameIndex].commandBuffer; }
-    void beginMainPass(const float clear[4]);
+    // A pausable pass can be interrupted once (pauseMainPass: its depth is then
+    // readable by compute shaders as depthImage()) and continued (resumeMainPass).
+    void beginMainPass(const float clear[4], bool pausable = false);
+    void pauseMainPass();
+    void resumeMainPass();
+    const Image& depthImage() const { return m_depth; }
+    // Changes whenever the swapchain's images (and so depthImage()) are made again.
+    uint64_t swapchainGeneration() const { return m_swapchainGeneration; }
     void endMainPass();
     void endFrame();
 
@@ -151,6 +158,9 @@ private:
     std::vector<VkFramebuffer> m_framebuffers;
     std::vector<VkSemaphore> m_renderFinished;  // one per swapchain image
     Image m_msaaColor, m_depth;
+    VkRenderPass m_firstHalfPass = VK_NULL_HANDLE, m_secondHalfPass = VK_NULL_HANDLE;
+    bool m_pausable = false, m_paused = false;
+    uint64_t m_swapchainGeneration = 0;
 
     std::array<Frame, kFramesInFlight> m_frames{};
     uint32_t m_frameIndex = 0;

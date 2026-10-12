@@ -33,7 +33,20 @@ float computeShadow(vec4 pos, float cosTheta)
 }
 
 // Six fill lights at symmetric cube-octant positions; with shadow from the key light.
-vec3 shade(vec3 norm, vec3 worldPos, vec3 baseColor, float shininess, vec4 posLight, bool shadowed)
+// One tap (the compare sampler filters 2 x 2 texels): for atoms a few pixels
+// wide, where the 5 x 5 kernel above is invisible and its cost is not.
+float computeShadowFast(vec4 pos, float cosTheta)
+{
+    vec3 proj = pos.xyz / pos.w;
+    proj = proj * 0.5 + 0.5;
+    if (proj.x < 0.0 || proj.x > 1.0 || proj.y < 0.0 || proj.y > 1.0 || proj.z < 0.0 || proj.z > 1.0)
+        return 0.0;
+    float bias = max(0.012 * (1.0 - cosTheta), 0.002);
+    return 1.0 - texture(shadowMap, vec3(proj.xy, proj.z - bias));
+}
+
+// shadowTaps: 0 no shadow, 1 one tap, else the 5 x 5 kernel.
+vec3 shadeTaps(vec3 norm, vec3 worldPos, vec3 baseColor, float shininess, vec4 posLight, int shadowTaps)
 {
     vec3 lightPos = frame.lightPos.xyz;
     vec3 lights[6] = vec3[6](lightPos,
@@ -54,10 +67,10 @@ vec3 shade(vec3 norm, vec3 worldPos, vec3 baseColor, float shininess, vec4 posLi
         spec += weights[i] * pow(max(dot(norm, halfDir), 0.0), specPower);
     }
     float shadow = 0.0;
-    if (shadowed)
+    if (shadowTaps != 0)
     {
         float cosTheta = clamp(dot(norm, normalize(lightPos - worldPos)), 0.0, 1.0);
-        shadow = computeShadow(posLight, cosTheta);
+        shadow = shadowTaps == 1 ? computeShadowFast(posLight, cosTheta) : computeShadow(posLight, cosTheta);
     }
     float luma = dot(baseColor, vec3(0.2126, 0.7152, 0.0722));
     baseColor = mix(vec3(luma), baseColor, frame.params0.y);
@@ -66,6 +79,11 @@ vec3 shade(vec3 norm, vec3 worldPos, vec3 baseColor, float shininess, vec4 posLi
     float shadowStrength = frame.params1.x;
     float litFactor = ambient + (1.0 - ambient) * diff * (1.0 - shadow * shadowStrength);
     return baseColor * litFactor + vec3(frame.params0.w * spec * (1.0 - shadow * shadowStrength));
+}
+
+vec3 shade(vec3 norm, vec3 worldPos, vec3 baseColor, float shininess, vec4 posLight, bool shadowed)
+{
+    return shadeTaps(norm, worldPos, baseColor, shininess, posLight, shadowed ? 25 : 0);
 }
 
 bool outsideFrustum(vec3 center, float radius)

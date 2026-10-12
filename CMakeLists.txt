@@ -177,6 +177,7 @@ set(ATOMFORGE_SOURCES
     src/cli/BuildModifiers.cpp
     src/cli/CloudCLI.cpp
     src/app/LargeData.cpp
+    src/app/SceneBenchmark.cpp
     src/graphics/CloudRenderer.cpp
     src/io/StructureLoader.cpp
     imgui/imgui.cpp

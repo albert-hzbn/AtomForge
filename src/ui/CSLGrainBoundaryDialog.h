@@ -39,6 +39,10 @@ struct CSLGrainBoundaryDialog
                     const std::function<void(Structure&)>& updateBuffers);
 
     bool isOpen() const { return m_isOpen; }
+
+    // Open, or opening this frame (it may build and replace the structure).
+
+    bool active() const { return m_isOpen || m_openRequested; }
     void feedDroppedFile(const std::string& path);
 
     // Opens the dialog on a pipeline step: filled from the step's settings, with
