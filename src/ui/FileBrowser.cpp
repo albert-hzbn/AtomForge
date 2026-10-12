@@ -571,7 +571,8 @@ void FileBrowser::performQuickSave(const Structure& structure)
     }
     else
     {
-        showNotification("Error: failed to save (format may not support this structure).", true);
+        showNotification(lastSaveError().empty() ? std::string("Error: failed to save (format may not support this structure).")
+                                                  : "Error: " + lastSaveError(), true);
         std::cout << "[Operation] Save failed: " << fullPath
                   << " (format=" << kSaveFormats[formatIndex].fmt << ")" << std::endl;
     }
@@ -1316,8 +1317,8 @@ void FileBrowser::drawSaveAsDialog(Structure& structure)
                 }
                 else
                 {
-                    std::snprintf(saveStatusMsg, sizeof(saveStatusMsg),
-                                  "Error: failed to save (format may not support this structure).");
+                    std::snprintf(saveStatusMsg, sizeof(saveStatusMsg), "Error: %s",
+                                  lastSaveError().empty() ? "failed to save (format may not support this structure)." : lastSaveError().c_str());
                     showNotification(saveStatusMsg, true);
                     std::cout << "[Operation] Save failed: " << fullPath
                               << " (format=" << kSaveFormats[selectedSaveFormat].fmt << ")" << std::endl;

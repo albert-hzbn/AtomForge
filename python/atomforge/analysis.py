@@ -363,7 +363,9 @@ def prepare_drag(initial, final, *, zeta=0.5, clip_displacement=False, no_pbc=Fa
 
         initial_path = resolve(initial, "initial")
         final_path = resolve(final, "final")
-        output = root / "interpolated.vasp"
+        # VASP keeps a periodic cell; a structure without one goes through XYZ.
+        periodic = bool(initial.cell) if isinstance(initial, Structure) else bool(load(str(initial_path)).cell)
+        output = root / ("interpolated.vasp" if periodic else "interpolated.xyz")
         command = [_executable(executable), "--analyze", "drag",
                    "--input", str(initial_path), "--final", str(final_path),
                    "--zeta", str(zeta), "--output", str(output)]

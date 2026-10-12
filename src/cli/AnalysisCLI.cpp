@@ -131,7 +131,8 @@ int runAnalysisCLI(int argc, char* argv[])
                 if (!file) throw std::runtime_error("Cannot write extended XYZ");
                 return 0;
             }
-            if (!saveStructure(structure,args.at("--output"),format)) throw std::runtime_error("Conversion failed");
+            if (!saveStructure(structure,args.at("--output"),format))
+                throw std::runtime_error(lastSaveError().empty() ? std::string("Conversion failed") : lastSaveError());
             return 0;
         }
         std::ostringstream out;

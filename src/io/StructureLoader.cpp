@@ -1689,9 +1689,73 @@ Structure loadStructure(const std::string& filename)
     return structure;
 }
 
+namespace
+{
+thread_local std::string g_lastSaveError;
+}
+
+const std::string& lastSaveError()
+{
+    return g_lastSaveError;
+}
+
 bool saveStructure(const Structure& structure, const std::string& filename, const std::string& format)
 {
+    g_lastSaveError.clear();
     ensureOpenBabelPlugins();
+
+    // CIF and POSCAR hold positions relative to a cell: without one Open
+    // Babel writes Cartesian values as fractional (CIF) or a zero lattice.
+    std::string formatLower = format;
+    std::transform(formatLower.begin(), formatLower.end(), formatLower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (!structure.hasUnitCell && (formatLower == "cif" || formatLower == "vasp" || formatLower == "poscar"))
+    {
+        g_lastSaveError = (formatLower == "cif" ? std::string("CIF") : std::string("VASP")) +
+            " files need a unit cell, and this structure has none. Save it as XYZ, PDB or MOL, "
+            "or give it a cell with Edit > Structure Operations > Add Vacuum.";
+        return false;
+    }
+
+    // XYZ is written here: full precision (Open Babel keeps five decimals)
+    // and, for a periodic structure, the cell as extended XYZ (ASE).
+    if (formatLower == "xyz")
+    {
+        std::ofstream out(filename, std::ios::binary);
+        if (!out)
+        {
+            g_lastSaveError = "Could not write " + filename + "; check that the folder exists and is writable.";
+            return false;
+        }
+        const auto clean = [](double v) { return std::abs(v) < 5e-11 ? 0.0 : v; };
+        char buffer[160];
+        out << structure.atoms.size() << "\n";
+        if (structure.hasUnitCell)
+        {
+            out << "Lattice=\"";
+            for (int r = 0; r < 3; ++r)
+                for (int c = 0; c < 3; ++c)
+                {
+                    std::snprintf(buffer, sizeof(buffer), "%s%.10g", r || c ? " " : "", clean(structure.cellVectors[r][c]));
+                    out << buffer;
+                }
+            out << "\" Properties=species:S:1:pos:R:3 pbc=\"T T T\"\n";
+        }
+        else
+            out << "AtomForge structure\n";
+        for (const auto& site : structure.atoms)
+        {
+            const std::string symbol = site.symbol.empty() ? std::string(elementSymbol(site.atomicNumber)) : site.symbol;
+            std::snprintf(buffer, sizeof(buffer), "%-3s %16.10f %16.10f %16.10f\n", symbol.c_str(), clean(site.x), clean(site.y), clean(site.z));
+            out << buffer;
+        }
+        out.close();
+        if (!out)
+        {
+            g_lastSaveError = "Could not write " + filename + "; check that the folder exists and is writable.";
+            return false;
+        }
+        return saveIpfSidecar(structure, filename);
+    }
 
     // Certain formats (VASP POSCAR, LAMMPS data) require all atoms of the
     // same element to be contiguous.  If atoms are interleaved – as they are
@@ -1753,18 +1817,6 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
         cell->SetData(va, vb, vc);
         mol.SetData(cell);
 
-        // XYZ keeps the cell as extended XYZ (ASE) on its comment line.
-        if (format == "xyz" || format == "XYZ")
-        {
-            std::ostringstream comment;
-            comment << std::setprecision(10) << "Lattice=\"";
-            for (int r = 0; r < 3; ++r)
-                for (int c = 0; c < 3; ++c)
-                    comment << (r || c ? " " : "") << (std::abs(src->cellVectors[r][c]) < 1e-12 ? 0.0 : src->cellVectors[r][c]);
-            comment << "\" Properties=species:S:1:pos:R:3 pbc=\"T T T\"";
-            std::string title = comment.str();
-            mol.SetTitle(title);
-        }
     }
 
     // ConnectTheDots / PerceiveBondOrders are O(n²) and cause OOM crashes
@@ -1784,11 +1836,17 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
     OpenBabel::OBConversion conv;
     OpenBabel::OBFormat* outFmt = conv.FindFormat(format.c_str());
     if (!outFmt)
+    {
+        g_lastSaveError = "The " + format + " format is not available (Open Babel plugins missing?).";
         return false;
+    }
 
     conv.SetOutFormat(outFmt);
     if (!conv.WriteFile(&mol, filename))
+    {
+        g_lastSaveError = "Could not write " + filename + "; check that the folder exists and is writable.";
         return false;
+    }
 
     return saveIpfSidecar(structure, filename);
 }

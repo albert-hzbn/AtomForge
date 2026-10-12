@@ -91,7 +91,9 @@ def build(mode, options=(), *, source=None, output=None, executable=None, timeou
                 if not input_path.is_file():
                     raise FileNotFoundError(str(input_path))
             command += ["--input", str(input_path)]
-        target = destination or root / "result.vasp"
+        # Extended XYZ: full precision, the cell when there is one, and valid
+        # for a result without a cell (VASP output needs one).
+        target = destination or root / "result.xyz"
         command += arguments + ["--output", str(target)]
         result = subprocess.run(
             command, check=True, capture_output=True, text=True, encoding="utf-8",

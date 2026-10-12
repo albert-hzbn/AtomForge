@@ -70,7 +70,7 @@ def render(
         resolved_colors.update(colors)
 
     with tempfile.TemporaryDirectory(prefix="atomforge_render_") as directory:
-        input_path = Path(directory) / "structure.cif"
+        input_path = Path(directory) / ("structure.cif" if structure.cell else "structure.xyz")
         save(structure, str(input_path))
 
         command = [
