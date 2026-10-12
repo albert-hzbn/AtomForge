@@ -60,6 +60,19 @@ class FileIntegrityTests(unittest.TestCase):
                                            "1 Na 0 0 0 0 0 0\n2 Cl 2 2 2 0 0 0\n")
         ids = af.load(self.root / "ids.xyz")
         self.assertEqual([(a.symbol, a.z) for a in ids.atoms], [("Na", 0), ("Cl", 2)])
+        # Atomic numbers in a Z column; the cell after leading blank lines.
+        (self.root / "znum.xyz").write_text("\n\n2\nProperties=Z:I:1:pos:R:3 Lattice='4 0 0 0 4 0 0 0 4'\n11 0 0 0\n17 2 2 2\n")
+        znum = af.load(self.root / "znum.xyz")
+        self.assertEqual([a.symbol for a in znum.atoms], ["Na", "Cl"])
+        self.assertEqual(znum.cell[0][0], 4.0)
+        # POSCAR comments after the scale and counts, an extra title word, and
+        # per-axis scale factors, as the desktop reads them.
+        (self.root / "cm_POSCAR").write_text("Cu Ni alloy\n1.0 ! scale\n4 0 0\n0 4 0\n0 0 4\n1 1 ! counts\nDirect\n0 0 0\n0.5 0.5 0.5\n")
+        self.assertEqual([a.symbol for a in af.load(self.root / "cm_POSCAR").atoms], ["Cu", "Ni"])
+        (self.root / "axes_POSCAR").write_text("Cu\n1 2 3\n4 0 0\n0 4 0\n0 0 4\nCu\n1\nCartesian\n1 1 1\n")
+        axes = af.load(self.root / "axes_POSCAR")
+        self.assertEqual([axes.cell[i][i] for i in range(3)], [4.0, 8.0, 12.0])
+        self.assertEqual((axes.atoms[0].x, axes.atoms[0].y, axes.atoms[0].z), (1.0, 2.0, 3.0))
 
     def test_extensionless_vasp_roundtrip(self):
         for name in ("POSCAR", "CONTCAR"):

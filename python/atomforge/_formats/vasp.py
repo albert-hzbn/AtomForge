@@ -20,6 +20,17 @@ def _species_symbol(word: str) -> str:
     return letters.capitalize() if 1 <= len(letters) <= 2 else ""
 
 
+def _numbers(words: list[str]) -> list[float]:
+    """The leading words that are numbers (a trailing "! comment" ends them)."""
+    values = []
+    for word in words:
+        try:
+            values.append(float(word))
+        except ValueError:
+            break
+    return values
+
+
 def _load_vasp(path: str) -> "Structure":
     from .._structure import Atom, Structure
     with open(path, encoding="utf-8", errors="replace") as fh:
@@ -28,13 +39,23 @@ def _load_vasp(path: str) -> "Structure":
     if len(lines) < 8:
         raise ValueError("invalid POSCAR: file is incomplete")
 
-    scale = float(lines[1].split()[0])
+    # One scale (a negative one is the cell volume) or three per-axis factors.
+    factors = _numbers(lines[1].split())
+    if not factors:
+        raise ValueError("invalid POSCAR: line 2 needs the scale factor")
+    axes = factors[:3] if len(factors) >= 3 else [1.0, 1.0, 1.0]
+    if len(factors) >= 3:
+        if any(f <= 0.0 for f in axes):
+            raise ValueError("invalid POSCAR: the scale factors on line 2 must be positive")
+        scale = 1.0
+    else:
+        scale = factors[0]
     raw_cell = []
     for i in range(2, 5):
         row = [float(v) for v in lines[i].split()[:3]]
         if len(row) != 3:
             raise ValueError("invalid POSCAR: each lattice vector needs three values")
-        raw_cell.append(row)
+        raw_cell.append([value * axis for value, axis in zip(row, axes)])
 
     if scale == 0.0:
         raise ValueError("invalid POSCAR: scale factor cannot be zero")
@@ -57,14 +78,18 @@ def _load_vasp(path: str) -> "Structure":
     tok6 = lines[6].split() if len(lines) > 6 else []
     if tok5 and not tok5[0][0].isdigit():
         species = tok5
-        counts  = [int(x) for x in tok6]
+        counts = _numbers(tok6)
         coord_line = 7
     else:
-        counts  = [int(x) for x in tok5]
+        counts = _numbers(tok5)
         coord_line = 6
-        # VASP 4 has no element line; tools name the species on the title line.
-        named = [_species_symbol(word) for word in lines[0].split()]
-        species = named if len(named) == len(counts) and all(named) else [f"X{i+1}" for i in range(len(tok5))]
+        # VASP 4 has no element line; tools name the species on the title
+        # line, as its first words ("Cu Ni alloy").
+        named = [_species_symbol(word) for word in lines[0].split()[:len(counts)]]
+        species = named if len(named) == len(counts) and all(named) else [f"X{i+1}" for i in range(len(counts))]
+    if any(n != int(n) for n in counts):
+        raise ValueError("invalid POSCAR: the atom counts must be whole numbers")
+    counts = [int(n) for n in counts]
 
     if len(species) != len(counts) or not counts or any(n < 0 for n in counts):
         raise ValueError("invalid POSCAR: species and non-negative counts must match")
@@ -97,7 +122,7 @@ def _load_vasp(path: str) -> "Structure":
             if direct:
                 x, y, z = _frac_to_cart(fx, fy, fz, cell)
             else:
-                x, y, z = fx * scale, fy * scale, fz * scale
+                x, y, z = fx * scale * axes[0], fy * scale * axes[1], fz * scale * axes[2]
             cr, cg, cb = _default_color(sym)
             atom = Atom(sym, x, y, z, cr, cg, cb)
             if selective and len(row) >= 6:
