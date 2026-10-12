@@ -3,7 +3,7 @@
   "files": [
     {
       "source": "CMakeLists.txt",
-      "sha256": "f9e2f9b8148334f5671da459bf6827d258d9a3bad7ff68f5f15a3e2ead772ba1",
+      "sha256": "2048a7e882286ffd75602b669639f3d54082d970e73a311feca16fe62bf97288",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -917,7 +917,7 @@
     },
     {
       "source": "src/cli/CloudCLI.cpp",
-      "sha256": "a25ae7829b74a0cb7198f77f5396606dd74ad0daf95f059b414173452ce92681",
+      "sha256": "1ec676235fc972727756c2485ffee61231758dd7759c09a206c7686402490cea",
       "documentation": [
         "04-analysis.tex",
         "08-python.tex",
@@ -2882,7 +2882,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "e097c9c7b53c7be75b815b38c6419ec4eabddb5297535d4189f3af023cb49512",
+      "sha256": "820b61942e97870fd1108e1e7c4c3dc13a46db6916bc5cefd8b2297a895df46d",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2891,236 +2891,232 @@
       ],
       "literal_controls": [
         {
-          "line": 603,
+          "line": 604,
           "declaration_label": "Open"
         },
         {
-          "line": 634,
+          "line": 635,
           "declaration_label": "Close"
         },
         {
-          "line": 640,
+          "line": 641,
           "declaration_label": "Save"
         },
         {
-          "line": 643,
+          "line": 644,
           "declaration_label": "Save As"
         },
         {
-          "line": 646,
+          "line": 647,
           "declaration_label": "Export Image"
         },
         {
-          "line": 661,
+          "line": 662,
           "declaration_label": "Open Project"
         },
         {
-          "line": 662,
+          "line": 663,
           "declaration_label": "Save Project As"
         },
         {
-          "line": 663,
+          "line": 664,
           "declaration_label": "Autosave project every minute"
         },
         {
-          "line": 664,
+          "line": 665,
           "declaration_label": "Recover Last Autosave"
         },
         {
-          "line": 666,
+          "line": 667,
           "declaration_label": "Quit"
         },
         {
-          "line": 695,
+          "line": 696,
           "declaration_label": "Box Select Mode"
         },
         {
-          "line": 697,
+          "line": 698,
           "declaration_label": "Lasso Select Mode"
         },
         {
-          "line": 763,
+          "line": 764,
           "declaration_label": "Element"
         },
         {
-          "line": 764,
+          "line": 765,
           "declaration_label": "Crystal Orientation"
         },
         {
-          "line": 765,
+          "line": 766,
           "declaration_label": "Grain Boundaries"
         },
         {
-          "line": 766,
+          "line": 767,
           "declaration_label": "Atom Property"
         },
         {
-          "line": 776,
+          "line": 777,
           "declaration_label": "Balls"
         },
         {
-          "line": 777,
+          "line": 778,
           "declaration_label": "Ball and Stick"
         },
         {
-          "line": 778,
+          "line": 779,
           "declaration_label": "Space Filling"
         },
         {
-          "line": 780,
+          "line": 781,
           "declaration_label": "Polyhedral"
         },
         {
-          "line": 787,
+          "line": 788,
           "declaration_label": "Atoms"
         },
         {
-          "line": 788,
+          "line": 789,
           "declaration_label": "Element Labels"
         },
         {
-          "line": 789,
+          "line": 790,
           "declaration_label": "Element Legend"
         },
         {
-          "line": 790,
+          "line": 791,
           "declaration_label": "Bounding Box"
         },
         {
-          "line": 792,
+          "line": 793,
           "declaration_label": "Lattice Planes"
         },
         {
-          "line": 793,
+          "line": 794,
           "declaration_label": "Miller Directions"
         },
         {
-          "line": 794,
+          "line": 795,
           "declaration_label": "Voronoi Volumes"
         },
         {
-          "line": 795,
+          "line": 796,
           "declaration_label": "Dislocation Lines"
         },
         {
-          "line": 800,
+          "line": 801,
           "declaration_label": "Perspective"
         },
         {
-          "line": 805,
+          "line": 806,
           "declaration_label": "Orthographic"
         },
         {
-          "line": 812,
+          "line": 813,
           "declaration_label": "Reset View"
         },
         {
-          "line": 815,
+          "line": 816,
           "declaration_label": "Lattice Planes Settings"
         },
         {
-          "line": 817,
+          "line": 818,
           "declaration_label": "Miller Directions Settings"
         },
         {
-          "line": 819,
+          "line": 820,
           "declaration_label": "Polyhedral Viewer"
         },
         {
-          "line": 821,
+          "line": 822,
           "declaration_label": "Structure Info"
         },
         {
-          "line": 823,
+          "line": 824,
           "declaration_label": "Atom Info"
         },
         {
-          "line": 825,
+          "line": 826,
           "declaration_label": "Measure Distance"
         },
         {
-          "line": 827,
+          "line": 828,
           "declaration_label": "Measure Angle"
         },
         {
-          "line": 833,
-          "declaration_label": "Light"
-        },
-        {
           "line": 834,
-          "declaration_label": "Dark"
+          "declaration_label": "Light"
         },
         {
           "line": 835,
-          "declaration_label": "Match the system"
-        },
-        {
-          "line": 890,
-          "declaration_label": "Automatic (display scaling)"
-        },
-        {
-          "line": 891,
-          "declaration_label": "Compact (85%)"
-        },
-        {
-          "line": 892,
-          "declaration_label": "Larger (125%)"
-        },
-        {
-          "line": 893,
-          "declaration_label": "Large (150%)"
-        },
-        {
-          "line": 894,
-          "declaration_label": "Extra Large (200%)"
-        },
-        {
-          "line": 899,
-          "declaration_label": "Polyhedral Settings"
-        },
-        {
-          "line": 904,
-          "declaration_label": "Light"
-        },
-        {
-          "line": 905,
           "declaration_label": "Dark"
         },
         {
-          "line": 906,
+          "line": 836,
           "declaration_label": "Match the system"
         },
         {
-          "line": 915,
+          "line": 891,
+          "declaration_label": "Automatic (display scaling)"
+        },
+        {
+          "line": 892,
+          "declaration_label": "Compact (85%)"
+        },
+        {
+          "line": 893,
+          "declaration_label": "Larger (125%)"
+        },
+        {
+          "line": 894,
+          "declaration_label": "Large (150%)"
+        },
+        {
+          "line": 895,
+          "declaration_label": "Extra Large (200%)"
+        },
+        {
+          "line": 900,
+          "declaration_label": "Polyhedral Settings"
+        },
+        {
+          "line": 905,
+          "declaration_label": "Light"
+        },
+        {
+          "line": 906,
+          "declaration_label": "Dark"
+        },
+        {
+          "line": 907,
+          "declaration_label": "Match the system"
+        },
+        {
+          "line": 916,
           "declaration_label": "Manual"
         },
         {
-          "line": 918,
+          "line": 919,
           "declaration_label": "Find a Command"
         },
         {
-          "line": 921,
+          "line": 922,
           "declaration_label": "Keyboard Shortcuts"
         },
         {
-          "line": 924,
+          "line": 925,
           "declaration_label": "About"
         },
         {
-          "line": 956,
+          "line": 957,
           "declaration_label": "\\xe2\\x86\\x90##openBack"
         },
         {
-          "line": 964,
+          "line": 965,
           "declaration_label": "\\xe2\\x86\\x92##openFwd"
         },
         {
-          "line": 972,
+          "line": 973,
           "declaration_label": "\\xe2\\x86\\x91##openUp"
-        },
-        {
-          "line": 981,
-          "declaration_label": "##openPathBar"
         },
         {
           "line": 1064,
@@ -3139,231 +3135,223 @@
           "declaration_label": "\\xe2\\x86\\x91##saveUp"
         },
         {
-          "line": 1190,
-          "declaration_label": "##savePathBar"
-        },
-        {
-          "line": 1263,
+          "line": 1262,
           "declaration_label": "##saveFilename"
         },
         {
-          "line": 1269,
+          "line": 1268,
           "declaration_label": "##saveFormat"
         },
         {
-          "line": 1385,
+          "line": 1384,
           "declaration_label": "\\xe2\\x86\\x90##exportBack"
         },
         {
-          "line": 1392,
+          "line": 1391,
           "declaration_label": "\\xe2\\x86\\x92##exportFwd"
         },
         {
-          "line": 1399,
+          "line": 1398,
           "declaration_label": "\\xe2\\x86\\x91##exportUp"
         },
         {
-          "line": 1404,
-          "declaration_label": "##exportPathBar"
-        },
-        {
-          "line": 1479,
+          "line": 1477,
           "declaration_label": "##exportFilename"
         },
         {
-          "line": 1483,
+          "line": 1481,
           "declaration_label": "##exportFormat"
         },
         {
-          "line": 1496,
+          "line": 1494,
           "declaration_label": "Include background"
         },
         {
-          "line": 1499,
+          "line": 1497,
           "declaration_label": "Include orientation gizmo"
         },
         {
-          "line": 1509,
+          "line": 1507,
           "declaration_label": "##exportScale"
         },
         {
-          "line": 1702,
+          "line": 1700,
           "declaration_label": "OK"
         },
         {
-          "line": 1732,
+          "line": 1730,
           "declaration_label": "Show lattice planes"
         },
         {
-          "line": 1737,
+          "line": 1735,
           "declaration_label": "h##plane"
         },
         {
-          "line": 1740,
+          "line": 1738,
           "declaration_label": "k##plane"
         },
         {
-          "line": 1743,
+          "line": 1741,
           "declaration_label": "l##plane"
         },
         {
-          "line": 1746,
+          "line": 1744,
           "declaration_label": "Offset n##plane"
         },
         {
-          "line": 1748,
+          "line": 1746,
           "declaration_label": "Opacity##plane"
         },
         {
-          "line": 1750,
+          "line": 1748,
           "declaration_label": "Colour##plane"
         },
         {
-          "line": 1794,
+          "line": 1792,
           "declaration_label": "##visible"
         },
         {
-          "line": 1799,
+          "line": 1797,
           "declaration_label": "h##plane-h"
         },
         {
-          "line": 1802,
+          "line": 1800,
           "declaration_label": "k##plane-k"
         },
         {
-          "line": 1805,
+          "line": 1803,
           "declaration_label": "l##plane-l"
         },
         {
-          "line": 1808,
+          "line": 1806,
           "declaration_label": "n##plane-offset"
         },
         {
-          "line": 1811,
+          "line": 1809,
           "declaration_label": "opacity##plane-opacity"
         },
         {
-          "line": 1817,
+          "line": 1815,
           "declaration_label": "##plane-color"
         },
         {
-          "line": 1868,
+          "line": 1866,
           "declaration_label": "Show Miller directions"
         },
         {
-          "line": 1873,
+          "line": 1871,
           "declaration_label": "u##dir"
         },
         {
-          "line": 1876,
+          "line": 1874,
           "declaration_label": "v##dir"
         },
         {
-          "line": 1879,
+          "line": 1877,
           "declaration_label": "w##dir"
         },
         {
-          "line": 1882,
+          "line": 1880,
           "declaration_label": "Length (\\xc3\\x85)##dir"
         },
         {
-          "line": 1884,
+          "line": 1882,
           "declaration_label": "Colour##dir"
         },
         {
-          "line": 1923,
+          "line": 1921,
           "declaration_label": "##vis"
         },
         {
-          "line": 1928,
+          "line": 1926,
           "declaration_label": "u##du"
         },
         {
-          "line": 1931,
+          "line": 1929,
           "declaration_label": "v##dv"
         },
         {
-          "line": 1934,
+          "line": 1932,
           "declaration_label": "w##dw"
         },
         {
-          "line": 1937,
+          "line": 1935,
           "declaration_label": "\\xc3\\x85##dl"
         },
         {
-          "line": 1944,
+          "line": 1942,
           "declaration_label": "##dc"
         },
         {
-          "line": 1986,
+          "line": 1984,
           "declaration_label": "Max displayed centers"
         },
         {
-          "line": 1988,
+          "line": 1986,
           "declaration_label": "Nearest neighbors"
         },
         {
-          "line": 1990,
+          "line": 1988,
           "declaration_label": "Specify center atom indices"
         },
         {
-          "line": 1998,
+          "line": 1996,
           "declaration_label": "Center atom IDs##polyIndexFilter"
         },
         {
-          "line": 2009,
+          "line": 2007,
           "declaration_label": "Show polyhedral edges"
         },
         {
-          "line": 2011,
+          "line": 2009,
           "declaration_label": "Face opacity"
         },
         {
-          "line": 2013,
+          "line": 2011,
           "declaration_label": "Edge opacity"
         },
         {
-          "line": 2016,
+          "line": 2014,
           "declaration_label": "Filter center elements"
         },
         {
-          "line": 2025,
+          "line": 2023,
           "declaration_label": "Centers##polyFilter"
         },
         {
-          "line": 2036,
+          "line": 2034,
           "declaration_label": "Filter ligand elements"
         },
         {
-          "line": 2045,
+          "line": 2043,
           "declaration_label": "Ligands##polyFilter"
         },
         {
-          "line": 2260,
+          "line": 2258,
           "declaration_label": "Color"
         },
         {
-          "line": 2309,
+          "line": 2307,
           "declaration_label": "Automatic colour range"
         },
         {
-          "line": 2312,
+          "line": 2310,
           "declaration_label": "Minimum"
         },
         {
-          "line": 2313,
+          "line": 2311,
           "declaration_label": "Maximum"
         },
         {
-          "line": 2315,
+          "line": 2313,
           "declaration_label": "Hide atoms outside the range"
         },
         {
-          "line": 2316,
+          "line": 2314,
           "declaration_label": "Hide atoms without a value"
         },
         {
-          "line": 2317,
+          "line": 2315,
           "declaration_label": "Show Element Colours"
         }
       ]
@@ -4194,6 +4182,28 @@
     {
       "source": "src/ui/OperationDialog.h",
       "sha256": "bb10ea5ef495cb9d689f900e7b1e757ffe4d412b1a03fa3ecd5efb4f03658ad2",
+      "documentation": [
+        "01-start.tex",
+        "04-analysis.tex",
+        "04-display-controls.tex",
+        "09-installation.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/ui/PathField.cpp",
+      "sha256": "326fb98025773f47e00970bb99a815f8ede88b2429bda66ec41ff3314f828f42",
+      "documentation": [
+        "01-start.tex",
+        "04-analysis.tex",
+        "04-display-controls.tex",
+        "09-installation.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/ui/PathField.h",
+      "sha256": "6aa99a19362fc1c66a05f0c0b82bb45d52826ea49a11cc84d8df77bb5b21d24d",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
