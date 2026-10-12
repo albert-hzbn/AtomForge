@@ -2170,7 +2170,7 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
     // after substitutional-solid-solution or other random builders – the
     // writer produces duplicate or malformed element headers.  Stable-sort
     // a working copy by atomic number before building the OBMol.
-    const bool needsGrouping = (format == "vasp" || format == "VASP"
+    const bool needsGrouping = (formatLower == "vasp" || formatLower == "poscar"
                              || format == "lmpdat" || format == "lammps");
 
     const Structure* src = &structure;
@@ -2202,6 +2202,66 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
                 grouped.grainRegionIds[i] = structure.grainRegionIds[order[i]];
         }
         src = &grouped;
+    }
+
+    // POSCAR is written here: the species as the title (VASP 4 readers take
+    // them from there), the lattice as given and Direct coordinates to
+    // twelve decimals, atoms grouped by element (stable within each).
+    if (formatLower == "vasp" || formatLower == "poscar")
+    {
+        const Structure& written = *src;
+        std::ofstream out(filename, std::ios::binary);
+        if (!out)
+        {
+            g_lastSaveError = "Could not write " + filename + "; check that the folder exists and is writable.";
+            return false;
+        }
+        glm::dmat3 cell(1.0);  // columns a, b, c
+        for (int r = 0; r < 3; ++r)
+            for (int c = 0; c < 3; ++c) cell[r][c] = written.cellVectors[(size_t)r][(size_t)c];
+        if (std::abs(glm::determinant(cell)) < 1e-9)
+        {
+            g_lastSaveError = "The unit cell has no volume, so it cannot be written as POSCAR.";
+            return false;
+        }
+        const glm::dmat3 toFractional = glm::inverse(cell);
+        const glm::dvec3 origin(written.cellOffset[0], written.cellOffset[1], written.cellOffset[2]);
+        std::vector<int> elements;
+        for (const auto& site : written.atoms)
+            if (std::find(elements.begin(), elements.end(), site.atomicNumber) == elements.end()) elements.push_back(site.atomicNumber);
+        std::sort(elements.begin(), elements.end());
+        const auto clean = [](double v) { return std::abs(v) < 5e-11 ? 0.0 : v; };
+        char buffer[200];
+        std::string symbols, counts;
+        for (int z : elements)
+        {
+            const auto count = std::count_if(written.atoms.begin(), written.atoms.end(), [z](const AtomSite& site) { return site.atomicNumber == z; });
+            symbols += std::string(symbols.empty() ? "" : " ") + elementSymbol(z);
+            counts += std::string(counts.empty() ? "" : " ") + std::to_string(count);
+        }
+        out << symbols << "\n1.0\n";
+        for (int r = 0; r < 3; ++r)
+        {
+            std::snprintf(buffer, sizeof(buffer), "  %20.12f %20.12f %20.12f\n", clean(written.cellVectors[(size_t)r][0]),
+                          clean(written.cellVectors[(size_t)r][1]), clean(written.cellVectors[(size_t)r][2]));
+            out << buffer;
+        }
+        out << symbols << "\n" << counts << "\nDirect\n";
+        for (int z : elements)
+            for (const auto& site : written.atoms)
+            {
+                if (site.atomicNumber != z) continue;
+                const glm::dvec3 f = toFractional * (glm::dvec3(site.x, site.y, site.z) - origin);
+                std::snprintf(buffer, sizeof(buffer), "  %16.12f %16.12f %16.12f\n", clean(f.x), clean(f.y), clean(f.z));
+                out << buffer;
+            }
+        out.close();
+        if (!out)
+        {
+            g_lastSaveError = "Could not write " + filename + "; check that the folder exists and is writable.";
+            return false;
+        }
+        return saveIpfSidecar(written, filename);
     }
 
     OpenBabel::OBMol mol;
