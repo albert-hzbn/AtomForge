@@ -576,7 +576,7 @@ void AmorphousBuilderDialog::drawDialog(
         ImGui::Spacing();
         if (m_statusIsError)
         {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Text, themeStatusError());
             ImGui::TextWrapped("Error: %s", m_statusMsg.c_str());
             ImGui::PopStyleColor();
         }

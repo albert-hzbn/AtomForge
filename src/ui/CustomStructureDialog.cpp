@@ -863,7 +863,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
             const float sy = 2.0f * m_modelHalfExtents.y * params.modelScale;
             const float sz = 2.0f * m_modelHalfExtents.z * params.modelScale;
             ImGui::TextColored(themeInfoColor(),
-                               "= %.1f x %.1f x %.1f Angstrom", sx, sy, sz);
+                               "= %.1f \xc3\x97 %.1f \xc3\x97 %.1f \xc3\x85", sx, sy, sz);
         }
         else
         {

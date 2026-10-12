@@ -43,7 +43,7 @@ void drawBuildResultSummary(const CSLBuildResult& result)
     }
     else
     {
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.45f, 0.35f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, themeStatusError());
         ImGui::TextWrapped("Error: %s", result.message.c_str());
         ImGui::PopStyleColor();
         return;

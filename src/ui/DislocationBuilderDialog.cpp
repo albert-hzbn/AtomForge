@@ -75,10 +75,10 @@ const char* shapeLabel(DislocationShape shape)
 ImVec4 validationStateColor(const DislocationResult& result)
 {
     if (!result.success)
-        return ImVec4(0.70f, 0.70f, 0.70f, 1.0f);
+        return ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
     if (result.validation.passed)
-        return ImVec4(0.50f, 0.90f, 0.50f, 1.0f);
-    return ImVec4(1.00f, 0.75f, 0.35f, 1.0f);
+        return themeStatusGood();
+    return themeStatusWarn();
 }
 
 const char* validationStateLabel(const DislocationResult& result)
@@ -1070,9 +1070,7 @@ void DislocationBuilderDialog::drawDialog(
     ImGui::Separator();
     if (!m_statusMsg.empty())
     {
-        const ImVec4 color = m_statusIsError
-            ? ImVec4(1.0f, 0.4f, 0.4f, 1.0f)
-            : ImVec4(0.5f, 0.9f, 0.5f, 1.0f);
+        const ImVec4 color = m_statusIsError ? themeStatusError() : themeStatusGood();
         ImGui::TextColored(color, "%s", m_statusMsg.c_str());
         ImGui::SameLine();
     }

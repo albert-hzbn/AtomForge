@@ -230,7 +230,7 @@ void ScientificToolsDialog::drawStatus()
         if (responsive::button("Cancel")) m_task.cancel();
     }
     if (!m_error.empty()) {
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.95f, 0.45f, 0.40f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, themeStatusError());
         ImGui::TextWrapped("%s", m_error.c_str());
         ImGui::PopStyleColor();
     }

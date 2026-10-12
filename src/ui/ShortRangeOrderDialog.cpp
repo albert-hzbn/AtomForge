@@ -313,8 +313,8 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
     const bool   light    = isLightTheme();
     const ImVec4 kAccent  = light ? ImVec4(0.0f,0.44f,0.78f,1.0f) : ImVec4(0.35f,0.75f,1.0f,1.0f);
     const ImVec4 kGood    = light ? ImVec4(0.0f,0.52f,0.12f,1.0f) : ImVec4(0.18f,0.88f,0.28f,1.0f);
-    const ImVec4 kWarn    = ImVec4(1.0f, 0.60f, 0.10f, 1.0f);
-    const ImVec4 kMuted   = ImVec4(0.52f, 0.52f, 0.52f, 1.0f);
+    const ImVec4 kWarn    = themeStatusWarn();
+    const ImVec4 kMuted   = ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
 
     // Below the panels: item spacing, a rule, spacing, then the button row.
     const float  footerH  = ImGui::GetFrameHeight() + 3.0f * ImGui::GetStyle().ItemSpacing.y + 2.0f;
