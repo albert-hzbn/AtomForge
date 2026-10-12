@@ -610,11 +610,11 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
             }
 
             ImGui::SetNextItemWidth(responsive::dp(110.0f));
-            dialogLayout::hinted(ImGui::InputInt("Grain A (uc)", &ucA), "Set repetitions used to thicken each grain along the stacking construction. Use both controls to study symmetric or unequal thicknesses. These are integer cell repetitions, not distances in Angstrom.");
+            dialogLayout::hinted(ImGui::InputInt("Grain A (uc)", &ucA), "Set repetitions used to thicken each grain along the stacking construction. Use both controls to study symmetric or unequal thicknesses. These are integer cell repetitions, not distances in \xc3\x85.");
             if (ucA < 1) ucA = 1;
             ImGui::SameLine();
             ImGui::SetNextItemWidth(responsive::dp(110.0f));
-            dialogLayout::hinted(ImGui::InputInt("Grain B (uc)", &ucB), "Set repetitions used to thicken each grain along the stacking construction. Use both controls to study symmetric or unequal thicknesses. These are integer cell repetitions, not distances in Angstrom.");
+            dialogLayout::hinted(ImGui::InputInt("Grain B (uc)", &ucB), "Set repetitions used to thicken each grain along the stacking construction. Use both controls to study symmetric or unequal thicknesses. These are integer cell repetitions, not distances in \xc3\x85.");
             if (ucB < 1) ucB = 1;
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Number of unit cells for each grain along the GB normal.");
@@ -624,17 +624,17 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
         ImGui::SeparatorText("Options");
         {
             ImGui::SetNextItemWidth(responsive::dp(140.0f));
-            dialogLayout::hinted(ImGui::DragFloat("Vacuum (A)", &vacuumPadding, 0.1f, 0.0f, 50.0f, "%.2f"), "Vacuum adds the specified outside spacing in the construction; Gap separates the stacked grains. Both alter geometry. Neither is a relaxation or a search over rigid translations.");
+            dialogLayout::hinted(ImGui::DragFloat("Vacuum (\xc3\x85)", &vacuumPadding, 0.1f, 0.0f, 50.0f, "%.2f"), "Vacuum adds the specified outside spacing in the construction; Gap separates the stacked grains. Both alter geometry. Neither is a relaxation or a search over rigid translations.");
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Vacuum space at the end of the bicrystal cell.");
             ImGui::SameLine();
             ImGui::SetNextItemWidth(responsive::dp(140.0f));
-            dialogLayout::hinted(ImGui::DragFloat("Gap (A)", &gapDist, 0.05f, 0.0f, 10.0f, "%.2f"), "Vacuum adds the specified outside spacing in the construction; Gap separates the stacked grains. Both alter geometry. Neither is a relaxation or a search over rigid translations.");
+            dialogLayout::hinted(ImGui::DragFloat("Gap (\xc3\x85)", &gapDist, 0.05f, 0.0f, 10.0f, "%.2f"), "Vacuum adds the specified outside spacing in the construction; Gap separates the stacked grains. Both alter geometry. Neither is a relaxation or a search over rigid translations.");
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Extra distance between the two grains at the interface.");
 
             ImGui::SetNextItemWidth(responsive::dp(140.0f));
-            dialogLayout::hinted(ImGui::DragFloat("Overlap dist (A)", &overlapDist, 0.05f, 0.0f, 5.0f, "%.3f"), "Remove interfacial close contacts within the chosen cutoff. Inspect the removed-atom count and resulting stoichiometry. Set a conservative cutoff and compare before raising it.");
+            dialogLayout::hinted(ImGui::DragFloat("Overlap dist (\xc3\x85)", &overlapDist, 0.05f, 0.0f, 5.0f, "%.3f"), "Remove interfacial close contacts within the chosen cutoff. Inspect the removed-atom count and resulting stoichiometry. Set a conservative cutoff and compare before raising it.");
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Atoms closer than this distance will be removed (0 = off).");
 

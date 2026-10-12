@@ -181,7 +181,7 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
             }
             if (frameAnalyses()[static_cast<std::size_t>(analysis)].first!="structure-type" || !structure.hasUnitCell) {
                 ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x,responsive::dp(200)));
-                if (ImGui::InputFloat("Neighbour cutoff (Angstrom)",&analysisCutoff,0.1f,0.5f,"%.2f")) { analysisCutoff=std::max(0.5f,analysisCutoff); changed=analyse; }
+                if (ImGui::InputFloat("Neighbour cutoff (\xc3\x85)",&analysisCutoff,0.1f,0.5f,"%.2f")) { analysisCutoff=std::max(0.5f,analysisCutoff); changed=analyse; }
             }
             if (!analysisMessage.empty()) ImGui::TextDisabled("%s",analysisMessage.c_str());
             ImGui::SeparatorText("Animation");

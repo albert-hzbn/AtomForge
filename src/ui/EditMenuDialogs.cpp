@@ -162,7 +162,7 @@ void EditMenuDialogs::drawStepEditor()
                 for (int k = 0; k < 3; ++k) m_stepPosition[k] = to[k];
             m_stepFractional = mode == 1;
         }
-        ImGui::DragScalarN(m_stepFractional ? "Position (fractional)" : "Position (A)", ImGuiDataType_Double,
+        ImGui::DragScalarN(m_stepFractional ? "Position (fractional)" : "Position (\xc3\x85)", ImGuiDataType_Double,
                            m_stepPosition, 3, 0.005f, nullptr, nullptr, "%.6f");
         if (m_stepFractional && !input.hasUnitCell)
             ImGui::TextColored(themeStatusWarn(), "A fractional position needs a structure with a unit cell.");

@@ -912,7 +912,7 @@ void CellSculptorDialog::drawDialog(
             m_resultDirty = true; m_previewResult = {}; m_status.clear();
         }
         ImGui::SameLine();
-        ImGui::TextDisabled("| %s  %dx%dx%d", m_sourceName.c_str(), m_nx, m_ny, m_nz);
+        ImGui::TextDisabled("| %s  %d \xc3\x97 %d \xc3\x97 %d", m_sourceName.c_str(), m_nx, m_ny, m_nz);
     }
     ImGui::Separator();
 
@@ -1145,9 +1145,9 @@ void CellSculptorDialog::drawDialog(
                 const float d_atom = cscAtomLayerSpacing(slab, m_source); // A→B layer
                 ImGui::SameLine();
                 if (std::abs(d_rep - d_atom) > d_rep * 0.01f)
-                    ImGui::TextDisabled("d=%g A (layer %g A)", d_rep, d_atom);
+                    ImGui::TextDisabled("d=%g \xc3\x85 (layer %g \xc3\x85)", d_rep, d_atom);
                 else
-                    ImGui::TextDisabled("d=%g A", d_rep);
+                    ImGui::TextDisabled("d=%g \xc3\x85", d_rep);
                 ImGui::SetNextItemWidth(responsive::dp(65.0f));
                 if (dialogLayout::hinted(ImGui::DragInt("Start##scsp", &slab.startPlane, 0.1f, -200, 200), "Periodic mode uses a starting plane and an integer number of repeat intervals. Start can be negative; N is positive. Inspect the displayed spacing and retained sites because one crystallographic interval need not equal one chemically identical atomic layer."))
                     changed = true;
@@ -1156,7 +1156,7 @@ void CellSculptorDialog::drawDialog(
                 if (dialogLayout::hinted(ImGui::DragInt("N##scnp", &slab.nPeriods, 0.1f, 1, 200), "Periodic mode uses a starting plane and an integer number of repeat intervals. Start can be negative; N is positive. Inspect the displayed spacing and retained sites because one crystallographic interval need not equal one chemically identical atomic layer."))
                 { slab.nPeriods = std::max(1, slab.nPeriods); changed = true; }
                 const float eff1 = cscD1(slab, m_source), eff2 = cscD2(slab, m_source);
-                ImGui::TextDisabled("d1=%.3f A   d2=%.3f A   t=%.3f A", eff1, eff2, eff2-eff1);
+                ImGui::TextDisabled("d1=%.3f \xc3\x85   d2=%.3f \xc3\x85   t=%.3f \xc3\x85", eff1, eff2, eff2-eff1);
             }
             else
             {

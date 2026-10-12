@@ -735,7 +735,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
                 float la = std::sqrt((float)(cv[0][0]*cv[0][0]+cv[0][1]*cv[0][1]+cv[0][2]*cv[0][2]));
                 float lb = std::sqrt((float)(cv[1][0]*cv[1][0]+cv[1][1]*cv[1][1]+cv[1][2]*cv[1][2]));
                 float lc = std::sqrt((float)(cv[2][0]*cv[2][0]+cv[2][1]*cv[2][1]+cv[2][2]*cv[2][2]));
-                ImGui::TextDisabled("Cell: a=%.2f  b=%.2f  c=%.2f A", la, lb, lc);
+                ImGui::TextDisabled("Cell: a=%.2f  b=%.2f  c=%.2f \xc3\x85", la, lb, lc);
             }
         }
         else
@@ -854,7 +854,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
             ImGui::TextDisabled("%s  |  %d triangles",
                                 m_modelName.c_str(),
                                 (int)(m_modelIndices.size() / 3));
-            ImGui::TextDisabled("Model size: %.1f x %.1f x %.1f (model units)",
+            ImGui::TextDisabled("Model size: %.1f \xc3\x97 %.1f \xc3\x97 %.1f (model units)",
                                 2.0f * m_modelHalfExtents.x,
                                 2.0f * m_modelHalfExtents.y,
                                 2.0f * m_modelHalfExtents.z);
@@ -895,7 +895,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
 
     // ========== Model Scale with Angstrom reference ==========
     ImGui::SetNextItemWidth(responsive::dp(140.0f));
-    dialogLayout::hinted(ImGui::InputFloat("Scale (Angstrom per model unit)", &params.modelScale, 0.1f, 1.0f, "%.3f"), "Load the enclosing mesh and enter Angstrom per model unit. A unit-radius mesh at scale 12 represents a 12 Angstrom radius along the corresponding model axes. Verify the preview's physical extent before building.");
+    dialogLayout::hinted(ImGui::InputFloat("Scale (\xc3\x85 per model unit)", &params.modelScale, 0.1f, 1.0f, "%.3f"), "Load the enclosing mesh and enter \xc3\x85 per model unit. A unit-radius mesh at scale 12 represents a 12 \xc3\x85 radius along the corresponding model axes. Verify the preview's physical extent before building.");
     if (params.modelScale <= 1e-4f)
         params.modelScale = 1e-4f;
     if (!m_modelVertices.empty())
@@ -904,7 +904,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
         const float sy = 2.0f * m_modelHalfExtents.y * params.modelScale;
         const float sz = 2.0f * m_modelHalfExtents.z * params.modelScale;
         ImGui::SameLine();
-        ImGui::TextDisabled("-> %.1f x %.1f x %.1f A", sx, sy, sz);
+        ImGui::TextDisabled("\xe2\x86\x92 %.1f \xc3\x97 %.1f \xc3\x97 %.1f \xc3\x85", sx, sy, sz);
     }
 
     dialogLayout::hinted(ImGui::Checkbox("Auto-center from reference atoms", &params.autoCenterFromAtoms), "Automatic centring derives placement from the reference; manual values specify the centre. Inspect reference and mesh together to avoid filling an unintended region.");
@@ -938,13 +938,13 @@ void CustomStructureDialog::drawDialog(Structure& structure,
         if (orientationType == 1)
         {
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::InputFloat("Rot X (deg)", &rotationAngles[0], 1.0f, 10.0f, "%.2f");
+            ImGui::InputFloat("Rot X (\xc2\xb0)", &rotationAngles[0], 1.0f, 10.0f, "%.2f");
             if (!responsive::stacked(900.0f)) ImGui::SameLine();
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::InputFloat("Rot Y (deg)", &rotationAngles[1], 1.0f, 10.0f, "%.2f");
+            ImGui::InputFloat("Rot Y (\xc2\xb0)", &rotationAngles[1], 1.0f, 10.0f, "%.2f");
             if (!responsive::stacked(900.0f)) ImGui::SameLine();
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::InputFloat("Rot Z (deg)", &rotationAngles[2], 1.0f, 10.0f, "%.2f");
+            ImGui::InputFloat("Rot Z (\xc2\xb0)", &rotationAngles[2], 1.0f, 10.0f, "%.2f");
             ImGui::TextDisabled("Type 1: manual rotation about X/Y/Z axes.");
         }
         else
@@ -985,7 +985,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     {
         ImGui::SameLine();
         ImGui::SetNextItemWidth(responsive::dp(120.0f));
-        ImGui::InputFloat("Vacuum (A)", &params.vacuumPadding, 0.0f, 0.0f, "%.2f");
+        ImGui::InputFloat("Vacuum (\xc3\x85)", &params.vacuumPadding, 0.0f, 0.0f, "%.2f");
         if (params.vacuumPadding < 0.0f)
             params.vacuumPadding = 0.0f;
     }

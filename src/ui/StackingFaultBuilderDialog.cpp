@@ -778,7 +778,7 @@ void StackingFaultBuilderDialog::drawDialog(
                                       elementShininess);
             }
             ImGui::Text("Label: %s", m_result.sequence[m_selectedStructureIndex].label.c_str());
-            ImGui::TextDisabled("Partial displacement: %.4f A", m_result.partialDisplacement);
+            ImGui::TextDisabled("Partial displacement: %.4f \xc3\x85", m_result.partialDisplacement);
             ImGui::TextDisabled("Shifted atoms: %d", m_result.shiftedAtomCount);
 
             if (m_step.active())

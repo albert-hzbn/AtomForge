@@ -674,7 +674,7 @@ void InterfaceBuilderDialog::draw2DPlot(float width, float height)
         ImGui::Text("Mean strain: %.3f%%", c.meanAbsStrain * 100.0f);
         ImGui::Text("exx=%.3f%%  eyy=%.3f%%  exy=%.3f%%",
                     c.exx*100.0f, c.eyy*100.0f, c.exy*100.0f);
-        ImGui::Text("Theta: %.2f deg", c.thetaDeg);
+        ImGui::Text("Theta: %.2f\xc2\xb0", c.thetaDeg);
         ImGui::Text("OR: (%.0f %.0f %.0f)A || (%.0f %.0f %.0f)B,  [%d %d 0]A || [%d %d 0]B",
                     m_planeA[0], m_planeA[1], m_planeA[2],
                     m_planeB[0], m_planeB[1], m_planeB[2],
@@ -1007,7 +1007,7 @@ void InterfaceBuilderDialog::drawDialog(
             {
                 float phiA = orientationAngleFromPlaneDir(m_structureA, m_planeA, m_dirA);
                 float phiB = orientationAngleFromPlaneDir(m_structureB, m_planeB, m_dirB);
-                ImGui::TextDisabled("OR: %.2f deg", phiA - phiB);
+                ImGui::TextDisabled("OR: %.2f\xc2\xb0", phiA - phiB);
             }
         }
     }
@@ -1092,10 +1092,10 @@ void InterfaceBuilderDialog::drawDialog(
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Z gap");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputFloat("##zgap", &m_zGap, 0, 0, "%.2f"); dialogLayout::hint("Distance (Angstrom) between the A and B slabs at the interface.");
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputFloat("##zgap", &m_zGap, 0, 0, "%.2f"); dialogLayout::hint("Distance (\xc3\x85) between the A and B slabs at the interface.");
             if (m_zGap < 0.0f) m_zGap = 0.0f;
             ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::Text("Vacuum");
-            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputFloat("##vacuum", &m_vacuum, 0, 0, "%.2f"); dialogLayout::hint("Vacuum (Angstrom) added along the interface normal.");
+            ImGui::TableNextColumn(); ImGui::SetNextItemWidth(responsive::dp(55.0f)); ImGui::InputFloat("##vacuum", &m_vacuum, 0, 0, "%.2f"); dialogLayout::hint("Vacuum (\xc3\x85) added along the interface normal.");
             if (m_vacuum < 0.0f) m_vacuum = 0.0f;
 
             ImGui::TableNextRow();
@@ -1192,7 +1192,7 @@ void InterfaceBuilderDialog::drawDialog(
             ImGui::Text("Interface Preview (#%d, %d atoms, strain %.3f%%)",
                         selCand.idx, selCand.interfaceAtoms,
                         selCand.meanAbsStrain * 100.0f);
-            ImGui::Text("OR: (%.0f %.0f %.0f)A || (%.0f %.0f %.0f)B,  [%d %d 0]A || [%d %d 0]B   theta=%.2f deg",
+            ImGui::Text("OR: (%.0f %.0f %.0f)A || (%.0f %.0f %.0f)B,  [%d %d 0]A || [%d %d 0]B   theta=%.2f\xc2\xb0",
                         m_planeA[0], m_planeA[1], m_planeA[2],
                         m_planeB[0], m_planeB[1], m_planeB[2],
                         selCand.nMatrix[0][0], selCand.nMatrix[0][1],

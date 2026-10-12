@@ -413,7 +413,7 @@ void PolyCrystalBuilderDialog::drawDialog(
             float la = glm::length(glm::vec3((float)cv[0][0],(float)cv[0][1],(float)cv[0][2]));
             float lb = glm::length(glm::vec3((float)cv[1][0],(float)cv[1][1],(float)cv[1][2]));
             float lc = glm::length(glm::vec3((float)cv[2][0],(float)cv[2][1],(float)cv[2][2]));
-            ImGui::TextDisabled("a=%.3f  b=%.3f  c=%.3f A", la, lb, lc);
+            ImGui::TextDisabled("a=%.3f  b=%.3f  c=%.3f \xc3\x85", la, lb, lc);
         }
     } else {
         ImGui::TextDisabled("(none loaded)");
@@ -502,13 +502,13 @@ void PolyCrystalBuilderDialog::drawDialog(
     ImGui::Separator();
 
     // --- Box size ---
-    ImGui::Text("Simulation Box Size (Angstroms)");
+    ImGui::Text("Simulation Box Size (\xc3\x85)");
     ImGui::SetNextItemWidth(responsive::dp(120.0f));
-    dialogLayout::hinted(ImGui::InputFloat("X##polySize", &params.sizeX, 0.0f, 0.0f, "%.2f"), "Supply a periodic reference and the three target box lengths in Angstrom. The dimensions define the total specimen, not the size of every grain.");
+    dialogLayout::hinted(ImGui::InputFloat("X##polySize", &params.sizeX, 0.0f, 0.0f, "%.2f"), "Supply a periodic reference and the three target box lengths in \xc3\x85. The dimensions define the total specimen, not the size of every grain.");
     ImGui::SetNextItemWidth(responsive::dp(120.0f));
-    dialogLayout::hinted(ImGui::InputFloat("Y##polySize", &params.sizeY, 0.0f, 0.0f, "%.2f"), "Supply a periodic reference and the three target box lengths in Angstrom. The dimensions define the total specimen, not the size of every grain.");
+    dialogLayout::hinted(ImGui::InputFloat("Y##polySize", &params.sizeY, 0.0f, 0.0f, "%.2f"), "Supply a periodic reference and the three target box lengths in \xc3\x85. The dimensions define the total specimen, not the size of every grain.");
     ImGui::SetNextItemWidth(responsive::dp(120.0f));
-    dialogLayout::hinted(ImGui::InputFloat("Z##polySize", &params.sizeZ, 0.0f, 0.0f, "%.2f"), "Supply a periodic reference and the three target box lengths in Angstrom. The dimensions define the total specimen, not the size of every grain.");
+    dialogLayout::hinted(ImGui::InputFloat("Z##polySize", &params.sizeZ, 0.0f, 0.0f, "%.2f"), "Supply a periodic reference and the three target box lengths in \xc3\x85. The dimensions define the total specimen, not the size of every grain.");
     if (params.sizeX < 1.0f) params.sizeX = 1.0f;
     if (params.sizeY < 1.0f) params.sizeY = 1.0f;
     if (params.sizeZ < 1.0f) params.sizeZ = 1.0f;

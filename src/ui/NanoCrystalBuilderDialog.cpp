@@ -266,7 +266,7 @@ static const char* kWulffPlaneFS = R"(
 void drawWulffParameters(NanoParams& params, std::vector<glm::vec3>& familyColors, bool& wulffPreviewDirty)
 {
     ImGui::SetNextItemWidth(responsive::dp(180.0f));
-    dialogLayout::hinted(ImGui::DragFloat("Max radius (A)##wulffRadius", &params.wulffMaxRadius, 0.25f, 0.1f, 1000.0f, "%.2f"), "Max radius sets the distance of the highest-energy family, with others proportional to energy. Family colour changes the plane preview, not surface energy. Build the atoms again after changing family energies or geometry.");
+    dialogLayout::hinted(ImGui::DragFloat("Max radius (\xc3\x85)##wulffRadius", &params.wulffMaxRadius, 0.25f, 0.1f, 1000.0f, "%.2f"), "Max radius sets the distance of the highest-energy family, with others proportional to energy. Family colour changes the plane preview, not surface energy. Build the atoms again after changing family energies or geometry.");
     if (params.wulffMaxRadius < 0.1f)
         params.wulffMaxRadius = 0.1f;
 
@@ -340,18 +340,18 @@ void drawShapeParameters(NanoParams& params)
     switch (params.shape) {
         case NanoShape::Sphere:
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::DragFloat("Radius (A)##sph", &params.sphereRadius, 0.5f, 0.1f, 500.0f, "%.2f");
+            ImGui::DragFloat("Radius (\xc3\x85)##sph", &params.sphereRadius, 0.5f, 0.1f, 500.0f, "%.2f");
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Drag to adjust, Ctrl+click to type");
             if (params.sphereRadius < 0.1f) params.sphereRadius = 0.1f;
             break;
 
         case NanoShape::Ellipsoid:
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::DragFloat("Semi-axis a (A)##ell", &params.ellipRx, 0.5f, 0.1f, 500.0f, "%.2f");
+            ImGui::DragFloat("Semi-axis a (\xc3\x85)##ell", &params.ellipRx, 0.5f, 0.1f, 500.0f, "%.2f");
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::DragFloat("Semi-axis b (A)##ell", &params.ellipRy, 0.5f, 0.1f, 500.0f, "%.2f");
+            ImGui::DragFloat("Semi-axis b (\xc3\x85)##ell", &params.ellipRy, 0.5f, 0.1f, 500.0f, "%.2f");
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::DragFloat("Semi-axis c (A)##ell", &params.ellipRz, 0.5f, 0.1f, 500.0f, "%.2f");
+            ImGui::DragFloat("Semi-axis c (\xc3\x85)##ell", &params.ellipRz, 0.5f, 0.1f, 500.0f, "%.2f");
             if (params.ellipRx < 0.1f) params.ellipRx = 0.1f;
             if (params.ellipRy < 0.1f) params.ellipRy = 0.1f;
             if (params.ellipRz < 0.1f) params.ellipRz = 0.1f;
@@ -359,12 +359,12 @@ void drawShapeParameters(NanoParams& params)
 
         case NanoShape::Box:
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::DragFloat("Half-size X (A)##box", &params.boxHx, 0.5f, 0.1f, 500.0f, "%.2f");
+            ImGui::DragFloat("Half-size X (\xc3\x85)##box", &params.boxHx, 0.5f, 0.1f, 500.0f, "%.2f");
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::DragFloat("Half-size Y (A)##box", &params.boxHy, 0.5f, 0.1f, 500.0f, "%.2f");
+            ImGui::DragFloat("Half-size Y (\xc3\x85)##box", &params.boxHy, 0.5f, 0.1f, 500.0f, "%.2f");
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::DragFloat("Half-size Z (A)##box", &params.boxHz, 0.5f, 0.1f, 500.0f, "%.2f");
-            ImGui::TextDisabled("Full box: %.2f x %.2f x %.2f A",
+            ImGui::DragFloat("Half-size Z (\xc3\x85)##box", &params.boxHz, 0.5f, 0.1f, 500.0f, "%.2f");
+            ImGui::TextDisabled("Full box: %.2f \xc3\x97 %.2f \xc3\x97 %.2f \xc3\x85",
                                 2.f*params.boxHx, 2.f*params.boxHy, 2.f*params.boxHz);
             if (params.boxHx < 0.1f) params.boxHx = 0.1f;
             if (params.boxHy < 0.1f) params.boxHy = 0.1f;
@@ -374,9 +374,9 @@ void drawShapeParameters(NanoParams& params)
         case NanoShape::Cylinder: {
             const char* axisNames[] = {"X", "Y", "Z"};
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::DragFloat("Radius (A)##cyl", &params.cylRadius, 0.5f, 0.1f, 500.0f, "%.2f");
+            ImGui::DragFloat("Radius (\xc3\x85)##cyl", &params.cylRadius, 0.5f, 0.1f, 500.0f, "%.2f");
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::DragFloat("Height (A)##cyl", &params.cylHeight, 0.5f, 0.1f, 1000.0f, "%.2f");
+            ImGui::DragFloat("Height (\xc3\x85)##cyl", &params.cylHeight, 0.5f, 0.1f, 1000.0f, "%.2f");
             ImGui::SetNextItemWidth(responsive::dp(120.0f));
             ImGui::Combo("Axis##cyl", &params.cylAxis, axisNames, 3);
             if (params.cylRadius < 0.1f) params.cylRadius = 0.1f;
@@ -386,16 +386,16 @@ void drawShapeParameters(NanoParams& params)
 
         case NanoShape::Octahedron:
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::DragFloat("Radius (A)##oct", &params.octRadius, 0.5f, 0.1f, 500.0f, "%.2f");
+            ImGui::DragFloat("Radius (\xc3\x85)##oct", &params.octRadius, 0.5f, 0.1f, 500.0f, "%.2f");
             ImGui::TextDisabled("Condition: |x|+|y|+|z| <= R");
             if (params.octRadius < 0.1f) params.octRadius = 0.1f;
             break;
 
         case NanoShape::TruncatedOctahedron:
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::DragFloat("Octahedron R (A)##trunc", &params.truncOctRadius, 0.5f, 0.1f, 500.0f, "%.2f");
+            ImGui::DragFloat("Octahedron R (\xc3\x85)##trunc", &params.truncOctRadius, 0.5f, 0.1f, 500.0f, "%.2f");
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::DragFloat("Truncation R (A)##trunc", &params.truncOctTrunc,  0.5f, 0.1f, 500.0f, "%.2f");
+            ImGui::DragFloat("Truncation R (\xc3\x85)##trunc", &params.truncOctTrunc,  0.5f, 0.1f, 500.0f, "%.2f");
             ImGui::TextDisabled("Cond: |x|+|y|+|z|<=R_oct  AND  max(|x|,|y|,|z|)<=R_trunc");
             if (params.truncOctRadius < 0.1f) params.truncOctRadius = 0.1f;
             if (params.truncOctTrunc  < 0.1f) params.truncOctTrunc  = 0.1f;
@@ -403,7 +403,7 @@ void drawShapeParameters(NanoParams& params)
 
         case NanoShape::Cuboctahedron:
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            ImGui::DragFloat("Radius (A)##cubo", &params.cuboRadius, 0.5f, 0.1f, 500.0f, "%.2f");
+            ImGui::DragFloat("Radius (\xc3\x85)##cubo", &params.cuboRadius, 0.5f, 0.1f, 500.0f, "%.2f");
             ImGui::TextDisabled("Cond: |x|+|y|, |y|+|z|, |x|+|z| <= R");
             if (params.cuboRadius < 0.1f) params.cuboRadius = 0.1f;
             break;
@@ -442,7 +442,7 @@ void drawReplicationPreview(const NanoParams& params, const Structure& reference
     const long long tested =
         (long long)(2*nA+1)*(long long)(2*nB+1)*(long long)(2*nC+1)
         * (long long)reference.atoms.size();
-    ImGui::TextDisabled("Tiling: %dx%dx%d  (%lld atoms tested)",
+    ImGui::TextDisabled("Tiling: %d \xc3\x97 %d \xc3\x97 %d  (%lld atoms tested)",
                         2*nA+1, 2*nB+1, 2*nC+1, (long long)tested);
     if (clamped)
         ImGui::TextColored(themeStatusWarn(), "Warning: replication clamped to %d.", kMax);
@@ -1288,7 +1288,7 @@ void NanoCrystalBuilderDialog::drawDialog(
             float la = safeLen3(glm::vec3((float)cv[0][0],(float)cv[0][1],(float)cv[0][2]));
             float lb = safeLen3(glm::vec3((float)cv[1][0],(float)cv[1][1],(float)cv[1][2]));
             float lc = safeLen3(glm::vec3((float)cv[2][0],(float)cv[2][1],(float)cv[2][2]));
-            ImGui::TextDisabled("%d atoms | a=%.3f  b=%.3f  c=%.3f A | periodic",
+            ImGui::TextDisabled("%d atoms | a=%.3f  b=%.3f  c=%.3f \xc3\x85 | periodic",
                                 (int)m_reference.atoms.size(), la, lb, lc);
         } else {
             ImGui::TextDisabled("%d atoms | no unit cell | shape carving only",
@@ -1422,14 +1422,14 @@ void NanoCrystalBuilderDialog::drawDialog(
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Text("Carving center");
-    dialogLayout::hinted(ImGui::Checkbox("Auto-center from atoms##nano", &params.autoCenterFromAtoms), "Automatic centring follows the reference atoms. Disable it to specify a Cartesian centre in Angstrom. A shift smaller than a lattice spacing can still change the surface termination.");
+    dialogLayout::hinted(ImGui::Checkbox("Auto-center from atoms##nano", &params.autoCenterFromAtoms), "Automatic centring follows the reference atoms. Disable it to specify a Cartesian centre in \xc3\x85. A shift smaller than a lattice spacing can still change the surface termination.");
     if (!params.autoCenterFromAtoms) {
         ImGui::SetNextItemWidth(responsive::dp(130.0f));
-        ImGui::DragFloat("X (A)##cnano", &params.cx, 0.1f, -1000.f, 1000.f, "%.3f");
+        ImGui::DragFloat("X (\xc3\x85)##cnano", &params.cx, 0.1f, -1000.f, 1000.f, "%.3f");
         ImGui::SetNextItemWidth(responsive::dp(130.0f));
-        dialogLayout::hinted(ImGui::DragFloat("Y (A)##cnano", &params.cy, 0.1f, -1000.f, 1000.f, "%.3f"), "Automatic centring follows the reference atoms. Disable it to specify a Cartesian centre in Angstrom. A shift smaller than a lattice spacing can still change the surface termination.");
+        dialogLayout::hinted(ImGui::DragFloat("Y (\xc3\x85)##cnano", &params.cy, 0.1f, -1000.f, 1000.f, "%.3f"), "Automatic centring follows the reference atoms. Disable it to specify a Cartesian centre in \xc3\x85. A shift smaller than a lattice spacing can still change the surface termination.");
         ImGui::SetNextItemWidth(responsive::dp(130.0f));
-        dialogLayout::hinted(ImGui::DragFloat("Z (A)##cnano", &params.cz, 0.1f, -1000.f, 1000.f, "%.3f"), "Automatic centring follows the reference atoms. Disable it to specify a Cartesian centre in Angstrom. A shift smaller than a lattice spacing can still change the surface termination.");
+        dialogLayout::hinted(ImGui::DragFloat("Z (\xc3\x85)##cnano", &params.cz, 0.1f, -1000.f, 1000.f, "%.3f"), "Automatic centring follows the reference atoms. Disable it to specify a Cartesian centre in \xc3\x85. A shift smaller than a lattice spacing can still change the surface termination.");
     }
 
     if (m_reference.hasUnitCell) {
@@ -1456,17 +1456,17 @@ void NanoCrystalBuilderDialog::drawDialog(
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Text("Output cell");
-    dialogLayout::hinted(ImGui::Checkbox("Rectangular cell##nano", &params.setOutputCell), "Choose a rectangular enclosing output cell where needed and add the requested surrounding vacuum in Angstrom. Inspect the saved cell in a periodic format; a plain XYZ consumer may ignore the cell.");
+    dialogLayout::hinted(ImGui::Checkbox("Rectangular cell##nano", &params.setOutputCell), "Choose a rectangular enclosing output cell where needed and add the requested surrounding vacuum in \xc3\x85. Inspect the saved cell in a periodic format; a plain XYZ consumer may ignore the cell.");
     if (params.setOutputCell) {
         ImGui::SetNextItemWidth(responsive::dp(100.0f));
-        dialogLayout::hinted(ImGui::InputFloat("Vacuum (A)##nano",
+        dialogLayout::hinted(ImGui::InputFloat("Vacuum (\xc3\x85)##nano",
                           &params.vacuumPadding, 0.f, 0.f, "%.2f"), "Choose a rectangular enclosing output cell where needed and add the requested surrounding vacuum in Angstrom. Inspect the saved cell in a periodic format; a plain XYZ consumer may ignore the cell.");
         if (params.vacuumPadding < 0.f) params.vacuumPadding = 0.f;
 
         if (params.generationMode == NanoGenerationMode::Shape)
         {
             const HalfExtents he = computeShapeHalfExtents(params);
-            ImGui::TextDisabled("%.2fx%.2fx%.2f A",
+            ImGui::TextDisabled("%.2f \xc3\x97 %.2f \xc3\x97 %.2f \xc3\x85",
                                 2.f*(he.hx+params.vacuumPadding),
                                 2.f*(he.hy+params.vacuumPadding),
                                 2.f*(he.hz+params.vacuumPadding));
@@ -1474,7 +1474,7 @@ void NanoCrystalBuilderDialog::drawDialog(
         else if (m_wulffPreviewData.success)
         {
             const glm::vec3 extents = m_wulffPreviewData.maxPoint - m_wulffPreviewData.minPoint;
-            ImGui::TextDisabled("%.2fx%.2fx%.2f A",
+            ImGui::TextDisabled("%.2f \xc3\x97 %.2f \xc3\x97 %.2f \xc3\x85",
                                 extents.x + 2.0f*params.vacuumPadding,
                                 extents.y + 2.0f*params.vacuumPadding,
                                 extents.z + 2.0f*params.vacuumPadding);

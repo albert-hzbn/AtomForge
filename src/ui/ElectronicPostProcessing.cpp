@@ -424,7 +424,7 @@ void ElectronicPostProcessingDialog::drawDialog()
         const auto& referenceVolume = m_referenceVolume.fields.empty() || m_localReference ? m_volume : m_referenceVolume;
         m_reference = std::clamp(m_reference,0,static_cast<int>(referenceVolume.fields.size())-1);
         const Grid& g = m_volume.fields[m_selected];
-        ImGui::TextDisabled("%d x %d x %d | %s",g.shape[0],g.shape[1],g.shape[2],unitText::display(g.unit).c_str());
+        ImGui::TextDisabled("%d \xc3\x97 %d \xc3\x97 %d | %s",g.shape[0],g.shape[1],g.shape[2],unitText::display(g.unit).c_str());
         if ((m_operation >= 1 && m_operation <= 4) || m_operation == 23 || m_operation == 22) selectField("Reference",m_reference,referenceVolume);
         if (m_operation == 5) inputFloat("Scale factor",&m_scalar);
         if (m_operation == 6) { inputFloat("Sigma (A)",&m_sigma); inputInt("Radius (steps)",&m_radius); }

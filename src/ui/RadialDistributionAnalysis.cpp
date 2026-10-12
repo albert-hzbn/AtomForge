@@ -179,21 +179,21 @@ void drawRdfSummary(const RdfResult& result)
     ImGui::Text("Status: %s", result.message.c_str());
     ImGui::Text("Atoms: %d    Ref: %d    Target: %d", result.atomCount, result.refCount, result.targetCount);
     ImGui::Text("PBC used: %s", result.pbcUsed ? "Yes" : "No");
-    ImGui::Text("Volume: %.6f A^3    Target density: %.6f A^-3", result.volume, result.density);
-    ImGui::Text("Bin width: %.5f A", result.binWidth);
+    ImGui::Text("Volume: %.6f \xc3\x85\xc2\xb3    Target density: %.6f \xc3\x85\xe2\x81\xbb\xc2\xb3", result.volume, result.density);
+    ImGui::Text("Bin width: %.5f \xc3\x85", result.binWidth);
 
     if (result.hasFirstPeak)
-        ImGui::Text("First peak: r = %.4f A, value = %.4f", result.firstPeakR, result.firstPeakValue);
+        ImGui::Text("First peak: r = %.4f \xc3\x85, value = %.4f", result.firstPeakR, result.firstPeakValue);
     else
         ImGui::Text("First peak: not detected");
 
     if (result.hasFirstMinimum)
-        ImGui::Text("First minimum after peak: r = %.4f A, value = %.4f", result.firstMinimumR, result.firstMinimumValue);
+        ImGui::Text("First minimum after peak: r = %.4f \xc3\x85, value = %.4f", result.firstMinimumR, result.firstMinimumValue);
     else
         ImGui::Text("First minimum after peak: not detected");
 
     if (result.hasFirstPeakFwhm)
-        ImGui::Text("First-peak FWHM: %.4f A", result.firstPeakFwhm);
+        ImGui::Text("First-peak FWHM: %.4f \xc3\x85", result.firstPeakFwhm);
 }
 
 void drawDistortionSummary(const RdfResult& result)
@@ -215,8 +215,8 @@ void drawDistortionSummary(const RdfResult& result)
                 result.distortionWindowMin,
                 result.distortionWindowMax,
                 result.distortionWindowAuto ? "auto" : "manual");
-    ImGui::Text("Shell mean bond length: %.5f A", result.shellMeanDistance);
-    ImGui::Text("Shell sigma (bond spread): %.5f A", result.shellStdDev);
+    ImGui::Text("Shell mean bond length: %.5f \xc3\x85", result.shellMeanDistance);
+    ImGui::Text("Shell sigma (bond spread): %.5f \xc3\x85", result.shellStdDev);
     ImGui::Text("Relative distortion sigma/r_mean: %.3f %%", result.shellRelativeDistortion);
     ImGui::Text("Shell coordination (pair-resolved): %.4f", result.shellCoordination);
 }

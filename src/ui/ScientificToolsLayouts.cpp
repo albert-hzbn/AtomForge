@@ -164,8 +164,8 @@ void ScientificToolsDialog::drawField(std::size_t i, const Structure& structure)
             } else {
                 const float width = std::min(ImGui::GetContentRegionAvail().x, responsive::dp(340));
                 ImGui::SetNextItemWidth(width); ImGui::InputDouble("Well depth epsilon (eV)", &field.epsilon, 0, 0, "%.6g");
-                ImGui::SetNextItemWidth(width); ImGui::InputDouble("Zero-crossing sigma (Angstrom)", &field.sigma, 0, 0, "%.6g");
-                ImGui::SetNextItemWidth(width); ImGui::InputDouble("Cutoff (Angstrom)", &field.cutoff, 0, 0, "%.6g");
+                ImGui::SetNextItemWidth(width); ImGui::InputDouble("Zero-crossing sigma (\xc3\x85)", &field.sigma, 0, 0, "%.6g");
+                ImGui::SetNextItemWidth(width); ImGui::InputDouble("Cutoff (\xc3\x85)", &field.cutoff, 0, 0, "%.6g");
                 ImGui::TextDisabled("Energy is shifted to zero at the cutoff.");
             }
         } else if (!field.useFile || kind == "string") {

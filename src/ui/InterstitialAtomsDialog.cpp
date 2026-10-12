@@ -1373,9 +1373,9 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
             ImGui::TextDisabled("0 = detect all voids");
         }
         ImGui::SetNextItemWidth(responsive::dp(180.0f));
-        dialogLayout::hinted(ImGui::DragFloat("Min Clearance (A)", &m_minClearance, 0.02f, 0.05f, 5.0f, "%.2f"), "These are distinct detection controls in Angstrom: clearance filters available space around a candidate; separation prevents retaining nearby duplicate candidates. They are not the requested number of inserted atoms.");
+        dialogLayout::hinted(ImGui::DragFloat("Min Clearance (\xc3\x85)", &m_minClearance, 0.02f, 0.05f, 5.0f, "%.2f"), "These are distinct detection controls in \xc3\x85: clearance filters available space around a candidate; separation prevents retaining nearby duplicate candidates. They are not the requested number of inserted atoms.");
         ImGui::SetNextItemWidth(responsive::dp(180.0f));
-        dialogLayout::hinted(ImGui::DragFloat("Min Separation (A)", &m_minSeparation, 0.02f, 0.05f, 5.0f, "%.2f"), "These are distinct detection controls in Angstrom: clearance filters available space around a candidate; separation prevents retaining nearby duplicate candidates. They are not the requested number of inserted atoms.");
+        dialogLayout::hinted(ImGui::DragFloat("Min Separation (\xc3\x85)", &m_minSeparation, 0.02f, 0.05f, 5.0f, "%.2f"), "These are distinct detection controls in \xc3\x85: clearance filters available space around a candidate; separation prevents retaining nearby duplicate candidates. They are not the requested number of inserted atoms.");
 
         if (!m_sourceLoaded)
             ImGui::BeginDisabled();
@@ -1423,8 +1423,8 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
             ImGui::BulletText("Index: %d / %d", m_selectedVoidIndex + 1, (int)m_voids.size());
             ImGui::BulletText("Manual selection count: %d", (int)m_selectedVoidIndices.size());
             ImGui::BulletText("Type: %s", typeText);
-            ImGui::BulletText("Volume: %.3f A^3", sv.volume);
-            ImGui::BulletText("Clearance: %.3f A", sv.clearance);
+            ImGui::BulletText("Volume: %.3f \xc3\x85\xc2\xb3", sv.volume);
+            ImGui::BulletText("Clearance: %.3f \xc3\x85", sv.clearance);
             ImGui::BulletText("Coordination: %d", sv.coordination);
             ImGui::BulletText("Center: (%.3f, %.3f, %.3f)", sv.position.x, sv.position.y, sv.position.z);
             ImGui::TextDisabled("Only selected void polygon is shown.");
@@ -1551,7 +1551,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
             ImGui::SetNextItemWidth(responsive::dp(160.0f));
             dialogLayout::hinted(ImGui::InputInt("Seed", &m_seed), "Seed controls stochastic selection; zero is a deterministic seed in this tool, unlike builders where zero explicitly means time.");
             ImGui::SetNextItemWidth(responsive::dp(180.0f));
-            dialogLayout::hinted(ImGui::DragFloat("Min Insert Distance (A)", &m_minInsertDistance, 0.02f, 0.0f, 5.0f, "%.2f"), "Seed controls stochastic selection; zero is a deterministic seed in this tool, unlike builders where zero explicitly means time.");
+            dialogLayout::hinted(ImGui::DragFloat("Min Insert Distance (\xc3\x85)", &m_minInsertDistance, 0.02f, 0.0f, 5.0f, "%.2f"), "Seed controls stochastic selection; zero is a deterministic seed in this tool, unlike builders where zero explicitly means time.");
 
             // Mesh Region
             if (m_placementMode == PlacementMode::MeshRegion)
@@ -1590,7 +1590,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
                 ImGui::SetNextItemWidth(responsive::dp(160.0f));
                 ImGui::DragFloat("Scale", &m_meshScale, 0.01f, 1e-4f, 1000.0f, "%.3f");
                 ImGui::DragFloat3("Translate", &m_meshTranslation.x, 0.05f, -10000.0f, 10000.0f, "%.2f");
-                ImGui::DragFloat3("Rotate (deg)", &m_meshRotationDeg.x, 0.5f, -360.0f, 360.0f, "%.1f");
+                ImGui::DragFloat3("Rotate (\xc2\xb0)", &m_meshRotationDeg.x, 0.5f, -360.0f, 360.0f, "%.1f");
 
                 if (responsive::button("Reset Transform"))
                 {

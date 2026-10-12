@@ -802,9 +802,9 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
             ImGui::TextDisabled("atoms=%d", (int)entry.structure.atoms.size());
 
             bool changed = false;
-            changed |= dialogLayout::hinted(ImGui::DragFloat3("Pos (A)", &entry.translation.x,
+            changed |= dialogLayout::hinted(ImGui::DragFloat3("Pos (\xc3\x85)", &entry.translation.x,
                                           0.05f, -10000.0f, 10000.0f, "%.3f"), "The three values translate the selected component in Cartesian Angstrom. Use these fields for reproducible offsets after coarse gizmo placement.");
-            changed |= dialogLayout::hinted(ImGui::DragFloat3("Rot (deg)", &entry.rotationDeg.x,
+            changed |= dialogLayout::hinted(ImGui::DragFloat3("Rot (\xc2\xb0)", &entry.rotationDeg.x,
                                           0.25f, -3600.0f, 3600.0f, "%.2f"), "Three rotation values orient the selected component. The preview reflects its component transform; orbiting the camera changes the view of all components together.");
 
             if (ImGui::SmallButton("Reset"))

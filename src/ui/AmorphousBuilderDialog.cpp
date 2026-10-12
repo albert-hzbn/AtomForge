@@ -349,7 +349,7 @@ void AmorphousBuilderDialog::drawDialog(
     uiScript::scrollToBottom("amorphous.scroll");
     dialogLayout::hinted(ImGui::RadioButton("Auto from target density", &m_boxMode, 1), "Enter mass density in g cm^-3. The builder estimates a cubic box using the total atomic mass. The displayed side length includes the Cell scale factor.");
     ImGui::SameLine();
-    dialogLayout::hinted(ImGui::RadioButton("Manual dimensions", &m_boxMode, 0), "Enter a,b,c in Angstrom to set box lengths explicitly. This mode replaces density-derived sizing.");
+    dialogLayout::hinted(ImGui::RadioButton("Manual dimensions", &m_boxMode, 0), "Enter a,b,c in \xc3\x85 to set box lengths explicitly. This mode replaces density-derived sizing.");
 
     if (m_boxMode == 1) // AutoFromDensity
     {
@@ -366,7 +366,7 @@ void AmorphousBuilderDialog::drawDialog(
             const double dens = std::max(1e-3, (double)m_targetDensity);
             const double vol  = totalMass * 1.66054 / dens;
             const float  side = (float)std::cbrt(vol) * m_cellScaleFactor;
-            ImGui::TextDisabled("  => cubic box %.2f \xc3\x85", side);
+            ImGui::TextDisabled("  \xe2\x86\x92 cubic box %.2f \xc3\x85", side);
         }
     }
     else // Manual
@@ -490,7 +490,7 @@ void AmorphousBuilderDialog::drawDialog(
             bC *= m_cellScaleFactor;
         }
         const float volume = bA * bB * bC;
-        ImGui::TextDisabled("Box: %.2f x %.2f x %.2f \xc3\x85   |   Volume: %.1f \xc3\x85\xc2\xb3   |   Atoms: %d",
+        ImGui::TextDisabled("Box: %.2f \xc3\x97 %.2f \xc3\x97 %.2f \xc3\x85   |   Volume: %.1f \xc3\x85\xc2\xb3   |   Atoms: %d",
                              bA, bB, bC, volume, total);
     }
 

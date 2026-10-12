@@ -148,7 +148,7 @@ void ElectronicSliceViewport::draw(const Grid& grid, float low, float high, int 
     if (responsive::button("Reset 2D")) reset();
     ImGui::SameLine();
     ImGui::SetNextItemWidth(responsive::dp(-1));
-    ImGui::SliderFloat("##angle",&m_angle,-180,180,"%.0f deg");
+    ImGui::SliderFloat("##angle",&m_angle,-180,180,"%.0f\xc2\xb0");
     ImGui::TextWrapped("Drag: rotate in plane | Right drag: pan | Wheel: zoom");
 
     if (!std::isfinite(m_level))

@@ -915,11 +915,11 @@ void DislocationBuilderDialog::drawDialog(
             m_params.lineUvw = glm::ivec3(line[0], line[1], line[2]);
         }
 
-        dialogLayout::hinted(ImGui::Checkbox("Line point in fractional coordinates", &m_params.useFractionalLinePoint), "Enables Line point frac, a position relative to the cell. Line point offset adds a Cartesian offset in Angstrom. Use the preview to verify the final location rather than treating a fractional coefficient as a distance.");
+        dialogLayout::hinted(ImGui::Checkbox("Line point in fractional coordinates", &m_params.useFractionalLinePoint), "Enables Line point frac, a position relative to the cell. Line point offset adds a Cartesian offset in \xc3\x85. Use the preview to verify the final location rather than treating a fractional coefficient as a distance.");
         if (m_params.useFractionalLinePoint)
             ImGui::DragFloat3("Line point frac", &m_params.linePointFractional.x, 0.01f, -1.0f, 2.0f, "%.3f");
 
-        ImGui::DragFloat3("Line point offset (A)", &m_params.linePointCartesianOffset.x, 0.05f, -100.0f, 100.0f, "%.3f");
+        ImGui::DragFloat3("Line point offset (\xc3\x85)", &m_params.linePointCartesianOffset.x, 0.05f, -100.0f, 100.0f, "%.3f");
 
         ImGui::Separator();
         ImGui::TextDisabled("Elastic Parameters");
@@ -929,12 +929,12 @@ void DislocationBuilderDialog::drawDialog(
         dialogLayout::hinted(ImGui::DragFloat("Poisson ratio", &m_params.poissonRatio, 0.005f, 0.05f, 0.49f, "%.3f"), "Elastic input to the displacement model. The GUI restricts it to 0.05-0.49. This is not fitted automatically from the structure.");
         if (m_params.anisotropicElasticity)
             ImGui::EndDisabled();
-        dialogLayout::hinted(ImGui::DragFloat("Core radius (A)", &m_params.coreRadius, 0.05f, 0.05f, 20.0f, "%.3f"), "Regularisation length in Angstrom near the line. Inspect core contacts and displacement maxima when changing it.");
-        dialogLayout::hinted(ImGui::DragFloat("Cutoff radius (A)", &m_params.cutoffRadius, 0.2f, 0.0f, 100.0f, "%.2f"), "Cutoff controls radial attenuation in Angstrom; zero turns attenuation off. Line half length limits the extent along the dislocation line. Use the preview and result summary to assess how much of the specimen is affected.");
-        dialogLayout::hinted(ImGui::DragFloat("Line half length (A)", &m_params.lineHalfLength, 0.5f, 0.1f, 1000000.0f, "%.1f"), "Cutoff controls radial attenuation in Angstrom; zero turns attenuation off. Line half length limits the extent along the dislocation line. Use the preview and result summary to assess how much of the specimen is affected.");
+        dialogLayout::hinted(ImGui::DragFloat("Core radius (\xc3\x85)", &m_params.coreRadius, 0.05f, 0.05f, 20.0f, "%.3f"), "Regularisation length in \xc3\x85 near the line. Inspect core contacts and displacement maxima when changing it.");
+        dialogLayout::hinted(ImGui::DragFloat("Cutoff radius (\xc3\x85)", &m_params.cutoffRadius, 0.2f, 0.0f, 100.0f, "%.2f"), "Cutoff controls radial attenuation in \xc3\x85; zero turns attenuation off. Line half length limits the extent along the dislocation line. Use the preview and result summary to assess how much of the specimen is affected.");
+        dialogLayout::hinted(ImGui::DragFloat("Line half length (\xc3\x85)", &m_params.lineHalfLength, 0.5f, 0.1f, 1000000.0f, "%.1f"), "Cutoff controls radial attenuation in \xc3\x85; zero turns attenuation off. Line half length limits the extent along the dislocation line. Use the preview and result summary to assess how much of the specimen is affected.");
 
         if (m_params.character == DislocationCharacter::Mixed)
-            ImGui::SliderFloat("Mixed angle (deg)", &m_params.mixedCharacterAngleDeg, 0.0f, 90.0f, "%.1f");
+            ImGui::SliderFloat("Mixed angle (\xc2\xb0)", &m_params.mixedCharacterAngleDeg, 0.0f, 90.0f, "%.1f");
 
         ImGui::Separator();
         ImGui::TextDisabled("Anisotropic Elasticity (Stroh formalism)");
@@ -977,7 +977,7 @@ void DislocationBuilderDialog::drawDialog(
         dialogLayout::hinted(ImGui::Checkbox("Insert as dipole (adds an opposite-Burgers-vector partner)", &m_params.dipole), "Superposes a second dislocation of opposite Burgers vector at a specified offset, giving a net-zero-Burgers-vector configuration that is periodicity-compatible, unlike a single dislocation in a periodic cell.");
         if (m_params.dipole)
         {
-            ImGui::DragFloat2("Dipole offset (A)", &m_params.dipoleOffset.x, 0.2f, -500.0f, 500.0f, "%.2f");
+            ImGui::DragFloat2("Dipole offset (\xc3\x85)", &m_params.dipoleOffset.x, 0.2f, -500.0f, 500.0f, "%.2f");
             ImGui::TextWrapped("Offset of the second (opposite-sign) dislocation, in the local slip-plane axes. A dipole's net Burgers vector is zero, so it is periodicity-compatible unlike a single dislocation.");
         }
 
@@ -985,15 +985,15 @@ void DislocationBuilderDialog::drawDialog(
         ImGui::TextDisabled("Shape Parameters");
         if (m_params.shape == DislocationShape::Cylinder)
         {
-            ImGui::DragFloat("Cylinder radius (A)", &m_params.cylinderRadius, 0.2f, 0.1f, 200.0f, "%.2f");
+            ImGui::DragFloat("Cylinder radius (\xc3\x85)", &m_params.cylinderRadius, 0.2f, 0.1f, 200.0f, "%.2f");
         }
         else if (m_params.shape == DislocationShape::Sphere)
         {
-            ImGui::DragFloat("Sphere radius (A)", &m_params.sphereRadius, 0.2f, 0.1f, 200.0f, "%.2f");
+            ImGui::DragFloat("Sphere radius (\xc3\x85)", &m_params.sphereRadius, 0.2f, 0.1f, 200.0f, "%.2f");
         }
         else if (m_params.shape == DislocationShape::Ellipsoid)
         {
-            ImGui::DragFloat3("Ellipsoid radii (A)", &m_params.ellipsoidRadii.x, 0.2f, 0.1f, 200.0f, "%.2f");
+            ImGui::DragFloat3("Ellipsoid radii (\xc3\x85)", &m_params.ellipsoidRadii.x, 0.2f, 0.1f, 200.0f, "%.2f");
         }
         else if (m_params.shape == DislocationShape::Freeform2D)
         {
@@ -1047,11 +1047,11 @@ void DislocationBuilderDialog::drawDialog(
             ImGui::Separator();
             ImGui::Text("Result summary");
             ImGui::TextDisabled("Shifted atoms: %d", m_result.shiftedAtomCount);
-            ImGui::TextDisabled("|b|: %.4f A", m_result.burgersMagnitude);
-            ImGui::TextDisabled("RMS displacement: %.4f A", m_result.validation.rmsDisplacement);
-            ImGui::TextDisabled("Max displacement: %.4f A", m_result.validation.maxDisplacement);
-            ImGui::TextDisabled("Min distance: %.4f A", m_result.validation.minInteratomicDistance);
-            ImGui::TextDisabled("Family before/after: %s -> %s",
+            ImGui::TextDisabled("|b|: %.4f \xc3\x85", m_result.burgersMagnitude);
+            ImGui::TextDisabled("RMS displacement: %.4f \xc3\x85", m_result.validation.rmsDisplacement);
+            ImGui::TextDisabled("Max displacement: %.4f \xc3\x85", m_result.validation.maxDisplacement);
+            ImGui::TextDisabled("Min distance: %.4f \xc3\x85", m_result.validation.minInteratomicDistance);
+            ImGui::TextDisabled("Family before/after: %s \xe2\x86\x92 %s",
                                 dislocationLatticeFamilyName(m_result.validation.familyBefore),
                                 dislocationLatticeFamilyName(m_result.validation.familyAfter));
 
