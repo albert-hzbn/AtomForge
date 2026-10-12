@@ -284,28 +284,28 @@ void PipelineDialog::drawList()
             m_selected = static_cast<int>(i);
             ImGui::TextDisabled("%s", titleOf(m).c_str());
             ImGui::Separator();
-            if (ImGui::MenuItem("Edit in dialog")) requestDialog(i);
-            if (ImGui::BeginMenu("Replace with")) {
+            if (ImGui::MenuItem("Edit in Dialog")) requestDialog(i);
+            if (ImGui::BeginMenu("Replace With")) {
                 record("replace with");
                 const std::string type = drawModifierMenu(m.type, "replace");
                 if (!type.empty()) { replaceWith = type; replaceAt = i; }
                 ImGui::EndMenu();
             } else record("replace with");
-            if (ImGui::BeginMenu("Insert above")) {
+            if (ImGui::BeginMenu("Insert Above")) {
                 record("insert above");
                 const std::string type = drawModifierMenu("", "above");
                 if (!type.empty()) { insertType = type; insertAt = i; }
                 ImGui::EndMenu();
             } else record("insert above");
-            if (ImGui::BeginMenu("Insert below")) {
+            if (ImGui::BeginMenu("Insert Below")) {
                 record("insert below");
                 const std::string type = drawModifierMenu("", "below");
                 if (!type.empty()) { insertType = type; insertAt = i + 1; }
                 ImGui::EndMenu();
             } else record("insert below");
             ImGui::Separator();
-            if (ImGui::MenuItem("Move up", "Alt+Up", false, i > 0)) { moveFrom = static_cast<int>(i); moveTo = static_cast<int>(i) - 1; }
-            if (ImGui::MenuItem("Move down", "Alt+Down", false, i + 1 < m_editor.size())) { moveFrom = static_cast<int>(i); moveTo = static_cast<int>(i) + 1; }
+            if (ImGui::MenuItem("Move Up", "Alt+Up", false, i > 0)) { moveFrom = static_cast<int>(i); moveTo = static_cast<int>(i) - 1; }
+            if (ImGui::MenuItem("Move Down", "Alt+Down", false, i + 1 < m_editor.size())) { moveFrom = static_cast<int>(i); moveTo = static_cast<int>(i) + 1; }
             if (ImGui::MenuItem("Duplicate")) duplicate = static_cast<int>(i);
             if (ImGui::MenuItem(m.enabled ? "Disable" : "Enable")) m_editor.setEnabled(i, !m.enabled);
             ImGui::Separator();
@@ -501,7 +501,7 @@ void PipelineDialog::drawText()
     if (responsive::button("Copy as Command"))
         ImGui::SetClipboardText(("AtomForge --pipe \"" + text + "\" --input INPUT --output OUTPUT").c_str());
     ImGui::SameLine();
-    if (responsive::button(m_showText ? "Cancel text edit" : "Edit as text")) {
+    if (responsive::button(m_showText ? "Cancel Text Edit" : "Edit as Text")) {
         m_showText = !m_showText;
         std::snprintf(m_textBuffer.data(), m_textBuffer.size(), "%s", text.c_str());
     }

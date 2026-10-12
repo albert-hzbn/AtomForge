@@ -4281,7 +4281,7 @@
     },
     {
       "source": "src/ui/PipelineDialog.cpp",
-      "sha256": "07ac0861b398d17e4ea0cbda8205c02ff0f1dfdecc257d78a47396be0b8f75e3",
+      "sha256": "6faaa8d5516bc2c16dbf58ba80271bf3ba236f84cf9866c18fbeccdf625a1593",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -4301,15 +4301,15 @@
         },
         {
           "line": 287,
-          "declaration_label": "Edit in dialog"
+          "declaration_label": "Edit in Dialog"
         },
         {
           "line": 307,
-          "declaration_label": "Move up"
+          "declaration_label": "Move Up"
         },
         {
           "line": 308,
-          "declaration_label": "Move down"
+          "declaration_label": "Move Down"
         },
         {
           "line": 309,
