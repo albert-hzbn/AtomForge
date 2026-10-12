@@ -1410,6 +1410,33 @@ static bool normalizePoscar(std::string& text)
     return true;
 }
 
+// The columns of the species and the positions in an extended XYZ frame,
+// from Properties=name:type:count:... on its comment line (for example
+// id:I:1:species:S:1:pos:R:3). False without a usable Properties key.
+static bool extendedXyzColumns(const std::string& comment, int& speciesColumn, int& positionColumn)
+{
+    std::size_t key = std::string::npos;
+    for (std::size_t at = comment.find("roperties="); at != std::string::npos; at = comment.find("roperties=", at + 1))
+        if (at > 0 && (comment[at - 1] == 'P' || comment[at - 1] == 'p')) { key = at + 10; break; }
+    if (key == std::string::npos) return false;
+    const std::size_t end = comment.find_first_of(" \t\r\n", key);
+    std::istringstream spec(comment.substr(key, end == std::string::npos ? std::string::npos : end - key));
+    speciesColumn = positionColumn = -1;
+    int column = 0;
+    for (std::string name, type, count; std::getline(spec, name, ':') && std::getline(spec, type, ':') && std::getline(spec, count, ':');)
+    {
+        int n = 0;
+        try { n = std::stoi(count); } catch (const std::exception&) { return false; }
+        if (n < 1) return false;
+        std::string lower = name;
+        for (char& c : lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (lower == "species" && n == 1) speciesColumn = column;
+        if ((lower == "pos" || lower == "positions") && n == 3) positionColumn = column;
+        column += n;
+    }
+    return speciesColumn >= 0 && positionColumn >= 0;
+}
+
 static bool normalizeXyzSymbols(std::string& text)
 {
     std::string out;
@@ -1437,9 +1464,23 @@ static bool normalizeXyzSymbols(std::string& text)
         out += line;
         if (!nextLine(line)) return false;  // the comment line
         out += line;
+        // Open Babel reads "symbol x y z": reorder the columns of an extended
+        // XYZ frame that lists others first (an id, say).
+        int speciesColumn = 0, positionColumn = 1;
+        const bool reorder = extendedXyzColumns(line, speciesColumn, positionColumn) &&
+                             (speciesColumn != 0 || positionColumn != 1);
         for (long n = 0; n < count; ++n)
         {
             if (!nextLine(line)) return false;
+            if (reorder)
+            {
+                std::istringstream fields(line);
+                std::vector<std::string> values;
+                for (std::string value; fields >> value;) values.push_back(value);
+                if ((int)values.size() <= std::max(speciesColumn, positionColumn + 2)) return false;
+                line = values[(size_t)speciesColumn] + ' ' + values[(size_t)positionColumn] + ' ' +
+                       values[(size_t)positionColumn + 1] + ' ' + values[(size_t)positionColumn + 2] + '\n';
+            }
             const std::size_t start = line.find_first_not_of(" \t");
             std::size_t stop = start;
             while (stop < line.size() && std::isalpha(static_cast<unsigned char>(line[stop]))) ++stop;

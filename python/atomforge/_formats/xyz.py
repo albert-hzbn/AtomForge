@@ -10,6 +10,31 @@ if TYPE_CHECKING:
     from .._structure import Structure
 
 
+def _columns(comment: str) -> tuple[int, int]:
+    """Species and position columns from an extended XYZ Properties key
+    (e.g. id:I:1:species:S:1:pos:R:3); plain XYZ is (0, 1)."""
+    m = re.search(r'[Pp]roperties=(\S+)', comment)
+    if not m:
+        return 0, 1
+    fields = m.group(1).split(":")
+    if len(fields) % 3:
+        raise ValueError("invalid extended XYZ Properties")
+    species = pos = None
+    column = 0
+    for name, _kind, count in zip(fields[0::3], fields[1::3], fields[2::3]):
+        width = int(count)
+        if width < 1:
+            raise ValueError("invalid extended XYZ Properties")
+        if name.lower() == "species" and width == 1:
+            species = column
+        if name.lower() in ("pos", "positions") and width == 3:
+            pos = column
+        column += width
+    if species is None or pos is None:
+        raise ValueError("extended XYZ needs species and pos columns")
+    return species, pos
+
+
 def _load_xyz(path: str) -> "Structure":
     from .._structure import Atom, Structure
     s = Structure()
@@ -26,13 +51,15 @@ def _load_xyz(path: str) -> "Structure":
         vals = list(map(float, m.group(1).split()))
         if len(vals) == 9:
             s.cell = [vals[0:3], vals[3:6], vals[6:9]]
+    species_col, pos_col = _columns(comment)
     for line in lines[2:2 + n]:
         parts = line.split()
-        if len(parts) < 4:
+        if len(parts) <= max(species_col, pos_col + 2):
             raise ValueError("invalid XYZ: atom needs a symbol and three coordinates")
         # Element symbols in any case ("CU", "cu" -> "Cu"); other labels as written.
-        sym = parts[0].capitalize() if parts[0].isalpha() and len(parts[0]) <= 3 else parts[0]
-        x, y, z = float(parts[1]), float(parts[2]), float(parts[3])
+        label = parts[species_col]
+        sym = label.capitalize() if label.isalpha() and len(label) <= 3 else label
+        x, y, z = (float(v) for v in parts[pos_col:pos_col + 3])
         cr, cg, cb = _default_color(sym)
         s.atoms.append(Atom(sym, x, y, z, cr, cg, cb))
     return s

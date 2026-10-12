@@ -143,6 +143,14 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
     symbols = root / "upper_out.xyz"
     run("--convert", "--input", upper, "--output", symbols, "--format", "xyz")
     assert [line.split()[0] for line in symbols.read_text().splitlines()[2:5]] == ["Cu", "Ni", "O"], symbols.read_text()
+    # Extended XYZ columns in any order (an id first, extra columns after).
+    ids = root / "ids.xyz"
+    ids.write_text('2\nProperties=id:I:1:species:S:1:pos:R:3:forces:R:3 Lattice="4 0 0 0 4 0 0 0 4"\n'
+                   "1 Na 0 0 0 0 0 0\n2 Cl 2 2 2 0 0 0\n")
+    reordered = root / "ids_out.xyz"
+    run("--convert", "--input", ids, "--output", reordered, "--format", "xyz")
+    assert [line.split()[0] for line in reordered.read_text().splitlines()[2:4]] == ["Na", "Cl"], reordered.read_text()
+    assert reordered.read_text().splitlines()[1].startswith('Lattice="4 0 0 0 4 0 0 0 4"'), reordered.read_text()
     # POSCAR: a negative scale is the cell volume; VASP 4 names the species on
     # the title line instead of an element line.
     for name, text, expected in (

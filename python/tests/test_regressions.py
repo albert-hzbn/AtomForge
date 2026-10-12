@@ -31,6 +31,11 @@ class FileIntegrityTests(unittest.TestCase):
         self.assertEqual([a.symbol for a in af.load(self.root / "POSCAR-001").atoms], ["Fe", "O"])
         (self.root / "upper.xyz").write_text("3\n\nCU 0 0 0\nni 1.8 0 0\nO 0 1.8 0\n")
         self.assertEqual([a.symbol for a in af.load(self.root / "upper.xyz").atoms], ["Cu", "Ni", "O"])
+        # Extended XYZ columns in any order (an id first, extra columns after).
+        (self.root / "ids.xyz").write_text('2\nProperties=id:I:1:species:S:1:pos:R:3:forces:R:3 Lattice="4 0 0 0 4 0 0 0 4"\n'
+                                           "1 Na 0 0 0 0 0 0\n2 Cl 2 2 2 0 0 0\n")
+        ids = af.load(self.root / "ids.xyz")
+        self.assertEqual([(a.symbol, a.z) for a in ids.atoms], [("Na", 0), ("Cl", 2)])
 
     def test_extensionless_vasp_roundtrip(self):
         for name in ("POSCAR", "CONTCAR"):
