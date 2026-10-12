@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
 
 namespace neighbours
@@ -18,7 +19,8 @@ struct BinHash
 };
 }
 
-void visitWithin(const Structure& structure, double cutoff, bool periodic, const std::function<void(const Pair&)>& visit)
+void visitWithin(const Structure& structure, double cutoff, bool periodic, const std::function<void(const Pair&)>& visit,
+                 int maxImages)
 {
     const std::size_t n = structure.atoms.size();
     if (n == 0 || !(cutoff > 0.0)) return;
@@ -35,7 +37,9 @@ void visitWithin(const Structure& structure, double cutoff, bool periodic, const
         for (int k = 0; k < 3; ++k) {
             const glm::dvec3 row(inverse[0][k], inverse[1][k], inverse[2][k]);
             range[k] = static_cast<int>(std::ceil(cutoff * glm::length(row)));
-            if (range[k] > 20) throw std::runtime_error("The cutoff spans too many periodic images of this cell");
+            if (range[k] > maxImages)
+                throw std::runtime_error("The cutoff spans more than " + std::to_string(maxImages) +
+                                         " periodic images of this cell; use a smaller cutoff or a supercell");
         }
     }
 
@@ -84,7 +88,8 @@ void visitWithin(const Structure& structure, double cutoff, bool periodic, const
 std::vector<Pair> within(const Structure& structure, double cutoff, bool periodic)
 {
     std::vector<Pair> pairs;
-    visitWithin(structure, cutoff, periodic, [&pairs](const Pair& pair) { pairs.push_back(pair); });
+    // Stored pairs grow with the images searched, so at most 20.
+    visitWithin(structure, cutoff, periodic, [&pairs](const Pair& pair) { pairs.push_back(pair); }, 20);
     return pairs;
 }
 }

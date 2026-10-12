@@ -29,8 +29,10 @@ struct Pair
 std::vector<Pair> within(const Structure& structure, double cutoff, bool periodic);
 
 // The same pairs, handed to visit one at a time instead of stored (for
-// large structures and cutoffs).
-void visitWithin(const Structure& structure, double cutoff, bool periodic, const std::function<void(const Pair&)>& visit);
+// large structures and cutoffs). Nothing is stored, so the cutoff may span
+// up to maxImages periodic images of the cell (a long RDF of a small cell).
+void visitWithin(const Structure& structure, double cutoff, bool periodic, const std::function<void(const Pair&)>& visit,
+                 int maxImages = 200);
 
 // Calls visit(i, j) once for each unordered pair i < j that may lie within
 // `cutoff`, as a candidate: the caller applies its own distance test (for

@@ -328,7 +328,7 @@ Pipeline Pipeline::parse(const std::string& text)
             const std::string kind = p.kind;
             // name=value with a name the step does not have (count=2,2,2 for
             // counts=...) is a misspelt parameter, not a value.
-            if (const auto equals = pending[t].find('='); !takesRest(kind) && equals != std::string::npos && equals > 0 &&
+            if (const auto equals = pending[t].find('='); !takesRest(kind) && kind != "string" && equals != std::string::npos && equals > 0 &&
                 pending[t].find_first_not_of("abcdefghijklmnopqrstuvwxyz_") == equals)
                 throw std::runtime_error(std::string(type.id) + " has no parameter " + pending[t].substr(0, equals) +
                                          parameterHint(type, pending[t].substr(0, equals)));

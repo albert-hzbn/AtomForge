@@ -43,14 +43,19 @@ inline std::string unknownOption(const std::vector<std::string>& args, void (*he
     for (const char* common : {"--build", "--output", "--input", "--help", "--analyze"}) known.insert(common);
     for (const std::string& arg : args)
     {
+        // "-q": options start with two dashes (a value such as -0.5 is a number).
+        if (arg.size() >= 2 && arg[0] == '-' && arg[1] != '-' && std::isalpha(static_cast<unsigned char>(arg[1])) && arg != "-h")
+        {
+            if (helpCommand.empty()) helpCommand = "AtomForge --help " + mode;
+            const std::string suggestion = arg.size() > 2 ? suggest::closest("-" + arg, known) : std::string();
+            return "unknown option " + arg + " for " + mode + " (options start with --" +
+                   (suggestion.empty() ? std::string() : "; did you mean " + suggestion + "?") + "); see " + helpCommand;
+        }
         if (arg.size() < 3 || arg.compare(0, 2, "--") != 0 || !std::isalpha(static_cast<unsigned char>(arg[2]))) continue;
         const std::string flag = arg.substr(0, arg.find('='));
         if (known.count(flag)) continue;
-        std::string suggestion;
         // Suggest only close matches: a third of the name's letters may differ.
-        std::size_t best = std::max<std::size_t>(1, (flag.size() - 2) / 3) + 1;
-        for (const std::string& candidate : known)
-            if (const std::size_t d = distance(flag, candidate); d < best) { best = d; suggestion = candidate; }
+        const std::string suggestion = suggest::closest(flag, known);
         if (helpCommand.empty()) helpCommand = "AtomForge --help " + mode;
         return "unknown option " + flag + " for " + mode + (suggestion.empty() ? "" : " (did you mean " + suggestion + "?)") +
                "; see " + helpCommand;

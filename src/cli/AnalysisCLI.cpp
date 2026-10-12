@@ -112,16 +112,11 @@ int runAnalysisCLI(int argc, char* argv[])
             if (arg.first!="--input" && arg.first!="--output" &&
                 !(arg.first=="--analyze" && selected!="convert") && !options.at(selected).count(arg.first))
             {
-                std::string known, suggestion;
-                std::size_t best=std::max<std::size_t>(1,(arg.first.size()-2)/3)+1;
-                for (const auto& option:options.at(selected)) {
-                    if (option=="--convert") continue;
-                    known+=(known.empty() ? "" : ", ")+option;
-                    if (const std::size_t d=cliOptions::distance(arg.first,option); d<best) { best=d; suggestion=option; }
-                }
+                std::vector<std::string> names;
+                for (const auto& option:options.at(selected))
+                    if (option!="--convert") names.push_back(option);
                 throw std::invalid_argument("Unsupported option for "+selected+": "+arg.first+
-                    (suggestion.empty() ? "" : " (did you mean "+suggestion+"?)")+
-                    (known.empty() ? "" : "; it takes "+known));
+                    suggest::didYouMean(arg.first,names)+(names.empty() ? "" : "; it takes "+suggest::list(names)));
             }
         Structure structure; std::string error;
         if (!loadStructureFromFile(args.at("--input"),structure,error)) throw std::runtime_error(error);
