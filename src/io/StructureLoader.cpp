@@ -1680,8 +1680,32 @@ static bool readXyz(const std::string& text, Structure& structure, std::string& 
     std::array<std::array<double, 3>, 3> cell{};
     if (readExtendedXyzLattice(commentText, cell))
     {
-        structure.hasUnitCell = true;
-        structure.cellVectors = cell;
+        // pbc="F F F" (a molecule in a box, as ASE writes it): no periodic
+        // cell, so the atoms are not wrapped into it.
+        bool periodic = true;
+        for (std::size_t at = commentText.find("pbc="); at != std::string::npos; at = commentText.find("pbc=", at + 1))
+        {
+            if (at > 0 && !std::isspace(static_cast<unsigned char>(commentText[at - 1]))) continue;
+            std::size_t start = at + 4;
+            const char quote = start < commentText.size() ? commentText[start] : ' ';
+            std::string value;
+            if (quote == '"' || quote == '\'')
+            {
+                const std::size_t close = commentText.find(quote, start + 1);
+                value = commentText.substr(start + 1, close == std::string::npos ? std::string::npos : close - start - 1);
+            }
+            else
+                value = commentText.substr(start, commentText.find_first_of(" \t", start) - start);
+            periodic = value.find_first_of("TtYy1") != std::string::npos;
+            break;
+        }
+        if (periodic)
+        {
+            structure.hasUnitCell = true;
+            structure.cellVectors = cell;
+        }
+        else
+            structure.loadNote = "The file's cell is not periodic (pbc=\"F F F\"), so the structure opens without a cell.";
     }
     return true;
 }
