@@ -44,6 +44,18 @@
 
 namespace
 {
+// "Opened cu_host.cif (500 atoms)." and, when they were saved with it, that
+// the crystal orientations came back too.
+std::string loadedMessage(const std::string& path, const Structure& structure)
+{
+    const std::size_t slash = path.find_last_of("/\\");
+    std::string message = "Opened " + (slash == std::string::npos ? path : path.substr(slash + 1)) + " (" +
+                          std::to_string(structure.atoms.size()) + (structure.atoms.size() == 1 ? " atom)." : " atoms).");
+    if (structure.ipfLoadStatus.rfind("IPF loaded", 0) == 0)
+        message += " Crystal orientations restored from the saved metadata.";
+    return message;
+}
+
 const glm::vec4 kDarkBackground(0.09f, 0.11f, 0.15f, 1.0f);
 const glm::vec4 kLightBackground(0.92f, 0.93f, 0.94f, 1.0f);
 
@@ -818,7 +830,7 @@ void loadStartupStructureIfRequested(StructureTab& tab, const std::string& start
     state.structure = std::move(loadedStructure);
     state.fileBrowser.initFromPath(startupStructurePath);
     state.fileBrowser.applyElementColorOverrides(state.structure);
-    state.fileBrowser.showLoadInfo(std::string("Structure loaded. ") + state.structure.ipfLoadStatus);
+    state.fileBrowser.showLoadInfo(loadedMessage(startupStructurePath, state.structure));
     updateBuffers(state);
     state.pendingDefaultViewReset = true;
     setTabTitleFromPath(tab, startupStructurePath);
@@ -1059,7 +1071,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             t.structure = std::move(newStructure);
             t.fileBrowser.initFromPath(path);
             t.fileBrowser.applyElementColorOverrides(t.structure);
-            t.fileBrowser.showLoadInfo(std::string("Structure loaded. ") + t.structure.ipfLoadStatus);
+            t.fileBrowser.showLoadInfo(loadedMessage(path, t.structure));
             updateBuffers(t);
             t.pendingDefaultViewReset = true;
             setTabTitleFromPath(*tabs[targetIdx], path);
