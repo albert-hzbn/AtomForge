@@ -35,3 +35,7 @@ void drawPolyhedralOverlay(ImDrawList* drawList,
                            const PolyhedralOverlaySettings& settings,
                            const std::vector<glm::vec3>& elementColors,
                            bool enabled);
+
+// True while the overlay is still building polyhedra (a few per frame), so
+// the main loop keeps drawing frames until they are all shown.
+bool polyhedralOverlayFilling();

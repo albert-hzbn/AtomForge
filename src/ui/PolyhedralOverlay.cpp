@@ -408,6 +408,16 @@ struct ProjectedFace
 };
 }
 
+namespace
+{
+bool g_polyhedraFilling = false;
+}
+
+bool polyhedralOverlayFilling()
+{
+    return g_polyhedraFilling;
+}
+
 void drawPolyhedralOverlay(ImDrawList* drawList,
                            const glm::mat4& projection,
                            const glm::mat4& view,
@@ -420,6 +430,7 @@ void drawPolyhedralOverlay(ImDrawList* drawList,
                            const std::vector<glm::vec3>& elementColors,
                            bool enabled)
 {
+    g_polyhedraFilling = false;
     if (!enabled || drawList == nullptr || structure.atoms.size() < 4)
         return;
 
@@ -547,6 +558,7 @@ void drawPolyhedralOverlay(ImDrawList* drawList,
     polyhedra.reserve(centerEntries.size());
     // Large structures fill progressively; orbit and pan never rebuild hulls.
     const auto end=std::min(centerEntries.size(),nextCenter+4);
+    g_polyhedraFilling = end < centerEntries.size();
     for (;nextCenter<end;++nextCenter)
     {
         const auto& entry=centerEntries[nextCenter];

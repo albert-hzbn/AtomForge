@@ -978,7 +978,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             for (int key = ImGuiKey_NamedKey_BEGIN; key < ImGuiKey_NamedKey_END && !keyDown; ++key)
                 keyDown = ImGui::IsKeyDown(static_cast<ImGuiKey>(key));
             const bool animating = FileBrowser::notificationsShowing() || state.fileBrowser.trajectoryPlaying() ||
-                                   (state.hasCloud() && !state.cloud->stats().complete);
+                                   (state.hasCloud() && !state.cloud->stats().complete) || polyhedralOverlayFilling();
             const double now = glfwGetTime();
             if (io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f || io.MouseWheel != 0.0f || io.MouseWheelH != 0.0f ||
                 ImGui::IsAnyMouseDown() || keyDown || io.WantTextInput || animating)
