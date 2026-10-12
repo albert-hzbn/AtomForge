@@ -67,8 +67,20 @@ inline std::string describeChange(const EditorSnapshot& before, const EditorSnap
     const std::size_t a = before.structure.atoms.size(), b = after.structure.atoms.size();
     const auto atoms = [](std::size_t n) { return std::to_string(n) + (n == 1 ? " atom" : " atoms"); };
     if (a == 0 && b > 0) return "load the structure";
-    if (b > a) return "add " + atoms(b - a);
-    if (b < a) return "delete " + atoms(a - b);
+    if (a != b) {
+        // Adding or deleting keeps the other atoms, in order; anything else
+        // (another frame, a builder's result) replaces the structure.
+        const auto& small = a < b ? before.structure.atoms : after.structure.atoms;
+        const auto& large = a < b ? after.structure.atoms : before.structure.atoms;
+        std::size_t matched = 0;
+        for (std::size_t i = 0; i < large.size() && matched < small.size(); ++i) {
+            const AtomSite& p = small[matched];
+            const AtomSite& q = large[i];
+            if (p.symbol == q.symbol && p.x == q.x && p.y == q.y && p.z == q.z) ++matched;
+        }
+        if (matched < small.size()) return "replace the structure (" + atoms(b) + ")";
+        return b > a ? "add " + atoms(b - a) : "delete " + atoms(a - b);
+    }
     std::size_t moved = 0, changed = 0;
     for (std::size_t i = 0; i < a; ++i) {
         const AtomSite& p = before.structure.atoms[i];
@@ -148,6 +160,17 @@ public:
     bool canUndo() const { return !m_history.empty() && m_index > 0; }
     // Identifies the current state: unchanged by undo/redo back to it, so a
     // document is unmodified while this equals the id recorded when saved.
+    // The history: entries 0..size()-1, the current one at index(); entry i
+    // was reached by description(i) ("" for the first).
+    std::size_t size() const { return m_history.size(); }
+    std::size_t index() const { return m_index; }
+    const std::string& description(std::size_t i) const { static const std::string none; return i < m_descriptions.size() ? m_descriptions[i] : none; }
+    const EditorSnapshot& jumpTo(std::size_t i)
+    {
+        if (!m_history.empty()) m_index = std::min(i, m_history.size() - 1);
+        return m_history[m_index];
+    }
+
     // What Undo and Redo would change ("" when unavailable).
     std::string undoDescription() const { return canUndo() && m_index < m_descriptions.size() ? m_descriptions[m_index] : std::string(); }
     std::string redoDescription() const { return canRedo() && m_index + 1 < m_descriptions.size() ? m_descriptions[m_index + 1] : std::string(); }

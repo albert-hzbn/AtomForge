@@ -418,6 +418,10 @@ struct FileBrowser
     void setLargeDatasetShown(bool shown) { largeDatasetShown = shown; }
     // What Undo and Redo would change, for their menu items and tooltips.
     void setUndoDescriptions(std::string undo, std::string redo) { undoDescription = std::move(undo); redoDescription = std::move(redo); }
+    // The undo history for Edit > History (oldest first) and the current step.
+    void setHistory(std::vector<std::string> steps, int current) { historySteps = std::move(steps); historyCurrent = current; }
+    // A step chosen in Edit > History (-1: none).
+    int consumeHistoryJump() { const int step = historyJump; historyJump = -1; return step; }
 
 private:
     // Main-window chrome (MainWindowChrome.cpp).
@@ -453,6 +457,8 @@ private:
     std::shared_ptr<TutorialCapture> tutorialCapture;
     bool largeDatasetShown = false;
     std::string undoDescription, redoDescription;
+    std::vector<std::string> historySteps;
+    int historyCurrent = 0, historyJump = -1;
     // Opens the Build, Edit or Analysis dialog of a pipeline step on that step.
     void openStepDialog(StepEdit request, EditMenuDialogs& editMenuDialogs);
     // ATOMFORGE_STEP_DIALOG_CHECK=REPORT: opens every pipeline step in its dialog in

@@ -624,6 +624,19 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
             requestUndo = true;
         if (ImGui::MenuItem(redoLabel.c_str(), "Ctrl+Y", false, canRedo))
             requestRedo = true;
+        // Every step of the history, newest first; choosing one undoes or
+        // redoes up to it.
+        forceTourSubmenu("History");
+        if (ImGui::BeginMenu("History", historySteps.size() > 1)) {
+            for (int step = static_cast<int>(historySteps.size()) - 1; step >= 0; --step) {
+                const std::string& what = historySteps[static_cast<std::size_t>(step)];
+                std::string label = step == 0 ? std::string("The opened structure") : what;
+                if (!label.empty()) label[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label[0])));
+                label += "##history" + std::to_string(step);
+                if (ImGui::MenuItem(label.c_str(), nullptr, step == historyCurrent)) historyJump = step;
+            }
+            ImGui::EndMenu();
+        }
         ImGui::Separator();
         if (ImGui::MenuItem("Box Select Mode", nullptr, &boxSelectMode) && boxSelectMode)
             lassoSelectMode = false;

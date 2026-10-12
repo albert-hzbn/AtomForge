@@ -374,6 +374,12 @@ void mergeFileBrowserRequests(EditorState& state,
 
 void handleUndoRedoRequest(EditorState& state, const FrameActionRequests& requests)
 {
+    if (const int step = state.fileBrowser.consumeHistoryJump(); step >= 0 && static_cast<std::size_t>(step) != state.undoRedo.index())
+    {
+        applySnapshot(state, state.undoRedo.jumpTo(static_cast<std::size_t>(step)));
+        std::cout << "[Operation] History: step " << step << std::endl;
+        return;
+    }
     if (requests.requestUndo && state.undoRedo.canUndo())
     {
         applySnapshot(state, state.undoRedo.undo());
@@ -1142,6 +1148,12 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         }
         state.fileBrowser.setLargeDatasetShown(state.hasCloud());
         state.fileBrowser.setUndoDescriptions(state.undoRedo.undoDescription(), state.undoRedo.redoDescription());
+        {
+            std::vector<std::string> history;
+            history.reserve(state.undoRedo.size());
+            for (std::size_t i = 0; i < state.undoRedo.size(); ++i) history.push_back(state.undoRedo.description(i));
+            state.fileBrowser.setHistory(std::move(history), static_cast<int>(state.undoRedo.index()));
+        }
         state.fileBrowser.draw(
             state.structure,
             state.editMenuDialogs,

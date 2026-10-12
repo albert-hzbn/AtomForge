@@ -65,6 +65,29 @@ int main()
         check(history.currentId() == saved, "Undoing back to the saved state leaves the document unmodified");
         check(!history.canUndo(), "Back at the start of the history");
 
+        // A different structure of another size replaces, not deletes.
+        {
+            UndoRedoManager other;
+            other.reset(snapshot(4));
+            EditorSnapshot frame = snapshot(2);
+            frame.structure.atoms[0].x = 9.0;
+            other.commit(frame);
+            check(other.undoDescription() == "replace the structure (2 atoms)", "Replace description: " + other.undoDescription());
+            EditorSnapshot removed = snapshot(4);
+            removed.structure.atoms.erase(removed.structure.atoms.begin() + 1);
+            other.commit(snapshot(4));
+            other.commit(removed);
+            check(other.undoDescription() == "delete 1 atom", "Deleting from the middle: " + other.undoDescription());
+        }
+
+        // Edit > History: jump to any step, forwards or back.
+        check(history.size() == 5 && history.description(4) == "delete 3 atoms" && history.description(0).empty(), "History list");
+        check(history.jumpTo(3).structure.atoms[3].symbol == "Ni" && history.index() == 3, "Jump forwards");
+        check(history.jumpTo(1).structure.atoms[0].r == 0.2f && history.index() == 1 && history.currentId() == saved,
+              "Jump back to a display-only step");
+        history.jumpTo(99);
+        check(history.index() == 4, "Jumps clamp to the last step");
+
         std::cout << "Undo history checks passed.\n";
         return 0;
     } catch (const std::exception& error) {
