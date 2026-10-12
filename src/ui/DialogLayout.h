@@ -6,6 +6,7 @@
 #include "ui/Fonts.h"
 #include "ui/ThemeUtils.h"
 #include "ui/ResponsiveLayout.h"
+#include "imgui_internal.h"
 
 #include <algorithm>
 #include <cstdarg>
@@ -197,6 +198,19 @@ inline void beginFooter(float width)
     if (width < available) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + available - width);
 }
 
+// Enter presses a dialog's primary button, unless something else takes it:
+// a text field (active this frame or the last, as Enter also confirms one),
+// keyboard navigation (Enter activates the focused item) or another window.
+inline bool defaultKeyPressed()
+{
+    const ImGuiContext& g = *ImGui::GetCurrentContext();
+    if (g.ActiveId != 0 || g.ActiveIdPreviousFrame != 0 || g.NavCursorVisible)
+        return false;
+    if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
+        return false;
+    return ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false);
+}
+
 // The common footer: [secondary] [primary], right-aligned (secondary nullptr:
 // the primary button alone). Returns 1 when the primary action is pressed, 2
 // for the secondary one, else 0.
@@ -212,6 +226,7 @@ inline int footer(const char* primary, const char* secondary = "Close", bool pri
     ImGui::BeginDisabled(!primaryEnabled);
     if (primaryButton(primary, ImVec2(std::max(minimum, ImGui::CalcTextSize(primary, nullptr, true).x + 2 * ImGui::GetStyle().FramePadding.x), 0))) result = 1;
     ImGui::EndDisabled();
+    if (result == 0 && primaryEnabled && defaultKeyPressed()) result = 1;
     return result;
 }
 
