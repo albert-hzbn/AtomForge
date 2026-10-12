@@ -805,6 +805,26 @@ static glm::mat3 rotationAligningDirectionToZ(const glm::vec3& fromDir)
     return glm::mat3(glm::rotate(glm::mat4(1.0f), angle, axis));
 }
 
+// The position of a reference atom rotated about the centre and moved by
+// whole cells, in double precision: the shape tests use single precision,
+// but the coordinates written keep the reference's digits (3.61, not
+// 3.6099999).
+static glm::dvec3 placeExactly(const AtomSite& atom, const glm::vec3& center, const glm::mat3& orientation,
+                               const Structure& reference, int ia, int ib, int ic)
+{
+    const glm::dvec3 origin(center);
+    const glm::dmat3 rotation(orientation);
+    glm::dvec3 offset(0.0);
+    if (ia || ib || ic)
+    {
+        const auto& cv = reference.cellVectors;
+        offset = (double)ia * glm::dvec3(cv[0][0], cv[0][1], cv[0][2]) +
+                 (double)ib * glm::dvec3(cv[1][0], cv[1][1], cv[1][2]) +
+                 (double)ic * glm::dvec3(cv[2][0], cv[2][1], cv[2][2]);
+    }
+    return origin + rotation * (glm::dvec3(atom.x, atom.y, atom.z) - origin + offset);
+}
+
 // -- Builder -----------------------------------------------------------------
 
 NanoBuildResult buildNanocrystal(Structure& structure,
@@ -920,9 +940,10 @@ NanoBuildResult buildNanocrystal(Structure& structure,
                                 continue;
 
                             AtomSite out = atom;
-                            out.x = (double)pos.x;
-                            out.y = (double)pos.y;
-                            out.z = (double)pos.z;
+                            const glm::dvec3 exact = placeExactly(atom, center, orientation, reference, ia, ib, ic);
+                            out.x = exact.x;
+                            out.y = exact.y;
+                            out.z = exact.z;
                             const int z = out.atomicNumber;
                             if (z >= 0 && z < (int)elementColors.size())
                             {
@@ -962,9 +983,10 @@ NanoBuildResult buildNanocrystal(Structure& structure,
                     continue;
 
                 AtomSite out = atom;
-                out.x = (double)pos.x;
-                out.y = (double)pos.y;
-                out.z = (double)pos.z;
+                const glm::dvec3 exact = placeExactly(atom, center, orientation, reference, 0, 0, 0);
+                out.x = exact.x;
+                out.y = exact.y;
+                out.z = exact.z;
                 const int z = out.atomicNumber;
                 if (z >= 0 && z < (int)elementColors.size())
                 {
@@ -1192,9 +1214,10 @@ NanoBuildResult buildNanocrystal(Structure& structure,
                         if (!isInsideShape(pos - center, params, modelVertices, modelIndices)) continue;
 
                         AtomSite out = atom;
-                        out.x = (double)pos.x;
-                        out.y = (double)pos.y;
-                        out.z = (double)pos.z;
+                        const glm::dvec3 exact = placeExactly(atom, center, orientation, reference, ia, ib, ic);
+                        out.x = exact.x;
+                        out.y = exact.y;
+                        out.z = exact.z;
                         const int z = out.atomicNumber;
                         if (z >= 0 && z < (int)elementColors.size()) {
                             out.r = elementColors[z].r;
@@ -1230,9 +1253,10 @@ NanoBuildResult buildNanocrystal(Structure& structure,
             const glm::vec3 pos = center + (orientation * localPos);
             if (!isInsideShape(pos - center, params, modelVertices, modelIndices)) continue;
             AtomSite out = atom;
-            out.x = (double)pos.x;
-            out.y = (double)pos.y;
-            out.z = (double)pos.z;
+            const glm::dvec3 exact = placeExactly(atom, center, orientation, reference, 0, 0, 0);
+            out.x = exact.x;
+            out.y = exact.y;
+            out.z = exact.z;
             int z = out.atomicNumber;
             if (z >= 0 && z < (int)elementColors.size()) {
                 out.r = elementColors[z].r;
