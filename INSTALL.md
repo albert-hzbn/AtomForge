@@ -155,7 +155,7 @@ cmake --build build-mingw -- -j1
 cpack --config build-mingw/CPackConfig.cmake -B build-mingw/package
 ```
 
-Output: `build-mingw/package/AtomForge-0.3.0-win64.zip`
+Output: `build-mingw/package/AtomForge-0.4.0-win64.zip`
 
 Contents:
 - `AtomForge.exe`

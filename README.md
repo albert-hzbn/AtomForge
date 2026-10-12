@@ -9,7 +9,7 @@
 <p align="center">
   <a href="https://github.com/albert-hzbn/AtomForge/releases/latest">Download AtomForge</a> ·
   <a href="docs/manual/AtomForge-manual.pdf">User manual</a> ·
-  <a href="https://github.com/albert-hzbn/AtomForge/releases/tag/v0.3.0">What's new</a> ·
+  <a href="https://github.com/albert-hzbn/AtomForge/releases/tag/v0.4.0">What's new</a> ·
   <a href="https://pypi.org/project/atomforge-py/">Python package</a>
 </p>
 
