@@ -950,7 +950,30 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                            && !state.fileBrowser.isLassoSelectModeEnabled();
         camera.allowOrbit  = !state.grabState.active;
 
-        glfwPollEvents();
+        // Idle: wait for input instead of redrawing continuously (at most
+        // 0.1 s, so background results still appear). Full speed while the
+        // user interacts (and a second after, for camera inertia), while
+        // something animates, and always in the review and capture modes.
+        {
+            static double lastActivity = 0.0;
+            static const bool harness = [] {
+                for (const char* mode : {"ATOMFORGE_UI_TOUR", "ATOMFORGE_TUTORIAL_CAPTURE", "ATOMFORGE_STEP_DIALOG_CHECK", "ATOMFORGE_CLOUD_BENCHMARK"})
+                    if (const char* value = std::getenv(mode); value && *value) return true;
+                return false;
+            }();
+            const ImGuiIO& io = ImGui::GetIO();
+            bool keyDown = false;
+            for (int key = ImGuiKey_NamedKey_BEGIN; key < ImGuiKey_NamedKey_END && !keyDown; ++key)
+                keyDown = ImGui::IsKeyDown(static_cast<ImGuiKey>(key));
+            const bool animating = FileBrowser::notificationsShowing() || state.fileBrowser.trajectoryPlaying() ||
+                                   (state.hasCloud() && !state.cloud->stats().complete);
+            const double now = glfwGetTime();
+            if (io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f || io.MouseWheel != 0.0f || io.MouseWheelH != 0.0f ||
+                ImGui::IsAnyMouseDown() || keyDown || io.WantTextInput || animating)
+                lastActivity = now;
+            if (harness || now - lastActivity < 1.0) glfwPollEvents();
+            else glfwWaitEventsTimeout(0.1);
+        }
 
         // Route app-level drops to the active tab
         for (auto& f : appPendingDrops)

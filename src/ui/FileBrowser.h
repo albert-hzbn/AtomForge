@@ -119,6 +119,8 @@ struct FileBrowser
     ProjectRequest drawProjectPicker();
     bool workspaceBusy() const { return electronicDialog.busy(); }
     bool trajectoryPlaying() const { return trajectoryDialog.isPlaying(); }
+    // Toasts are showing (they fade, so the window keeps redrawing).
+    static bool notificationsShowing() { return !notifications().empty(); }
     // The structure pipeline is writing its output (kept out of undo history).
     bool pipelineUpdating() const { return pipelineDialog.isUpdating(); }
     // Atoms selected in the view (set by the application each frame) and a
