@@ -105,6 +105,19 @@ Vec3 minimumImage(const Structure& s, Vec3 d)
 const char* kModes = "replace|add|subtract|intersect";
 #define MODE {"mode", "Combine with the current selection", "choice", "replace", kModes}
 
+// An element symbol in any case ("cu", "CU" -> "Cu"); throws for an unknown one.
+std::string standardElement(const std::string& name)
+{
+    std::string lower = name;
+    for (char& c : lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (int z = 1; z <= 118; ++z) {
+        std::string symbol = elementSymbol(z);
+        for (char& c : symbol) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (symbol == lower) return elementSymbol(z);
+    }
+    throw std::runtime_error("Unknown element " + name);
+}
+
 // ---------------------------------------------------------------- selection
 void selectElement(const Json& p, PipelineData& data)
 {
@@ -112,10 +125,7 @@ void selectElement(const Json& p, PipelineData& data)
     std::replace(list.begin(), list.end(), ',', ' ');
     std::istringstream in(list);
     std::vector<std::string> elements;
-    for (std::string e; in >> e;) {
-        if (!science::atomicNumber(e)) throw std::runtime_error("Unknown element " + e);
-        elements.push_back(e);
-    }
+    for (std::string e; in >> e;) elements.push_back(standardElement(e));
     if (elements.empty()) throw std::runtime_error("Name at least one element");
     std::vector<char> mask(data.structure.atoms.size(), 0);
     for (std::size_t i = 0; i < mask.size(); ++i)
@@ -244,9 +254,8 @@ void deleteSelected(const Json&, PipelineData& data)
 
 void assignElement(const Json& p, PipelineData& data)
 {
-    const std::string symbol = text(p, "assign-element", "element");
+    const std::string symbol = standardElement(text(p, "assign-element", "element"));
     const int z = science::atomicNumber(symbol);
-    if (!z) throw std::runtime_error("Unknown element " + symbol);
     float r = 1, g = 1, b = 1;
     getDefaultElementColor(z, r, g, b);
     const auto indices = targets(data, text(p, "assign-element", "target") == "selected", "assign-element");
@@ -299,9 +308,8 @@ void slice(const Json& p, PipelineData& data)
 
 void addAtom(const Json& p, PipelineData& data)
 {
-    const std::string symbol = text(p, "add-atom", "element");
+    const std::string symbol = standardElement(text(p, "add-atom", "element"));
     const int z = science::atomicNumber(symbol);
-    if (!z) throw std::runtime_error("Unknown element " + symbol);
     Vec3 position = vector(p, "add-atom", "position");
     if (flag(p, "add-atom", "fractional")) {
         requireCell(data, "A fractional position");
@@ -324,9 +332,8 @@ void addAtom(const Json& p, PipelineData& data)
 
 void insertInterstitials(const Json& p, PipelineData& data)
 {
-    const std::string symbol = text(p, "insert-interstitials", "element");
+    const std::string symbol = standardElement(text(p, "insert-interstitials", "element"));
     const int z = science::atomicNumber(symbol);
-    if (!z) throw std::runtime_error("Unknown element " + symbol);
     InterstitialVoidDetectionParams params;
     params.gridResolution = static_cast<int>(number(p, "insert-interstitials", "resolution"));
     params.minClearance = static_cast<float>(number(p, "insert-interstitials", "clearance"));
