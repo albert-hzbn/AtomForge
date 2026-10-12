@@ -1,5 +1,6 @@
 #include "algorithms/CommonNeighbourAnalysis.h"
 #include "algorithms/AngularDistributionAnalysis.h"
+#include "algorithms/InterstitialVoidAnalysis.h"
 #include "algorithms/RadialDistributionAnalysis.h"
 #include "algorithms/ShortRangeOrderAnalysis.h"
 #include "algorithms/VoronoiComputation.h"
@@ -126,6 +127,23 @@ int main()
             const float atoms = static_cast<float>(crystal.atoms.size());
             check(firstShell == 12.0f * atoms && secondShell == 6.0f * atoms,
                   "RDF must count all periodic images: 12 and 6 FCC neighbours");
+
+            // FCC interstitials: per atom one octahedral site (clearance a/2,
+            // six neighbours) and two tetrahedral sites (sqrt(3)/4 a, four).
+            InterstitialVoidDetectionParams voidParams;
+            voidParams.minClearance = 0.3f;
+            voidParams.minSeparation = 0.2f;
+            const auto voids = detectInterstitialVoidRegions(crystal, voidParams);
+            int octahedral = 0, tetrahedral = 0;
+            for (const auto& region : voids.regions) {
+                if (region.kind == InterstitialVoidKind::Octahedral && region.coordination == 6 &&
+                    std::abs(region.clearance - 0.5f) < 1e-3f) ++octahedral;
+                if (region.kind == InterstitialVoidKind::Tetrahedral && region.coordination == 4 &&
+                    std::abs(region.clearance - 0.4330f) < 1e-3f) ++tetrahedral;
+            }
+            check(octahedral == static_cast<int>(atoms) && tetrahedral == 2 * static_cast<int>(atoms) &&
+                  voids.regions.size() == 3 * crystal.atoms.size(),
+                  "FCC must give one octahedral and two tetrahedral sites per atom, centred");
         }
     }
 

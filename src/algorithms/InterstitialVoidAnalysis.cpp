@@ -130,6 +130,35 @@ std::vector<NeighborShellPoint> buildFirstNeighborShell(
     const float factor = std::max(1.02f, shellFactor);
     const float limit2 = std::max(0.0f, minD2) * factor * factor;
 
+    // In a cell narrower than the shell, one atom can sit in the shell more
+    // than once (the octahedral site of a single FCC cell has six neighbours
+    // but three atoms): add the other images within reach.
+    if (usePbc)
+    {
+        float width = std::numeric_limits<float>::max();
+        for (int k = 0; k < 3; ++k)
+        {
+            const glm::vec3 row(invCell[0][k], invCell[1][k], invCell[2][k]);
+            const float length = glm::length(row);
+            if (length > 0.0f) width = std::min(width, 1.0f / length);
+        }
+        if (2.0f * std::sqrt(limit2) > width)
+        {
+            const std::size_t count = near.size();
+            for (std::size_t n = 0; n < count; ++n)
+                for (int a = -1; a <= 1; ++a)
+                    for (int b = -1; b <= 1; ++b)
+                        for (int c = -1; c <= 1; ++c)
+                        {
+                            if (a == 0 && b == 0 && c == 0) continue;
+                            const glm::vec3 position = near[n].pos + cell * glm::vec3((float)a, (float)b, (float)c);
+                            const glm::vec3 delta = position - center;
+                            const float d2 = glm::dot(delta, delta);
+                            if (d2 <= limit2) near.push_back({d2, near[n].atomIndex, position});
+                        }
+        }
+    }
+
     std::vector<DistAtom> candidates;
     candidates.reserve(std::min((int)atomPos.size(), maxNeighborCount * 4));
     for (const DistAtom& da : near)
@@ -681,30 +710,55 @@ InterstitialVoidDetectionResult detectInterstitialVoidRegions(
         return a.radius > b.radius;
     });
 
-    for (const CandidateCenter& cand : centers)
-    {
-        const glm::vec3 center = cand.center;
-
+    const auto clearanceAt = [&](const glm::vec3& point) {
         float nearest2 = std::numeric_limits<float>::max();
         for (const glm::vec3& a : atomPos)
         {
-            const glm::vec3 d = minimumImageDelta(center - a, usePbc, cell, invCell);
+            const glm::vec3 d = minimumImageDelta(point - a, usePbc, cell, invCell);
             nearest2 = std::min(nearest2, glm::dot(d, d));
         }
-        const float clearance = std::sqrt(std::max(0.0f, nearest2));
+        return std::sqrt(std::max(0.0f, nearest2));
+    };
+    const auto shellAt = [&](const glm::vec3& point) {
+        std::vector<NeighborShellPoint> shell = buildFirstNeighborShell(
+            point, atomPos, usePbc, cell, invCell, neighborShell, maxNeighbor);
+        if ((int)shell.size() < 4)
+            shell = buildFirstNeighborShell(
+                point, atomPos, usePbc, cell, invCell,
+                std::max(1.5f, neighborShell), std::max(8, maxNeighbor));
+        return shell;
+    };
+
+    for (const CandidateCenter& cand : centers)
+    {
+        glm::vec3 center = cand.center;
+        float clearance = clearanceAt(center);
         if (clearance < minClear)
             continue;
 
-        std::vector<NeighborShellPoint> shell = buildFirstNeighborShell(
-            center, atomPos, usePbc, cell, invCell, neighborShell, maxNeighbor);
-        if ((int)shell.size() < 4)
-        {
-            shell = buildFirstNeighborShell(
-                center, atomPos, usePbc, cell, invCell,
-                std::max(1.5f, neighborShell), std::max(8, maxNeighbor));
-        }
+        std::vector<NeighborShellPoint> shell = shellAt(center);
         if ((int)shell.size() < 4)
             continue;
+
+        // Grid and bond-midpoint candidates lie near, not at, the site: move to
+        // the centre of the surrounding atoms when that is roomier (the
+        // octahedral and tetrahedral sites of a crystal are such centres).
+        {
+            glm::vec3 centroid(0.0f);
+            for (const NeighborShellPoint& sp : shell) centroid += sp.position;
+            centroid = wrapPointToCell(centroid / (float)shell.size(), usePbc, origin, cell, invCell);
+            const float refined = clearanceAt(centroid);
+            if (refined > clearance + 1e-4f)
+            {
+                std::vector<NeighborShellPoint> refinedShell = shellAt(centroid);
+                if ((int)refinedShell.size() >= 4)
+                {
+                    clearance = refined;
+                    shell = std::move(refinedShell);
+                    center = centroid;
+                }
+            }
+        }
 
         std::vector<std::array<int, 3>> faces;
         std::vector<std::array<glm::vec3, 3>> faceVertices;
