@@ -1846,6 +1846,7 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
     conv.AddOption("b", OpenBabel::OBConversion::INOPTIONS);
 
     bool read = false;
+    bool selectiveDynamics = false;
     bool xyzLattice = false;
     std::array<std::array<double, 3>, 3> xyzCell{};
     if (extLower == ".xyz" || extLower == ".extxyz")
@@ -1859,6 +1860,21 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
     {
         std::ifstream in(filename, std::ios::binary);
         std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        // Selective dynamics: the line after the counts starts with S. The
+        // flags are not kept, which a relaxation of the saved file would miss.
+        {
+            std::istringstream lines(text);
+            std::string line;
+            for (int n = 0; n < 9 && std::getline(lines, line); ++n)
+            {
+                const std::size_t first = line.find_first_not_of(" \t");
+                if (n >= 6 && first != std::string::npos && (line[first] == 'S' || line[first] == 's'))
+                {
+                    selectiveDynamics = true;
+                    break;
+                }
+            }
+        }
         if (normalizePoscar(text))
         {
             // Open Babel's VASP reader needs a file, not a string.
@@ -1956,6 +1972,9 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
     }
 
     resolvePartialOccupancy(structure, occupancies);
+    if (selectiveDynamics)
+        structure.loadNote += std::string(structure.loadNote.empty() ? "" : " ") +
+                              "The file's selective-dynamics flags (fixed atoms) are not kept; saving writes every atom free to move.";
     return finishLoadedStructure(filename, structure, errorMessage);
 }
 
