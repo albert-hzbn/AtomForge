@@ -1989,7 +1989,6 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
             return false;
         }
         const glm::dmat3 toFractional = glm::inverse(cell);
-        const glm::dvec3 origin(structure.cellOffset[0], structure.cellOffset[1], structure.cellOffset[2]);
         const double la = glm::length(cell[0]), lb = glm::length(cell[1]), lc = glm::length(cell[2]);
         const auto angle = [](const glm::dvec3& u, const glm::dvec3& v) {
             const double cosine = std::max(-1.0, std::min(1.0, glm::dot(u, v) / (glm::length(u) * glm::length(v))));
@@ -2011,7 +2010,7 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
         for (const auto& site : structure.atoms)
         {
             const std::string symbol = site.symbol.empty() ? std::string(elementSymbol(site.atomicNumber)) : site.symbol;
-            const glm::dvec3 f = toFractional * (glm::dvec3(site.x, site.y, site.z) - origin);
+            const glm::dvec3 f = toFractional * glm::dvec3(site.x, site.y, site.z);
             const std::string label = symbol + std::to_string(++serial[symbol]);
             std::snprintf(buffer, sizeof(buffer), "%-7s %-3s %16.12f %16.12f %16.12f 1\n", label.c_str(), symbol.c_str(),
                           clean(f.x), clean(f.y), clean(f.z));
@@ -2225,7 +2224,6 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
             return false;
         }
         const glm::dmat3 toFractional = glm::inverse(cell);
-        const glm::dvec3 origin(written.cellOffset[0], written.cellOffset[1], written.cellOffset[2]);
         std::vector<int> elements;
         for (const auto& site : written.atoms)
             if (std::find(elements.begin(), elements.end(), site.atomicNumber) == elements.end()) elements.push_back(site.atomicNumber);
@@ -2251,7 +2249,7 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
             for (const auto& site : written.atoms)
             {
                 if (site.atomicNumber != z) continue;
-                const glm::dvec3 f = toFractional * (glm::dvec3(site.x, site.y, site.z) - origin);
+                const glm::dvec3 f = toFractional * glm::dvec3(site.x, site.y, site.z);
                 std::snprintf(buffer, sizeof(buffer), "  %16.12f %16.12f %16.12f\n", clean(f.x), clean(f.y), clean(f.z));
                 out << buffer;
             }
