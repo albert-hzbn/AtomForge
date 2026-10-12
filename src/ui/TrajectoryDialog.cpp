@@ -15,7 +15,7 @@
 
 void TrajectoryDialog::drawMenuItem()
 {
-    if (ImGui::MenuItem("Trajectory playback")) open=true;
+    if (ImGui::MenuItem("Trajectory Playback")) open=true;
 }
 
 const std::vector<std::pair<std::string, std::string>>& TrajectoryDialog::frameAnalyses()
@@ -124,7 +124,7 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
         return;
     }
     ImGui::SetNextWindowSizeConstraints(ImVec2(responsive::dp(560),0),ImVec2(responsive::dp(560),FLT_MAX));
-    if (responsive::begin("Trajectory playback",&open,ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (responsive::begin("Trajectory Playback###Trajectory playback",&open,ImGuiWindowFlags_NoCollapse|ImGuiWindowFlags_AlwaysAutoResize)) {
         const bool exporting=gifFrame>=0;
         ImGui::BeginDisabled(task.running() || exporting);
         if (responsive::button("Open trajectory")) picker.open("Open trajectory (XYZ/extXYZ, XDATCAR, POSCAR or LAMMPS dump)",false,"trajectory.xyz");

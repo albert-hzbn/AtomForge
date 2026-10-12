@@ -256,7 +256,7 @@ int main()
             }
             if (shown.atoms.size() != 8 || updates != 1) throw std::runtime_error("Pipeline output in the view (" + std::to_string(shown.atoms.size()) + " atoms)");
             if (panel.editor().input().atoms.size() != 4) throw std::runtime_error("Pipeline input kept");
-            if (!ImGui::FindWindowByName("Structure pipeline") || !ImGui::FindWindowByName("Structure pipeline")->WasActive)
+            if (!ImGui::FindWindowByName("###Structure pipeline") || !ImGui::FindWindowByName("###Structure pipeline")->WasActive)
                 throw std::runtime_error("Pipeline panel not shown");
             // Editing re-evaluates on the next frame; the project snapshot round-trips.
             panel.editor().setEnabled(2, false);
@@ -348,7 +348,7 @@ int main()
                 ImGui::NewFrame();
                 ImGui::SetNextWindowPos(ImVec2(0, 0));
                 ImGui::SetNextWindowSize(ImVec2(700, windowHeight));
-                ImGui::SetWindowSize("Structure pipeline", ImVec2(700, windowHeight));
+                ImGui::SetWindowSize("###Structure pipeline", ImVec2(700, windowHeight));
                 panel.draw(shown, [](Structure&) {});
                 ImGui::Render();
             };
@@ -443,7 +443,7 @@ int main()
             for (int k = 0; k < 3; ++k) frame();
             const auto steps = panel.editor().size();
             const ImVec2 grip0 = centre("grip 0");
-            const auto list = ImGui::FindWindowByName("Structure pipeline");
+            const auto list = ImGui::FindWindowByName("###Structure pipeline");
             if (!list) throw std::runtime_error("Pipeline window");
             float listBottom = 0;
             for (ImGuiWindow* w : ImGui::GetCurrentContext()->Windows)

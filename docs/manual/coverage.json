@@ -752,7 +752,7 @@
     },
     {
       "source": "src/app/LargeData.cpp",
-      "sha256": "f1969332a76bbff8d8e860f4b761967fb0372cfcdd509cebebdc560b2ef43658",
+      "sha256": "e0a2c20892a9cdfe13032f4c629f3f9e83de68e077f00ebf11d7df2642922fa1",
       "documentation": [
         "04-analysis.tex",
         "08-python.tex",
@@ -1832,7 +1832,7 @@
     },
     {
       "source": "src/ui/CommandPalette.cpp",
-      "sha256": "6405696b321219e510f8bed2b84331957f0eda94f9b6c29bdea2ace6437d3717",
+      "sha256": "0ab2a16e11d62fc307d381675ee97aeb55f7ce583155e9af375ae2a1f92afc5f",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2575,7 +2575,7 @@
     },
     {
       "source": "src/ui/ElectronicPostProcessing.cpp",
-      "sha256": "3a9ea2d6f12fc604f292fe708b43dd1aab9404eb8d558c1c9e90d50554f5d922",
+      "sha256": "501999a6578c2a2aecba9e799f007540557a7e3f74c25b9fe4cdda2eda5bb2d6",
       "documentation": [
         "05-electronic.tex",
         "06-charge.tex",
@@ -2606,7 +2606,7 @@
         },
         {
           "line": 257,
-          "declaration_label": "Electronic Post-processing"
+          "declaration_label": "Electronic Post-Processing"
         },
         {
           "line": 320,
@@ -2953,7 +2953,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "ee59fabd811ab4da7d268d2364d40ee6c57051f60886adccc01141806205090b",
+      "sha256": "628d3cbb99d647a59d317e3f183aa6d71ae5fb721e4a7c65a6fcae70454a13bf",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4433,7 +4433,7 @@
     },
     {
       "source": "src/ui/PipelineDialog.cpp",
-      "sha256": "de1fa0bb14df785d04b3e4f4c73f09645046a992163a895e06f8d9be8263f2de",
+      "sha256": "8aabda85e4f11bc91a9f35f0b0edc563157c5fde329568e7f5f49a6d5a579255",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -4441,7 +4441,7 @@
       "literal_controls": [
         {
           "line": 83,
-          "declaration_label": "Structure pipeline"
+          "declaration_label": "Structure Pipeline"
         },
         {
           "line": 160,
@@ -5254,7 +5254,7 @@
     },
     {
       "source": "src/ui/TrajectoryDialog.cpp",
-      "sha256": "f9c8b6ab5ab64fb61c0ec5c515e49e810fb9acdab78eb5f8c20e3d39f6054890",
+      "sha256": "ac052f38395cda81b2c127abd64edc9ef5103220b3cfb9f2c146e85268246c68",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -5262,7 +5262,7 @@
       "literal_controls": [
         {
           "line": 18,
-          "declaration_label": "Trajectory playback"
+          "declaration_label": "Trajectory Playback"
         },
         {
           "line": 130,
@@ -5366,7 +5366,7 @@
     },
     {
       "source": "src/ui/TutorialCapture.cpp",
-      "sha256": "d6f7fece5f4065f8e91bcf6d264c7974524887ab0ca79610161fec6b5021f638",
+      "sha256": "b84f792feb21eb65a4e806bce6e9aa113897a5fa4558ee66775ed623c71a8c84",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

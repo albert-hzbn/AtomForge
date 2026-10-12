@@ -254,7 +254,7 @@ void ElectronicPostProcessingDialog::remember()
 
 void ElectronicPostProcessingDialog::drawMenuItem()
 {
-    if (ImGui::MenuItem("Electronic Post-processing")) m_open = true;
+    if (ImGui::MenuItem("Electronic Post-Processing")) m_open = true;
 }
 
 void ElectronicPostProcessingDialog::feedDroppedFile(const std::string& path)
@@ -312,7 +312,7 @@ void ElectronicPostProcessingDialog::drawDialog()
     }
     responsive::windowSize(ImVec2(1380,860),ImGuiCond_FirstUseEver);
     responsive::windowConstraints(ImVec2(980,680),ImVec2(FLT_MAX,FLT_MAX));
-    if (!responsive::begin("Electronic Post-processing",&m_open,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
+    if (!responsive::begin("Electronic Post-Processing###Electronic Post-processing",&m_open,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
     const bool stackPanels = responsive::stacked(1000);
     const float sidebar = stackPanels ? ImGui::GetContentRegionAvail().x : std::clamp(ImGui::GetContentRegionAvail().x * .42f, responsive::dp(420), responsive::dp(540));
     responsive::beginChild("Electronic controls",ImVec2(sidebar,stackPanels ? responsive::dp(420) : 0),true);

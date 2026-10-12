@@ -1554,7 +1554,7 @@
         {
           "id": "electronic-volume",
           "title": "Compare electronic volume and surface views",
-          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic structure > Electronic Post-processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
+          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic structure > Electronic Post-Processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
           "images": [
             {
               "file": "electronic-volume.png",
@@ -1572,7 +1572,7 @@
         {
           "id": "electronic-plane",
           "title": "Choose a 2D intersection and its guide",
-          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic structure > Electronic Post-processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
+          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic structure > Electronic Post-Processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
           "images": [
             {
               "file": "electronic-arbitrary.png",
@@ -1590,7 +1590,7 @@
         {
           "id": "electronic-operations",
           "title": "Run charge-transfer and general operations",
-          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic structure > Electronic Post-processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
+          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic structure > Electronic Post-Processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
           "images": [
             {
               "file": "electronic-volume.png",

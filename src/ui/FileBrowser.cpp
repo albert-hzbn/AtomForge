@@ -2267,7 +2267,7 @@ void FileBrowser::drawAtomPropertySettings(Structure& structure, const std::func
     responsive::windowSize(ImVec2(360, 250), ImGuiCond_FirstUseEver);
     // At the top left of the view, clear of the dialog that produced the values.
     ImGui::SetNextWindowPos(ImVec2(responsive::dp(16), ImGui::GetFrameHeight() * 4.5f), ImGuiCond_FirstUseEver);
-    if (!responsive::begin("Atom property colouring", nullptr, ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
+    if (!responsive::begin("Atom Property Colouring###Atom property colouring", nullptr, ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
     ImGui::TextWrapped("%s", structure.atomPropertyName.empty() ? "Per-atom property" : structure.atomPropertyName.c_str());
     const auto range = atomforge::science::finiteRange(structure.atomProperty);
     std::size_t valid = 0;

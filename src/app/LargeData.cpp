@@ -202,7 +202,7 @@ void drawCloudPanel(CloudRenderer& cloudRenderer, float frameMilliseconds)
     const auto& info = cloudRenderer.info();
     ImGui::SetNextWindowPos(ImVec2(12, ImGui::GetIO().DisplaySize.y - ImGui::GetFrameHeight() - 20), ImGuiCond_FirstUseEver, ImVec2(0, 1));
     ImGui::SetNextWindowSize(ImVec2(responsive::dp(430), 0), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Large dataset", nullptr, ImGuiWindowFlags_NoCollapse)) {
+    if (ImGui::Begin("Large Dataset###Large dataset", nullptr, ImGuiWindowFlags_NoCollapse)) {
         ImGui::TextUnformatted(cloudRenderer.path().filename().u8string().c_str());
         if (!info.source.empty()) ImGui::TextDisabled("%s", info.source.c_str());
         ImGui::Text("%s atoms in %zu chunks", count(stats.totalAtoms).c_str(), stats.chunks);

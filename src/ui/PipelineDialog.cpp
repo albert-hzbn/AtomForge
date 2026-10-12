@@ -80,7 +80,7 @@ void PipelineDialog::addSteps(const std::vector<atomforge::pipeline::Modifier>& 
 
 void PipelineDialog::drawMenuItem(bool hasStructure)
 {
-    if (ImGui::MenuItem("Structure pipeline", nullptr, m_open)) m_open = true;
+    if (ImGui::MenuItem("Structure Pipeline", nullptr, m_open)) m_open = true;
     if (ImGui::IsItemHovered() && !hasStructure) ImGui::SetTooltip("Load a structure first; the pipeline edits a copy of it.");
 }
 
@@ -527,7 +527,7 @@ void PipelineDialog::draw(Structure& structure, const std::function<void(Structu
     if (!m_open) return;
     m_controls.clear();
     responsive::windowSize(ImVec2(560, 760), ImGuiCond_FirstUseEver);
-    if (responsive::begin("Structure pipeline", &m_open, ImGuiWindowFlags_NoCollapse)) {
+    if (responsive::begin("Structure Pipeline###Structure pipeline", &m_open, ImGuiWindowFlags_NoCollapse)) {
         ImGui::PushTextWrapPos(0.0f);
         ImGui::TextDisabled("Modifiers transform a copy of the structure in order, like a shell pipe; the input is kept, so steps can be edited, bypassed, reordered or removed at any time.");
         ImGui::PopTextWrapPos();

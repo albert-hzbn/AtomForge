@@ -104,7 +104,7 @@ void FileBrowser::drawCommandPalette(Structure& structure, EditMenuDialogs& edit
     add("Edit", "Transform Structure", [this] { transformDialog.open(); }, structure.hasUnitCell);
     add("Edit", "Merge Structures", [this] { mergeStructuresDialog.open(); });
     add("Edit", "Cell Sculptor", [this] { cellSculptorDialog.open(); });
-    add("Edit", "Structure pipeline", [this] { pipelineDialog.show(); }, atoms);
+    add("Edit", "Structure Pipeline", [this] { pipelineDialog.show(); }, atoms);
     add("Edit", "Box Select Mode", [this] { boxSelectMode = !boxSelectMode; if (boxSelectMode) lassoSelectMode = false; });
     add("Edit", "Lasso Select Mode", [this] { lassoSelectMode = !lassoSelectMode; if (lassoSelectMode) boxSelectMode = false; });
     for (const auto& location : menuLocations()) {
@@ -119,8 +119,8 @@ void FileBrowser::drawCommandPalette(Structure& structure, EditMenuDialogs& edit
     add("Analysis > Structure and defects", "Angular Distribution Function", [this] { angularDistributionDialog.open(); }, atoms);
     add("Analysis > Structure and defects", "Short-Range Order (SRO)", [this] { shortRangeOrderDialog.openRequested = true; }, atoms);
     add("Analysis > Structure and defects", "Dislocation Post-Processing", [this] { dislocationAnalysisDialog.open(); });
-    add("Analysis > Trajectories and transport", "Trajectory playback", [this] { trajectoryDialog.show(); });
-    add("Analysis > Electronic structure", "Electronic Post-processing", [this] { electronicDialog.open(); });
+    add("Analysis > Trajectories and transport", "Trajectory Playback", [this] { trajectoryDialog.show(); });
+    add("Analysis > Electronic structure", "Electronic Post-Processing", [this] { electronicDialog.open(); });
     add("Analysis > Electronic structure", "Wannier Analysis", [this] { wannierDialog.open(); });
     add("Analysis > Electronic structure", "LOBSTER Bonding Analysis", [this] { lobsterDialog.open(); });
     for (const auto& tool : scienceToolCatalog()) {

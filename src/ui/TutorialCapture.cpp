@@ -246,9 +246,9 @@ void FileBrowser::runTutorialCapture(Structure& current, EditMenuDialogs& dialog
         if (std::filesystem::exists(c.chgcar)) {
             const std::string chgcar = c.chgcar.u8string();
             s.push_back(Shot{"electronic-volume.png", {{0, [this](Context&) { electronicDialog.open(); }}, {4, [this, chgcar](Context&) { electronicDialog.feedDroppedFile(chgcar); }}},
-                             400, [] { return windowRect("Electronic Post-processing"); }});
+                             400, [] { return windowRect("###Electronic Post-processing"); }});
             s.push_back(Shot{"electronic-arbitrary.png", {{0, [this](Context&) { electronicDialog.open(); }}, {6, script("electronic.arbitrary")}},
-                             120, [] { return windowRect("Electronic Post-processing"); }});
+                             120, [] { return windowRect("###Electronic Post-processing"); }});
         }
     }
     auto& c = *tutorialCapture;
