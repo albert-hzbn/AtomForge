@@ -132,6 +132,12 @@ int main()
         const Pipeline keyed = Pipeline::parse("select-slab axis=c minimum=0.25 maximum=0.75 mode=add | replicate counts=3,1,1");
         check(keyed.modifiers[0].parameters.at("axis").string() == "c" && keyed.modifiers[0].parameters.at("mode").string() == "add", "key=value");
         check(keyed.modifiers[1].parameters.at("counts").items()[0].number() == 3, "comma vector");
+        // A misspelt name is reported as such, with the closest name.
+        for (const char* misspelt : {"replicate count=2,2,2", "replicat 2 2 2"}) {
+            std::string message;
+            try { Pipeline::parse(misspelt); } catch (const std::exception& error) { message = error.what(); }
+            check(message.find("did you mean") != std::string::npos, std::string("suggestion for ") + misspelt + ": " + message);
+        }
         const Pipeline quoted = Pipeline::parse("select-expression 'element == \"O\" && x > 1' mode=intersect");
         check(quoted.modifiers[0].parameters.at("expression").string() == "element == \"O\" && x > 1", "quoted expression");
         // A named rest-of-step value keeps its following words, up to the next name=value.

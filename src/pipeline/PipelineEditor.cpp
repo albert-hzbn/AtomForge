@@ -104,7 +104,7 @@ void PipelineEditor::setParameter(std::size_t index, const std::string& name, co
     const ModifierType* type = findModifierType(m.type);
     bool known = false;
     for (const auto& p : type->parameters) known = known || name == p.name;
-    if (!known) throw std::runtime_error(m.type + " has no parameter " + name);
+    if (!known) throw std::runtime_error(m.type + " has no parameter " + name + parameterHint(*type, name));
     m.parameters[name] = value;
     changed(index);
 }

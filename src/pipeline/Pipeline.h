@@ -54,6 +54,8 @@ struct ModifierType
 };
 
 const std::vector<ModifierType>& modifierTypes();
+// For an error about an unknown parameter: " (did you mean x?); it takes a, b".
+std::string parameterHint(const ModifierType& type, const std::string& name);
 const ModifierType* findModifierType(const std::string& id);
 // Adds (or replaces, by id) a modifier type. The desktop and command line
 // register the Build and Edit operations this way; call it at start-up, before

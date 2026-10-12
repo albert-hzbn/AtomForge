@@ -1,4 +1,5 @@
 #include "pipeline/Pipeline.h"
+#include "util/Suggest.h"
 #include "util/TaskControl.h"
 
 #include <algorithm>
@@ -17,6 +18,14 @@ std::size_t PipelineData::selectedCount() const
     return static_cast<std::size_t>(std::count(selected.begin(), selected.end(), 1));
 }
 
+std::string parameterHint(const ModifierType& type, const std::string& name)
+{
+    std::vector<std::string> names;
+    for (const auto& p : type.parameters) names.push_back(p.name);
+    if (names.empty()) return "; it takes none";
+    return suggest::didYouMean(name, names) + "; it takes " + suggest::list(names);
+}
+
 const ModifierType* findModifierType(const std::string& id)
 {
     for (const auto& type : modifierTypes())
@@ -29,7 +38,9 @@ namespace
 const ModifierType& requireType(const std::string& id)
 {
     if (const ModifierType* type = findModifierType(id)) return *type;
-    throw std::runtime_error("Unknown modifier '" + id + "'");
+    std::vector<std::string> ids;
+    for (const auto& type : modifierTypes()) ids.push_back(type.id);
+    throw std::runtime_error("Unknown modifier '" + id + "'" + suggest::didYouMean(id, ids));
 }
 
 const ModifierParameter* findParameter(const ModifierType& type, const std::string& name)
@@ -162,7 +173,7 @@ Json parameter(const Json& parameters, const ModifierType& type, const std::stri
 {
     if (const Json* value = parameters.find(name)) return *value;
     const ModifierParameter* p = findParameter(type, name);
-    if (!p) throw std::runtime_error(std::string(type.id) + " has no parameter " + name);
+    if (!p) throw std::runtime_error(std::string(type.id) + " has no parameter " + name + parameterHint(type, name));
     return valueFor(*p, p->value);
 }
 
@@ -246,7 +257,7 @@ Pipeline Pipeline::fromJson(const Json& json)
         if (const Json* parameters = item.find("parameters"); parameters && parameters->isObject())
             for (const auto& [name, value] : parameters->members()) {
                 const ModifierParameter* p = findParameter(type, name);
-                if (!p) throw std::runtime_error(modifier.type + " has no parameter " + name);
+                if (!p) throw std::runtime_error(modifier.type + " has no parameter " + name + parameterHint(type, name));
                 // Values are validated through the text form, which checks kinds and choices.
                 modifier.parameters[name] = valueFor(*p, value.isString() ? value.string() : textFor(*p, value));
             }
@@ -315,6 +326,12 @@ Pipeline Pipeline::parse(const std::string& text)
             if (positional >= type.parameters.size()) throw std::runtime_error(std::string(type.id) + ": too many values (" + pending[t] + ")");
             const ModifierParameter& p = type.parameters[positional++];
             const std::string kind = p.kind;
+            // name=value with a name the step does not have (count=2,2,2 for
+            // counts=...) is a misspelt parameter, not a value.
+            if (const auto equals = pending[t].find('='); !takesRest(kind) && equals != std::string::npos && equals > 0 &&
+                pending[t].find_first_not_of("abcdefghijklmnopqrstuvwxyz_") == equals)
+                throw std::runtime_error(std::string(type.id) + " has no parameter " + pending[t].substr(0, equals) +
+                                         parameterHint(type, pending[t].substr(0, equals)));
             std::string value;
             if (takesRest(kind)) {  // the rest of the step
                 value = joinRest(kind, "", pending, t);

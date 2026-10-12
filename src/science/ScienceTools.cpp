@@ -1,4 +1,5 @@
 #include "science/ScienceTools.h"
+#include "util/Suggest.h"
 #include "science/Analysis.h"
 #include "science/LammpsExport.h"
 #include "science/Symmetry.h"
@@ -29,7 +30,10 @@ namespace
 const ScienceToolDef& definition(const std::string& tool)
 {
     if (const ScienceToolDef* found = findScienceTool(tool)) return *found;
-    throw std::runtime_error("Unknown scientific tool: " + tool);
+    std::vector<std::string> ids;
+    for (const auto& known : scienceToolCatalog()) ids.push_back(known.id);
+    throw std::runtime_error("Unknown scientific tool: " + tool + suggest::didYouMean(tool, ids) +
+                             "; AtomForge --science --help lists them");
 }
 
 void validateKeys(const ScienceToolDef& tool, const Json& request)
@@ -38,7 +42,9 @@ void validateKeys(const ScienceToolDef& tool, const Json& request)
     std::set<std::string> known;
     for (const auto& parameter : tool.parameters) known.insert(parameter.name);
     for (const auto& member : request.members())
-        if (!known.count(member.first)) throw std::runtime_error(std::string(tool.id) + " has no parameter '" + member.first + "'");
+        if (!known.count(member.first))
+            throw std::runtime_error(std::string(tool.id) + " has no parameter '" + member.first + "'" +
+                                     suggest::didYouMean(member.first, known) + "; it takes " + suggest::list(known));
     for (const auto& parameter : tool.parameters)
         if (parameter.required && !request.contains(parameter.name))
             throw std::runtime_error(std::string(tool.id) + " requires parameter '" + parameter.name + "'");
