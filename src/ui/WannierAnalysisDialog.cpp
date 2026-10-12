@@ -84,7 +84,7 @@ void WannierAnalysisDialog::drawDialog()
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f);
     ImGui::InputInt("Samples per segment",&m_samplesPerSegment);
     ImGui::BeginDisabled(m_bandsTask.running());
-    if (dialogLayout::primaryButton("Compute bands",ImVec2(-FLT_MIN,0)))
+    if (dialogLayout::primaryButton("Compute Bands",ImVec2(-FLT_MIN,0)))
     {
         const std::string text(m_kpath); const int samples=std::clamp(m_samplesPerSegment,1,2000); const auto model=m_model;
         m_bandsTask.start([=]
@@ -102,7 +102,7 @@ void WannierAnalysisDialog::drawDialog()
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::InputFloat3("k-point",m_curvatureK);
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::Combo("Plane",&m_curvaturePlane,"kx-ky\0kx-kz\0ky-kz\0");
     ImGui::BeginDisabled(m_curvatureTask.running());
-    if (dialogLayout::primaryButton("Compute curvature",ImVec2(-FLT_MIN,0)))
+    if (dialogLayout::primaryButton("Compute Curvature",ImVec2(-FLT_MIN,0)))
     {
         const glm::dvec3 k(m_curvatureK[0],m_curvatureK[1],m_curvatureK[2]);
         const int planeA=std::array<int,3>{0,0,1}[m_curvaturePlane], planeB=std::array<int,3>{1,2,2}[m_curvaturePlane];

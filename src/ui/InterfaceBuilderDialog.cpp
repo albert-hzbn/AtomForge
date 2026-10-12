@@ -1264,7 +1264,7 @@ void InterfaceBuilderDialog::drawDialog(
     if (m_step.active())
     {
         // Without a picked match the step builds the best one (--pick 0).
-        if (responsive::button("Update step##iface", responsive::size(120.0f,0.0f)))
+        if (responsive::button("Update Step##iface", responsive::size(120.0f,0.0f)))
         {
             m_step.commitOptions(stepOptions());
             m_step.finish();

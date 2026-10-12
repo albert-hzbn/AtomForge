@@ -52,11 +52,11 @@ void DislocationAnalysisDialog::drawDialog()
 
     dialogLayout::section("Structures");
     ImGui::TextWrapped("Both structures need the same atom count and ordering (e.g. a perfect crystal and the same crystal after inserting a dislocation).");
-    if (responsive::button("Open reference (undeformed)", ImVec2(-FLT_MIN, 0))) m_referencePicker.open("Open reference structure", false, m_referencePath);
+    if (responsive::button("Open Reference (Undeformed)", ImVec2(-FLT_MIN, 0))) m_referencePicker.open("Open reference structure", false, m_referencePath);
     if (m_referenceLoaded)
         ImGui::TextWrapped("Reference: %s (%zu atoms)", std::filesystem::u8path(m_referencePath).filename().u8string().c_str(), m_reference.atoms.size());
     if (!m_referenceError.empty()) ImGui::TextWrapped("%s", m_referenceError.c_str());
-    if (responsive::button("Open deformed", ImVec2(-FLT_MIN, 0))) m_deformedPicker.open("Open deformed structure", false, m_deformedPath);
+    if (responsive::button("Open Deformed", ImVec2(-FLT_MIN, 0))) m_deformedPicker.open("Open deformed structure", false, m_deformedPath);
     if (m_deformedLoaded)
         ImGui::TextWrapped("Deformed: %s (%zu atoms)", std::filesystem::u8path(m_deformedPath).filename().u8string().c_str(), m_deformed.atoms.size());
     if (!m_deformedError.empty()) ImGui::TextWrapped("%s", m_deformedError.c_str());
@@ -103,7 +103,7 @@ void DislocationAnalysisDialog::drawDialog()
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::DragFloat("Angle threshold (deg)##pattern", &m_patternAngleThreshold, 0.2f, 0.5f, 90.0f, "%.1f"); dialogLayout::hint("Largest bond-direction deviation (degrees) that still matches the reference pattern; atoms beyond it are flagged.");
     ImGui::Checkbox("Ignore periodicity##pattern", &m_patternNoPbc); dialogLayout::hint("Treat both structures as finite: neighbours are not found through periodic images.");
     ImGui::BeginDisabled(m_patternBuildTask.running() || m_patternDetectTask.running());
-    if (dialogLayout::primaryButton("Build pattern + detect", ImVec2(-FLT_MIN, 0)))
+    if (dialogLayout::primaryButton("Build Pattern + Detect", ImVec2(-FLT_MIN, 0)))
     {
         const Structure reference = m_reference, deformed = m_deformed;
         const float cutoff = m_patternCutoff; const bool usePbc = !m_patternNoPbc;
@@ -145,7 +145,7 @@ void DislocationAnalysisDialog::drawDialog()
     if (!m_dragTask.error().empty()) ImGui::TextWrapped("%s", m_dragTask.error().c_str());
     if (m_dragResult.success)
     {
-        if (responsive::button("Save interpolated structure", ImVec2(-FLT_MIN, 0))) m_dragSavePicker.open("Save interpolated structure", true, "interpolated.vasp");
+        if (responsive::button("Save Interpolated Structure", ImVec2(-FLT_MIN, 0))) m_dragSavePicker.open("Save interpolated structure", true, "interpolated.vasp");
     }
 
     dialogLayout::section("Fit dislocation (position/Burgers vector)");
@@ -155,7 +155,7 @@ void DislocationAnalysisDialog::drawDialog()
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::DragFloat("Area per atom (A^2)##fit", &m_fitArea, 0.05f, 0.001f, 1000.0f, "%.3f"); dialogLayout::hint("Cross-sectional area each atom represents perpendicular to the line (Angstrom squared); it scales the integrated Burgers vector.");
     ImGui::Checkbox("Ignore periodicity##fit", &m_fitNoPbc); dialogLayout::hint("Treat both structures as finite: neighbours are not found through periodic images.");
     ImGui::BeginDisabled(m_fitTask.running());
-    if (dialogLayout::primaryButton("Fit dislocation", ImVec2(-FLT_MIN, 0)))
+    if (dialogLayout::primaryButton("Fit Dislocation", ImVec2(-FLT_MIN, 0)))
     {
         const Structure reference = m_reference, deformed = m_deformed;
         const glm::dvec3 line(m_fitLine[0], m_fitLine[1], m_fitLine[2]);
@@ -201,14 +201,14 @@ void DislocationAnalysisDialog::drawDialog()
         ImGui::TextUnformatted("Top atoms by |alpha| (dislocation content):");
         for (std::size_t k = 0; k < std::min<std::size_t>(10, order.size()); ++k)
             ImGui::Text("  atom %zu: |alpha| = %.4g", order[k], m_nyeResult.alphaNorm[order[k]]);
-        if (responsive::button("Export full Nye tensor CSV", ImVec2(-FLT_MIN, 0))) m_nyeExportPicker.open("Export Nye tensor", true, "nye_tensor.csv");
+        if (responsive::button("Export Full Nye Tensor CSV", ImVec2(-FLT_MIN, 0))) m_nyeExportPicker.open("Export Nye tensor", true, "nye_tensor.csv");
     }
 
     if (m_vitekResult.success)
     {
         dialogLayout::section("Vitek map result");
         ImGui::TextWrapped("%s", m_vitekResult.message.c_str());
-        if (responsive::button("Export full Vitek map CSV", ImVec2(-FLT_MIN, 0))) m_vitekExportPicker.open("Export Vitek map", true, "vitek_map.csv");
+        if (responsive::button("Export Full Vitek Map CSV", ImVec2(-FLT_MIN, 0))) m_vitekExportPicker.open("Export Vitek map", true, "vitek_map.csv");
     }
 
     if (m_patternResult.success)
@@ -216,7 +216,7 @@ void DislocationAnalysisDialog::drawDialog()
         dialogLayout::section("Pattern matching result");
         ImGui::TextWrapped("Pattern: %s", m_pattern.message.c_str());
         ImGui::TextWrapped("Detection: %s", m_patternResult.message.c_str());
-        if (responsive::button("Export full pattern-match CSV", ImVec2(-FLT_MIN, 0))) m_patternExportPicker.open("Export pattern match", true, "pattern_match.csv");
+        if (responsive::button("Export Full Pattern-match CSV", ImVec2(-FLT_MIN, 0))) m_patternExportPicker.open("Export pattern match", true, "pattern_match.csv");
     }
 
     if (m_dragResult.success)

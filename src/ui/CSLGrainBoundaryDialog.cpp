@@ -416,7 +416,7 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
     {
         if (m_step.active())
             dialogLayout::stepBanner(m_step.step.c_str());
-        if (responsive::button("Load reference##sourcePicker"))
+        if (responsive::button("Load Reference##sourcePicker"))
             m_sourcePicker.open("Load reference", false, "");
         if (const auto path = m_sourcePicker.draw())
             feedDroppedFile(*path);
@@ -650,7 +650,7 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
 
         if (m_step.active())
         {
-            if (responsive::button("Update step", ImVec2(buildW, 0.0f)))
+            if (responsive::button("Update Step", ImVec2(buildW, 0.0f)))
             {
                 // With the step input as reference there is no --input: the pipeline passes it.
                 atomforge::pipeline::Json parameters = m_step.parameters;

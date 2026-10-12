@@ -1032,7 +1032,7 @@ void DislocationBuilderDialog::drawDialog(
             ImGui::EndDisabled();
 
         // Editing a step: the settings go into the pipeline, the scene is left alone.
-        if (m_step.active() && responsive::button("Update step", responsive::size(-1.0f,0.0f)))
+        if (m_step.active() && responsive::button("Update Step", responsive::size(-1.0f,0.0f)))
         {
             atomforge::pipeline::Json parameters = m_step.parameters;
             parameters["options"] = stepOptions();

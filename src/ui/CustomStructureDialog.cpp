@@ -660,7 +660,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     if (m_step.active())
         dialogLayout::stepBanner(m_step.step.c_str());
 
-    if (responsive::button("Load structure or model##sourcePicker"))
+    if (responsive::button("Load Structure or Model##sourcePicker"))
         m_sourcePicker.open("Load structure or model", false, "");
     if (const auto path = m_sourcePicker.draw())
         feedDroppedFile(*path);
@@ -1013,7 +1013,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     }
     if (m_step.active())
     {
-        if (responsive::button("Update step", responsive::size(140.0f,0.0f)))
+        if (responsive::button("Update Step", responsive::size(140.0f,0.0f)))
         {
             // Without --input the pipeline passes the step's input structure.
             atomforge::pipeline::Json updated = m_step.parameters;

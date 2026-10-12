@@ -161,7 +161,7 @@ void OperationDialog::draw(Structure& structure, const std::vector<int>& viewSel
         }
         if (editing) {
             // A pipeline step acts on the selection made by the steps above it.
-            const int pressed = dialogLayout::footer("Update step", "Close");
+            const int pressed = dialogLayout::footer("Update Step", "Close");
             m_updateButton = {ImGui::GetItemRectMin().x, ImGui::GetItemRectMin().y, ImGui::GetItemRectMax().x, ImGui::GetItemRectMax().y};
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Write these settings into the pipeline step");
             if (pressed == 1) {
@@ -172,8 +172,8 @@ void OperationDialog::draw(Structure& structure, const std::vector<int>& viewSel
         } else {
             const char* action = selecting ? "Select" : "Apply";
             const float minimum = ImGui::GetFontSize() * 5.5f;
-            dialogLayout::beginFooter(dialogLayout::buttonRowWidth({"Add to pipeline", action}, minimum));
-            if (dialogLayout::secondaryButton("Add to pipeline") && callbacks.addToPipeline) {
+            dialogLayout::beginFooter(dialogLayout::buttonRowWidth({"Add to Pipeline", action}, minimum));
+            if (dialogLayout::secondaryButton("Add to Pipeline") && callbacks.addToPipeline) {
                 std::vector<atomforge::pipeline::Modifier> steps;
                 if (actsOnAtoms(m_step) && m_target == Condition) {
                     auto condition = atomforge::pipeline::makeModifier("select-expression");

@@ -2298,7 +2298,7 @@ void FileBrowser::drawAtomPropertySettings(Structure& structure, const std::func
     ImGui::EndDisabled();
     changed |= ImGui::Checkbox("Hide atoms outside the range", &propertyDisplay.hideOutside);
     changed |= ImGui::Checkbox("Hide atoms without a value", &propertyDisplay.hideInvalid);
-    if (responsive::button("Show element colours")) {
+    if (responsive::button("Show Element Colours")) {
         atomColorMode = AtomColorMode::ElementType;
         atomColorModeJustChanged = true;
         changed = true;

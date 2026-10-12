@@ -101,7 +101,7 @@ Set \ui{Ewald alpha (1/A)}, \ui{Real cutoff (A)}, and \ui{Reciprocal cutoff (1/A
 Increase both cutoffs and compare the energy and potentials before accepting a result. Ewald point-charge energy is not a self-consistent electronic total energy and does not include every energy term of a force field or DFT calculation. Record the charge model, boundary convention, cell, alpha, and cutoffs.
 
 \section{Isosurface extraction and reference colouring}
-Set the 3D level and choose the Isosurface operation or \ui{Update surface} in boundary mode. \ui{Color from reference} samples an aligned reference field on the extracted surface. For example, a density can determine geometry while a compatible potential determines colour. Confirm both the geometric field and colour-field units.
+Set the 3D level and choose the Isosurface operation or \ui{Update Surface} in boundary mode. \ui{Color from reference} samples an aligned reference field on the extracted surface. For example, a density can determine geometry while a compatible potential determines colour. Confirm both the geometric field and colour-field units.
 
 \ui{Append surface level} retains an existing surface and adds another level; appended surfaces must use compatible colouring units. This supports multiple boundaries but can visually obscure one another. Set transparency deliberately and export the mesh when required. OBJ stores scalar comments and PLY stores a scalar vertex property; downstream tools may need an explicit colour mapping and may not automatically reproduce AtomForge's palette. Surface vertices are emitted as triangles without welding.
 

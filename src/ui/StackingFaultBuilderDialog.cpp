@@ -761,7 +761,7 @@ void StackingFaultBuilderDialog::drawDialog(
             regenerateSequence(elementRadii, elementShininess);
         // Without a sequence the step keeps its frame.
         if (m_step.active() && !(m_result.success && !m_result.sequence.empty()) &&
-            responsive::button("Update step", responsive::size(-1.0f,0.0f)))
+            responsive::button("Update Step", responsive::size(-1.0f,0.0f)))
             commitStep();
 
         if (m_result.success && !m_result.sequence.empty())
@@ -783,7 +783,7 @@ void StackingFaultBuilderDialog::drawDialog(
 
             if (m_step.active())
             {
-                if (responsive::button("Update step", responsive::size(-1.0f,0.0f)))
+                if (responsive::button("Update Step", responsive::size(-1.0f,0.0f)))
                     commitStep();
             }
             else if (responsive::button("Use Selected Structure", responsive::size(-1.0f,0.0f)))

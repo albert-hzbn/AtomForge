@@ -504,7 +504,7 @@ void AmorphousBuilderDialog::drawDialog(
 
     if (m_step.active())
     {
-        if (responsive::button("Update step", responsive::size(120.0f,0.0f)))
+        if (responsive::button("Update Step", responsive::size(120.0f,0.0f)))
         {
             m_step.commitOptions(stepOptions());
             m_step.finish();

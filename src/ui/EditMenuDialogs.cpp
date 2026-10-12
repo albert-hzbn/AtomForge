@@ -170,7 +170,7 @@ void EditMenuDialogs::drawStepEditor()
     }
 
     ImGui::Separator();
-    if (responsive::button("Update step"))
+    if (responsive::button("Update Step"))
     {
         m_step.commitParameters(stepParameters());
         ImGui::CloseCurrentPopup();

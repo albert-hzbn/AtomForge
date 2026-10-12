@@ -115,16 +115,16 @@ void ScientificToolsDialog::drawField(std::size_t i, const Structure& structure)
             }
             const std::string name = parameter.name;
             const bool cellInput = name == "cell" || name == "reference_cell" || name == "current_cell";
-            if (kind == "data" && cellInput && structure.hasUnitCell && responsive::button("Use active cell")) {
+            if (kind == "data" && cellInput && structure.hasUnitCell && responsive::button("Use Active Cell")) {
                 std::snprintf(field.value.data(), field.value.size(), "%s", cellJson(structure).c_str());
                 field.useFile = false;
             }
-            if (!structure.atoms.empty() && (kind == "structure" || companionCell(name)) && responsive::button("Use active structure")) {
+            if (!structure.atoms.empty() && (kind == "structure" || companionCell(name)) && responsive::button("Use Active Structure")) {
                 try { useActiveStructure(i, structure); }
                 catch (const std::exception& error) { m_error = error.what(); }
             }
             if ((kind == "data" || kind == "file") && !m_trajectory.empty() && acceptsTrajectory(tool.id, name)) {
-                if (responsive::button("Use loaded trajectory")) {
+                if (responsive::button("Use Loaded Trajectory")) {
                     field.path = m_trajectory;
                     field.useFile = true;
                     field.field[0] = '\0';
@@ -140,10 +140,10 @@ void ScientificToolsDialog::drawField(std::size_t i, const Structure& structure)
                          "Tersoff (covalent)\0Stillinger-Weber (covalent)\0Buckingham + Coulomb (ionic)\0");
             if (field.potential == 3 || field.potential == 4) {
                 const bool tersoff = field.potential == 3;
-                if (responsive::button("Browse parameter file")) { m_pickerTarget = -100 - static_cast<int>(i); m_picker.open(tersoff ? "Tersoff parameter file" : "Stillinger-Weber parameter file", false, field.potentialFile); }
+                if (responsive::button("Browse Parameter File")) { m_pickerTarget = -100 - static_cast<int>(i); m_picker.open(tersoff ? "Tersoff parameter file" : "Stillinger-Weber parameter file", false, field.potentialFile); }
                 if (!field.potentialFile.empty()) {
                     ImGui::SameLine();
-                    if (responsive::button("Use built-in Si")) field.potentialFile.clear();
+                    if (responsive::button("Use Built-in Si")) field.potentialFile.clear();
                 }
                 ImGui::TextWrapped("%s", field.potentialFile.empty()
                     ? (tersoff ? "Built-in Si (Tersoff 1988). Choose a LAMMPS .tersoff file for other elements, e.g. SiC.tersoff."
@@ -154,7 +154,7 @@ void ScientificToolsDialog::drawField(std::size_t i, const Structure& structure)
                 ImGui::InputTextMultiline("##buckingham", field.potentialOptions.data(), field.potentialOptions.size(),
                                           ImVec2(-1, ImGui::GetTextLineHeight() * 6));
             } else if (field.potential == 2) {
-                if (responsive::button("Browse potential")) { m_pickerTarget = -100 - static_cast<int>(i); m_picker.open("EAM potential file", false, field.potentialFile); }
+                if (responsive::button("Browse Potential")) { m_pickerTarget = -100 - static_cast<int>(i); m_picker.open("EAM potential file", false, field.potentialFile); }
                 ImGui::TextWrapped("%s", field.potentialFile.empty() ? "Choose a LAMMPS-format .eam.alloy, .eam.fs or .eam file" : field.potentialFile.c_str());
                 ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(340)));
                 ImGui::Combo("Table format", &field.eamFormat, "Detect from file name\0setfl (eam/alloy)\0Finnis-Sinclair (eam/fs)\0funcfl (single element eam)\0");
@@ -239,7 +239,7 @@ void ScientificToolsDialog::drawStatus()
 bool ScientificToolsDialog::drawRunButton(const char* label, const Structure& structure, float width)
 {
     ImGui::BeginDisabled(m_task.running());
-    const bool pressed = dialogLayout::primaryButton(m_step.active() ? "Update step" : label, ImVec2(width, responsive::dp(34)))
+    const bool pressed = dialogLayout::primaryButton(m_step.active() ? "Update Step" : label, ImVec2(width, responsive::dp(34)))
                          || (!m_task.running() && uiScript::take("science.run"));
     ImGui::EndDisabled();
     if (!pressed) return false;
@@ -298,7 +298,7 @@ void ScientificToolsDialog::drawPropertyControls(const Structure& structure, con
     const auto& selected = m_result.properties[static_cast<std::size_t>(m_property)];
     if (selected.values.size() != structure.atoms.size())
         ImGui::TextDisabled("The active structure has %zu atoms; this result has %zu.", structure.atoms.size(), selected.values.size());
-    else if (responsive::button("Colour atoms in the view")) colourAtoms(selected.name, selected.values);
+    else if (responsive::button("Colour Atoms in the View")) colourAtoms(selected.name, selected.values);
 }
 
 void ScientificToolsDialog::drawPlots(float height)
@@ -314,7 +314,7 @@ void ScientificToolsDialog::drawPlots(float height)
     }
     const float plotHeight = std::max(responsive::dp(200), height - 2 * ImGui::GetFrameHeightWithSpacing());
     uiPlot::drawSciencePlot("##plot", displayedPlot(static_cast<std::size_t>(m_plot)), plotHeight / responsive::scale());
-    if (responsive::button("Export plot data")) {
+    if (responsive::button("Export Plot Data")) {
         m_pickerTarget = -10 - m_plot;
         m_picker.open("Save plot data", true, "plot.csv");
     }
@@ -362,21 +362,21 @@ void ScientificToolsDialog::drawComparison()
         }
         ImGui::EndTable();
     }
-    if (responsive::button("Clear kept runs")) m_kept.clear();
+    if (responsive::button("Clear Kept Runs")) m_kept.clear();
 }
 
 void ScientificToolsDialog::drawSaveButtons(const std::function<void(Structure&)>& loadResult)
 {
     drawComparison();
-    if (responsive::button("Keep for comparison")) keepForComparison();
+    if (responsive::button("Keep for Comparison")) keepForComparison();
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Keep this result; change inputs and run again to overlay plots and compare values.");
     ImGui::SameLine();
-    if (responsive::button("Save results")) { m_pickerTarget = -3; m_picker.open("Save scientific results", true, "analysis.json"); }
+    if (responsive::button("Save Results")) { m_pickerTarget = -3; m_picker.open("Save scientific results", true, "analysis.json"); }
     if (!m_result.structures.empty()) {
         if (ImGui::GetContentRegionAvail().x > responsive::dp(380)) ImGui::SameLine();
-        if (responsive::button("Save structures")) { m_pickerTarget = -4; m_picker.open("Save result structures or trajectory", true, "frames.extxyz"); }
+        if (responsive::button("Save Structures")) { m_pickerTarget = -4; m_picker.open("Save result structures or trajectory", true, "frames.extxyz"); }
         if (ImGui::GetContentRegionAvail().x > responsive::dp(380)) ImGui::SameLine();
-        if (responsive::button("Open final structure in a new tab")) {
+        if (responsive::button("Open Final Structure in a New Tab")) {
             try {
                 auto frames = atomforge::science::readFrames(m_result.structures);
                 if (!frames.empty()) loadResult(frames.back().structure);
@@ -477,7 +477,7 @@ void ScientificToolsDialog::drawTrajectoryLayout(const Structure& structure, con
     if (hasFields(1, -1)) { ImGui::SeparatorText("Settings"); drawFieldGrid(structure, 1, -1, 3); }
     if (hasFields(2, -1) && ImGui::TreeNode("Optional inputs")) { drawFieldGrid(structure, 2, -1, 3); ImGui::TreePop(); }
     ImGui::EndDisabled();
-    drawRunButton("Analyse trajectory", structure, responsive::dp(220));
+    drawRunButton("Analyse Trajectory", structure, responsive::dp(220));
     drawStatus();
     if (m_result.output.empty()) return;
     ImGui::Separator();
@@ -557,7 +557,7 @@ void ScientificToolsDialog::drawSimulationLayout(const Structure& structure, con
     if (hasFields(2, -1) && ImGui::TreeNode("Advanced options")) { drawFields(structure, 2, -1); ImGui::TreePop(); }
     ImGui::EndDisabled();
     ImGui::EndChild();
-    drawRunButton(m_task.running() ? "Running..." : "Run simulation", structure, responsive::dp(200));
+    drawRunButton(m_task.running() ? "Running..." : "Run Simulation", structure, responsive::dp(200));
     drawStatus();
     if (!m_result.output.empty()) {
         responsive::beginChild("Simulation result", ImVec2(0, 0), false);
@@ -602,7 +602,7 @@ void ScientificToolsDialog::drawGeneratorLayout(const Structure& structure)
     }
     ImGui::EndDisabled();
     ImGui::EndChild();
-    drawRunButton("Generate files", structure, responsive::dp(200));
+    drawRunButton("Generate Files", structure, responsive::dp(200));
     drawStatus();
     ImGui::SeparatorText("Generated files");
     if (m_result.files.empty()) {
@@ -623,11 +623,11 @@ void ScientificToolsDialog::drawGeneratorLayout(const Structure& structure)
     ImGui::SameLine();
     auto& [name, text] = m_result.files[static_cast<std::size_t>(m_file)];
     ImGui::InputTextMultiline("##preview", text.data(), text.size() + 1, ImVec2(-1, height), ImGuiInputTextFlags_ReadOnly);
-    if (responsive::button("Save this file")) { m_pickerTarget = -6; m_picker.open("Save generated file", true, name); }
+    if (responsive::button("Save This File")) { m_pickerTarget = -6; m_picker.open("Save generated file", true, name); }
     ImGui::SameLine();
-    if (responsive::button("Save all files")) { m_pickerTarget = -5; m_picker.open("Choose the folder (save as the first file)", true, m_result.files.front().first); }
+    if (responsive::button("Save All Files")) { m_pickerTarget = -5; m_picker.open("Choose the folder (save as the first file)", true, m_result.files.front().first); }
     ImGui::SameLine();
-    if (responsive::button("Copy to clipboard")) ImGui::SetClipboardText(text.c_str());
+    if (responsive::button("Copy to Clipboard")) ImGui::SetClipboardText(text.c_str());
     ImGui::SameLine();
-    if (responsive::button("Save results")) { m_pickerTarget = -3; m_picker.open("Save scientific results", true, "analysis.json"); }
+    if (responsive::button("Save Results")) { m_pickerTarget = -3; m_picker.open("Save scientific results", true, "analysis.json"); }
 }

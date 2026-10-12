@@ -157,7 +157,7 @@ void PipelineDialog::duplicateStep(std::size_t index)
 
 void PipelineDialog::drawAddMenu(const Structure& structure)
 {
-    if (responsive::button("Add modifier")) ImGui::OpenPopup("Add modifier");
+    if (responsive::button("Add Modifier")) ImGui::OpenPopup("Add modifier");
     if (ImGui::BeginPopup("Add modifier")) {
         const std::string type = drawModifierMenu("", "add");
         if (!type.empty()) {
@@ -458,12 +458,12 @@ void PipelineDialog::drawEditor()
     const ModifierType* type = atomforge::pipeline::findModifierType(m.type);
     ImGui::SeparatorText((std::to_string(index + 1) + "  " + type->title).c_str());
     ImGui::BeginDisabled(index == 0);
-    if (responsive::button("Move up")) { moveStep(index, index - 1); ImGui::EndDisabled(); return; }
+    if (responsive::button("Move Up")) { moveStep(index, index - 1); ImGui::EndDisabled(); return; }
     record("move up");
     ImGui::EndDisabled();
     ImGui::SameLine();
     ImGui::BeginDisabled(index + 1 >= m_editor.size());
-    if (responsive::button("Move down")) { moveStep(index, index + 1); ImGui::EndDisabled(); return; }
+    if (responsive::button("Move Down")) { moveStep(index, index + 1); ImGui::EndDisabled(); return; }
     record("move down");
     ImGui::EndDisabled();
     ImGui::SameLine();
@@ -476,7 +476,7 @@ void PipelineDialog::drawEditor()
     bool enabled = m.enabled;
     if (ImGui::Checkbox("Enabled", &enabled)) m_editor.setEnabled(index, enabled);
     // The same dialog as the Build or Edit menu, editing this step.
-    if (responsive::button("Edit in dialog")) requestDialog(index);
+    if (responsive::button("Edit in Dialog")) requestDialog(index);
     record("edit in dialog");
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Open %s on this step", menuPathOf(m.type).c_str());
     ImGui::PushTextWrapPos(0.0f);
@@ -497,7 +497,7 @@ void PipelineDialog::drawText()
     ImGui::PushTextWrapPos(0.0f);
     ImGui::TextUnformatted(text.empty() ? "(empty pipeline)" : text.c_str());
     ImGui::PopTextWrapPos();
-    if (responsive::button("Copy as command"))
+    if (responsive::button("Copy as Command"))
         ImGui::SetClipboardText(("AtomForge --pipe \"" + text + "\" --input INPUT --output OUTPUT").c_str());
     ImGui::SameLine();
     if (responsive::button(m_showText ? "Cancel text edit" : "Edit as text")) {
@@ -506,7 +506,7 @@ void PipelineDialog::drawText()
     }
     if (m_showText) {
         ImGui::InputTextMultiline("##pipelinetext", m_textBuffer.data(), m_textBuffer.size(), ImVec2(-1, ImGui::GetTextLineHeight() * 4));
-        if (responsive::button("Apply text")) {
+        if (responsive::button("Apply Text")) {
             try {
                 m_editor.setPipeline(atomforge::pipeline::Pipeline::parse(m_textBuffer.data()));
                 m_selected = m_editor.size() ? 0 : -1;
@@ -533,7 +533,7 @@ void PipelineDialog::draw(Structure& structure, const std::function<void(Structu
         ImGui::PopTextWrapPos();
         if (!m_editor.active()) {
             ImGui::BeginDisabled(structure.atoms.empty());
-            if (responsive::button("Start from the active structure", ImVec2(-1, responsive::dp(34)))) {
+            if (responsive::button("Start from the Active Structure", ImVec2(-1, responsive::dp(34)))) {
                 m_editor.setInput(structure);
                 m_message.clear();
             }
@@ -546,11 +546,11 @@ void PipelineDialog::draw(Structure& structure, const std::function<void(Structu
                 ImGui::PushStyleColor(ImGuiCol_Text, themeStatusError());
                 ImGui::TextWrapped("The structure was changed outside the pipeline.");
                 ImGui::PopStyleColor();
-                if (responsive::button("Use it as the pipeline input")) m_editor.setInput(structure);
+                if (responsive::button("Use It as the Pipeline Input")) m_editor.setInput(structure);
                 ImGui::SameLine();
-                if (responsive::button("Restore the pipeline output")) show(structure, update, showAtomProperty);
+                if (responsive::button("Restore the Pipeline Output")) show(structure, update, showAtomProperty);
             }
-            if (responsive::button("Use the active structure as input")) m_editor.setInput(structure);
+            if (responsive::button("Use the Active Structure as Input")) m_editor.setInput(structure);
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Restart the pipeline from the structure now in the view.");
             ImGui::SameLine();
             if (dialogLayout::primaryButton("Bake")) {
@@ -595,9 +595,9 @@ void PipelineDialog::draw(Structure& structure, const std::function<void(Structu
             drawEditor();
             drawText();
             ImGui::SeparatorText("Pipeline file");
-            if (responsive::button("Save pipeline")) { m_pickerAction = 2; m_picker.open("Save pipeline", true, "pipeline.json"); }
+            if (responsive::button("Save Pipeline")) { m_pickerAction = 2; m_picker.open("Save pipeline", true, "pipeline.json"); }
             ImGui::SameLine();
-            if (responsive::button("Load pipeline")) { m_pickerAction = 1; m_picker.open("Load pipeline (JSON or text)", false, "pipeline.json"); }
+            if (responsive::button("Load Pipeline")) { m_pickerAction = 1; m_picker.open("Load pipeline (JSON or text)", false, "pipeline.json"); }
             ImGui::EndChild();
         }
         if (!m_message.empty()) {

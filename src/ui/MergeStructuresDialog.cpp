@@ -725,7 +725,7 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
             ImGui::TextColored(themeStatusWarn(), "The rotation of %s is not written to the step.", m_entries[(size_t)file].name.c_str());
     }
 
-    if (responsive::button("Add structure##sourcePicker"))
+    if (responsive::button("Add Structure##sourcePicker"))
         m_sourcePicker.open("Add structure", false, "");
     if (const auto path = m_sourcePicker.draw())
         feedDroppedFile(*path);
@@ -1024,7 +1024,7 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
 
     if (editingStep)
     {
-        if (responsive::button("Update step", responsive::size(170.0f,0.0f)))
+        if (responsive::button("Update Step", responsive::size(170.0f,0.0f)))
         {
             m_step.commitParameters(stepParameters());
             ImGui::CloseCurrentPopup();

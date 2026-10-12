@@ -192,7 +192,7 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
             ImGui::EndDisabled();
             if (exporting) {
                 ImGui::Text("Writing GIF: frame %d of %d",gifFrame+1,count);
-                if (responsive::button("Stop export")) finishGif("GIF export stopped; "+std::to_string(gif ? gif->frames() : 0)+" frames written to "+gifPath);
+                if (responsive::button("Stop Export")) finishGif("GIF export stopped; "+std::to_string(gif ? gif->frames() : 0)+" frames written to "+gifPath);
             }
             if (!gifMessage.empty()) ImGui::TextWrapped("%s",gifMessage.c_str());
         }

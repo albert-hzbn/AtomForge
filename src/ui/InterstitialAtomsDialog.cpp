@@ -1612,7 +1612,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
                           (m_placementMode != PlacementMode::ManualSelection || hasManualSelection);
     if (editingStep)
     {
-        if (responsive::button("Update step", responsive::size(180.0f,0.0f)))
+        if (responsive::button("Update Step", responsive::size(180.0f,0.0f)))
         {
             m_step.commitParameters(stepParameters());
             ImGui::CloseCurrentPopup();

@@ -105,7 +105,7 @@ void TransformAtomsDialog::drawDialog(const std::function<void()>& onApply)
         ImGui::Separator();
         if (m_step.active())
         {
-            if (dialogLayout::primaryButton("Update step", dialogLayout::actionSize()))
+            if (dialogLayout::primaryButton("Update Step", dialogLayout::actionSize()))
             {
                 m_step.commitParameters(stepParameters());
                 ImGui::CloseCurrentPopup();

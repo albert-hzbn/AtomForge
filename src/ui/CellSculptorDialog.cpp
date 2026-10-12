@@ -1245,7 +1245,7 @@ void CellSculptorDialog::drawDialog(
     {
         // The step keeps the atoms between the slabs; the region need not be closed.
         if (m_slabs.empty()) ImGui::BeginDisabled();
-        if (responsive::button("Update step##scgen", responsive::size(100.0f,0.0f)))
+        if (responsive::button("Update Step##scgen", responsive::size(100.0f,0.0f)))
         {
             m_step.commitOptions(stepOptions());
             ImGui::CloseCurrentPopup();

@@ -1144,7 +1144,7 @@ void NanoCrystalBuilderDialog::drawDialog(
     if (m_step.active())
         dialogLayout::stepBanner(m_step.step.c_str());
 
-    if (responsive::button("Load reference##sourcePicker"))
+    if (responsive::button("Load Reference##sourcePicker"))
         m_sourcePicker.open("Load reference", false, "");
     if (const auto path = m_sourcePicker.draw())
         feedDroppedFile(*path);
@@ -1509,7 +1509,7 @@ void NanoCrystalBuilderDialog::drawDialog(
     const bool disableAction = !canBuild && !m_step.active();
     if (disableAction) ImGui::BeginDisabled();
     if (m_step.active()) {
-        if (responsive::button("Update step##nano", responsive::size(160.0f,0.0f))) {
+        if (responsive::button("Update Step##nano", responsive::size(160.0f,0.0f))) {
             // The step input stays the reference unless a file was loaded here.
             atomforge::pipeline::Json updated = m_step.parameters;
             updated["options"] = stepOptions();

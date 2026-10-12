@@ -317,11 +317,11 @@ void ElectronicPostProcessingDialog::drawDialog()
     const float sidebar = stackPanels ? ImGui::GetContentRegionAvail().x : std::clamp(ImGui::GetContentRegionAvail().x * .42f, responsive::dp(420), responsive::dp(540));
     responsive::beginChild("Electronic controls",ImVec2(sidebar,stackPanels ? responsive::dp(420) : 0),true);
     ImGui::BeginDisabled(m_task.running());
-    if (responsive::button("Open workspace")) { m_pickerAction=3; m_picker.open("Open electronic workspace",false,"workspace.afproject"); }
+    if (responsive::button("Open Workspace")) { m_pickerAction=3; m_picker.open("Open electronic workspace",false,"workspace.afproject"); }
     ImGui::SameLine();
-    if (responsive::button("Save workspace")) { m_pickerAction=4; m_picker.open("Save electronic workspace",true,"workspace.afproject"); }
+    if (responsive::button("Save Workspace")) { m_pickerAction=4; m_picker.open("Save electronic workspace",true,"workspace.afproject"); }
     ImGui::BeginDisabled(m_undo.empty());
-    if (responsive::button("Undo calculation")) {
+    if (responsive::button("Undo Calculation")) {
         m_redo.push_back(snapshot()); auto previous=std::move(m_undo.back()); m_undo.pop_back(); restore(previous);
     }
     ImGui::EndDisabled(); ImGui::SameLine(); ImGui::BeginDisabled(m_redo.empty());
@@ -375,11 +375,11 @@ void ElectronicPostProcessingDialog::drawDialog()
             "Total integral\0Add reference\0Subtract reference (difference density)\0Multiply reference\0Divide by reference\0Scale\0Gaussian smoothing\0Cartesian gradient\0Laplacian\0Energy-density conversion\0Line profile\0Planar average\0Macroscopic average\0Plane section\0Contour segments (z=0)\0Peak search\0Voronoi site integration\0Sphere integration\0Structure factors\0Fourier synthesis\0Patterson density\0Ewald site potentials\0Isosurface\0Resample onto reference\0Verify periodic endpoint planes\0");
     dialogLayout::section("Input data");
     const float buttonWidth = (ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
-    if (dialogLayout::primaryButton("Open volume",ImVec2(buttonWidth,0))) { m_pickerAction=0; m_picker.open("Open electronic volume",false,m_loadedPath); }
+    if (dialogLayout::primaryButton("Open Volume",ImVec2(buttonWidth,0))) { m_pickerAction=0; m_picker.open("Open electronic volume",false,m_loadedPath); }
     ImGui::SameLine();
     if (responsive::button("Reference",ImVec2(buttonWidth,0))) { m_pickerAction=1; m_picker.open("Open reference volume",false,m_referencePath.empty() ? m_loadedPath : m_referencePath); }
     ImGui::BeginDisabled(m_loadedPath.empty());
-    if (responsive::button("Reload volume",ImVec2(buttonWidth,0))) load(m_loadedPath,false);
+    if (responsive::button("Reload Volume",ImVec2(buttonWidth,0))) load(m_loadedPath,false);
     ImGui::EndDisabled();
     ImGui::SameLine();
     if (responsive::button("Clear",ImVec2(buttonWidth,0)))
@@ -655,7 +655,7 @@ void ElectronicPostProcessingDialog::drawDialog()
                 output.replace_extension(std::array<const char*,8>{".xsf",".cube",".vasp",".csv",".obj",".ply",".png",".svg"}[m_exportFormat]);
                 std::snprintf(m_output,sizeof(m_output),"%s",output.u8string().c_str());
             }
-            if (responsive::button("Save as",ImVec2(-FLT_MIN,0)))
+            if (responsive::button("Save As",ImVec2(-FLT_MIN,0)))
             {
                 auto output = std::filesystem::u8path(m_output);
                 if (!output.has_parent_path() && !m_loadedPath.empty())
@@ -670,7 +670,7 @@ void ElectronicPostProcessingDialog::drawDialog()
     {
         ImGui::TextUnformatted("Calculating...");
         if (m_task.progress()>=0) ImGui::ProgressBar(m_task.progress(),ImVec2(-1,0),"Current calculation stage");
-        if (responsive::button("Cancel calculation")) m_task.cancel();
+        if (responsive::button("Cancel Calculation")) m_task.cancel();
     }
     if (!m_pendingDrops.empty()) ImGui::Text("Queued files: %zu",m_pendingDrops.size());
     if (!m_error.empty()) ImGui::TextWrapped("%s",m_error.c_str());
@@ -847,7 +847,7 @@ void ElectronicPostProcessingDialog::drawPreview()
         ImGui::TextUnformatted(m_renderMode==0 ? "Density threshold" : "3D isovalue");
         ImGui::SetNextItemWidth(responsive::dp(-1));
         ImGui::InputFloat("##surface level",&m_surfaceLevel,0,0,"%.5g");
-        if (responsive::button("Estimate level")) m_surfaceLevel=m_suggestedLevel;
+        if (responsive::button("Estimate Level")) m_surfaceLevel=m_suggestedLevel;
         ImGui::TextWrapped("Field range: %.5g to %.5g %s",m_sliceLow,m_sliceHigh,unitText::display(grid.unit).c_str());
         const bool invalid=!std::isfinite(m_surfaceLevel) || m_surfaceLevel<m_sliceLow || m_surfaceLevel>m_sliceHigh;
         if (invalid)
@@ -860,7 +860,7 @@ void ElectronicPostProcessingDialog::drawPreview()
         if (m_renderMode==1)
         {
             ImGui::BeginDisabled(invalid || m_sliceLow==m_sliceHigh);
-            if (responsive::button("Update surface",ImVec2(-FLT_MIN,0))) m_generateSurface=true;
+            if (responsive::button("Update Surface",ImVec2(-FLT_MIN,0))) m_generateSurface=true;
             ImGui::EndDisabled();
         }
         ImGui::EndDisabled();
@@ -889,11 +889,11 @@ void ElectronicPostProcessingDialog::drawPreview()
 
 void ElectronicPostProcessingDialog::draw3DPreview()
 {
-    if (responsive::button("Fit view")) resetCamera();
+    if (responsive::button("Fit View")) resetCamera();
     ImGui::TextWrapped("Drag: orbit | Right drag: pan | Wheel: zoom");
     const auto pos=ImGui::GetCursorScreenPos();
     const ImVec2 size(std::max(100.0f,ImGui::GetContentRegionAvail().x),std::max(150.0f,ImGui::GetContentRegionAvail().y-52));
-    ImGui::InvisibleButton("Electronic viewport",size,ImGuiButtonFlags_MouseButtonLeft|ImGuiButtonFlags_MouseButtonRight);
+    ImGui::InvisibleButton("Electronic Viewport",size,ImGuiButtonFlags_MouseButtonLeft|ImGuiButtonFlags_MouseButtonRight);
     if (ImGui::IsItemHovered())
     {
         m_zoom=std::clamp(m_zoom*std::exp(ImGui::GetIO().MouseWheel*.12f),.15f,15.0f);
