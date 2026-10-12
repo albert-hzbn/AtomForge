@@ -79,12 +79,12 @@ void printHelpDislocation()
 "                                Angstrom (default: \"15 0\")\n"
 "\n"
 "Example:\n"
-"  AtomForge --build dislocation --input base.cfg --character edge ^\n"
+"  AtomForge --build dislocation --input base.xyz --character edge ^\n"
 "            --manual-vectors --line \"0 0 1\" --burgers \"1 0 0\" ^\n"
-"            --shape cylinder --cyl-radius 12 --output edge.cfg\n"
-"  AtomForge --build dislocation --input cu.cfg --character screw ^\n"
+"            --shape cylinder --cyl-radius 12 --output edge.xyz\n"
+"  AtomForge --build dislocation --input cu_block.xyz --character screw ^\n"
 "            --anisotropic --elastic-c11 168.4 --elastic-c12 121.4 ^\n"
-"            --elastic-c44 75.4 --shape cylinder --cyl-radius 12 --output cu_screw.cfg\n"
+"            --elastic-c44 75.4 --shape cylinder --cyl-radius 12 --output cu_screw.xyz\n"
 << std::endl;
 }
 

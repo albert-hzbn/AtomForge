@@ -2831,7 +2831,7 @@ SUBSTITUTIONAL SOLID SOLUTION  (--build sss)
   --output <file>             Output file (format from extension)
 
 Example:
-  AtomForge --build sss --input cu.cif ^'
+  AtomForge --build sss --input cu.cif ^
             --frac "Cu=0.7,Zn=0.3" --seed 42 --output brass.cif
 \end{lstlisting}
 
@@ -2890,12 +2890,12 @@ DISLOCATION  (--build dislocation)
                                 Angstrom (default: "15 0")
 
 Example:
-  AtomForge --build dislocation --input base.cfg --character edge ^
+  AtomForge --build dislocation --input base.xyz --character edge ^
             --manual-vectors --line "0 0 1" --burgers "1 0 0" ^
-            --shape cylinder --cyl-radius 12 --output edge.cfg
-  AtomForge --build dislocation --input cu.cfg --character screw ^
+            --shape cylinder --cyl-radius 12 --output edge.xyz
+  AtomForge --build dislocation --input cu_block.xyz --character screw ^
             --anisotropic --elastic-c11 168.4 --elastic-c12 121.4 ^
-            --elastic-c44 75.4 --shape cylinder --cyl-radius 12 --output cu_screw.cfg
+            --elastic-c44 75.4 --shape cylinder --cyl-radius 12 --output cu_screw.xyz
 \end{lstlisting}
 
 \clearpage

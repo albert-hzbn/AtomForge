@@ -424,7 +424,7 @@ void printHelpSSS()
 "  --output <file>             Output file (format from extension)\n"
 "\n"
 "Example:\n"
-"  AtomForge --build sss --input cu.cif ^\'\n"
+"  AtomForge --build sss --input cu.cif ^\n"
 "            --frac \"Cu=0.7,Zn=0.3\" --seed 42 --output brass.cif\n"
 << std::endl;
 }

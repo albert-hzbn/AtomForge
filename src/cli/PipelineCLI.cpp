@@ -49,8 +49,8 @@ void printHelp()
 "Examples:\n"
 "  AtomForge --pipe \"replicate 4 4 4 | select-random 0.05 | delete-selected\" ^\n"
 "            --input cu.cif --output cu_vacancies.xyz\n"
-"  AtomForge --pipe \"add-vacuum c 15 | select-expression fz > 0.6 | assign-element Ni\" ^\n"
-"            --input slab.vasp --output - | AtomForge --pipe \"wrap\" --input - --output out.cif\n"
+"  AtomForge --pipe \"replicate 2 2 2 | select-expression fz > 0.5 | assign-element Ni\" ^\n"
+"            --input cu.cif --output - | AtomForge --pipe \"add-vacuum c 15\" --input - --output out.cif\n"
 << std::endl;
 }
 

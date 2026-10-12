@@ -827,7 +827,7 @@
     },
     {
       "source": "src/cli/BuildCrystalCLI.cpp",
-      "sha256": "f09fe3bcc708950734cdaa1c92a6e20d0145a75ce2119f197a19da9a7f8494fc",
+      "sha256": "d1ddd73d6a3aaeda32ad259752554d2ae1609bfd8ba94c672b41b76dcb1780f5",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -836,7 +836,7 @@
     },
     {
       "source": "src/cli/BuildDefectCLI.cpp",
-      "sha256": "0d0ec36a9e364ead3f60857c6f9dad92b4455b69a3bc3630cc349b5e9d97a9b4",
+      "sha256": "afe297392db60941c6096b02742bb87a3a17f3489f07b459f7f9d2836f7088c5",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -946,7 +946,7 @@
     },
     {
       "source": "src/cli/PipelineCLI.cpp",
-      "sha256": "99baa3be159c25ef65f6afcc6d3ca74fa978ee216a852ca7995b8a245b9bca6f",
+      "sha256": "df8b4f93cd08d9c1e76dcf33c2d2a5b3e7f65c02e44236098143e6065ac32ce2",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
