@@ -1,4 +1,5 @@
 #include "cli/AnalysisCLI.h"
+#include "cli/CliArgs.h"
 #include "cli/OptionCheck.h"
 #include "algorithms/CommonNeighbourAnalysis.h"
 #include "algorithms/AngularDistributionAnalysis.h"
@@ -129,8 +130,7 @@ int runAnalysisCLI(int argc, char* argv[])
         if (!loadStructureFromFile(args.at("--input"),structure,error)) throw std::runtime_error(error);
         if (!structure.loadNote.empty()) std::cerr << "Note: " << structure.loadNote << "\n";
         if (args.count("--convert")) {
-            std::string format=args.count("--format") ? args.at("--format")
-                : std::filesystem::path(args.at("--output")).extension().string().substr(1);
+            std::string format=args.count("--format") ? args.at("--format") : cli::detectFormat(args.at("--output"));
             if (format=="pwi") format="pwscf";
             if (format=="extxyz") {
                 std::ofstream file(std::filesystem::u8path(args.at("--output")));

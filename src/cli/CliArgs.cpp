@@ -79,12 +79,23 @@ int argInt(int argc, char* argv[], const char* flag, int def)
 // Detect Open Babel format string from output filename extension.
 std::string detectFormat(const std::string& path)
 {
-    const auto dot = path.rfind('.');
-    if (dot == std::string::npos)
-        return "cif";
-    std::string ext = path.substr(dot + 1);
-    // lower-case
+    // The file name's extension (a dot in a folder name is not one).
+    const std::size_t slash = path.find_last_of("/\\");
+    const std::string name = slash == std::string::npos ? path : path.substr(slash + 1);
+    const auto dot = name.rfind('.');
+    std::string ext = dot == std::string::npos ? std::string() : name.substr(dot + 1);
     for (char& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    // VASP names its files POSCAR and CONTCAR, often without an extension
+    // (POSCAR, CONTCAR_relaxed, POSCAR-001).
+    std::string upper = name;
+    for (char& c : upper) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    const bool vaspName = upper.find("POSCAR") != std::string::npos || upper.find("CONTCAR") != std::string::npos;
+    const bool otherFormat = ext == "cif" || ext == "xyz" || ext == "extxyz" || ext == "pdb" || ext == "data" ||
+                             ext == "lmp" || ext == "mol2" || ext == "sdf" || ext == "mol";
+    if (vaspName && !otherFormat)
+        return "vasp";
+    if (ext.empty())
+        return "cif";
 
     if (ext == "cif")              return "cif";
     if (ext == "xyz")              return "xyz";
@@ -93,6 +104,7 @@ std::string detectFormat(const std::string& path)
     if (ext == "pdb")              return "pdb";
     if (ext == "mol2")             return "mol2";
     if (ext == "extxyz")           return "extxyz";
+    if (ext == "data")             return "data";
     return ext; // pass-through for anything else
 }
 

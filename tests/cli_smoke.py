@@ -202,6 +202,12 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
     pinned = root / "pinned.vasp"
     run("--pipe", "select-element Cl | fix-atoms axes=z", "--input", rewritten, "--output", pinned)
     assert pinned.read_text().splitlines()[10].endswith("F F F"), pinned.read_text()
+    # Output files named the VASP way are written as POSCAR, without an extension too.
+    vasp_dir = root / "vasp.run"
+    vasp_dir.mkdir()
+    for name in ("POSCAR", "CONTCAR_relaxed"):
+        run("--convert", "--input", source, "--output", vasp_dir / name)
+        assert (vasp_dir / name).read_text().splitlines()[0] == "Cu", name
     # CIF keeps full precision: 1/6 of a 10.83 A cell stays 1.805 A.
     big = root / "big.cif"
     run("--pipe", "replicate 3 3 3", "--input", source, "--output", big)
