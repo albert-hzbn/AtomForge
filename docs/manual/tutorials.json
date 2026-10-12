@@ -1098,7 +1098,7 @@
         {
           "id": "files",
           "title": "Open, save, convert, and manage tabs",
-          "start": "Locate this manual\textquotesingle s examples folder on your machine.",
+          "start": "Locate this manual\\textquotesingle s examples folder on your machine.",
           "images": [
             {
               "file": "tutorials/file-browser.jpg",
@@ -1234,7 +1234,7 @@
           "steps": [
             "Enter $[100]$, length 5 \\angstrom, and a colour, then Add Direction.",
             "Add $[110]$ with a second colour and compare both from an oblique view.",
-            "Edit a saved row\textquotesingle s length or direction, toggle its visibility, and delete the trial row when finished."
+            "Edit a saved row\\textquotesingle s length or direction, toggle its visibility, and delete the trial row when finished."
           ],
           "check": "Length controls the drawing, not a lattice parameter or physical displacement. The direction must be nonzero.",
           "options": "Global Show Miller directions controls the collection. In a skew cell, a direct-lattice direction and the corresponding reciprocal-plane normal generally differ."
@@ -1584,7 +1584,7 @@
             "Select Arbitrary plane, enter point $(0.5,0.5,0.5)$ in fractional cell coordinates and a nonzero Cartesian normal such as $(1,1,1)$.",
             "Toggle Show slice plane in 3D. Estimate the 2D level, toggle its contour, and use left drag/angle for in-plane rotation, right drag for pan, wheel for zoom, and Reset 2D."
           ],
-          "check": "The 2D level is independent of the 3D level and must lie within that section\textquotesingle s range. A valid volume level may be out of range for a particular slice.",
+          "check": "The 2D level is independent of the 3D level and must lie within that section\\textquotesingle s range. A valid volume level may be out of range for a particular slice.",
           "options": "Hiding the translucent guide does not remove the section. The display preview is bounded in resolution; use Numerical plane section and Contour segments for quantitative coordinate export."
         },
         {
