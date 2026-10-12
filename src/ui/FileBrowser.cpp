@@ -1552,6 +1552,14 @@ void FileBrowser::draw(Structure& structure,
         performQuickSave(structure);
     }
 
+    if (pendingColourMode >= 0) {
+        if (atomColorMode != static_cast<AtomColorMode>(pendingColourMode)) {
+            atomColorMode = static_cast<AtomColorMode>(pendingColourMode);
+            atomColorModeJustChanged = true;
+            updateBuffers(structure);
+        }
+        pendingColourMode = -1;
+    }
     drawMainMenuBar(structure, editMenuDialogs, updateBuffers, canUndo, canRedo);
 
     // The main window around the view: welcome screen, toolbar and status bar.

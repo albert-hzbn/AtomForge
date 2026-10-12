@@ -265,12 +265,43 @@ void FileBrowser::drawStatusBar(const Structure& structure)
             } else field("No periodic cell", muted);
         }
         ImGui::SameLine();
-        // Right side: projection and colouring.
-        std::snprintf(text, sizeof(text), "%s   \xe2\x80\xa2   Colour: %s", viewMode == ViewMode::Orthographic ? "Orthographic" : "Perspective", colourModeName(atomColorMode));
-        const float right = ImGui::CalcTextSize(text).x;
+        // Right side: projection and colouring, each clickable (projection
+        // switches, colouring opens its choices).
+        const char* projection = viewMode == ViewMode::Orthographic ? "Orthographic" : "Perspective";
+        char colour[64];
+        std::snprintf(colour, sizeof(colour), "Colour: %s", colourModeName(atomColorMode));
+        const float gap = ImGui::CalcTextSize("   \xe2\x80\xa2   ").x;
+        const float right = ImGui::CalcTextSize(projection).x + gap + ImGui::CalcTextSize(colour).x;
         ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowWidth() - right - responsive::dp(12)));
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", text);
+        const auto link = [](const char* label, const char* tooltip) {
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled("%s", label);
+            const bool hovered = ImGui::IsItemHovered();
+            if (hovered) {
+                const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+                ImGui::GetWindowDrawList()->AddLine(ImVec2(a.x, b.y - 1), ImVec2(b.x, b.y - 1), ImGui::GetColorU32(ImGuiCol_TextDisabled));
+                ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+                ImGui::SetTooltip("%s", tooltip);
+            }
+            return hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+        };
+        if (link(projection, "Switch between perspective and orthographic projection")) {
+            viewMode = viewMode == ViewMode::Orthographic ? ViewMode::Isometric : ViewMode::Orthographic;
+            requestResetDefaultView = true;
+        }
+        ImGui::SameLine(0, 0);
+        ImGui::TextDisabled("   \xe2\x80\xa2   ");
+        ImGui::SameLine(0, 0);
+        if (link(colour, "Choose how atoms are coloured")) ImGui::OpenPopup("##statusColour");
+        if (ImGui::BeginPopup("##statusColour")) {
+            const bool atoms = !structure.atoms.empty();
+            if (ImGui::MenuItem("Element", nullptr, atomColorMode == AtomColorMode::ElementType)) pendingColourMode = static_cast<int>(AtomColorMode::ElementType);
+            if (ImGui::MenuItem("Crystal Orientation", nullptr, atomColorMode == AtomColorMode::CrystalOrientation, atoms))
+                pendingColourMode = static_cast<int>(AtomColorMode::CrystalOrientation);
+            if (ImGui::MenuItem("Grain Boundaries", nullptr, atomColorMode == AtomColorMode::GrainBoundary, atoms))
+                pendingColourMode = static_cast<int>(AtomColorMode::GrainBoundary);
+            ImGui::EndPopup();
+        }
     }
     ImGui::End();
     ImGui::PopStyleColor();

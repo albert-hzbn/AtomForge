@@ -432,6 +432,7 @@ private:
     void drawWelcome(const Structure& structure);
     void drawShortcuts();
     bool showShortcuts = false;
+    int pendingColourMode = -1;  // chosen in the status bar, applied by draw()
     // Command palette (CommandPalette.cpp, Ctrl+K).
     void drawCommandPalette(Structure& structure, EditMenuDialogs& editMenuDialogs, const std::function<void(Structure&)>& updateBuffers);
     bool showCommandPalette = false;

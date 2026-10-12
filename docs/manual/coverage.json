@@ -2953,7 +2953,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "8d4d15157b1c7a205a19c5e435500663965a458035cdc33604549f56f7ce9694",
+      "sha256": "95d37e42a62b09a6c9b712ee8430941c3536e511faa583c38dbeda681dd388fc",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3258,238 +3258,238 @@
           "declaration_label": "##exportScale"
         },
         {
-          "line": 1667,
+          "line": 1675,
           "declaration_label": "OK"
         },
         {
-          "line": 1691,
+          "line": 1699,
           "declaration_label": "Close"
         },
         {
-          "line": 1697,
+          "line": 1705,
           "declaration_label": "Show lattice planes"
         },
         {
-          "line": 1703,
+          "line": 1711,
           "declaration_label": "H##plane"
         },
         {
-          "line": 1706,
+          "line": 1714,
           "declaration_label": "K##plane"
         },
         {
-          "line": 1709,
+          "line": 1717,
           "declaration_label": "L##plane"
         },
         {
-          "line": 1712,
+          "line": 1720,
           "declaration_label": "Offset n##plane"
         },
         {
-          "line": 1714,
+          "line": 1722,
           "declaration_label": "Opacity##plane"
         },
         {
-          "line": 1716,
+          "line": 1724,
           "declaration_label": "Color##plane"
         },
         {
-          "line": 1723,
+          "line": 1731,
           "declaration_label": "Add Plane"
         },
         {
-          "line": 1756,
+          "line": 1764,
           "declaration_label": "##visible"
         },
         {
-          "line": 1761,
+          "line": 1769,
           "declaration_label": "H##plane-h"
         },
         {
-          "line": 1764,
+          "line": 1772,
           "declaration_label": "K##plane-k"
         },
         {
-          "line": 1767,
+          "line": 1775,
           "declaration_label": "L##plane-l"
         },
         {
-          "line": 1770,
+          "line": 1778,
           "declaration_label": "n##plane-offset"
         },
         {
-          "line": 1773,
+          "line": 1781,
           "declaration_label": "a##plane-opacity"
         },
         {
-          "line": 1779,
+          "line": 1787,
           "declaration_label": "##plane-color"
         },
         {
-          "line": 1787,
+          "line": 1795,
           "declaration_label": "Delete"
         },
         {
-          "line": 1802,
+          "line": 1810,
           "declaration_label": "Close"
         },
         {
-          "line": 1824,
+          "line": 1832,
           "declaration_label": "Close"
         },
         {
-          "line": 1830,
+          "line": 1838,
           "declaration_label": "Show Miller directions"
         },
         {
-          "line": 1836,
+          "line": 1844,
           "declaration_label": "U##dir"
         },
         {
-          "line": 1839,
+          "line": 1847,
           "declaration_label": "V##dir"
         },
         {
-          "line": 1842,
+          "line": 1850,
           "declaration_label": "W##dir"
         },
         {
-          "line": 1845,
+          "line": 1853,
           "declaration_label": "Length (A)##dir"
         },
         {
-          "line": 1847,
+          "line": 1855,
           "declaration_label": "Color##dir"
         },
         {
-          "line": 1854,
+          "line": 1862,
           "declaration_label": "Add Direction"
         },
         {
-          "line": 1882,
+          "line": 1890,
           "declaration_label": "##vis"
         },
         {
-          "line": 1887,
+          "line": 1895,
           "declaration_label": "U##du"
         },
         {
-          "line": 1890,
+          "line": 1898,
           "declaration_label": "V##dv"
         },
         {
-          "line": 1893,
+          "line": 1901,
           "declaration_label": "W##dw"
         },
         {
-          "line": 1896,
+          "line": 1904,
           "declaration_label": "L##dl"
         },
         {
-          "line": 1903,
+          "line": 1911,
           "declaration_label": "##dc"
         },
         {
-          "line": 1910,
+          "line": 1918,
           "declaration_label": "Delete##ddel"
         },
         {
-          "line": 1924,
+          "line": 1932,
           "declaration_label": "Close##dclose"
         },
         {
-          "line": 1944,
+          "line": 1952,
           "declaration_label": "Max displayed centers"
         },
         {
-          "line": 1946,
+          "line": 1954,
           "declaration_label": "Nearest neighbors"
         },
         {
-          "line": 1950,
+          "line": 1958,
           "declaration_label": "Specify center atom indices"
         },
         {
-          "line": 1958,
+          "line": 1966,
           "declaration_label": "Center atom IDs##polyIndexFilter"
         },
         {
-          "line": 1970,
+          "line": 1978,
           "declaration_label": "Show polyhedral edges"
         },
         {
-          "line": 1972,
+          "line": 1980,
           "declaration_label": "Face opacity"
         },
         {
-          "line": 1974,
+          "line": 1982,
           "declaration_label": "Edge opacity"
         },
         {
-          "line": 1978,
+          "line": 1986,
           "declaration_label": "Filter center elements"
         },
         {
-          "line": 1987,
+          "line": 1995,
           "declaration_label": "Centers##polyFilter"
         },
         {
-          "line": 1998,
+          "line": 2006,
           "declaration_label": "Filter ligand elements"
         },
         {
-          "line": 2007,
+          "line": 2015,
           "declaration_label": "Ligands##polyFilter"
         },
         {
-          "line": 2017,
+          "line": 2025,
           "declaration_label": "Reset Defaults"
         },
         {
-          "line": 2025,
+          "line": 2033,
           "declaration_label": "Close##polySettings"
         },
         {
-          "line": 2151,
+          "line": 2159,
           "declaration_label": "Manual##about"
         },
         {
-          "line": 2154,
+          "line": 2162,
           "declaration_label": "Close##about"
         },
         {
-          "line": 2216,
+          "line": 2224,
           "declaration_label": "Color"
         },
         {
-          "line": 2265,
+          "line": 2273,
           "declaration_label": "Automatic colour range"
         },
         {
-          "line": 2268,
+          "line": 2276,
           "declaration_label": "Minimum"
         },
         {
-          "line": 2269,
+          "line": 2277,
           "declaration_label": "Maximum"
         },
         {
-          "line": 2271,
+          "line": 2279,
           "declaration_label": "Hide atoms outside the range"
         },
         {
-          "line": 2272,
+          "line": 2280,
           "declaration_label": "Hide atoms without a value"
         },
         {
-          "line": 2273,
+          "line": 2281,
           "declaration_label": "Show element colours"
         }
       ]
     },
     {
       "source": "src/ui/FileBrowser.h",
-      "sha256": "dc32edd55ef3e0c68ca2389b8c17dbfffa1692ab326ad42a154e4d13222556ba",
+      "sha256": "ba4eee73a55961f29335712678a028cc76dda05817ba8f57f192f3a367a930ac",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3919,7 +3919,7 @@
     },
     {
       "source": "src/ui/MainWindowChrome.cpp",
-      "sha256": "f6e793439fdf8f29dd7c71fd48c42ebd024473f0ff7a8c66a17e173e420bb9b9",
+      "sha256": "9b53944a5dd9ab74cace22dc316dd21dd48518e4099d4ff2a7b965ab4265ad7d",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3930,6 +3930,18 @@
         {
           "line": 137,
           "declaration_label": "##rotangle"
+        },
+        {
+          "line": 298,
+          "declaration_label": "Element"
+        },
+        {
+          "line": 299,
+          "declaration_label": "Crystal Orientation"
+        },
+        {
+          "line": 301,
+          "declaration_label": "Grain Boundaries"
         }
       ]
     },
