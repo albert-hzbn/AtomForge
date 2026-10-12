@@ -21,6 +21,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <map>
 #include <numeric>
 #include <queue>
 #include <sstream>
@@ -1211,7 +1212,10 @@ bool isSupportedExtension(const std::string& extLower)
         ".vasp",
         ".mol2",
         ".pwi",
-        ".gjf"
+        ".gjf",
+        ".extxyz",
+        ".data",
+        ".lmp"
     };
 
     for (std::size_t i = 0; i < sizeof(kSupportedExtensions) / sizeof(kSupportedExtensions[0]); ++i)
@@ -1224,7 +1228,7 @@ bool isSupportedExtension(const std::string& extLower)
 
 std::string supportedExtensionsSummary()
 {
-    return ".cif, .mol, .pdb, .xyz, .sdf, .vasp, .mol2, .pwi, .gjf";
+    return ".cif, .xyz, .extxyz, .vasp (or POSCAR/CONTCAR), .data/.lmp (LAMMPS data), .pdb, .mol, .mol2, .sdf, .pwi, .gjf";
 }
 
 bool filenameIsPoscarOrContcar(const std::string& filename)
@@ -1511,6 +1515,201 @@ bool isLargeDataFile(const std::string& filename)
     return extLower == ".afcloud" || extLower == ".dump" || extLower == ".lammpstrj";
 }
 
+static bool finishLoadedStructure(const std::string& filename, Structure& structure, std::string& errorMessage);
+
+// The element of a LAMMPS atom type: a label after its mass ("1 63.546 # Cu",
+// as AtomForge, ASE and others write), a label from an "Atom Type Labels"
+// section, or else the element whose standard mass is nearest (within 0.5 u).
+static int lammpsTypeElement(const std::string& label, double mass)
+{
+    if (!label.empty())
+    {
+        std::string symbol = label;
+        symbol[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(symbol[0])));
+        for (std::size_t k = 1; k < symbol.size(); ++k) symbol[k] = static_cast<char>(std::tolower(static_cast<unsigned char>(symbol[k])));
+        const int z = static_cast<int>(OpenBabel::OBElements::GetAtomicNum(symbol.c_str()));
+        if (z > 0) return z;
+    }
+    int best = 0;
+    double bestDifference = 0.5;
+    for (int z = 1; z <= 118 && mass > 0.0; ++z)
+        if (const double difference = std::abs(elementAtomicMass(z) - mass); difference < bestDifference)
+        {
+            best = z;
+            bestDifference = difference;
+        }
+    return best;
+}
+
+// A LAMMPS data file (read_data): the box, the Masses (or type labels) and
+// the Atoms section in the atomic, charge, full or molecular style (from the
+// "Atoms # style" comment, else from the number of columns).
+static bool readLammpsData(const std::string& text, Structure& structure, std::string& errorMessage)
+{
+    std::istringstream in(text);
+    std::string line;
+    std::getline(in, line);  // title
+    long long atomCount = -1;
+    int typeCount = 0;
+    double lo[3] = {0, 0, 0}, hi[3] = {0, 0, 0};
+    double xy = 0, xz = 0, yz = 0;
+    bool box[3] = {false, false, false};
+    std::map<int, double> masses;
+    std::map<int, std::string> labels;
+    std::vector<std::vector<std::string>> atomRows;
+    std::string style;
+    std::string section;
+    const auto stripComment = [](const std::string& value, std::string* comment) {
+        const std::size_t hash = value.find('#');
+        if (comment) *comment = hash == std::string::npos ? std::string() : value.substr(hash + 1);
+        return hash == std::string::npos ? value : value.substr(0, hash);
+    };
+    const auto words = [](const std::string& value) {
+        std::istringstream fields(value);
+        std::vector<std::string> out;
+        for (std::string word; fields >> word;) out.push_back(word);
+        return out;
+    };
+    const auto trim = [](std::string value) {
+        const std::size_t a = value.find_first_not_of(" \t\r\n");
+        const std::size_t b = value.find_last_not_of(" \t\r\n");
+        return a == std::string::npos ? std::string() : value.substr(a, b - a + 1);
+    };
+    while (std::getline(in, line))
+    {
+        std::string comment;
+        const std::string body = trim(stripComment(line, &comment));
+        if (body.empty()) continue;
+        const auto w = words(body);
+        if (!std::isdigit(static_cast<unsigned char>(w[0][0])) && w[0][0] != '-' && w[0][0] != '+' && w[0][0] != '.')
+        {
+            // A section header (Masses, Atoms, Velocities, Bonds, ...).
+            section = body;
+            if (section == "Atoms") style = trim(comment);
+            continue;
+        }
+        try
+        {
+            if (section.empty())
+            {
+                if (w.size() >= 2 && w[1] == "atoms") atomCount = std::stoll(w[0]);
+                else if (w.size() >= 3 && w[1] == "atom" && w[2] == "types") typeCount = std::stoi(w[0]);
+                else if (w.size() >= 4 && w[2] == "xlo" && w[3] == "xhi") { lo[0] = std::stod(w[0]); hi[0] = std::stod(w[1]); box[0] = true; }
+                else if (w.size() >= 4 && w[2] == "ylo" && w[3] == "yhi") { lo[1] = std::stod(w[0]); hi[1] = std::stod(w[1]); box[1] = true; }
+                else if (w.size() >= 4 && w[2] == "zlo" && w[3] == "zhi") { lo[2] = std::stod(w[0]); hi[2] = std::stod(w[1]); box[2] = true; }
+                else if (w.size() >= 6 && w[3] == "xy" && w[4] == "xz" && w[5] == "yz") { xy = std::stod(w[0]); xz = std::stod(w[1]); yz = std::stod(w[2]); }
+            }
+            else if (section == "Masses" && w.size() >= 2)
+            {
+                masses[std::stoi(w[0])] = std::stod(w[1]);
+                const auto label = words(comment);
+                if (!label.empty()) labels.emplace(std::stoi(w[0]), label[0]);
+            }
+            else if (section == "Atom Type Labels" && w.size() >= 2)
+                labels[std::stoi(w[0])] = w[1];
+            else if (section == "Atoms")
+                atomRows.push_back(w);
+        }
+        catch (const std::exception&)
+        {
+            errorMessage = "Cannot read this line of the LAMMPS data file: " + trim(line);
+            return false;
+        }
+    }
+    if (atomCount < 0 || !box[0] || !box[1] || !box[2])
+    {
+        errorMessage = "Not a LAMMPS data file: it needs the atom count and the xlo xhi, ylo yhi and zlo zhi box lines.";
+        return false;
+    }
+    if (static_cast<long long>(atomRows.size()) != atomCount)
+    {
+        errorMessage = "The LAMMPS data file declares " + std::to_string(atomCount) + " atoms but its Atoms section lists " +
+                       std::to_string(atomRows.size()) + ".";
+        return false;
+    }
+    // Columns of the type and x in each style; image flags may follow z.
+    int typeColumn = 1, xColumn = 2;
+    const std::string kind = words(style).empty() ? std::string() : words(style)[0];
+    const std::size_t columns = atomRows.empty() ? 0 : atomRows[0].size();
+    if (kind == "atomic") { typeColumn = 1; xColumn = 2; }
+    else if (kind == "charge") { typeColumn = 1; xColumn = 3; }
+    else if (kind == "full") { typeColumn = 2; xColumn = 4; }
+    else if (kind == "molecular" || kind == "bond" || kind == "angle") { typeColumn = 2; xColumn = 3; }
+    else if (!kind.empty())
+    {
+        errorMessage = "LAMMPS atom style '" + kind + "' is not supported; use atomic, charge, molecular or full.";
+        return false;
+    }
+    else if (columns == 5 || columns == 8) { typeColumn = 1; xColumn = 2; }
+    else if (columns == 6 || columns == 9) { typeColumn = 1; xColumn = 3; }
+    else if (columns == 7 || columns == 10) { typeColumn = 2; xColumn = 4; }
+    else
+    {
+        errorMessage = "Cannot tell the LAMMPS atom style; add it after the section name, e.g. \"Atoms # atomic\".";
+        return false;
+    }
+
+    std::map<int, int> elementOfType;
+    std::string unknownTypes;
+    for (int type = 1; type <= std::max(typeCount, 1); ++type)
+    {
+        const auto mass = masses.find(type);
+        const auto label = labels.find(type);
+        const int z = lammpsTypeElement(label == labels.end() ? std::string() : label->second, mass == masses.end() ? 0.0 : mass->second);
+        if (z > 0) elementOfType[type] = z;
+        else unknownTypes += (unknownTypes.empty() ? "" : ", ") + std::to_string(type);
+    }
+    if (!unknownTypes.empty())
+    {
+        errorMessage = "The element of LAMMPS atom type " + unknownTypes +
+                       " is unknown: give its mass in a Masses section, or its symbol after the mass (\"1 63.546 # Cu\").";
+        return false;
+    }
+
+    // Sorted by atom id, as LAMMPS numbers them.
+    std::vector<std::pair<long long, AtomSite>> sites;
+    sites.reserve(atomRows.size());
+    for (const auto& row : atomRows)
+    {
+        if ((int)row.size() < xColumn + 3)
+        {
+            errorMessage = "A LAMMPS atom line has too few columns for the " + (kind.empty() ? std::string("detected") : kind) + " style.";
+            return false;
+        }
+        try
+        {
+            const int type = std::stoi(row[(size_t)typeColumn]);
+            const auto element = elementOfType.find(type);
+            if (element == elementOfType.end())
+            {
+                errorMessage = "LAMMPS atom " + row[0] + " has type " + row[(size_t)typeColumn] + ", which is not among the declared types.";
+                return false;
+            }
+            AtomSite site;
+            site.atomicNumber = element->second;
+            site.symbol = elementSymbol(site.atomicNumber);
+            site.x = std::stod(row[(size_t)xColumn]);
+            site.y = std::stod(row[(size_t)xColumn + 1]);
+            site.z = std::stod(row[(size_t)xColumn + 2]);
+            getDefaultElementColor(site.atomicNumber, site.r, site.g, site.b);
+            sites.push_back({std::stoll(row[0]), site});
+        }
+        catch (const std::exception&)
+        {
+            errorMessage = "Cannot read LAMMPS atom line starting " + row[0] + ".";
+            return false;
+        }
+    }
+    std::stable_sort(sites.begin(), sites.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+    structure.atoms.reserve(sites.size());
+    for (auto& entry : sites) structure.atoms.push_back(std::move(entry.second));
+
+    structure.hasUnitCell = true;
+    structure.cellVectors = {{{hi[0] - lo[0], 0.0, 0.0}, {xy, hi[1] - lo[1], 0.0}, {xz, yz, hi[2] - lo[2]}}};
+    structure.cellOffset = {lo[0], lo[1], lo[2]};
+    return true;
+}
+
 bool loadStructureFromFile(const std::string& filename, Structure& structure, std::string& errorMessage)
 {
     structure = Structure();
@@ -1541,6 +1740,14 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
         return false;
     }
 
+    if (extLower == ".data" || extLower == ".lmp")
+    {
+        std::ifstream in(filename, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        if (!readLammpsData(text, structure, errorMessage)) return false;
+        return finishLoadedStructure(filename, structure, errorMessage);
+    }
+
     ensureOpenBabelPlugins();
 
     ScopedObWarningSilencer silenceWarnings;
@@ -1560,6 +1767,8 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
         if (!extNoDot.empty())
             inFormatSet = conv.SetInFormat(extNoDot.c_str());
 
+        if (!inFormatSet && extLower == ".extxyz")
+            inFormatSet = conv.SetInFormat("xyz");
         if (!inFormatSet && (extLower == ".vasp" || detectedPoscar))
             inFormatSet = conv.SetInFormat("vasp");
     }
@@ -1581,7 +1790,7 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
     bool read = false;
     bool xyzLattice = false;
     std::array<std::array<double, 3>, 3> xyzCell{};
-    if (extLower == ".xyz")
+    if (extLower == ".xyz" || extLower == ".extxyz")
     {
         std::ifstream in(filename, std::ios::binary);
         std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
@@ -1681,6 +1890,12 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
         structure.atoms.push_back(site);
     }
 
+    return finishLoadedStructure(filename, structure, errorMessage);
+}
+
+// Wrapping, orientation colours and the empty check, for every reader.
+static bool finishLoadedStructure(const std::string& filename, Structure& structure, std::string& errorMessage)
+{
     if (structure.hasUnitCell)
         wrapAtomsIntoPrimaryCell(structure);
 
@@ -1745,6 +1960,106 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
             " files need a unit cell, and this structure has none. Save it as XYZ, PDB or MOL, "
             "or give it a cell with Edit > Structure Operations > Add Vacuum.";
         return false;
+    }
+
+    if (formatLower == "extxyz") formatLower = "xyz";
+
+    // LAMMPS data (read_data, atomic style) is written here. LAMMPS boxes
+    // have a along x and b in the xy plane, so the cell and positions are
+    // rotated into that frame; each mass names its element ("1 63.546 # Cu").
+    // A structure without a cell gets a box around it with 10 A of space.
+    if (formatLower == "data" || formatLower == "lmp" || formatLower == "lammps" || formatLower == "lmpdat")
+    {
+        std::ofstream out(filename, std::ios::binary);
+        if (!out)
+        {
+            g_lastSaveError = "Could not write " + filename + "; check that the folder exists and is writable.";
+            return false;
+        }
+        glm::dmat3 cell(1.0);  // columns a, b, c
+        glm::dvec3 origin(0.0);
+        if (structure.hasUnitCell)
+        {
+            for (int r = 0; r < 3; ++r)
+                for (int c = 0; c < 3; ++c) cell[r][c] = structure.cellVectors[(size_t)r][(size_t)c];
+            origin = glm::dvec3(structure.cellOffset[0], structure.cellOffset[1], structure.cellOffset[2]);
+        }
+        else
+        {
+            glm::dvec3 low(0.0), high(0.0);
+            for (std::size_t i = 0; i < structure.atoms.size(); ++i)
+            {
+                const glm::dvec3 q(structure.atoms[i].x, structure.atoms[i].y, structure.atoms[i].z);
+                low = i ? glm::min(low, q) : q;
+                high = i ? glm::max(high, q) : q;
+            }
+            origin = low - glm::dvec3(10.0);
+            cell = glm::dmat3(1.0);
+            for (int k = 0; k < 3; ++k) cell[k][k] = high[k] - low[k] + 20.0;
+        }
+        if (std::abs(glm::determinant(cell)) < 1e-9)
+        {
+            g_lastSaveError = "The unit cell has no volume, so it cannot be written as a LAMMPS box.";
+            return false;
+        }
+        const glm::dvec3 a = cell[0], b = cell[1], c = cell[2];
+        const double ax = glm::length(a);
+        const glm::dvec3 ahat = a / ax;
+        const double bx = glm::dot(b, ahat);
+        const double by = glm::length(glm::cross(ahat, b));
+        const double cx = glm::dot(c, ahat);
+        const double cy = (glm::dot(b, c) - bx * cx) / by;
+        const double cz2 = glm::dot(c, c) - cx * cx - cy * cy;
+        const double cz = std::sqrt(std::max(0.0, cz2)) * (glm::determinant(cell) < 0.0 ? -1.0 : 1.0);
+        glm::dmat3 lammps(1.0);
+        lammps[0] = glm::dvec3(ax, 0.0, 0.0);
+        lammps[1] = glm::dvec3(bx, by, 0.0);
+        lammps[2] = glm::dvec3(cx, cy, cz);
+        const glm::dmat3 toFractional = glm::inverse(cell);
+        if (cz < 0.0)
+        {
+            g_lastSaveError = "The cell is left-handed; LAMMPS needs a right-handed box (swap two cell vectors first).";
+            return false;
+        }
+
+        std::vector<int> elements;
+        for (const auto& site : structure.atoms)
+            if (std::find(elements.begin(), elements.end(), site.atomicNumber) == elements.end()) elements.push_back(site.atomicNumber);
+        std::sort(elements.begin(), elements.end());
+
+        const auto clean = [](double v) { return std::abs(v) < 5e-11 ? 0.0 : v; };
+        char buffer[200];
+        out << "LAMMPS data file written by AtomForge\n\n" << structure.atoms.size() << " atoms\n" << elements.size() << " atom types\n\n";
+        std::snprintf(buffer, sizeof(buffer), "0.0 %.10g xlo xhi\n0.0 %.10g ylo yhi\n0.0 %.10g zlo zhi\n", clean(ax), clean(by), clean(cz));
+        out << buffer;
+        if (std::abs(bx) > 1e-10 || std::abs(cx) > 1e-10 || std::abs(cy) > 1e-10)
+        {
+            std::snprintf(buffer, sizeof(buffer), "%.10g %.10g %.10g xy xz yz\n", clean(bx), clean(cx), clean(cy));
+            out << buffer;
+        }
+        out << "\nMasses\n\n";
+        for (std::size_t t = 0; t < elements.size(); ++t)
+        {
+            std::snprintf(buffer, sizeof(buffer), "%zu %.6g  # %s\n", t + 1, elementAtomicMass(elements[t]), elementSymbol(elements[t]));
+            out << buffer;
+        }
+        out << "\nAtoms  # atomic\n\n";
+        for (std::size_t i = 0; i < structure.atoms.size(); ++i)
+        {
+            const auto& site = structure.atoms[i];
+            const glm::dvec3 f = toFractional * (glm::dvec3(site.x, site.y, site.z) - origin);
+            const glm::dvec3 q = lammps * f;
+            const std::size_t type = static_cast<std::size_t>(std::find(elements.begin(), elements.end(), site.atomicNumber) - elements.begin()) + 1;
+            std::snprintf(buffer, sizeof(buffer), "%zu %zu %.10f %.10f %.10f\n", i + 1, type, clean(q.x), clean(q.y), clean(q.z));
+            out << buffer;
+        }
+        out.close();
+        if (!out)
+        {
+            g_lastSaveError = "Could not write " + filename + "; check that the folder exists and is writable.";
+            return false;
+        }
+        return saveIpfSidecar(structure, filename);
     }
 
     // XYZ is written here: full precision (Open Babel keeps five decimals)

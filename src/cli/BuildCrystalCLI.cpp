@@ -37,7 +37,8 @@ void printHelpBulk()
 "------------------------------------------------------------------\n"
 "  --system     <name>         Crystal system: triclinic | monoclinic |\n"
 "                               orthorhombic | tetragonal | trigonal |\n"
-"                               hexagonal | cubic   (default: cubic)\n"
+"                               hexagonal | cubic   (default: that of\n"
+"                               the space group)\n"
 "  --spacegroup <N>            Space-group number 1-230  (default: 225)\n"
 "  --a   <Ang>                 Lattice parameter a       (default: 4.0)\n"
 "  --b   <Ang>                 Lattice parameter b       (default: a)\n"
@@ -79,6 +80,26 @@ int runBulk(int argc, char* argv[])
     }
 
     int sgNumber = argInt(argc, argv, "--spacegroup", 225);
+    if (sgNumber < 1 || sgNumber > 230)
+    {
+        std::cerr << "Error: --spacegroup must be a number from 1 to 230\n";
+        return 1;
+    }
+    // The space group fixes the crystal system; --system may only confirm it.
+    for (int r = 0; r < kNumSpaceGroupRanges; ++r)
+    {
+        const SpaceGroupRange& range = kSpaceGroupRanges[r];
+        if (sgNumber < range.first || sgNumber > range.last) continue;
+        if (sysStr && range.system != system)
+        {
+            std::string label = range.label;
+            for (char& c : label) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            std::cerr << "Error: space group " << sgNumber << " is " << label << ", not " << sysStr
+                      << "; leave out --system or give --system " << label << "\n";
+            return 1;
+        }
+        system = range.system;
+    }
 
     LatticeParameters lp;
     lp.a = argDouble(argc, argv, "--a", 4.0);

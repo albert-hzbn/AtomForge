@@ -95,7 +95,7 @@
     },
     {
       "source": "python/atomforge/_formats/xyz.py",
-      "sha256": "aebdd966ad2d159d8a6b2137bf02cc3906a78988580fd5c4370e88e95e072d63",
+      "sha256": "7a3592cdf79d902eb9500f64c6d368e290b53096362ad2f8cb17f708d2ee31f4",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -469,7 +469,7 @@
     },
     {
       "source": "src/algorithms/BulkCrystalBuilder.h",
-      "sha256": "d4de902a6c06a700afbc11b790ef779b3e0bee4673352b74832595fb10a0ea4b",
+      "sha256": "f41a74e66745f22ae53dfa8945bdae7df6a3113cb3283a19b54460314f4f428d",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -827,7 +827,7 @@
     },
     {
       "source": "src/cli/BuildCrystalCLI.cpp",
-      "sha256": "d2b7a1933c5bb7a2c90e2a1b025f077222081c212de7c5d43d47f8e14f83a9e9",
+      "sha256": "ff675b4c98fb35a0bd10d32cb0c76bad68f50390ad93ea8ef47cf77a0eae59ed",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"

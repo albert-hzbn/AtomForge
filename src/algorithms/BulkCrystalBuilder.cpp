@@ -68,7 +68,7 @@ const SpaceGroupRange& currentRange(CrystalSystem system)
     return kSpaceGroupRanges[0];
 }
 
-glm::mat3 buildLatticeFromParameters(const LatticeParameters& params)
+glm::dmat3 buildLatticeFromParameters(const LatticeParameters& params)
 {
     const double degToRad = 3.14159265358979323846 / 180.0;
     const double alpha = params.alpha * degToRad;
@@ -80,10 +80,10 @@ glm::mat3 buildLatticeFromParameters(const LatticeParameters& params)
     const double cosGamma = std::cos(gamma);
     const double sinGamma = std::sin(gamma);
 
-    glm::vec3 a((float)params.a, 0.0f, 0.0f);
-    glm::vec3 b((float)(params.b * cosGamma),
-                (float)(params.b * sinGamma),
-                0.0f);
+    glm::dvec3 a(params.a, 0.0, 0.0);
+    glm::dvec3 b((params.b * cosGamma),
+                (params.b * sinGamma),
+                0.0);
 
     double cx = params.c * cosBeta;
     double cy = 0.0;
@@ -92,9 +92,9 @@ glm::mat3 buildLatticeFromParameters(const LatticeParameters& params)
     double cz2 = params.c * params.c - cx * cx - cy * cy;
     if (cz2 < 0.0 && cz2 > -1e-8)
         cz2 = 0.0;
-    glm::vec3 c((float)cx, (float)cy, (float)((cz2 > 0.0) ? std::sqrt(cz2) : 0.0));
+    glm::dvec3 c(cx, cy, ((cz2 > 0.0) ? std::sqrt(cz2) : 0.0));
 
-    return glm::mat3(a, b, c);
+    return glm::dmat3(a, b, c);
 }
 
 bool validateParameters(CrystalSystem system, const LatticeParameters& params, std::string& error)
@@ -167,8 +167,8 @@ bool validateParameters(CrystalSystem system, const LatticeParameters& params, s
             break;
     }
 
-    glm::mat3 lattice = buildLatticeFromParameters(params);
-    if (std::abs(glm::determinant(lattice)) < 1e-10f)
+    glm::dmat3 lattice = buildLatticeFromParameters(params);
+    if (std::abs(glm::determinant(lattice)) < 1e-10)
     {
         error = "Lattice parameters produce a zero-volume cell.";
         return false;
@@ -257,21 +257,30 @@ std::string spaceGroupLabel(int spaceGroupNumber)
     return out.str();
 }
 
-glm::vec3 wrapFractional(const glm::vec3& frac)
+glm::dvec3 wrapFractional(const glm::dvec3& frac)
 {
-    glm::vec3 wrapped = frac;
+    glm::dvec3 wrapped = frac;
     wrapped.x -= std::floor(wrapped.x);
     wrapped.y -= std::floor(wrapped.y);
     wrapped.z -= std::floor(wrapped.z);
-    if (wrapped.x >= 1.0f - 1e-6f) wrapped.x = 0.0f;
-    if (wrapped.y >= 1.0f - 1e-6f) wrapped.y = 0.0f;
-    if (wrapped.z >= 1.0f - 1e-6f) wrapped.z = 0.0f;
+    // Snap values that differ from a simple fraction only by rounding
+    // (1/3 as 0.3333333) and ones a hair below 1.
+    for (int k = 0; k < 3; ++k)
+    {
+        if (wrapped[k] >= 1.0 - 1e-9) wrapped[k] = 0.0;
+        for (int d : {2, 3, 4, 6, 8, 12})
+        {
+            const double n = std::round(wrapped[k] * d);
+            if (std::abs(wrapped[k] * d - n) < 1e-6 * d) { wrapped[k] = n / d; break; }
+        }
+        if (wrapped[k] >= 1.0) wrapped[k] = 0.0;
+    }
     return wrapped;
 }
 
-bool sameFractionalPosition(const glm::vec3& lhs, const glm::vec3& rhs, float tol)
+bool sameFractionalPosition(const glm::dvec3& lhs, const glm::dvec3& rhs, double tol)
 {
-    glm::vec3 delta = lhs - rhs;
+    glm::dvec3 delta = lhs - rhs;
     delta.x -= std::round(delta.x);
     delta.y -= std::round(delta.y);
     delta.z -= std::round(delta.z);
@@ -328,30 +337,30 @@ BulkBuildResult buildBulkCrystal(Structure& structure,
         return result;
     }
 
-    glm::mat3 lattice = buildLatticeFromParameters(params);
-    glm::vec3 a = lattice[0];
-    glm::vec3 b = lattice[1];
-    glm::vec3 c = lattice[2];
+    const glm::dmat3 lattice = buildLatticeFromParameters(params);
+    const glm::dvec3 a = lattice[0];
+    const glm::dvec3 b = lattice[1];
+    const glm::dvec3 c = lattice[2];
 
     std::vector<AtomSite> generatedAtoms;
     generatedAtoms.reserve(asymmetricAtoms.size() * (size_t)operationCount);
-    std::vector<glm::vec3> generatedFrac;
+    std::vector<glm::dvec3> generatedFrac;
     generatedFrac.reserve(asymmetricAtoms.size() * (size_t)operationCount);
 
     for (size_t atomIndex = 0; atomIndex < asymmetricAtoms.size(); ++atomIndex)
     {
         const AtomSite& basisAtom = asymmetricAtoms[atomIndex];
-        glm::vec3 frac((float)basisAtom.x, (float)basisAtom.y, (float)basisAtom.z);
+        glm::dvec3 frac(basisAtom.x, basisAtom.y, basisAtom.z);
         frac = wrapFractional(frac);
 
         for (int op = 0; op < operationCount; ++op)
         {
-            glm::vec3 transformed(0.0f);
+            glm::dvec3 transformed(0.0);
             for (int row = 0; row < 3; ++row)
             {
-                transformed[row] = (float)translations[op][row];
+                transformed[row] = translations[op][row];
                 for (int col = 0; col < 3; ++col)
-                    transformed[row] += (float)rotations[op][row][col] * frac[col];
+                    transformed[row] += rotations[op][row][col] * frac[col];
             }
             transformed = wrapFractional(transformed);
 
@@ -360,7 +369,7 @@ BulkBuildResult buildBulkCrystal(Structure& structure,
             {
                 if (generatedAtoms[existingIndex].atomicNumber != basisAtom.atomicNumber)
                     continue;
-                if (sameFractionalPosition(transformed, generatedFrac[existingIndex], 1e-5f))
+                if (sameFractionalPosition(transformed, generatedFrac[existingIndex], 1e-5))
                 {
                     duplicate = true;
                     break;
@@ -369,7 +378,7 @@ BulkBuildResult buildBulkCrystal(Structure& structure,
             if (duplicate)
                 continue;
 
-            glm::vec3 cart = a * transformed.x + b * transformed.y + c * transformed.z;
+            const glm::dvec3 cart = a * transformed.x + b * transformed.y + c * transformed.z;
 
             AtomSite generated;
             generated.atomicNumber = basisAtom.atomicNumber;

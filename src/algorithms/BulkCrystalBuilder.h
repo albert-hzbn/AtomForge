@@ -61,7 +61,7 @@ const char* crystalSystemLabel(CrystalSystem system);
 
 const SpaceGroupRange& currentRange(CrystalSystem system);
 
-glm::mat3 buildLatticeFromParameters(const LatticeParameters& params);
+glm::dmat3 buildLatticeFromParameters(const LatticeParameters& params);
 
 bool validateParameters(CrystalSystem system, const LatticeParameters& params,
                         std::string& error);
@@ -72,9 +72,9 @@ std::vector<int>& hallBySpaceGroup();
 
 std::string spaceGroupLabel(int spaceGroupNumber);
 
-glm::vec3 wrapFractional(const glm::vec3& frac);
+glm::dvec3 wrapFractional(const glm::dvec3& frac);
 
-bool sameFractionalPosition(const glm::vec3& lhs, const glm::vec3& rhs, float tol);
+bool sameFractionalPosition(const glm::dvec3& lhs, const glm::dvec3& rhs, double tol);
 
 // -- Builder -----------------------------------------------------------------
 
