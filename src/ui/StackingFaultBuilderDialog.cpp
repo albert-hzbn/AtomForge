@@ -894,15 +894,13 @@ void StackingFaultBuilderDialog::drawDialog(
     ImGui::Separator();
     if (!m_statusMsg.empty())
     {
-        const ImVec4 color = m_statusIsError
-            ? ImVec4(1.0f, 0.4f, 0.4f, 1.0f)
-            : themeStatusGood();
+        const ImVec4 color = m_statusIsError ? themeStatusError() : themeStatusGood();
         ImGui::TextColored(color, "%s", m_statusMsg.c_str());
         ImGui::SameLine();
     }
-    const float buttonWidth = 100.0f;
+    const float buttonWidth = responsive::dp(110.0f);
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonWidth);
-    if (responsive::button("Close", ImVec2(buttonWidth, 0.0f)))
+    if (dialogLayout::secondaryButton("Close", ImVec2(buttonWidth, 0.0f)))
     {
         m_step.finish();
         ImGui::CloseCurrentPopup();

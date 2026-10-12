@@ -1011,9 +1011,18 @@ void CustomStructureDialog::drawDialog(Structure& structure,
             ImGui::TextColored(themeStatusWarn(),
                                "Drop a 3D model (OBJ/STL) to continue.");
     }
+    // Right-aligned [Close] [Build Fill], as in the other dialogs' footers.
+    if (!canBuild)
+        ImGui::EndDisabled();
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x
+        - dialogLayout::buttonRowWidth({"Close", m_step.active() ? "Update Step" : "Build Fill"}, responsive::dp(120.0f))));
+    const bool closePressed = dialogLayout::secondaryButton("Close", responsive::size(120.0f,0.0f));
+    ImGui::SameLine();
+    if (!canBuild)
+        ImGui::BeginDisabled();
     if (m_step.active())
     {
-        if (responsive::button("Update Step", responsive::size(140.0f,0.0f)))
+        if (dialogLayout::primaryButton("Update Step", responsive::size(120.0f,0.0f)))
         {
             // Without --input the pipeline passes the step's input structure.
             atomforge::pipeline::Json updated = m_step.parameters;
@@ -1025,7 +1034,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
             ImGui::CloseCurrentPopup();
         }
     }
-    else if (dialogLayout::primaryButton("Build Fill", responsive::size(140.0f,0.0f)) || uiScript::take("custom.build"))
+    else if (dialogLayout::primaryButton("Build Fill", responsive::size(120.0f,0.0f)) || uiScript::take("custom.build"))
     {
         if (params.applyCrystalOrientation)
         {
@@ -1077,8 +1086,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     if (!canBuild)
         ImGui::EndDisabled();
 
-    ImGui::SameLine();
-    if (responsive::button("Close", responsive::size(100.0f,0.0f)))
+    if (closePressed)
     {
         m_step.finish();
         ImGui::CloseCurrentPopup();

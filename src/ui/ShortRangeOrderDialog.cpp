@@ -642,9 +642,10 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
         ImGui::SameLine();
     }
 
-    float closeX = ImGui::GetContentRegionAvail().x - 104.0f;
+    const float closeWidth = dialogLayout::buttonRowWidth({"Close"}, ImGui::GetFontSize() * 5.5f);
+    const float closeX = ImGui::GetContentRegionAvail().x - closeWidth;
     if (closeX > 0.0f) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + closeX);
-    if (responsive::button("Close##SROClose", { 100.0f, 0.0f }))
+    if (dialogLayout::primaryButton("Close##SROClose", ImVec2(closeWidth, 0.0f)))
     {
         ImGui::CloseCurrentPopup();
         state.isOpen = false;

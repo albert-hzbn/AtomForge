@@ -1241,11 +1241,16 @@ void CellSculptorDialog::drawDialog(
     // Fixed bottom buttons
     ImGui::Separator();
     bool doGenerate = false;
+    // Right-aligned [Close] [Generate], as in the other dialogs' footers.
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x
+        - dialogLayout::buttonRowWidth({"Close", m_step.active() ? "Update Step" : "Generate"}, responsive::dp(110.0f))));
+    const bool closePressed = dialogLayout::secondaryButton("Close", responsive::size(110.0f, 0.0f));
+    ImGui::SameLine();
     if (m_step.active())
     {
         // The step keeps the atoms between the slabs; the region need not be closed.
         if (m_slabs.empty()) ImGui::BeginDisabled();
-        if (responsive::button("Update Step##scgen", responsive::size(100.0f,0.0f)))
+        if (dialogLayout::primaryButton("Update Step##scgen", responsive::size(110.0f,0.0f)))
         {
             m_step.commitOptions(stepOptions());
             ImGui::CloseCurrentPopup();
@@ -1261,7 +1266,7 @@ void CellSculptorDialog::drawDialog(
     else
     {
         if (!bounded) ImGui::BeginDisabled();
-        doGenerate = dialogLayout::primaryButton("Generate##scgen", responsive::size(100.0f,0.0f));
+        doGenerate = dialogLayout::primaryButton("Generate##scgen", responsive::size(110.0f,0.0f));
         if (!bounded)
         {
             ImGui::EndDisabled();
@@ -1269,8 +1274,7 @@ void CellSculptorDialog::drawDialog(
                 ImGui::SetTooltip("Close the region first.");
         }
     }
-    ImGui::SameLine();
-    if (responsive::button("Close##scclose", responsive::size(80.0f,0.0f)))
+    if (closePressed)
     {
         ImGui::CloseCurrentPopup();
         m_step.finish();

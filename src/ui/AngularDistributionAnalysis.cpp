@@ -871,7 +871,9 @@ void AngularDistributionAnalysisDialog::drawDialog(const Structure& structure)
 
     // ── Footer ────────────────────────────────────────────────
     ImGui::Separator();
-    if (responsive::button("Close", responsive::size(110.0f,0.0f)))
+    const float closeWidth = dialogLayout::buttonRowWidth({"Close"}, ImGui::GetFontSize() * 5.5f);
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x - closeWidth));
+    if (dialogLayout::primaryButton("Close", ImVec2(closeWidth, 0.0f)))
         ImGui::CloseCurrentPopup();
 
     ImGui::EndPopup();

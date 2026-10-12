@@ -645,12 +645,17 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
 
         // -- Build -------------------------------------------------
         ImGui::Spacing();
-        const float closeW = 110.0f;
-        const float buildW = 110.0f;
+        const float closeW = responsive::dp(110.0f);
+        const float buildW = responsive::dp(110.0f);
+        // Right-aligned [Close] [Build], as in the other dialogs' footers.
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x
+            - dialogLayout::buttonRowWidth({"Close", m_step.active() ? "Update Step" : "Build"}, buildW)));
+        const bool closePressed = dialogLayout::secondaryButton("Close", ImVec2(closeW, 0.0f));
+        ImGui::SameLine();
 
         if (m_step.active())
         {
-            if (responsive::button("Update Step", ImVec2(buildW, 0.0f)))
+            if (dialogLayout::primaryButton("Update Step", ImVec2(buildW, 0.0f)))
             {
                 // With the step input as reference there is no --input: the pipeline passes it.
                 atomforge::pipeline::Json parameters = m_step.parameters;
@@ -804,8 +809,7 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
             }
         }
 
-        ImGui::SameLine();
-        if (responsive::button("Close", ImVec2(closeW, 0.0f)))
+        if (closePressed)
         {
             dialogOpen = false;
             ImGui::CloseCurrentPopup();

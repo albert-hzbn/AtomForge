@@ -1261,10 +1261,15 @@ void InterfaceBuilderDialog::drawDialog(
     // =========================================================================
     ImGui::Separator();
 
+    // Right-aligned [Close] [Build], as in the other dialogs' footers.
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x
+        - dialogLayout::buttonRowWidth({"Close", m_step.active() ? "Update Step" : "Build"}, responsive::dp(110.0f))));
+    const bool closePressed = dialogLayout::secondaryButton("Close", responsive::size(110.0f, 0.0f));
+    ImGui::SameLine();
     if (m_step.active())
     {
         // Without a picked match the step builds the best one (--pick 0).
-        if (responsive::button("Update Step##iface", responsive::size(120.0f,0.0f)))
+        if (dialogLayout::primaryButton("Update Step##iface", responsive::size(110.0f,0.0f)))
         {
             m_step.commitOptions(stepOptions());
             m_step.finish();
@@ -1277,7 +1282,7 @@ void InterfaceBuilderDialog::drawDialog(
         bool canBuild = (m_selectedIdx >= 0 &&
                          m_selectedIdx < (int)m_interfaceStructures.size());
         if (!canBuild) ImGui::BeginDisabled();
-        if (dialogLayout::primaryButton("Build##iface", responsive::size(100.0f,0.0f)))
+        if (dialogLayout::primaryButton("Build##iface", responsive::size(110.0f,0.0f)))
         {
             structure = m_interfaceStructures[m_selectedIdx];
             updateBuffers(structure);
@@ -1287,8 +1292,7 @@ void InterfaceBuilderDialog::drawDialog(
         if (!canBuild) ImGui::EndDisabled();
     }
 
-    ImGui::SameLine();
-    if (responsive::button("Close##iface", responsive::size(80.0f,0.0f)))
+    if (closePressed)
     {
         m_isOpen = false;
         m_step.finish();

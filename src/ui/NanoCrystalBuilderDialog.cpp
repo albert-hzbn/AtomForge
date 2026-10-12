@@ -1507,9 +1507,14 @@ void NanoCrystalBuilderDialog::drawDialog(
                            || m_wulffPreviewData.success);
     // A step may be updated before its input exists; building needs a reference.
     const bool disableAction = !canBuild && !m_step.active();
+    // Right-aligned [Close] [Build Nanocrystal], as in the other dialogs' footers.
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x
+        - dialogLayout::buttonRowWidth({"Close", m_step.active() ? "Update Step" : "Build Nanocrystal"}, responsive::dp(150.0f))));
+    const bool closePressed = dialogLayout::secondaryButton("Close", responsive::size(150.0f, 0.0f));
+    ImGui::SameLine();
     if (disableAction) ImGui::BeginDisabled();
     if (m_step.active()) {
-        if (responsive::button("Update Step##nano", responsive::size(160.0f,0.0f))) {
+        if (dialogLayout::primaryButton("Update Step##nano", responsive::size(150.0f,0.0f))) {
             // The step input stays the reference unless a file was loaded here.
             atomforge::pipeline::Json updated = m_step.parameters;
             updated["options"] = stepOptions();
@@ -1521,7 +1526,7 @@ void NanoCrystalBuilderDialog::drawDialog(
             ImGui::CloseCurrentPopup();
         }
     }
-    else if (dialogLayout::primaryButton("Build Nanocrystal##nano", responsive::size(160.0f,0.0f)) || uiScript::take("nano.build")) {
+    else if (dialogLayout::primaryButton("Build Nanocrystal##nano", responsive::size(150.0f,0.0f)) || uiScript::take("nano.build")) {
         static const std::vector<glm::vec3>       kNoVerts;
         static const std::vector<unsigned int>    kNoIdx;
         lastResult = buildNanocrystal(structure,
@@ -1535,8 +1540,7 @@ void NanoCrystalBuilderDialog::drawDialog(
     }
     if (disableAction) ImGui::EndDisabled();
 
-    ImGui::SameLine(responsive::dp(0.0f), 8.0f);
-    if (responsive::button("Close##nano", responsive::size(80.0f,0.0f))) {
+    if (closePressed) {
         lastResult  = {};
         m_isOpen    = false;
         m_step.finish();

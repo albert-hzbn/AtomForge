@@ -497,22 +497,22 @@ void AmorphousBuilderDialog::drawDialog(
     // =========================================================================
     // SECTION 5 – Build / Close
     // =========================================================================
-    ImGui::Spacing();
-    const bool canBuild = (total > 0);
-    if (!canBuild)
-        ImGui::BeginDisabled();
-
-    if (m_step.active())
+    // The last build's outcome, then the actions.
+    if (!m_statusMsg.empty())
     {
-        if (responsive::button("Update Step", responsive::size(120.0f,0.0f)))
-        {
-            m_step.commitOptions(stepOptions());
-            m_step.finish();
-            ImGui::CloseCurrentPopup();
-            m_isOpen = false;
-        }
+        ImGui::Spacing();
+        dialogLayout::note(m_statusIsError ? dialogLayout::Note::Error : dialogLayout::Note::Success, m_statusMsg.c_str());
     }
-    else if (dialogLayout::primaryButton("Build", responsive::size(120.0f,0.0f)))
+    const bool canBuild = (total > 0);
+    const int pressed = dialogLayout::footer(m_step.active() ? "Update Step" : "Build", "Close", canBuild);
+    if (pressed == 1 && m_step.active())
+    {
+        m_step.commitOptions(stepOptions());
+        m_step.finish();
+        ImGui::CloseCurrentPopup();
+        m_isOpen = false;
+    }
+    else if (pressed == 1)
     {
         // Assemble AmorphousParams from dialog state.
         AmorphousParams params;
@@ -551,39 +551,19 @@ void AmorphousBuilderDialog::drawDialog(
             extra << "  |  density: " << std::fixed;
             extra.precision(3);
             extra << res.actualDensity << " g/cm\xc2\xb3"
-                  << "  |  box: " << res.boxA << " x " << res.boxB
-                  << " x " << res.boxC << " \xc3\x85";
+                  << "  |  box: " << res.boxA << " \xc3\x97 " << res.boxB
+                  << " \xc3\x97 " << res.boxC << " \xc3\x85";
             m_statusMsg += extra.str();
 
             updateBuffers(res.output);
         }
     }
 
-    if (!canBuild)
-        ImGui::EndDisabled();
-
-    ImGui::SameLine();
-    if (responsive::button("Close", responsive::size(120.0f,0.0f)))
+    else if (pressed == 2)
     {
         ImGui::CloseCurrentPopup();
         m_isOpen = false;
         m_step.finish();
-    }
-
-    // Status line.
-    if (!m_statusMsg.empty())
-    {
-        ImGui::Spacing();
-        if (m_statusIsError)
-        {
-            ImGui::PushStyleColor(ImGuiCol_Text, themeStatusError());
-            ImGui::TextWrapped("Error: %s", m_statusMsg.c_str());
-            ImGui::PopStyleColor();
-        }
-        else
-        {
-            ImGui::TextWrapped("%s", m_statusMsg.c_str());
-        }
     }
 
     ImGui::EndPopup();

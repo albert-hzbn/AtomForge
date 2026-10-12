@@ -9,6 +9,7 @@
 
 
 #include <algorithm>
+#include <cfloat>
 #include <cstdio>
 #include <set>
 #include <string>
@@ -211,7 +212,7 @@ void drawDistortionSummary(const RdfResult& result)
         return;
     }
 
-    ImGui::Text("Shell window: [%.4f, %.4f] A (%s)",
+    ImGui::Text("Shell window: [%.4f, %.4f] \xc3\x85 (%s)",
                 result.distortionWindowMin,
                 result.distortionWindowMax,
                 result.distortionWindowAuto ? "auto" : "manual");
@@ -264,6 +265,9 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
     {
         bool changed = false;
         const bool stackPanels = responsive::stacked(1050);
+        // Side by side, the panels leave room for the footer.
+        const float footerHeight = ImGui::GetFrameHeight() + 3.0f * ImGui::GetStyle().ItemSpacing.y + responsive::dp(2) + 2.0f;
+        const float panelHeight = stackPanels ? responsive::dp(520.0f) : -footerHeight;
         if (ImGui::BeginTable("##rdf-layout", stackPanels ? 1 : 2, ImGuiTableFlags_SizingStretchProp))
         {
             ImGui::TableSetupColumn("##rdf-controls", ImGuiTableColumnFlags_WidthStretch, 0.43f);
@@ -271,7 +275,7 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
             ImGui::TableNextRow();
 
             ImGui::TableSetColumnIndex(0);
-            responsive::beginChild("##rdf-controls-child", responsive::size(0.0f,stackPanels ? 520.0f : 0.0f), true);
+            responsive::beginChild("##rdf-controls-child", ImVec2(0.0f, panelHeight), true);
             ImGui::SeparatorText("Scope and Pair Selection");
             changed |= ImGui::Combo("Reference species", &refSpeciesIndex, speciesLabelGetter, &speciesOptions, (int)speciesOptions.size()); dialogLayout::hint("Element of the centre atoms whose neighbours are counted (all elements: every atom).");
             changed |= ImGui::Combo("Target species", &targetSpeciesIndex, speciesLabelGetter, &speciesOptions, (int)speciesOptions.size()); dialogLayout::hint("Element of the neighbours counted around the centre atoms; a pair of elements gives a partial g(r).");
@@ -298,12 +302,9 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
             }
 
             bool computeRequested = false;
-            if ((dialogLayout::primaryButton("Run RDF", responsive::size(140.0f,0.0f)) || uiScript::take("rdf.run")) && !m_task.running())
+            ImGui::Spacing();
+            if ((dialogLayout::primaryButton("Run RDF", ImVec2(-FLT_MIN, 0.0f)) || uiScript::take("rdf.run")) && !m_task.running())
                 computeRequested = true;
-            ImGui::SameLine();
-            if (responsive::button("Close", responsive::size(120.0f,0.0f)))
-                dialogOpen = false;
-            ImGui::SameLine();
             if (m_task.running())
                 ImGui::TextColored(themeStatusComputing(), "Computing...");
             else if (m_computeCompleted)
@@ -330,7 +331,7 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
 
             if (stackPanels) { ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); }
             else ImGui::TableSetColumnIndex(1);
-            responsive::beginChild("##rdf-results-child", responsive::size(0.0f,stackPanels ? 520.0f : 0.0f), true);
+            responsive::beginChild("##rdf-results-child", ImVec2(0.0f, panelHeight), true);
             
             // Display results if available
             if (m_task.result())
@@ -346,6 +347,8 @@ void RadialDistributionAnalysisDialog::drawDialog(const Structure& structure)
             ImGui::EndTable();
         }
 
+        if (dialogLayout::footer("Close", nullptr) == 1)
+            dialogOpen = false;
         if (!dialogOpen) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }

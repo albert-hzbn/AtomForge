@@ -11,6 +11,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <initializer_list>
+#include <string>
 
 namespace dialogLayout
 {
@@ -210,6 +211,53 @@ inline int footer(const char* primary, const char* secondary = "Close", bool pri
     }
     ImGui::BeginDisabled(!primaryEnabled);
     if (primaryButton(primary, ImVec2(std::max(minimum, ImGui::CalcTextSize(primary, nullptr, true).x + 2 * ImGui::GetStyle().FramePadding.x), 0))) result = 1;
+    ImGui::EndDisabled();
+    return result;
+}
+
+// A one-row footer for panels whose layout already ends in a rule: the outcome
+// of the last action on the left (one line, the whole text in a tooltip; Info
+// is muted), then [secondary] [primary] right-aligned. Returns as footer().
+inline int actionBar(const std::string& status, Note kind, const char* primary, const char* secondary = "Close", bool primaryEnabled = true)
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float minimum = ImGui::GetFontSize() * 5.5f;
+    const float buttons = secondary ? buttonRowWidth({secondary, primary}, minimum) : buttonRowWidth({primary}, minimum);
+    const float startX = ImGui::GetCursorPosX();
+    const float available = ImGui::GetContentRegionAvail().x;
+    if (!status.empty()) {
+        const float room = available - buttons - 2 * style.ItemSpacing.x;
+        std::string shown = status;
+        if (ImGui::CalcTextSize(shown.c_str()).x > room) {
+            // Cut at a character boundary (not inside a UTF-8 sequence) and add an ellipsis.
+            while (!shown.empty() && ImGui::CalcTextSize((shown + "\xe2\x80\xa6").c_str()).x > room) {
+                shown.pop_back();
+                while (!shown.empty() && (static_cast<unsigned char>(shown.back()) & 0xC0) == 0x80) shown.pop_back();
+                if (!shown.empty() && (static_cast<unsigned char>(shown.back()) & 0xC0) == 0xC0) shown.pop_back();
+            }
+            shown += "\xe2\x80\xa6";
+        }
+        ImGui::AlignTextToFramePadding();
+        ImGui::PushStyleColor(ImGuiCol_Text, kind == Note::Info ? ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled) : noteColour(kind));
+        ImGui::TextUnformatted(shown.c_str());
+        ImGui::PopStyleColor();
+        if (shown != status && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) {
+            ImGui::BeginTooltip();
+            ImGui::PushTextWrapPos(ImGui::GetFontSize() * 32.0f);
+            ImGui::TextUnformatted(status.c_str());
+            ImGui::PopTextWrapPos();
+            ImGui::EndTooltip();
+        }
+        ImGui::SameLine();
+    }
+    ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), startX + available - buttons));
+    int result = 0;
+    if (secondary) {
+        if (secondaryButton(secondary, ImVec2(std::max(minimum, ImGui::CalcTextSize(secondary, nullptr, true).x + 2 * style.FramePadding.x), 0))) result = 2;
+        ImGui::SameLine();
+    }
+    ImGui::BeginDisabled(!primaryEnabled);
+    if (primaryButton(primary, ImVec2(std::max(minimum, ImGui::CalcTextSize(primary, nullptr, true).x + 2 * style.FramePadding.x), 0))) result = 1;
     ImGui::EndDisabled();
     return result;
 }

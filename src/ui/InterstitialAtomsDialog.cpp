@@ -1610,62 +1610,42 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
     const bool canApply = m_sourceLoaded && !m_voids.empty() &&
                           (m_placementMode != PlacementMode::MeshRegion || m_meshLoaded) &&
                           (m_placementMode != PlacementMode::ManualSelection || hasManualSelection);
-    if (editingStep)
+    const int pressed = dialogLayout::actionBar(m_statusMsg, m_statusIsError ? dialogLayout::Note::Error : dialogLayout::Note::Success,
+                                                editingStep ? "Update Step" : "Apply Interstitials", "Close", editingStep || canApply);
+    if (pressed == 1 && editingStep)
     {
-        if (responsive::button("Update Step", responsive::size(180.0f,0.0f)))
-        {
-            m_step.commitParameters(stepParameters());
-            ImGui::CloseCurrentPopup();
-            m_isOpen = false;
-            m_step.finish();
-        }
-    }
-    else
-    {
-        if (!canApply)
-            ImGui::BeginDisabled();
-
-        if (dialogLayout::primaryButton("Apply Interstitials", responsive::size(180.0f,0.0f)))
-        {
-            Structure out;
-            const int added = applyPlacement(out, elementColors);
-            if (added > 0)
-            {
-                structure = std::move(out);
-                updateBuffers(structure);
-
-                m_source       = structure;
-                m_sourceLoaded = true;
-                m_previewBufDirty = true;
-                rebuildPreviewBuffers(elementRadii, elementShininess);
-                m_statusIsError = false;
-                m_statusMsg = "Added " + std::to_string(added) + " interstitial atom(s).";
-            }
-            else
-            {
-                m_statusIsError = true;
-                m_statusMsg = "No interstitials placed. Check target, type filter, or mesh transform.";
-            }
-        }
-        if (!canApply)
-            ImGui::EndDisabled();
-    }
-
-    ImGui::SameLine();
-    if (responsive::button("Close", responsive::size(120.0f,0.0f)))
-    {
+        m_step.commitParameters(stepParameters());
         ImGui::CloseCurrentPopup();
         m_isOpen = false;
         m_step.finish();
     }
-
-    if (!m_statusMsg.empty())
+    else if (pressed == 1)
     {
-        ImGui::SameLine();
-        if (m_statusIsError)
-            ImGui::TextColored(themeStatusError(), "%s", m_statusMsg.c_str());
+        Structure out;
+        const int added = applyPlacement(out, elementColors);
+        if (added > 0)
+        {
+            structure = std::move(out);
+            updateBuffers(structure);
+
+            m_source       = structure;
+            m_sourceLoaded = true;
+            m_previewBufDirty = true;
+            rebuildPreviewBuffers(elementRadii, elementShininess);
+            m_statusIsError = false;
+            m_statusMsg = "Added " + std::to_string(added) + " interstitial atom(s).";
+        }
         else
-            ImGui::TextColored(themeStatusGood(), "%s", m_statusMsg.c_str());
+        {
+            m_statusIsError = true;
+            m_statusMsg = "No interstitials placed. Check target, type filter, or mesh transform.";
+        }
+    }
+    else if (pressed == 2)
+    {
+        ImGui::CloseCurrentPopup();
+        m_isOpen = false;
+        m_step.finish();
     }
 
     ImGui::EndPopup();

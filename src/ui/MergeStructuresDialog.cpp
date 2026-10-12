@@ -1019,19 +1019,25 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
 
     // ---- Bottom bar ----
     const bool canMerge = editingStep ? firstFileEntry() >= 0 : !m_entries.empty();
+    if (!m_status.empty())
+        ImGui::TextDisabled("%s", m_status.c_str());
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x
+        - dialogLayout::buttonRowWidth({"Close", editingStep ? "Update Step" : "Merge Structures"}, responsive::dp(150.0f))));
+    const bool closePressed = dialogLayout::secondaryButton("Close", responsive::size(150.0f, 0.0f));
+    ImGui::SameLine();
     if (!canMerge)
         ImGui::BeginDisabled();
 
     if (editingStep)
     {
-        if (responsive::button("Update Step", responsive::size(170.0f,0.0f)))
+        if (dialogLayout::primaryButton("Update Step", responsive::size(150.0f,0.0f)))
         {
             m_step.commitParameters(stepParameters());
             ImGui::CloseCurrentPopup();
             finishStepEdit();
         }
     }
-    else if (dialogLayout::primaryButton("Merge Structures", responsive::size(170.0f,0.0f)))
+    else if (dialogLayout::primaryButton("Merge Structures", responsive::size(150.0f,0.0f)))
     {
         Structure merged = buildCombinedPreviewStructure();
         if (merged.atoms.empty())
@@ -1060,17 +1066,10 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
     if (!canMerge)
         ImGui::EndDisabled();
 
-    ImGui::SameLine();
-    if (responsive::button("Close", responsive::size(100.0f,0.0f)))
+    if (closePressed)
     {
         ImGui::CloseCurrentPopup();
         finishStepEdit();
-    }
-
-    if (!m_status.empty())
-    {
-        ImGui::SameLine();
-        ImGui::TextWrapped("%s", m_status.c_str());
     }
 
     ImGui::EndPopup();

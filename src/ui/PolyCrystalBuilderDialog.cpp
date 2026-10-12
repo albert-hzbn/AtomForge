@@ -664,10 +664,15 @@ void PolyCrystalBuilderDialog::drawDialog(
     const bool canBuild = !m_reference.atoms.empty() && m_reference.hasUnitCell;
     // A step may be updated before its input exists; building needs a reference.
     const bool disableAction = !canBuild && !m_step.active();
+    // Right-aligned [Close] [Build], as in the other dialogs' footers.
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, ImGui::GetContentRegionAvail().x
+        - dialogLayout::buttonRowWidth({"Close", m_step.active() ? "Update Step" : "Build"}, responsive::dp(110.0f))));
+    const bool closePressed = dialogLayout::secondaryButton("Close", responsive::size(110.0f, 0.0f));
+    ImGui::SameLine();
     if (disableAction) ImGui::BeginDisabled();
     if (m_step.active())
     {
-        if (responsive::button("Update Step##poly", responsive::size(100.0f,0.0f)))
+        if (dialogLayout::primaryButton("Update Step##poly", responsive::size(110.0f,0.0f)))
         {
             // The step input stays the reference unless a file was loaded here.
             atomforge::pipeline::Json updated = m_step.parameters;
@@ -680,7 +685,7 @@ void PolyCrystalBuilderDialog::drawDialog(
             ImGui::CloseCurrentPopup();
         }
     }
-    else if (dialogLayout::primaryButton("Build##poly", responsive::size(100.0f,0.0f)))
+    else if (dialogLayout::primaryButton("Build##poly", responsive::size(110.0f,0.0f)))
     {
         lastResult = buildPolycrystal(structure, m_reference, params, elementColors);
         if (lastResult.success)
@@ -688,8 +693,7 @@ void PolyCrystalBuilderDialog::drawDialog(
     }
     if (disableAction) ImGui::EndDisabled();
 
-    ImGui::SameLine();
-    if (responsive::button("Close##poly", responsive::size(80.0f,0.0f)))
+    if (closePressed)
     {
         lastResult = {};
         m_isOpen   = false;
