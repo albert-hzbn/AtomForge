@@ -91,7 +91,7 @@ Light and dark themes, adjustable interface size and responsive dialogs support 
 
 | Data | Supported formats |
 | --- | --- |
-| **Desktop structures** | XYZ, CIF, PDB, SDF, MOL, VASP, MOL2, Quantum ESPRESSO PWI and Gaussian GJF |
+| **Desktop structures** | XYZ and extended XYZ (with its cell), CIF, PDB, SDF, MOL, VASP, MOL2, Quantum ESPRESSO PWI and Gaussian GJF |
 | **Custom meshes** | OBJ and STL |
 | **Electronic input grids** | VASP charge, potential and ELF files; Gaussian Cube; XSF |
 | **Rendered images** | PNG, JPEG and SVG |
