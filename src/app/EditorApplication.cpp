@@ -1601,7 +1601,8 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             const auto& display = activeState.fileBrowser.getPropertyDisplay();
             const auto range = display.autoRange ? atomforge::science::finiteRange(activeState.structure.atomProperty) : display.range;
             drawAtomPropertyLegend(drawList, frame.framebufferWidth, frame.framebufferHeight,
-                                   activeState.structure.atomPropertyName, range.low, range.high);
+                                   activeState.structure.atomPropertyName, range.low, range.high,
+                                   activeState.structure.atomProperty);
         }
 
         drawGrabOverlay(activeState, drawList, frame.projection, frame.view,

@@ -1053,15 +1053,118 @@ void drawIPFTriangleLegend(ImDrawList* drawList,
     drawList->AddText(pos111, IM_COL32(100, 100, 255, 255), lbl111);
 }
 
+namespace
+{
+// The codes a property name lists in parentheses, "Structure type (0 other,
+// 1 fcc, 2 hcp)": {0, "other"}, {1, "fcc"}, ... Empty when it lists none.
+std::vector<std::pair<int, std::string>> propertyCodes(const std::string& name, std::string& title)
+{
+    std::vector<std::pair<int, std::string>> codes;
+    const std::size_t open = name.rfind('(');
+    const std::size_t close = name.rfind(')');
+    if (open == std::string::npos || close == std::string::npos || close < open) return codes;
+    std::string list = name.substr(open + 1, close - open - 1);
+    std::size_t start = 0;
+    while (start <= list.size())
+    {
+        const std::size_t comma = std::min(list.find(',', start), list.size());
+        std::string item = list.substr(start, comma - start);
+        const std::size_t first = item.find_first_not_of(' ');
+        if (first == std::string::npos) return {};
+        item = item.substr(first);
+        char* end = nullptr;
+        const long code = std::strtol(item.c_str(), &end, 10);
+        if (end == item.c_str() || *end != ' ') return {};
+        std::string label = end + 1;
+        while (!label.empty() && label.back() == ' ') label.pop_back();
+        if (label.empty()) return {};
+        codes.push_back({static_cast<int>(code), label});
+        start = comma + 1;
+    }
+    title = name.substr(0, open);
+    while (!title.empty() && title.back() == ' ') title.pop_back();
+    return codes;
+}
+}
+
 void drawAtomPropertyLegend(ImDrawList* drawList,
                             int viewportWidth,
                             int viewportHeight,
                             const std::string& name,
                             double low,
-                            double high)
+                            double high,
+                            const std::vector<double>& values)
 {
     if (!drawList || viewportWidth < 200 || viewportHeight < 200)
         return;
+
+    // Coded (categorical) values or a single value: swatches, not a bar.
+    std::string title = name;
+    auto codes = propertyCodes(name, title);
+    std::vector<std::size_t> counts(codes.size(), 0);
+    bool coded = !codes.empty();
+    std::size_t valid = 0;
+    double only = std::numeric_limits<double>::quiet_NaN();
+    bool constant = true;
+    for (double v : values)
+    {
+        if (!std::isfinite(v)) continue;
+        if (valid++ == 0) only = v;
+        else if (v != only) constant = false;
+        if (!coded) continue;
+        const auto found = std::find_if(codes.begin(), codes.end(), [v](const auto& c) { return c.first == v; });
+        if (found == codes.end()) coded = false;
+        else ++counts[static_cast<std::size_t>(found - codes.begin())];
+    }
+    if (valid && (coded || constant))
+    {
+        struct Row { std::string label; ImU32 colour; };
+        std::vector<Row> rows;
+        const double span = high - low;
+        const auto colourOf = [&](double v) {
+            const auto c = atomforge::science::viridis(span > 0 ? (v - low) / span : 0.5);
+            return ImGui::ColorConvertFloat4ToU32(ImVec4(c[0], c[1], c[2], 1.0f));
+        };
+        if (coded)
+        {
+            for (std::size_t k = 0; k < codes.size(); ++k)
+                if (counts[k])
+                    rows.push_back({codes[k].second + "  " + std::to_string(counts[k]), colourOf(codes[k].first)});
+        }
+        else
+        {
+            char value[48];
+            std::snprintf(value, sizeof(value), "All atoms: %.4g", only);
+            rows.push_back({value, colourOf(only)});
+        }
+        const float scale = ImGui::GetFontSize() / 16.0f;
+        const float margin = 16.0f * scale, pad = 10.0f * scale, swatch = 12.0f * scale, gap = 8.0f * scale;
+        const float wrap = 240.0f * scale;
+        const float line = ImGui::GetTextLineHeightWithSpacing();
+        const ImVec2 titleSize = ImGui::CalcTextSize(title.c_str(), nullptr, false, wrap);
+        float rowWidth = 0.0f;
+        for (const Row& row : rows) rowWidth = std::max(rowWidth, ImGui::CalcTextSize(row.label.c_str()).x);
+        const float width = std::max(titleSize.x, swatch + gap + rowWidth) + 2 * pad;
+        const float height = pad * 2 + titleSize.y + 6.0f * scale + line * static_cast<float>(rows.size());
+        const ImVec2 max(static_cast<float>(viewportWidth) - margin, static_cast<float>(viewportHeight) - margin - ImGui::GetFrameHeight());
+        const ImVec2 min(max.x - width, max.y - height);
+        ImVec4 background = ImGui::GetStyleColorVec4(ImGuiCol_PopupBg);
+        background.w = 0.9f;
+        drawList->AddRectFilled(min, max, ImGui::ColorConvertFloat4ToU32(background), 8.0f * scale);
+        drawList->AddRect(min, max, ImGui::GetColorU32(ImGuiCol_Border), 8.0f * scale);
+        drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(min.x + pad, min.y + pad), ImGui::GetColorU32(ImGuiCol_Text),
+                          title.c_str(), nullptr, wrap);
+        float y = min.y + pad + titleSize.y + 6.0f * scale;
+        for (const Row& row : rows)
+        {
+            const float centre = y + ImGui::GetTextLineHeight() * 0.5f;
+            drawList->AddRectFilled(ImVec2(min.x + pad, centre - swatch * 0.5f), ImVec2(min.x + pad + swatch, centre + swatch * 0.5f),
+                                    row.colour, 3.0f * scale);
+            drawList->AddText(ImVec2(min.x + pad + swatch + gap, y), ImGui::GetColorU32(ImGuiCol_Text), row.label.c_str());
+            y += line;
+        }
+        return;
+    }
     // A card at the bottom right (above the status bar): the property name,
     // then the viridis bar with its high and low values beside it.
     const float scale = ImGui::GetFontSize() / 16.0f;

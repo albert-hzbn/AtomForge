@@ -76,14 +76,17 @@ void drawIPFTriangleLegend(ImDrawList* drawList,
                            int viewportWidth,
                            int viewportHeight);
 
-// Vertical viridis colour bar for the "Atom Property" colour mode, with the
-// property name and range; placed in the bottom-right corner.
+// The "Atom Property" colour mode's legend, in the bottom-right corner: a
+// vertical viridis bar with the property name and range; for a property
+// whose name lists codes ("Structure type (0 other, 1 fcc, ...)") one swatch
+// per code present with its atom count; for a constant one a single swatch.
 void drawAtomPropertyLegend(ImDrawList* drawList,
                             int viewportWidth,
                             int viewportHeight,
                             const std::string& name,
                             double low,
-                            double high);
+                            double high,
+                            const std::vector<double>& values);
 
 // The elements present with their colours and atom counts (colouring by
 // element), in a card at the top left of the view. `revision` identifies
