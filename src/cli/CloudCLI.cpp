@@ -55,7 +55,8 @@ std::string bytes(double value)
     std::ostringstream out;
     out << std::fixed << std::setprecision(value >= 1e9 ? 2 : 1);
     if (value >= 1e9) out << value / 1e9 << " GB";
-    else out << value / 1e6 << " MB";
+    else if (value >= 1e6) out << value / 1e6 << " MB";
+    else out << value / 1e3 << " kB";
     return out.str();
 }
 
