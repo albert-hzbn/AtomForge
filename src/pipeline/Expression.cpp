@@ -1,4 +1,6 @@
 #include "pipeline/Expression.h"
+#include "util/ElementData.h"
+#include "util/Suggest.h"
 
 #include <cctype>
 #include <cmath>
@@ -266,9 +268,23 @@ private:
             if (name == n) return node([member](const AtomVariables& v) { return Value{v.*member}; });
         if (name == "element" || name == "type") return node([](const AtomVariables& v) { return Value::of(v.element); });
         if (name == "pi") return node([](const AtomVariables&) { return Value{std::acos(-1.0)}; });
-        // Anything else is an element name, as in element == Cu.
-        const Value text = Value::of(name);
-        return node([text](const AtomVariables&) { return text; });
+        // An element symbol stands for itself, as in element == Cu; any other
+        // word is a misspelt variable (elemnt == Cu would select nothing).
+        // In any case: cu and CU mean Cu.
+        std::string lower = name;
+        for (char& ch : lower) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        for (int z = 1; z <= 118; ++z) {
+            std::string symbol = elementSymbol(z);
+            for (char& ch : symbol) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            if (lower == symbol) {
+                const Value text = Value::of(std::string(elementSymbol(z)));
+                return node([text](const AtomVariables&) { return text; });
+            }
+        }
+        std::vector<std::string> names = {"element", "Z"};
+        for (const auto& entry : numbers) names.push_back(entry.first);
+        fail("unknown name '" + name + "'" + suggest::didYouMean(name, names) +
+             "; the variables are x y z fx fy fz index count Z element property selected, and other text goes in quotes");
     }
 
     const std::string& m_text;

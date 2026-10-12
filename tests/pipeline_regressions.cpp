@@ -116,6 +116,8 @@ int main()
         close(evaluate("abs(y) + sqrt(16) + max(1, 3) + min(1, 3) + floor(2.7)", v), 11, 0, "functions");
         check(evaluate("index >= 3 && index <= 3", v) == 1, "comparisons");
         check(std::isnan(evaluate("property", v)) == false, "property defaults to zero in an empty variable set");
+        check(evaluate("element == o", v) == 1 && evaluate("element == O", v) == 1, "element symbols in any case");
+        expectError([] { Expression("elemnt == O"); }, "a misspelt variable is an error, not an element name");
         expectError([] { Expression("unknown(1)"); }, "unknown function");
         expectError([] { Expression("(x > 1"); }, "missing parenthesis");
         expectError([] { Expression("x > "); }, "incomplete");

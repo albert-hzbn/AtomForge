@@ -59,7 +59,7 @@
     },
     {
       "source": "python/atomforge/_formats/lammps.py",
-      "sha256": "a368a9a65e61df23e72b07b30a95e4604527d17baf0012ca42bf78cb0910b4d0",
+      "sha256": "dd22b1aa53c6dd8a95f48c39af07c0d6aeb261f4ead5fd23dcbb74f808d96756",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -86,7 +86,7 @@
     },
     {
       "source": "python/atomforge/_formats/vasp.py",
-      "sha256": "496f4ed5005a97a87594d8cfac1aadccfbaa82abec09ae0e822290ba282cb9b9",
+      "sha256": "17aaa0f22b773792b7c820783886a0bf0f637a76c036fd135a6fc17c3e51ce1c",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -95,7 +95,7 @@
     },
     {
       "source": "python/atomforge/_formats/xyz.py",
-      "sha256": "7a3592cdf79d902eb9500f64c6d368e290b53096362ad2f8cb17f708d2ee31f4",
+      "sha256": "e91cbcf3c9ec8bdd080305e60fc93ab5f48c3b2fb1ca8b4458edbf79f5f33306",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -1040,7 +1040,7 @@
     },
     {
       "source": "src/pipeline/Expression.cpp",
-      "sha256": "3c246c13649f1509f5b7090105374b812ed8cc0f78d1bde40d013fc8d7ea0956",
+      "sha256": "a5fb5171a14c4ddf6b6393f617e1c5a519d1671f73fa28b723e9036180f55afb",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
