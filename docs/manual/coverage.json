@@ -3,7 +3,7 @@
   "files": [
     {
       "source": "CMakeLists.txt",
-      "sha256": "16fdcd6b544ececea850df22d4586f014ab94ab54049595974ca3cc2cd56adb6",
+      "sha256": "f9e2f9b8148334f5671da459bf6827d258d9a3bad7ff68f5f15a3e2ead772ba1",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -86,7 +86,7 @@
     },
     {
       "source": "python/atomforge/_formats/vasp.py",
-      "sha256": "fb18162dd28588881d0afbefd042b072769de9625a1df4e60a5baa7ba0d47e48",
+      "sha256": "496f4ed5005a97a87594d8cfac1aadccfbaa82abec09ae0e822290ba282cb9b9",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -95,7 +95,7 @@
     },
     {
       "source": "python/atomforge/_formats/xyz.py",
-      "sha256": "cb6e98765d17a7d63bcfa033dfbb2088354e35388b0defa3205dc2290f2838c9",
+      "sha256": "aebdd966ad2d159d8a6b2137bf02cc3906a78988580fd5c4370e88e95e072d63",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -104,7 +104,7 @@
     },
     {
       "source": "python/atomforge/_io.py",
-      "sha256": "dbbb044739b0986ee98b93423cce19ed96866cb7de7f56156eb81cd43f0764c1",
+      "sha256": "12ff7f6fc139c6577eb34318285bccb6733372ea3f73c0cd8ad5a39041146267",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -279,7 +279,7 @@
     },
     {
       "source": "python/atomforge/pipeline.py",
-      "sha256": "9cc5553ce613761cac3fcf877a6c91624bd173f333f3bc1a67a8d49ac9e1c78b",
+      "sha256": "8cf8399b42aba6c9f3e6696f2d56710daeb3c2908b1b057d1f428c4f629a8008",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -635,7 +635,7 @@
     },
     {
       "source": "src/algorithms/ShortRangeOrderAnalysis.h",
-      "sha256": "a098ece8b6d63764949afac5b620046cc95b05263326c43b7cf44d216c678161",
+      "sha256": "43c3526aeb798596e64e88ed771c1e856998ce0933b277d9b2344ba901f5838d",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -730,7 +730,7 @@
     },
     {
       "source": "src/app/EditorApplication.cpp",
-      "sha256": "6e780c33cf60adbe6ab24c2d8212975fe9b440a26f4fc9b4f028c290242a09ba",
+      "sha256": "c9341d22fa8c268707d7411d1846194abcf8edd05859c4ee96924d5d50295f2e",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -741,7 +741,7 @@
     },
     {
       "source": "src/app/EditorOps.cpp",
-      "sha256": "7b1d16a15f1300e656e4c4f97a2a379cceed9130c5a14222fb55c2e2d1604222",
+      "sha256": "2b254ed1665b15348078fea27b604fef919eb6a812ae81773203e7a5473d1e64",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -1319,7 +1319,7 @@
     },
     {
       "source": "src/ui/AmorphousBuilderDialog.cpp",
-      "sha256": "b18f8719aad2aa1dfac20f4cf3cb662231d0021cb8ac32f408dacd87e1161fb7",
+      "sha256": "be2bc5a01fd83a511618de418f51598e2b0b3764e9d7d63eb4db796655e0b9e0",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -1392,18 +1392,6 @@
         {
           "line": 455,
           "declaration_label": "##dist"
-        },
-        {
-          "line": 507,
-          "declaration_label": "Update step"
-        },
-        {
-          "line": 515,
-          "declaration_label": "Build"
-        },
-        {
-          "line": 566,
-          "declaration_label": "Close"
         }
       ]
     },
@@ -1418,7 +1406,7 @@
     },
     {
       "source": "src/ui/AngularDistributionAnalysis.cpp",
-      "sha256": "3381d380532d9c22f5cd77d6e8be5975ff9dab65086893fe08921f2f52599397",
+      "sha256": "92372c9a645ce2ecc4ee4b231f938ae689932987acf2cce15bab6ed6163dfb53",
       "documentation": [
         "11-coverage.tex"
       ],
@@ -1496,7 +1484,7 @@
           "declaration_label": "Guide"
         },
         {
-          "line": 874,
+          "line": 876,
           "declaration_label": "Close"
         }
       ]
@@ -1560,7 +1548,7 @@
     },
     {
       "source": "src/ui/BulkCrystalBuilderDialog.cpp",
-      "sha256": "9da8d3da66679a7f85622c47c0a2706571ef69fb4022698f8a9666ac74473a35",
+      "sha256": "d8e2a8328203a71c127888416a251bfb31f7a19f947731d07faba8aba484daac",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -1580,15 +1568,15 @@
         },
         {
           "line": 46,
-          "declaration_label": "alpha"
+          "declaration_label": "\\xce\\xb1##alpha"
         },
         {
           "line": 47,
-          "declaration_label": "beta"
+          "declaration_label": "\\xce\\xb2##beta"
         },
         {
           "line": 48,
-          "declaration_label": "gamma"
+          "declaration_label": "\\xce\\xb3##gamma"
         },
         {
           "line": 51,
@@ -1604,7 +1592,7 @@
         },
         {
           "line": 54,
-          "declaration_label": "beta"
+          "declaration_label": "\\xce\\xb2##beta"
         },
         {
           "line": 60,
@@ -1659,36 +1647,8 @@
           "declaration_label": "##spacegroup"
         },
         {
-          "line": 267,
-          "declaration_label": "+ Add"
-        },
-        {
-          "line": 278,
-          "declaration_label": "Clear"
-        },
-        {
-          "line": 299,
-          "declaration_label": "Delete"
-        },
-        {
-          "line": 308,
+          "line": 325,
           "declaration_label": "##bulk-direct"
-        },
-        {
-          "line": 353,
-          "declaration_label": "Update step"
-        },
-        {
-          "line": 361,
-          "declaration_label": "Build"
-        },
-        {
-          "line": 387,
-          "declaration_label": "Close"
-        },
-        {
-          "line": 428,
-          "declaration_label": "Apply Element##bulk-builder"
         }
       ]
     },
@@ -1703,7 +1663,7 @@
     },
     {
       "source": "src/ui/CellSculptorDialog.cpp",
-      "sha256": "e7faf04b84d12abb825eec0c3d50d483179b6faf000b4a30fc37ad8927be558d",
+      "sha256": "4c959f44a2f3ac95a7322e9d1bd2a48d7f7cfdccc4dfe8d9dbcb61ecfd84e4db",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -1807,16 +1767,12 @@
           "declaration_label": "##scghostalpha"
         },
         {
-          "line": 1248,
-          "declaration_label": "Update step##scgen"
+          "line": 1253,
+          "declaration_label": "Update Step##scgen"
         },
         {
-          "line": 1264,
+          "line": 1269,
           "declaration_label": "Generate##scgen"
-        },
-        {
-          "line": 1273,
-          "declaration_label": "Close##scclose"
         }
       ]
     },
@@ -1832,7 +1788,7 @@
     },
     {
       "source": "src/ui/CommandPalette.cpp",
-      "sha256": "0ab2a16e11d62fc307d381675ee97aeb55f7ce583155e9af375ae2a1f92afc5f",
+      "sha256": "c5545d2896a32ffbfc3b015c67630b4c6c27c7572f1c051241049e078e91c6eb",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -1841,14 +1797,14 @@
       ],
       "literal_controls": [
         {
-          "line": 191,
+          "line": 192,
           "declaration_label": "##query"
         }
       ]
     },
     {
       "source": "src/ui/CommonNeighbourAnalysis.cpp",
-      "sha256": "83fc8640829154b588ca7cad680ec35f4796064907ccdeb151104014926b4cdc",
+      "sha256": "47a6d3b2fc9b13890da8bfb508ec91c1cb58b070fc769721907bfd1bd6955704",
       "documentation": [
         "11-coverage.tex"
       ],
@@ -1867,7 +1823,7 @@
         },
         {
           "line": 176,
-          "declaration_label": "Fixed cutoff (A; 0 = covalent radii)"
+          "declaration_label": "Fixed cutoff (\\xc3\\x85; 0 = covalent radii)"
         },
         {
           "line": 181,
@@ -1885,7 +1841,7 @@
     },
     {
       "source": "src/ui/CSLGrainBoundaryDialog.cpp",
-      "sha256": "529e3bcdfdbfd5250da46419a7c6a2433cbf1e86245da2096443e7de35f371bd",
+      "sha256": "ca8cc17ddb076cf4008bba9b8b2e7f1a06bf1dbbaba2d88cf97c3bad85b9743a",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -1897,7 +1853,7 @@
         },
         {
           "line": 419,
-          "declaration_label": "Load reference##sourcePicker"
+          "declaration_label": "Load Reference##sourcePicker"
         },
         {
           "line": 516,
@@ -1929,31 +1885,27 @@
         },
         {
           "line": 627,
-          "declaration_label": "Vacuum (A)"
+          "declaration_label": "Vacuum (\\xc3\\x85)"
         },
         {
           "line": 632,
-          "declaration_label": "Gap (A)"
+          "declaration_label": "Gap (\\xc3\\x85)"
         },
         {
           "line": 637,
-          "declaration_label": "Overlap dist (A)"
+          "declaration_label": "Overlap dist (\\xc3\\x85)"
         },
         {
           "line": 641,
           "declaration_label": "Conventional cell"
         },
         {
-          "line": 653,
-          "declaration_label": "Update step"
+          "line": 658,
+          "declaration_label": "Update Step"
         },
         {
-          "line": 665,
+          "line": 670,
           "declaration_label": "Build"
-        },
-        {
-          "line": 808,
-          "declaration_label": "Close"
         }
       ]
     },
@@ -1968,7 +1920,7 @@
     },
     {
       "source": "src/ui/CustomStructureDialog.cpp",
-      "sha256": "fa79bb21eae8bd57e6bd176d9ad0fdb06513566e8a68960a1d26ddc84a20348b",
+      "sha256": "73bacabedebf4626f35ea634d817e721f64cb8aa8335dd6cc6be0dc7faf51472",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -1980,11 +1932,11 @@
         },
         {
           "line": 663,
-          "declaration_label": "Load structure or model##sourcePicker"
+          "declaration_label": "Load Structure or Model##sourcePicker"
         },
         {
           "line": 898,
-          "declaration_label": "Scale (Angstrom per model unit)"
+          "declaration_label": "Scale (\\xc3\\x85 per model unit)"
         },
         {
           "line": 910,
@@ -2016,15 +1968,15 @@
         },
         {
           "line": 941,
-          "declaration_label": "Rot X (deg)"
+          "declaration_label": "Rot X (\\xc2\\xb0)"
         },
         {
           "line": 944,
-          "declaration_label": "Rot Y (deg)"
+          "declaration_label": "Rot Y (\\xc2\\xb0)"
         },
         {
           "line": 947,
-          "declaration_label": "Rot Z (deg)"
+          "declaration_label": "Rot Z (\\xc2\\xb0)"
         },
         {
           "line": 953,
@@ -2060,19 +2012,15 @@
         },
         {
           "line": 988,
-          "declaration_label": "Vacuum (A)"
+          "declaration_label": "Vacuum (\\xc3\\x85)"
         },
         {
-          "line": 1016,
-          "declaration_label": "Update step"
+          "line": 1025,
+          "declaration_label": "Update Step"
         },
         {
-          "line": 1028,
+          "line": 1037,
           "declaration_label": "Build Fill"
-        },
-        {
-          "line": 1081,
-          "declaration_label": "Close"
         }
       ]
     },
@@ -2087,7 +2035,7 @@
     },
     {
       "source": "src/ui/DialogLayout.h",
-      "sha256": "51ee139f7ba98ac1648f487f368905888421aa6236152f9773abb992eb8511ca",
+      "sha256": "d8061037e61768011f7205b89a8f94c99f1d2db8391c807ced2308d7dd76896a",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2098,7 +2046,7 @@
     },
     {
       "source": "src/ui/DislocationAnalysisDialog.cpp",
-      "sha256": "b51e7ced8cd84c7335b6ce2392abf9f53c1da0cae30e0bc4bd71e764cb08de2d",
+      "sha256": "cfec49e134d505be2c7f4d6b7845c8100680e1c74fd9abcc46f6b46c9adf7648",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2112,15 +2060,15 @@
         },
         {
           "line": 55,
-          "declaration_label": "Open reference (undeformed)"
+          "declaration_label": "Open Reference (Undeformed)"
         },
         {
           "line": 59,
-          "declaration_label": "Open deformed"
+          "declaration_label": "Open Deformed"
         },
         {
           "line": 69,
-          "declaration_label": "Cutoff (A)##nye"
+          "declaration_label": "Cutoff (\\xc3\\x85)##nye"
         },
         {
           "line": 70,
@@ -2136,11 +2084,11 @@
         },
         {
           "line": 85,
-          "declaration_label": "Burgers magnitude (A)##vitek"
+          "declaration_label": "Burgers magnitude (\\xc3\\x85)##vitek"
         },
         {
           "line": 86,
-          "declaration_label": "Cutoff (A, 0=auto)##vitek"
+          "declaration_label": "Cutoff (\\xc3\\x85, 0=auto)##vitek"
         },
         {
           "line": 87,
@@ -2152,11 +2100,11 @@
         },
         {
           "line": 102,
-          "declaration_label": "Cutoff (A)##pattern"
+          "declaration_label": "Cutoff (\\xc3\\x85)##pattern"
         },
         {
           "line": 103,
-          "declaration_label": "Angle threshold (deg)##pattern"
+          "declaration_label": "Angle threshold (\\xc2\\xb0)##pattern"
         },
         {
           "line": 104,
@@ -2164,7 +2112,7 @@
         },
         {
           "line": 106,
-          "declaration_label": "Build pattern + detect"
+          "declaration_label": "Build Pattern + Detect"
         },
         {
           "line": 133,
@@ -2184,7 +2132,7 @@
         },
         {
           "line": 148,
-          "declaration_label": "Save interpolated structure"
+          "declaration_label": "Save Interpolated Structure"
         },
         {
           "line": 153,
@@ -2192,11 +2140,11 @@
         },
         {
           "line": 154,
-          "declaration_label": "Cutoff (A)##fit"
+          "declaration_label": "Cutoff (\\xc3\\x85)##fit"
         },
         {
           "line": 155,
-          "declaration_label": "Area per atom (A^2)##fit"
+          "declaration_label": "Area per atom (\\xc3\\x85\\xc2\\xb2)##fit"
         },
         {
           "line": 156,
@@ -2204,19 +2152,19 @@
         },
         {
           "line": 158,
-          "declaration_label": "Fit dislocation"
+          "declaration_label": "Fit Dislocation"
         },
         {
           "line": 204,
-          "declaration_label": "Export full Nye tensor CSV"
+          "declaration_label": "Export Full Nye Tensor CSV"
         },
         {
           "line": 211,
-          "declaration_label": "Export full Vitek map CSV"
+          "declaration_label": "Export Full Vitek Map CSV"
         },
         {
           "line": 219,
-          "declaration_label": "Export full pattern-match CSV"
+          "declaration_label": "Export Full Pattern-match CSV"
         }
       ]
     },
@@ -2233,7 +2181,7 @@
     },
     {
       "source": "src/ui/DislocationBuilderDialog.cpp",
-      "sha256": "6acf915d2cb9f63b19c7d8320953793d807ace450485ced39894825f6c47f8f2",
+      "sha256": "bb509123cc8735f12f70ce5536fd86d9a5ac91472646c8801b750a0655766a33",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -2290,7 +2238,7 @@
         },
         {
           "line": 922,
-          "declaration_label": "Line point offset (A)"
+          "declaration_label": "Line point offset (\\xc3\\x85)"
         },
         {
           "line": 926,
@@ -2302,19 +2250,19 @@
         },
         {
           "line": 932,
-          "declaration_label": "Core radius (A)"
+          "declaration_label": "Core radius (\\xc3\\x85)"
         },
         {
           "line": 933,
-          "declaration_label": "Cutoff radius (A)"
+          "declaration_label": "Cutoff radius (\\xc3\\x85)"
         },
         {
           "line": 934,
-          "declaration_label": "Line half length (A)"
+          "declaration_label": "Line half length (\\xc3\\x85)"
         },
         {
           "line": 937,
-          "declaration_label": "Mixed angle (deg)"
+          "declaration_label": "Mixed angle (\\xc2\\xb0)"
         },
         {
           "line": 941,
@@ -2354,19 +2302,19 @@
         },
         {
           "line": 980,
-          "declaration_label": "Dipole offset (A)"
+          "declaration_label": "Dipole offset (\\xc3\\x85)"
         },
         {
           "line": 988,
-          "declaration_label": "Cylinder radius (A)"
+          "declaration_label": "Cylinder radius (\\xc3\\x85)"
         },
         {
           "line": 992,
-          "declaration_label": "Sphere radius (A)"
+          "declaration_label": "Sphere radius (\\xc3\\x85)"
         },
         {
           "line": 996,
-          "declaration_label": "Ellipsoid radii (A)"
+          "declaration_label": "Ellipsoid radii (\\xc3\\x85)"
         },
         {
           "line": 1001,
@@ -2386,14 +2334,14 @@
         },
         {
           "line": 1035,
-          "declaration_label": "Update step"
+          "declaration_label": "Update Step"
         },
         {
           "line": 1058,
           "declaration_label": "Replace Main Scene"
         },
         {
-          "line": 1082,
+          "line": 1080,
           "declaration_label": "Close"
         }
       ]
@@ -2410,7 +2358,7 @@
     },
     {
       "source": "src/ui/EditMenuDialogs.cpp",
-      "sha256": "bc62b11452983ad274ef7d2da34ece09025c4ae8706fb8c60a3808af001e4bf9",
+      "sha256": "b4147f961375f920424aad1bf8d910f0d180eca50f213ab3d7dddfe859ecb116",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -2418,148 +2366,120 @@
       ],
       "literal_controls": [
         {
-          "line": 44,
+          "line": 45,
           "declaration_label": "Edit Structure"
         },
         {
-          "line": 132,
-          "declaration_label": "a"
-        },
-        {
           "line": 133,
-          "declaration_label": "b"
+          "declaration_label": "a"
         },
         {
           "line": 134,
-          "declaration_label": "c"
-        },
-        {
-          "line": 135,
-          "declaration_label": "Use Cell Entering The Step"
-        },
-        {
-          "line": 139,
-          "declaration_label": "Scale atoms with the cell (keep fractional coordinates)"
-        },
-        {
-          "line": 153,
-          "declaration_label": "Position Mode"
-        },
-        {
-          "line": 168,
-          "declaration_label": "Select the new atom"
-        },
-        {
-          "line": 172,
-          "declaration_label": "Update step"
-        },
-        {
-          "line": 179,
-          "declaration_label": "Close"
-        },
-        {
-          "line": 188,
-          "declaration_label": "Atomic Sizes"
-        },
-        {
-          "line": 191,
-          "declaration_label": "Display Settings"
-        },
-        {
-          "line": 213,
-          "declaration_label": "Reset to Literature Defaults"
-        },
-        {
-          "line": 229,
-          "declaration_label": "Atomic Radius (A)"
-        },
-        {
-          "line": 236,
-          "declaration_label": "Apply Literature Radius To Selected Element"
-        },
-        {
-          "line": 269,
-          "declaration_label": "Lighting"
-        },
-        {
-          "line": 284,
-          "declaration_label": "Ambient##L"
-        },
-        {
-          "line": 286,
-          "declaration_label": "Saturation##L"
-        },
-        {
-          "line": 288,
-          "declaration_label": "Contrast##L"
-        },
-        {
-          "line": 290,
-          "declaration_label": "Shadow Strength##L"
-        },
-        {
-          "line": 296,
-          "declaration_label": "Reset Lighting Defaults"
-        },
-        {
-          "line": 310,
-          "declaration_label": "Material"
-        },
-        {
-          "line": 325,
-          "declaration_label": "Specular Intensity##M"
-        },
-        {
-          "line": 327,
-          "declaration_label": "Shininess Scale##M"
-        },
-        {
-          "line": 329,
-          "declaration_label": "Shininess Floor##M"
-        },
-        {
-          "line": 335,
-          "declaration_label": "Reset Material Defaults"
-        },
-        {
-          "line": 348,
-          "declaration_label": "Colors"
-        },
-        {
-          "line": 373,
-          "declaration_label": "Color##el"
-        },
-        {
-          "line": 381,
-          "declaration_label": "Reset Color##sel"
-        },
-        {
-          "line": 397,
-          "declaration_label": "Reset All Colors"
-        },
-        {
-          "line": 466,
-          "declaration_label": "a"
-        },
-        {
-          "line": 467,
           "declaration_label": "b"
         },
         {
-          "line": 468,
+          "line": 135,
           "declaration_label": "c"
         },
         {
-          "line": 491,
+          "line": 136,
+          "declaration_label": "Use Cell Entering The Step"
+        },
+        {
+          "line": 140,
+          "declaration_label": "Scale atoms with the cell (keep fractional coordinates)"
+        },
+        {
+          "line": 154,
           "declaration_label": "Position Mode"
         },
         {
-          "line": 497,
-          "declaration_label": "Add Atom"
+          "line": 169,
+          "declaration_label": "Select the new atom"
         },
         {
-          "line": 668,
-          "declaration_label": "Apply Element##edit-structure-window"
+          "line": 173,
+          "declaration_label": "Update Step"
+        },
+        {
+          "line": 180,
+          "declaration_label": "Close"
+        },
+        {
+          "line": 189,
+          "declaration_label": "Atomic Sizes"
+        },
+        {
+          "line": 192,
+          "declaration_label": "Display Settings"
+        },
+        {
+          "line": 221,
+          "declaration_label": "Radius"
+        },
+        {
+          "line": 271,
+          "declaration_label": "Lighting"
+        },
+        {
+          "line": 286,
+          "declaration_label": "Ambient##L"
+        },
+        {
+          "line": 288,
+          "declaration_label": "Saturation##L"
+        },
+        {
+          "line": 290,
+          "declaration_label": "Contrast##L"
+        },
+        {
+          "line": 292,
+          "declaration_label": "Shadow Strength##L"
+        },
+        {
+          "line": 298,
+          "declaration_label": "Reset Lighting Defaults"
+        },
+        {
+          "line": 312,
+          "declaration_label": "Material"
+        },
+        {
+          "line": 327,
+          "declaration_label": "Specular Intensity##M"
+        },
+        {
+          "line": 329,
+          "declaration_label": "Shininess Scale##M"
+        },
+        {
+          "line": 331,
+          "declaration_label": "Shininess Floor##M"
+        },
+        {
+          "line": 337,
+          "declaration_label": "Reset Material Defaults"
+        },
+        {
+          "line": 350,
+          "declaration_label": "Colours"
+        },
+        {
+          "line": 372,
+          "declaration_label": "Colour##el"
+        },
+        {
+          "line": 468,
+          "declaration_label": "Coordinates"
+        },
+        {
+          "line": 563,
+          "declaration_label": "##DirectPos"
+        },
+        {
+          "line": 578,
+          "declaration_label": "##CartesianPos"
         }
       ]
     },
@@ -2575,7 +2495,7 @@
     },
     {
       "source": "src/ui/ElectronicPostProcessing.cpp",
-      "sha256": "501999a6578c2a2aecba9e799f007540557a7e3f74c25b9fe4cdda2eda5bb2d6",
+      "sha256": "64dfc4c115f01a5f3a18433d8e21f8b9b09ed72c486d1cb04b169812223b51b0",
       "documentation": [
         "05-electronic.tex",
         "06-charge.tex",
@@ -2610,15 +2530,15 @@
         },
         {
           "line": 320,
-          "declaration_label": "Open workspace"
+          "declaration_label": "Open Workspace"
         },
         {
           "line": 322,
-          "declaration_label": "Save workspace"
+          "declaration_label": "Save Workspace"
         },
         {
           "line": 324,
-          "declaration_label": "Undo calculation"
+          "declaration_label": "Undo Calculation"
         },
         {
           "line": 328,
@@ -2646,7 +2566,7 @@
         },
         {
           "line": 378,
-          "declaration_label": "Open volume"
+          "declaration_label": "Open Volume"
         },
         {
           "line": 380,
@@ -2654,7 +2574,7 @@
         },
         {
           "line": 382,
-          "declaration_label": "Reload volume"
+          "declaration_label": "Reload Volume"
         },
         {
           "line": 385,
@@ -2802,11 +2722,11 @@
         },
         {
           "line": 658,
-          "declaration_label": "Save as"
+          "declaration_label": "Save As"
         },
         {
           "line": 673,
-          "declaration_label": "Cancel calculation"
+          "declaration_label": "Cancel Calculation"
         },
         {
           "line": 678,
@@ -2858,11 +2778,11 @@
         },
         {
           "line": 850,
-          "declaration_label": "Estimate level"
+          "declaration_label": "Estimate Level"
         },
         {
           "line": 863,
-          "declaration_label": "Update surface"
+          "declaration_label": "Update Surface"
         },
         {
           "line": 870,
@@ -2874,7 +2794,7 @@
         },
         {
           "line": 892,
-          "declaration_label": "Fit view"
+          "declaration_label": "Fit View"
         }
       ]
     },
@@ -2892,7 +2812,7 @@
     },
     {
       "source": "src/ui/ElectronicSliceViewport.cpp",
-      "sha256": "99d86a0c887b88d554e73165e82ea1d8557185d851c60667780a544b666fafbf",
+      "sha256": "6537e1faf3ba1dc3dac9e739d1613f3a0560f9e58a18374158fd3db172317d6a",
       "documentation": [
         "05-electronic.tex",
         "06-charge.tex",
@@ -2953,7 +2873,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "62fc9eeb9576396ad3be8d6940abe2dad0ec9b90ff2b88fd54324b4555d2f8ce",
+      "sha256": "c4e908fa3dad20488115db8605cdec654e86bc396d663fda76c502590f68e137",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2962,534 +2882,486 @@
       ],
       "literal_controls": [
         {
-          "line": 549,
+          "line": 592,
           "declaration_label": "Open"
         },
         {
-          "line": 580,
+          "line": 623,
           "declaration_label": "Close"
         },
         {
-          "line": 586,
+          "line": 629,
           "declaration_label": "Save"
         },
         {
-          "line": 589,
+          "line": 632,
           "declaration_label": "Save As"
         },
         {
-          "line": 592,
+          "line": 635,
           "declaration_label": "Export Image"
         },
         {
-          "line": 607,
+          "line": 650,
           "declaration_label": "Open Project"
         },
         {
-          "line": 608,
+          "line": 651,
           "declaration_label": "Save Project As"
         },
         {
-          "line": 609,
+          "line": 652,
           "declaration_label": "Autosave project every minute"
         },
         {
-          "line": 610,
+          "line": 653,
           "declaration_label": "Recover Last Autosave"
         },
         {
-          "line": 612,
+          "line": 655,
           "declaration_label": "Quit"
         },
         {
-          "line": 641,
+          "line": 684,
           "declaration_label": "Box Select Mode"
         },
         {
-          "line": 643,
+          "line": 686,
           "declaration_label": "Lasso Select Mode"
         },
         {
-          "line": 709,
+          "line": 752,
           "declaration_label": "Element"
         },
         {
-          "line": 710,
+          "line": 753,
           "declaration_label": "Crystal Orientation"
         },
         {
-          "line": 711,
+          "line": 754,
           "declaration_label": "Grain Boundaries"
         },
         {
-          "line": 712,
+          "line": 755,
           "declaration_label": "Atom Property"
         },
         {
-          "line": 722,
+          "line": 765,
           "declaration_label": "Balls"
         },
         {
-          "line": 723,
+          "line": 766,
           "declaration_label": "Ball and Stick"
         },
         {
-          "line": 724,
+          "line": 767,
           "declaration_label": "Space Filling"
         },
         {
-          "line": 726,
+          "line": 769,
           "declaration_label": "Polyhedral"
         },
         {
-          "line": 733,
+          "line": 776,
           "declaration_label": "Atoms"
         },
         {
-          "line": 734,
+          "line": 777,
           "declaration_label": "Element Labels"
         },
         {
-          "line": 735,
+          "line": 778,
           "declaration_label": "Element Legend"
         },
         {
-          "line": 736,
+          "line": 779,
           "declaration_label": "Bounding Box"
         },
         {
-          "line": 738,
+          "line": 781,
           "declaration_label": "Lattice Planes"
         },
         {
-          "line": 739,
+          "line": 782,
           "declaration_label": "Miller Directions"
         },
         {
-          "line": 740,
+          "line": 783,
           "declaration_label": "Voronoi Volumes"
         },
         {
-          "line": 741,
+          "line": 784,
           "declaration_label": "Dislocation Lines"
         },
         {
-          "line": 746,
+          "line": 789,
           "declaration_label": "Perspective"
         },
         {
-          "line": 751,
+          "line": 794,
           "declaration_label": "Orthographic"
         },
         {
-          "line": 758,
+          "line": 801,
           "declaration_label": "Reset View"
         },
         {
-          "line": 761,
+          "line": 804,
           "declaration_label": "Lattice Planes Settings"
         },
         {
-          "line": 763,
+          "line": 806,
           "declaration_label": "Miller Directions Settings"
         },
         {
-          "line": 765,
+          "line": 808,
           "declaration_label": "Polyhedral Viewer"
         },
         {
-          "line": 767,
+          "line": 810,
           "declaration_label": "Structure Info"
         },
         {
-          "line": 769,
+          "line": 812,
           "declaration_label": "Atom Info"
         },
         {
-          "line": 771,
+          "line": 814,
           "declaration_label": "Measure Distance"
         },
         {
-          "line": 773,
+          "line": 816,
           "declaration_label": "Measure Angle"
         },
         {
-          "line": 779,
+          "line": 822,
           "declaration_label": "Light"
         },
         {
-          "line": 780,
+          "line": 823,
           "declaration_label": "Dark"
         },
         {
-          "line": 781,
+          "line": 824,
           "declaration_label": "Match the system"
         },
         {
-          "line": 836,
+          "line": 879,
           "declaration_label": "Automatic (display scaling)"
         },
         {
-          "line": 837,
+          "line": 880,
           "declaration_label": "Compact (85%)"
         },
         {
-          "line": 838,
+          "line": 881,
           "declaration_label": "Larger (125%)"
         },
         {
-          "line": 839,
+          "line": 882,
           "declaration_label": "Large (150%)"
         },
         {
-          "line": 840,
-          "declaration_label": "Extra large (200%)"
+          "line": 883,
+          "declaration_label": "Extra Large (200%)"
         },
         {
-          "line": 845,
+          "line": 888,
           "declaration_label": "Polyhedral Settings"
         },
         {
-          "line": 850,
+          "line": 893,
           "declaration_label": "Light"
         },
         {
-          "line": 851,
+          "line": 894,
           "declaration_label": "Dark"
         },
         {
-          "line": 852,
+          "line": 895,
           "declaration_label": "Match the system"
         },
         {
-          "line": 861,
+          "line": 904,
           "declaration_label": "Manual"
         },
         {
-          "line": 864,
+          "line": 907,
           "declaration_label": "Find a Command"
         },
         {
-          "line": 867,
+          "line": 910,
           "declaration_label": "Keyboard Shortcuts"
         },
         {
-          "line": 870,
+          "line": 913,
           "declaration_label": "About"
         },
         {
-          "line": 902,
+          "line": 945,
           "declaration_label": "\\xe2\\x86\\x90##openBack"
         },
         {
-          "line": 910,
+          "line": 953,
           "declaration_label": "\\xe2\\x86\\x92##openFwd"
         },
         {
-          "line": 918,
+          "line": 961,
           "declaration_label": "\\xe2\\x86\\x91##openUp"
         },
         {
-          "line": 927,
+          "line": 970,
           "declaration_label": "##openPathBar"
         },
         {
-          "line": 1024,
+          "line": 1053,
           "declaration_label": "##openFilename"
         },
         {
-          "line": 1130,
+          "line": 1159,
           "declaration_label": "\\xe2\\x86\\x90##saveBack"
         },
         {
-          "line": 1137,
+          "line": 1166,
           "declaration_label": "\\xe2\\x86\\x92##saveFwd"
         },
         {
-          "line": 1144,
+          "line": 1173,
           "declaration_label": "\\xe2\\x86\\x91##saveUp"
         },
         {
-          "line": 1150,
+          "line": 1179,
           "declaration_label": "##savePathBar"
         },
         {
-          "line": 1233,
+          "line": 1252,
           "declaration_label": "##saveFilename"
         },
         {
-          "line": 1239,
+          "line": 1258,
           "declaration_label": "##saveFormat"
         },
         {
-          "line": 1355,
+          "line": 1374,
           "declaration_label": "\\xe2\\x86\\x90##exportBack"
         },
         {
-          "line": 1362,
+          "line": 1381,
           "declaration_label": "\\xe2\\x86\\x92##exportFwd"
         },
         {
-          "line": 1369,
+          "line": 1388,
           "declaration_label": "\\xe2\\x86\\x91##exportUp"
         },
         {
-          "line": 1374,
+          "line": 1393,
           "declaration_label": "##exportPathBar"
         },
         {
-          "line": 1459,
+          "line": 1468,
           "declaration_label": "##exportFilename"
         },
         {
-          "line": 1463,
+          "line": 1472,
           "declaration_label": "##exportFormat"
         },
         {
-          "line": 1476,
+          "line": 1485,
           "declaration_label": "Include background"
         },
         {
-          "line": 1479,
+          "line": 1488,
           "declaration_label": "Include orientation gizmo"
         },
         {
-          "line": 1483,
+          "line": 1498,
           "declaration_label": "##exportScale"
         },
         {
-          "line": 1678,
+          "line": 1691,
           "declaration_label": "OK"
         },
         {
-          "line": 1702,
-          "declaration_label": "Close"
-        },
-        {
-          "line": 1708,
+          "line": 1721,
           "declaration_label": "Show lattice planes"
         },
         {
-          "line": 1714,
-          "declaration_label": "H##plane"
+          "line": 1726,
+          "declaration_label": "h##plane"
         },
         {
-          "line": 1717,
-          "declaration_label": "K##plane"
+          "line": 1729,
+          "declaration_label": "k##plane"
         },
         {
-          "line": 1720,
-          "declaration_label": "L##plane"
+          "line": 1732,
+          "declaration_label": "l##plane"
         },
         {
-          "line": 1723,
+          "line": 1735,
           "declaration_label": "Offset n##plane"
         },
         {
-          "line": 1725,
+          "line": 1737,
           "declaration_label": "Opacity##plane"
         },
         {
-          "line": 1727,
-          "declaration_label": "Color##plane"
+          "line": 1739,
+          "declaration_label": "Colour##plane"
         },
         {
-          "line": 1734,
-          "declaration_label": "Add Plane"
-        },
-        {
-          "line": 1767,
+          "line": 1783,
           "declaration_label": "##visible"
         },
         {
-          "line": 1772,
-          "declaration_label": "H##plane-h"
+          "line": 1788,
+          "declaration_label": "h##plane-h"
         },
         {
-          "line": 1775,
-          "declaration_label": "K##plane-k"
+          "line": 1791,
+          "declaration_label": "k##plane-k"
         },
         {
-          "line": 1778,
-          "declaration_label": "L##plane-l"
+          "line": 1794,
+          "declaration_label": "l##plane-l"
         },
         {
-          "line": 1781,
+          "line": 1797,
           "declaration_label": "n##plane-offset"
         },
         {
-          "line": 1784,
-          "declaration_label": "a##plane-opacity"
+          "line": 1800,
+          "declaration_label": "opacity##plane-opacity"
         },
         {
-          "line": 1790,
+          "line": 1806,
           "declaration_label": "##plane-color"
         },
         {
-          "line": 1798,
-          "declaration_label": "Delete"
-        },
-        {
-          "line": 1813,
-          "declaration_label": "Close"
-        },
-        {
-          "line": 1835,
-          "declaration_label": "Close"
-        },
-        {
-          "line": 1841,
+          "line": 1857,
           "declaration_label": "Show Miller directions"
         },
         {
-          "line": 1847,
-          "declaration_label": "U##dir"
-        },
-        {
-          "line": 1850,
-          "declaration_label": "V##dir"
-        },
-        {
-          "line": 1853,
-          "declaration_label": "W##dir"
-        },
-        {
-          "line": 1856,
-          "declaration_label": "Length (A)##dir"
-        },
-        {
-          "line": 1858,
-          "declaration_label": "Color##dir"
+          "line": 1862,
+          "declaration_label": "u##dir"
         },
         {
           "line": 1865,
-          "declaration_label": "Add Direction"
+          "declaration_label": "v##dir"
         },
         {
-          "line": 1893,
+          "line": 1868,
+          "declaration_label": "w##dir"
+        },
+        {
+          "line": 1871,
+          "declaration_label": "Length (\\xc3\\x85)##dir"
+        },
+        {
+          "line": 1873,
+          "declaration_label": "Colour##dir"
+        },
+        {
+          "line": 1912,
           "declaration_label": "##vis"
         },
         {
-          "line": 1898,
-          "declaration_label": "U##du"
+          "line": 1917,
+          "declaration_label": "u##du"
         },
         {
-          "line": 1901,
-          "declaration_label": "V##dv"
+          "line": 1920,
+          "declaration_label": "v##dv"
         },
         {
-          "line": 1904,
-          "declaration_label": "W##dw"
+          "line": 1923,
+          "declaration_label": "w##dw"
         },
         {
-          "line": 1907,
-          "declaration_label": "L##dl"
+          "line": 1926,
+          "declaration_label": "\\xc3\\x85##dl"
         },
         {
-          "line": 1914,
+          "line": 1933,
           "declaration_label": "##dc"
         },
         {
-          "line": 1921,
-          "declaration_label": "Delete##ddel"
-        },
-        {
-          "line": 1935,
-          "declaration_label": "Close##dclose"
-        },
-        {
-          "line": 1955,
+          "line": 1975,
           "declaration_label": "Max displayed centers"
         },
         {
-          "line": 1957,
+          "line": 1977,
           "declaration_label": "Nearest neighbors"
         },
         {
-          "line": 1961,
+          "line": 1979,
           "declaration_label": "Specify center atom indices"
         },
         {
-          "line": 1969,
+          "line": 1987,
           "declaration_label": "Center atom IDs##polyIndexFilter"
         },
         {
-          "line": 1981,
+          "line": 1998,
           "declaration_label": "Show polyhedral edges"
         },
         {
-          "line": 1983,
+          "line": 2000,
           "declaration_label": "Face opacity"
         },
         {
-          "line": 1985,
+          "line": 2002,
           "declaration_label": "Edge opacity"
         },
         {
-          "line": 1989,
+          "line": 2005,
           "declaration_label": "Filter center elements"
         },
         {
-          "line": 1998,
+          "line": 2014,
           "declaration_label": "Centers##polyFilter"
         },
         {
-          "line": 2009,
+          "line": 2025,
           "declaration_label": "Filter ligand elements"
         },
         {
-          "line": 2018,
+          "line": 2034,
           "declaration_label": "Ligands##polyFilter"
         },
         {
-          "line": 2028,
-          "declaration_label": "Reset Defaults"
-        },
-        {
-          "line": 2036,
-          "declaration_label": "Close##polySettings"
-        },
-        {
-          "line": 2170,
-          "declaration_label": "Manual##about"
-        },
-        {
-          "line": 2173,
-          "declaration_label": "Close##about"
-        },
-        {
-          "line": 2235,
+          "line": 2249,
           "declaration_label": "Color"
         },
         {
-          "line": 2284,
+          "line": 2298,
           "declaration_label": "Automatic colour range"
         },
         {
-          "line": 2287,
+          "line": 2301,
           "declaration_label": "Minimum"
         },
         {
-          "line": 2288,
+          "line": 2302,
           "declaration_label": "Maximum"
         },
         {
-          "line": 2290,
+          "line": 2304,
           "declaration_label": "Hide atoms outside the range"
         },
         {
-          "line": 2291,
+          "line": 2305,
           "declaration_label": "Hide atoms without a value"
         },
         {
-          "line": 2292,
-          "declaration_label": "Show element colours"
+          "line": 2306,
+          "declaration_label": "Show Element Colours"
         }
       ]
     },
     {
       "source": "src/ui/FileBrowser.h",
-      "sha256": "110def01ddab80bb3f268868f274a1a1fb36b1ee3dc67bc9c23caee61e340561",
+      "sha256": "5a13fc66b9404983bb3299ee308382f758084730b85e248f4c1988669ec787cf",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3511,7 +3383,7 @@
     },
     {
       "source": "src/ui/ImGuiSetup.cpp",
-      "sha256": "55b1f43cb9a4897957c2ca5a0573514f32609a3216acbb2617d265e6d286608c",
+      "sha256": "6fdba1b7627a5bbe45151413c58ea9a2360ee1a039543f10eb4b54a450bf892c",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3533,7 +3405,7 @@
     },
     {
       "source": "src/ui/InterfaceBuilderDialog.cpp",
-      "sha256": "095e243550066eaca8bc447536c9c38c2044d26f5af90fac82113cd1bc443c3b",
+      "sha256": "975927ecdf48368cede361e0aafb4c7f746f93a8a6dd11c75f83f40662e908f4",
       "documentation": [
         "11-coverage.tex"
       ],
@@ -3671,16 +3543,12 @@
           "declaration_label": "Find Matches##iface"
         },
         {
-          "line": 1267,
-          "declaration_label": "Update step##iface"
+          "line": 1272,
+          "declaration_label": "Update Step##iface"
         },
         {
-          "line": 1280,
+          "line": 1285,
           "declaration_label": "Build##iface"
-        },
-        {
-          "line": 1291,
-          "declaration_label": "Close##iface"
         }
       ]
     },
@@ -3694,7 +3562,7 @@
     },
     {
       "source": "src/ui/InterstitialAtomsDialog.cpp",
-      "sha256": "bc8e31ac03f240322fdfe3144f4a315d957d0983ed365b4b35820f536230c1a1",
+      "sha256": "a704e14c40a13ed125dddd3d6b2022a971d93dbbc4f092cb0b0012c2f6e70fe6",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -3719,11 +3587,11 @@
         },
         {
           "line": 1376,
-          "declaration_label": "Min Clearance (A)"
+          "declaration_label": "Min Clearance (\\xc3\\x85)"
         },
         {
           "line": 1378,
-          "declaration_label": "Min Separation (A)"
+          "declaration_label": "Min Separation (\\xc3\\x85)"
         },
         {
           "line": 1382,
@@ -3791,7 +3659,7 @@
         },
         {
           "line": 1554,
-          "declaration_label": "Min Insert Distance (A)"
+          "declaration_label": "Min Insert Distance (\\xc3\\x85)"
         },
         {
           "line": 1571,
@@ -3815,23 +3683,11 @@
         },
         {
           "line": 1593,
-          "declaration_label": "Rotate (deg)"
+          "declaration_label": "Rotate (\\xc2\\xb0)"
         },
         {
           "line": 1595,
           "declaration_label": "Reset Transform"
-        },
-        {
-          "line": 1615,
-          "declaration_label": "Update step"
-        },
-        {
-          "line": 1628,
-          "declaration_label": "Apply Interstitials"
-        },
-        {
-          "line": 1655,
-          "declaration_label": "Close"
         }
       ]
     },
@@ -3947,7 +3803,7 @@
     },
     {
       "source": "src/ui/MeasurementOverlay.cpp",
-      "sha256": "340e28c1006e1d20c8601b73cdcfb3c9e8a3dadaf0270804e244c912f587d9eb",
+      "sha256": "35a276076e2a8095dab012bb6802d588037c61df1e9804c2ecb3f24a0b9ec657",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3969,7 +3825,7 @@
     },
     {
       "source": "src/ui/MenuParity.cpp",
-      "sha256": "9de90cb33a9f656ae45608cdb43b84f6f480240ec348b6c6a7097918fe498097",
+      "sha256": "b7acd00c19ea7bcaadaabeabb1f76ba303b12a4e821995c6d74a0b85fa4bdb56",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3991,7 +3847,7 @@
     },
     {
       "source": "src/ui/MergeStructuresDialog.cpp",
-      "sha256": "f2343b3257338a6002a7c038ccbd388ea6cd7c25139b6bb199b238d57d82944c",
+      "sha256": "38f797245440bcf7455806488ef71b83ec6b1ab1bbe03159e41e77a8e7915f33",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -4004,7 +3860,7 @@
         },
         {
           "line": 728,
-          "declaration_label": "Add structure##sourcePicker"
+          "declaration_label": "Add Structure##sourcePicker"
         },
         {
           "line": 742,
@@ -4016,27 +3872,23 @@
         },
         {
           "line": 805,
-          "declaration_label": "Pos (A)"
+          "declaration_label": "Pos (\\xc3\\x85)"
         },
         {
           "line": 807,
-          "declaration_label": "Rot (deg)"
+          "declaration_label": "Rot (\\xc2\\xb0)"
         },
         {
           "line": 1001,
           "declaration_label": "Delete Selected"
         },
         {
-          "line": 1027,
-          "declaration_label": "Update step"
+          "line": 1033,
+          "declaration_label": "Update Step"
         },
         {
-          "line": 1034,
+          "line": 1040,
           "declaration_label": "Merge Structures"
-        },
-        {
-          "line": 1064,
-          "declaration_label": "Close"
         }
       ]
     },
@@ -4074,7 +3926,7 @@
     },
     {
       "source": "src/ui/ModifierEditor.cpp",
-      "sha256": "dfd91eac9dd66ecb111601339ab4ff95b8e16295d935f1ee2d23f3f9ba233888",
+      "sha256": "5912f6bdf1d95b70a51f7dc95afe9ff46d5baa819ffc5f58def072cc1a306d09",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4083,43 +3935,43 @@
       ],
       "literal_controls": [
         {
-          "line": 179,
+          "line": 180,
           "declaration_label": "##flag"
         },
         {
-          "line": 190,
+          "line": 191,
           "declaration_label": "##flag"
         },
         {
-          "line": 202,
+          "line": 203,
           "declaration_label": "##other"
         },
         {
-          "line": 238,
+          "line": 239,
           "declaration_label": "##value"
         },
         {
-          "line": 241,
+          "line": 242,
           "declaration_label": "##value"
         },
         {
-          "line": 244,
+          "line": 245,
           "declaration_label": "##value"
         },
         {
-          "line": 250,
+          "line": 251,
           "declaration_label": "##value"
         },
         {
-          "line": 252,
+          "line": 253,
           "declaration_label": "##value"
         },
         {
-          "line": 259,
+          "line": 260,
           "declaration_label": "##value"
         },
         {
-          "line": 271,
+          "line": 272,
           "declaration_label": "##value"
         }
       ]
@@ -4137,7 +3989,7 @@
     },
     {
       "source": "src/ui/NanoCrystalBuilderDialog.cpp",
-      "sha256": "1e1407260ed58d4c597df17399d96d12275ad2074f9b3baca83716326b20eab8",
+      "sha256": "71589c58c470b2e7f8962f7008dd1151a6f604242e5ab2731fa45c23f77e15ee",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -4145,7 +3997,7 @@
       "literal_controls": [
         {
           "line": 269,
-          "declaration_label": "Max radius (A)##wulffRadius"
+          "declaration_label": "Max radius (\\xc3\\x85)##wulffRadius"
         },
         {
           "line": 295,
@@ -4173,39 +4025,39 @@
         },
         {
           "line": 343,
-          "declaration_label": "Radius (A)##sph"
+          "declaration_label": "Radius (\\xc3\\x85)##sph"
         },
         {
           "line": 350,
-          "declaration_label": "Semi-axis a (A)##ell"
+          "declaration_label": "Semi-axis a (\\xc3\\x85)##ell"
         },
         {
           "line": 352,
-          "declaration_label": "Semi-axis b (A)##ell"
+          "declaration_label": "Semi-axis b (\\xc3\\x85)##ell"
         },
         {
           "line": 354,
-          "declaration_label": "Semi-axis c (A)##ell"
+          "declaration_label": "Semi-axis c (\\xc3\\x85)##ell"
         },
         {
           "line": 362,
-          "declaration_label": "Half-size X (A)##box"
+          "declaration_label": "Half-size X (\\xc3\\x85)##box"
         },
         {
           "line": 364,
-          "declaration_label": "Half-size Y (A)##box"
+          "declaration_label": "Half-size Y (\\xc3\\x85)##box"
         },
         {
           "line": 366,
-          "declaration_label": "Half-size Z (A)##box"
+          "declaration_label": "Half-size Z (\\xc3\\x85)##box"
         },
         {
           "line": 377,
-          "declaration_label": "Radius (A)##cyl"
+          "declaration_label": "Radius (\\xc3\\x85)##cyl"
         },
         {
           "line": 379,
-          "declaration_label": "Height (A)##cyl"
+          "declaration_label": "Height (\\xc3\\x85)##cyl"
         },
         {
           "line": 381,
@@ -4213,19 +4065,19 @@
         },
         {
           "line": 389,
-          "declaration_label": "Radius (A)##oct"
+          "declaration_label": "Radius (\\xc3\\x85)##oct"
         },
         {
           "line": 396,
-          "declaration_label": "Octahedron R (A)##trunc"
+          "declaration_label": "Octahedron R (\\xc3\\x85)##trunc"
         },
         {
           "line": 398,
-          "declaration_label": "Truncation R (A)##trunc"
+          "declaration_label": "Truncation R (\\xc3\\x85)##trunc"
         },
         {
           "line": 406,
-          "declaration_label": "Radius (A)##cubo"
+          "declaration_label": "Radius (\\xc3\\x85)##cubo"
         },
         {
           "line": 943,
@@ -4233,7 +4085,7 @@
         },
         {
           "line": 1147,
-          "declaration_label": "Load reference##sourcePicker"
+          "declaration_label": "Load Reference##sourcePicker"
         },
         {
           "line": 1182,
@@ -4253,15 +4105,15 @@
         },
         {
           "line": 1428,
-          "declaration_label": "X (A)##cnano"
+          "declaration_label": "X (\\xc3\\x85)##cnano"
         },
         {
           "line": 1430,
-          "declaration_label": "Y (A)##cnano"
+          "declaration_label": "Y (\\xc3\\x85)##cnano"
         },
         {
           "line": 1432,
-          "declaration_label": "Z (A)##cnano"
+          "declaration_label": "Z (\\xc3\\x85)##cnano"
         },
         {
           "line": 1439,
@@ -4285,19 +4137,15 @@
         },
         {
           "line": 1462,
-          "declaration_label": "Vacuum (A)##nano"
+          "declaration_label": "Vacuum (\\xc3\\x85)##nano"
         },
         {
-          "line": 1512,
-          "declaration_label": "Update step##nano"
+          "line": 1517,
+          "declaration_label": "Update Step##nano"
         },
         {
-          "line": 1524,
+          "line": 1529,
           "declaration_label": "Build Nanocrystal##nano"
-        },
-        {
-          "line": 1539,
-          "declaration_label": "Close##nano"
         }
       ]
     },
@@ -4312,7 +4160,7 @@
     },
     {
       "source": "src/ui/OperationDialog.cpp",
-      "sha256": "1478aefd430a0475197edeb3f99d80ebbfe89bc58d918af0ac53aa535403f4ed",
+      "sha256": "6007e177dd43a07a0e183b484a24d4214528885e4526c0ccb249ba4752338ccf",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4402,27 +4250,18 @@
     },
     {
       "source": "src/ui/PeriodicTableDialog.cpp",
-      "sha256": "45704dd77352bd33401ed3e7de80f0fe711c190614416e3d20bb102d9b2b4217",
+      "sha256": "3ba3fd7314ea2a4fb0599ff026facab74626f7eea7700d0607b0e1d8ae6987fa",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
         "04-display-controls.tex",
         "09-installation.tex"
       ],
-      "literal_controls": [
-        {
-          "line": 378,
-          "declaration_label": "Apply"
-        },
-        {
-          "line": 396,
-          "declaration_label": "Cancel"
-        }
-      ]
+      "literal_controls": []
     },
     {
       "source": "src/ui/PeriodicTableDialog.h",
-      "sha256": "52ac95fcba541432956480bdf21dd9a6224e51747261d2ed718b53ad6f156e1b",
+      "sha256": "fd814f4a851fccb1c07f2bb2965e182485c8dafc3f8da8b3bfe725dbb9436022",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4433,7 +4272,7 @@
     },
     {
       "source": "src/ui/PipelineDialog.cpp",
-      "sha256": "8aabda85e4f11bc91a9f35f0b0edc563157c5fde329568e7f5f49a6d5a579255",
+      "sha256": "332b06a2cd6a1ef3e8fd0bdf043f46136a59be04f6d19b3c88e23c9a2211f22c",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -4445,7 +4284,7 @@
         },
         {
           "line": 160,
-          "declaration_label": "Add modifier"
+          "declaration_label": "Add Modifier"
         },
         {
           "line": 264,
@@ -4477,11 +4316,11 @@
         },
         {
           "line": 461,
-          "declaration_label": "Move up"
+          "declaration_label": "Move Up"
         },
         {
           "line": 466,
-          "declaration_label": "Move down"
+          "declaration_label": "Move Down"
         },
         {
           "line": 470,
@@ -4497,7 +4336,7 @@
         },
         {
           "line": 479,
-          "declaration_label": "Edit in dialog"
+          "declaration_label": "Edit in Dialog"
         },
         {
           "line": 488,
@@ -4505,7 +4344,7 @@
         },
         {
           "line": 500,
-          "declaration_label": "Copy as command"
+          "declaration_label": "Copy as Command"
         },
         {
           "line": 508,
@@ -4513,23 +4352,23 @@
         },
         {
           "line": 509,
-          "declaration_label": "Apply text"
+          "declaration_label": "Apply Text"
         },
         {
           "line": 536,
-          "declaration_label": "Start from the active structure"
+          "declaration_label": "Start from the Active Structure"
         },
         {
           "line": 549,
-          "declaration_label": "Use it as the pipeline input"
+          "declaration_label": "Use It as the Pipeline Input"
         },
         {
           "line": 551,
-          "declaration_label": "Restore the pipeline output"
+          "declaration_label": "Restore the Pipeline Output"
         },
         {
           "line": 553,
-          "declaration_label": "Use the active structure as input"
+          "declaration_label": "Use the Active Structure as Input"
         },
         {
           "line": 556,
@@ -4549,11 +4388,11 @@
         },
         {
           "line": 598,
-          "declaration_label": "Save pipeline"
+          "declaration_label": "Save Pipeline"
         },
         {
           "line": 600,
-          "declaration_label": "Load pipeline"
+          "declaration_label": "Load Pipeline"
         }
       ]
     },
@@ -4568,7 +4407,7 @@
     },
     {
       "source": "src/ui/PolyCrystalBuilderDialog.cpp",
-      "sha256": "a48648d3f221390406c3e82e4fe52f1fa582c332701e9480b238c980a1eb5c8a",
+      "sha256": "5c8b9aa830859dcdf49541dfb13f4dee933ce088dc28a16927c1b75508e0c545",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -4580,7 +4419,7 @@
         },
         {
           "line": 387,
-          "declaration_label": "Load reference##sourcePicker"
+          "declaration_label": "Load Reference##sourcePicker"
         },
         {
           "line": 507,
@@ -4643,16 +4482,12 @@
           "declaration_label": "X##removePGrain"
         },
         {
-          "line": 670,
-          "declaration_label": "Update step##poly"
+          "line": 675,
+          "declaration_label": "Update Step##poly"
         },
         {
-          "line": 683,
+          "line": 688,
           "declaration_label": "Build##poly"
-        },
-        {
-          "line": 692,
-          "declaration_label": "Close##poly"
         }
       ]
     },
@@ -4667,7 +4502,7 @@
     },
     {
       "source": "src/ui/PolyhedralOverlay.cpp",
-      "sha256": "bd24299353f0214deb81276ece13dcc3cbd18c1cb838109c7f249d6c96c9a539",
+      "sha256": "831c7be9bfdb09743ea330e9c7fad622e8464a90aabbec564a6e1f63597b9829",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4678,7 +4513,7 @@
     },
     {
       "source": "src/ui/PolyhedralOverlay.h",
-      "sha256": "bc44c108865141c73e8d9bcd3fd719889db2dd644eec04f191c5e4f31d49c54b",
+      "sha256": "011bafad53fa4b692814270854ee6f8af9dca29d905e9ddad36ada0f4b52f808",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4689,7 +4524,7 @@
     },
     {
       "source": "src/ui/RadialDistributionAnalysis.cpp",
-      "sha256": "1ce24fa8b408ba446d8c10133114800653e6c181a3697b7ed160ab7740291e01",
+      "sha256": "45950f4561d4eda1a173fdcf65bd05e9fc9b84132b8de875fceef416ad731748",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4698,64 +4533,60 @@
       ],
       "literal_controls": [
         {
-          "line": 228,
+          "line": 229,
           "declaration_label": "Radial Distribution Function"
         },
         {
-          "line": 276,
+          "line": 280,
           "declaration_label": "Reference species"
         },
         {
-          "line": 277,
+          "line": 281,
           "declaration_label": "Target species"
         },
         {
-          "line": 278,
+          "line": 282,
           "declaration_label": "Use PBC when unit cell is available"
         },
         {
-          "line": 279,
+          "line": 283,
           "declaration_label": "Normalize to g(r)"
         },
         {
-          "line": 282,
+          "line": 286,
           "declaration_label": "Radius range"
         },
         {
-          "line": 283,
+          "line": 287,
           "declaration_label": "Bins"
         },
         {
-          "line": 284,
+          "line": 288,
           "declaration_label": "Smoothing passes"
         },
         {
-          "line": 287,
+          "line": 291,
           "declaration_label": "Overlay raw counts"
         },
         {
-          "line": 288,
+          "line": 292,
           "declaration_label": "Overlay cumulative coordination"
         },
         {
-          "line": 291,
+          "line": 295,
           "declaration_label": "Enable distortion analysis"
         },
         {
-          "line": 294,
+          "line": 298,
           "declaration_label": "Auto shell window from first-shell minima"
         },
         {
-          "line": 296,
+          "line": 300,
           "declaration_label": "Manual shell window"
         },
         {
-          "line": 301,
+          "line": 306,
           "declaration_label": "Run RDF"
-        },
-        {
-          "line": 304,
-          "declaration_label": "Close"
         }
       ]
     },
@@ -4805,14 +4636,14 @@
     },
     {
       "source": "src/ui/ScientificToolsDialog.cpp",
-      "sha256": "8946b0af532e7aeb138bba6a4fb63d43c88f1010f62b60e76f60f47d34b83279",
+      "sha256": "5f8a6f2ccf64e43f347fa881a29b16eadc9b12a57bb48d13b4d49711e283f755",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": [
         {
-          "line": 752,
+          "line": 753,
           "declaration_label": "Cell to keep"
         }
       ]
@@ -4828,181 +4659,185 @@
     },
     {
       "source": "src/ui/ScientificToolsLayouts.cpp",
-      "sha256": "fe4b2f5b700348bc2c6debcac593ee7d553d48151c1ca0a7b04ecc2e44e40b6c",
+      "sha256": "1f257ed48a5f08d8bf15725efd482d7e897d3eefb25a1e17ae655a922bc78bf9",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": [
         {
-          "line": 75,
+          "line": 77,
           "declaration_label": "##components"
         },
         {
-          "line": 89,
+          "line": 91,
           "declaration_label": "##window"
         },
         {
-          "line": 93,
+          "line": 95,
           "declaration_label": "##number"
         },
         {
-          "line": 99,
+          "line": 102,
           "declaration_label": "##source"
         },
         {
-          "line": 103,
+          "line": 117,
+          "declaration_label": "##source"
+        },
+        {
+          "line": 128,
           "declaration_label": "Browse"
         },
         {
-          "line": 108,
+          "line": 133,
           "declaration_label": "##field"
         },
         {
-          "line": 109,
+          "line": 134,
           "declaration_label": "Select numeric column"
         },
         {
-          "line": 110,
+          "line": 135,
           "declaration_label": "##column"
         },
         {
-          "line": 116,
-          "declaration_label": "Use active cell"
+          "line": 141,
+          "declaration_label": "Use Active Cell"
         },
         {
-          "line": 120,
-          "declaration_label": "Use active structure"
+          "line": 145,
+          "declaration_label": "Use Active Structure"
         },
         {
-          "line": 125,
-          "declaration_label": "Use loaded trajectory"
+          "line": 150,
+          "declaration_label": "Use Loaded Trajectory"
         },
         {
-          "line": 136,
+          "line": 161,
           "declaration_label": "##potential"
         },
         {
-          "line": 141,
-          "declaration_label": "Browse parameter file"
+          "line": 166,
+          "declaration_label": "Browse Parameter File"
         },
         {
-          "line": 144,
-          "declaration_label": "Use built-in Si"
+          "line": 169,
+          "declaration_label": "Use Built-in Si"
         },
         {
-          "line": 152,
+          "line": 177,
           "declaration_label": "##buckingham"
         },
         {
-          "line": 155,
-          "declaration_label": "Browse potential"
+          "line": 180,
+          "declaration_label": "Browse Potential"
         },
         {
-          "line": 158,
+          "line": 183,
           "declaration_label": "Table format"
         },
         {
-          "line": 164,
+          "line": 189,
           "declaration_label": "Well depth epsilon (eV)"
         },
         {
-          "line": 165,
-          "declaration_label": "Zero-crossing sigma (Angstrom)"
+          "line": 190,
+          "declaration_label": "Zero-crossing sigma (\\xc3\\x85)"
         },
         {
-          "line": 166,
-          "declaration_label": "Cutoff (Angstrom)"
+          "line": 191,
+          "declaration_label": "Cutoff (\\xc3\\x85)"
         },
         {
-          "line": 171,
+          "line": 196,
           "declaration_label": "##value"
         },
         {
-          "line": 228,
+          "line": 253,
           "declaration_label": "Cancel"
         },
         {
-          "line": 299,
-          "declaration_label": "Colour atoms in the view"
+          "line": 324,
+          "declaration_label": "Colour Atoms in the View"
         },
         {
-          "line": 315,
-          "declaration_label": "Export plot data"
+          "line": 340,
+          "declaration_label": "Export Plot Data"
         },
         {
-          "line": 363,
-          "declaration_label": "Clear kept runs"
+          "line": 388,
+          "declaration_label": "Clear Kept Runs"
         },
         {
-          "line": 369,
-          "declaration_label": "Keep for comparison"
+          "line": 394,
+          "declaration_label": "Keep for Comparison"
         },
         {
-          "line": 372,
-          "declaration_label": "Save results"
+          "line": 397,
+          "declaration_label": "Save Results"
         },
         {
-          "line": 375,
-          "declaration_label": "Save structures"
+          "line": 400,
+          "declaration_label": "Save Structures"
         },
         {
-          "line": 377,
-          "declaration_label": "Open final structure in a new tab"
+          "line": 402,
+          "declaration_label": "Open Final Structure in a New Tab"
         },
         {
-          "line": 389,
+          "line": 414,
           "declaration_label": "Full report"
         },
         {
-          "line": 404,
+          "line": 429,
           "declaration_label": "Analyse the active structure"
         },
         {
-          "line": 413,
+          "line": 438,
           "declaration_label": "More options"
         },
         {
-          "line": 424,
+          "line": 449,
           "declaration_label": "Colour automatically after each analysis"
         },
         {
-          "line": 426,
+          "line": 451,
           "declaration_label": "Plots"
         },
         {
-          "line": 442,
+          "line": 467,
           "declaration_label": "Optional inputs"
         },
         {
-          "line": 539,
+          "line": 564,
           "declaration_label": "Plots"
         },
         {
-          "line": 623,
+          "line": 648,
           "declaration_label": "##preview"
         },
         {
-          "line": 624,
-          "declaration_label": "Save this file"
+          "line": 649,
+          "declaration_label": "Save This File"
         },
         {
-          "line": 626,
-          "declaration_label": "Save all files"
+          "line": 651,
+          "declaration_label": "Save All Files"
         },
         {
-          "line": 628,
-          "declaration_label": "Copy to clipboard"
+          "line": 653,
+          "declaration_label": "Copy to Clipboard"
         },
         {
-          "line": 630,
-          "declaration_label": "Save results"
+          "line": 655,
+          "declaration_label": "Save Results"
         }
       ]
     },
     {
       "source": "src/ui/ShortRangeOrderDialog.cpp",
-      "sha256": "a9b1845ed96af37a56dfa7c30171613fc8770c45fac2c4cf15f6f525dd1615aa",
+      "sha256": "e5526fee3bdcaa78126785200d122474ec0a5546a9b620b7f238f54bd9547ee0",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5011,39 +4846,39 @@
       ],
       "literal_controls": [
         {
-          "line": 265,
+          "line": 266,
           "declaration_label": "Short-Range Order (SRO)"
         },
         {
-          "line": 339,
+          "line": 341,
           "declaration_label": "##SROShells"
         },
         {
-          "line": 349,
+          "line": 351,
           "declaration_label": "##SROTol"
         },
         {
-          "line": 367,
+          "line": 369,
           "declaration_label": "  Run Analysis  ##SRO"
         },
         {
-          "line": 490,
+          "line": 488,
           "declaration_label": " Warren-Cowley "
         },
         {
-          "line": 510,
+          "line": 508,
           "declaration_label": " Rao-Curtin (2022) "
         },
         {
-          "line": 530,
+          "line": 528,
           "declaration_label": " Shells "
         },
         {
-          "line": 572,
+          "line": 570,
           "declaration_label": " Guide "
         },
         {
-          "line": 649,
+          "line": 648,
           "declaration_label": "Close##SROClose"
         }
       ]
@@ -5061,7 +4896,7 @@
     },
     {
       "source": "src/ui/StackingFaultBuilderDialog.cpp",
-      "sha256": "ead3def41f22f8964aeb9727d56eaa4ec70e78484dfb2e8804054fdf0df67ee9",
+      "sha256": "4ebbd1d94638707d54be8ea6d18bd25708b0dea872b8580326f997d15e1a2cd0",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -5101,7 +4936,7 @@
         },
         {
           "line": 764,
-          "declaration_label": "Update step"
+          "declaration_label": "Update Step"
         },
         {
           "line": 772,
@@ -5109,7 +4944,7 @@
         },
         {
           "line": 786,
-          "declaration_label": "Update step"
+          "declaration_label": "Update Step"
         },
         {
           "line": 789,
@@ -5130,10 +4965,6 @@
         {
           "line": 823,
           "declaration_label": "Export All Structures"
-        },
-        {
-          "line": 905,
-          "declaration_label": "Close"
         }
       ]
     },
@@ -5170,7 +5001,7 @@
     },
     {
       "source": "src/ui/StructureInfoDialog.cpp",
-      "sha256": "0eeb335b96f463f5a0ad361d85d0051827c894989cf9b317b942add05b8542dc",
+      "sha256": "36657b36a8ac38fb8b7f27c2540ab17594097ba3bc2866e28b157f9913e5869e",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5192,7 +5023,7 @@
     },
     {
       "source": "src/ui/SubstitutionalSolidSolutionDialog.cpp",
-      "sha256": "36c391fdfa81a869db8cfa36a007ec54d8a45aaa2493389c6ec9607080ee10d4",
+      "sha256": "3c1283d433d37f6f989074653dde2d6012330a4bc6d94539bbe5679ddcc94ad4",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -5220,7 +5051,7 @@
         },
         {
           "line": 978,
-          "declaration_label": "Update step"
+          "declaration_label": "Update Step"
         },
         {
           "line": 985,
@@ -5253,8 +5084,19 @@
       "literal_controls": []
     },
     {
+      "source": "src/ui/TitleCase.h",
+      "sha256": "ea17d6a6ed2ce4bea1fc60c0c1624c88d894c3b8cd7e6f29cad113f9d781a265",
+      "documentation": [
+        "01-start.tex",
+        "04-analysis.tex",
+        "04-display-controls.tex",
+        "09-installation.tex"
+      ],
+      "literal_controls": []
+    },
+    {
       "source": "src/ui/TrajectoryDialog.cpp",
-      "sha256": "ac052f38395cda81b2c127abd64edc9ef5103220b3cfb9f2c146e85268246c68",
+      "sha256": "3d1e4a0accffe5fba07abc550a55cb1b05d4645efe19506e2988d8d2ced0ec91",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -5266,7 +5108,7 @@
         },
         {
           "line": 130,
-          "declaration_label": "Open trajectory"
+          "declaration_label": "Open Trajectory"
         },
         {
           "line": 132,
@@ -5281,42 +5123,42 @@
           "declaration_label": ">##next"
         },
         {
-          "line": 165,
+          "line": 166,
           "declaration_label": "##frame"
         },
         {
-          "line": 167,
+          "line": 170,
           "declaration_label": "##fps"
         },
         {
-          "line": 172,
+          "line": 175,
           "declaration_label": "Analyse every displayed frame"
         },
         {
-          "line": 174,
+          "line": 177,
           "declaration_label": "##frameanalysis"
         },
         {
-          "line": 181,
-          "declaration_label": "Neighbour cutoff (Angstrom)"
+          "line": 184,
+          "declaration_label": "Neighbour cutoff (\\xc3\\x85)"
         },
         {
-          "line": 186,
+          "line": 189,
           "declaration_label": "##gifstride"
         },
         {
-          "line": 188,
+          "line": 191,
           "declaration_label": "Export GIF"
         },
         {
-          "line": 192,
-          "declaration_label": "Stop export"
+          "line": 195,
+          "declaration_label": "Stop Export"
         }
       ]
     },
     {
       "source": "src/ui/TrajectoryDialog.h",
-      "sha256": "ddc1c0aa62b2ebcc9aebdaa60a37a5147cc2632dcacd80a859eb9cbea0447162",
+      "sha256": "98890c8b8fb3d8122d18cc1ea3c69017461268dd84bba37130c76a5e80ad2be6",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -5325,7 +5167,7 @@
     },
     {
       "source": "src/ui/TransformAtomsDialog.cpp",
-      "sha256": "f54947ada1af1cc6deecce2651fb03fa1051473a3a72b8d699dceb53849cad49",
+      "sha256": "c2dea09303d9926638e6c997813c2e0cd5fe12ba79b8e12826b4e22e3450385f",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -5339,18 +5181,6 @@
         {
           "line": 100,
           "declaration_label": ""
-        },
-        {
-          "line": 108,
-          "declaration_label": "Update step"
-        },
-        {
-          "line": 115,
-          "declaration_label": "Apply"
-        },
-        {
-          "line": 124,
-          "declaration_label": "Cancel"
         }
       ]
     },
@@ -5366,7 +5196,7 @@
     },
     {
       "source": "src/ui/TutorialCapture.cpp",
-      "sha256": "b84f792feb21eb65a4e806bce6e9aa113897a5fa4558ee66775ed623c71a8c84",
+      "sha256": "f0514b61e3c8dcb0ff63179dd621e92dbae336a0356752ff9b1f9b68300d5a0e",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5388,7 +5218,7 @@
     },
     {
       "source": "src/ui/UiTour.cpp",
-      "sha256": "cdb40621ea6a05f8c3f83e4e32b1243b8b4ec7da5f5f8ebc3a9c63cfd6680d5a",
+      "sha256": "bfec02d9c25826b927b279dcbe400d6a5d264c9e33f69f7ad96d568a0f09b574",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5399,7 +5229,7 @@
     },
     {
       "source": "src/ui/UnitText.h",
-      "sha256": "660f0c57fc22629b2e9f23dc3ef3a37a9aac61312f8c6ab82ecd7235d053cf3a",
+      "sha256": "0c54dd3b3552dccc01ed0b3b2a7047cde08722ebbb2c0470a7030660c1d5f871",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5432,7 +5262,7 @@
     },
     {
       "source": "src/ui/WannierAnalysisDialog.cpp",
-      "sha256": "eb00e288069e1bc14f824bfadfa07b800f9adad041b20780eea8538ed8ddefbd",
+      "sha256": "ef1dd5c2615774ed9d56e7fe5352716f32b667f4e97392d779d0a76f679af780",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5458,7 +5288,7 @@
         },
         {
           "line": 87,
-          "declaration_label": "Compute bands"
+          "declaration_label": "Compute Bands"
         },
         {
           "line": 102,
@@ -5470,7 +5300,7 @@
         },
         {
           "line": 105,
-          "declaration_label": "Compute curvature"
+          "declaration_label": "Compute Curvature"
         },
         {
           "line": 117,

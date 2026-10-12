@@ -306,7 +306,7 @@ class Pipeline:
         return " | ".join(parts)
 
     def save(self, path: Union[str, os.PathLike]) -> None:
-        """Save as JSON (open it in the desktop panel with Load pipeline...)."""
+        """Save as JSON (open it in the desktop panel with Load Pipeline...)."""
         Path(path).write_text(json.dumps(self.to_json(), indent=2) + "\n", encoding="utf-8")
 
     def __repr__(self) -> str:

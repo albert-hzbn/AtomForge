@@ -159,12 +159,12 @@
             }
           ],
           "steps": [
-            "Select the required chemical symbol in the periodic table. Read the selected symbol or atomic number before applying.",
-            "Use the dialog\\textquotesingle s \\ui{Apply Element} action where present, then check the original row.",
+            "Select the required chemical symbol in the periodic table, or type it on the keyboard. Read the element name, symbol and atomic number below the table before applying; a double-click applies at once.",
+            "Apply the element (\\ui{Apply}, a double-click or Enter), then check the original row.",
             "For a two-species example, add a second row and choose a different element. Recheck both rows before building."
           ],
           "check": "Only the intended site/species row should acquire the selected identity. Choosing an element does not assign a charge state or pseudopotential.",
-          "options": "Settings > Colors and Atomic Sizes also use a periodic table, but those dialogs change appearance/radius settings rather than substituting atoms."
+          "options": "Settings > Display Settings > Colours and Atomic Sizes also use a periodic table, but those dialogs change appearance/radius settings rather than substituting atoms."
         },
         {
           "id": "alloy",
@@ -193,7 +193,7 @@
         {
           "id": "csl",
           "title": "Find and build a Sigma-5 boundary",
-          "start": "Choose \\ui{Build > CSL Grain Boundary}; drop \\code{examples/cu_fcc.cif} into its reference preview. Use \\ui{Load reference} to select the source with the shared file browser.",
+          "start": "Choose \\ui{Build > CSL Grain Boundary}; drop \\code{examples/cu_fcc.cif} into its reference preview. Use \\ui{Load Reference} to select the source with the shared file browser.",
           "images": [
             {
               "file": "tutorials/csl-loaded.jpg",
@@ -408,7 +408,7 @@
         {
           "id": "wulff",
           "title": "Build a Wulff particle from facet families",
-          "start": "Open Nanocrystal, select Wulff Construction, and load \\code{examples/cu_fcc.cif}. Use \\ui{Load reference} to select the source with the shared file browser.",
+          "start": "Open Nanocrystal, select Wulff Construction, and load \\code{examples/cu_fcc.cif}. Use \\ui{Load Reference} to select the source with the shared file browser.",
           "images": [
             {
               "file": "tutorials/wulff-loaded.jpg",
@@ -468,7 +468,7 @@
             }
           ],
           "steps": [
-            "Open \\ui{Build > Custom Structure}. Choose \\ui{Load structure or model} twice: select the crystal file, then the OBJ. Each file is routed to its corresponding preview. File drops also work. Alternatively copy an appropriate periodic scene using \\ui{Use Current Scene}.",
+            "Open \\ui{Build > Custom Structure}. Choose \\ui{Load Structure or Model} twice: select the crystal file, then the OBJ. Each file is routed to its corresponding preview. File drops also work. Alternatively copy an appropriate periodic scene using \\ui{Use Current Scene}.",
             "Set Scale to 12 \\angstrom\\ per model unit, automatic centring, and rectangular output with 5 \\angstrom\\ vacuum.",
             "Leave crystal orientation disabled for the baseline exercise. Build Fill and inspect the result."
           ],
@@ -567,7 +567,7 @@
         {
           "id": "polycrystal",
           "title": "Build a four-grain copper sample",
-          "start": "Open \\ui{Build > Polycrystal} and drop \\code{examples/cu_fcc.cif} onto the reference preview. Use \\ui{Load reference} to select the source with the shared file browser.",
+          "start": "Open \\ui{Build > Polycrystal} and drop \\code{examples/cu_fcc.cif} onto the reference preview. Use \\ui{Load Reference} to select the source with the shared file browser.",
           "images": [
             {
               "file": "tutorials/polycrystal-controls.jpg",
@@ -1282,7 +1282,7 @@
           "steps": [
             "Select Cu in the periodic table and record its current radius.",
             "Change the Atomic Radius to inspect how sphere size affects visibility of interstitial space.",
-            "Use Apply Literature Radius To Selected Element to restore Cu, or Reset to Literature Defaults for the full set."
+            "Use Reset Element to restore Cu, or Reset All Elements for the full set."
           ],
           "check": "Atomic centres remain fixed. A displayed sphere boundary is not an electron-density isosurface.",
           "options": "Record radius overrides in comparable images. Radius information can also be consumed by geometry tools, so restore intended values before reproducing their results."
@@ -1338,7 +1338,7 @@
         {
           "id": "colours",
           "title": "Change a species display colour",
-          "start": "Open \\ui{Display Settings > Colors}.",
+          "start": "Open \\ui{Display Settings > Colours}.",
           "images": [
             {
               "file": "tutorials/display-colors.jpg",
@@ -1348,13 +1348,13 @@
                 1708,
                 1127
               ],
-              "caption": "Colors tab with a selected element, its RGB controls and the reset actions."
+              "caption": "Colours tab with a selected element, its RGB controls and the reset actions."
             }
           ],
           "steps": [
             "Select Cu, then change its colour using the visible values or colour control.",
             "Select Ni and give it a distinguishable colour. Inspect the same alloy from a second view.",
-            "Use Reset Color for one species, or Reset All Colors to restore the palette."
+            "Use Reset Element for one species, or Reset All Colours to restore the palette."
           ],
           "check": "Colour edits do not substitute species. Verify chemistry using labels or Structure Info.",
           "options": "The element picker used for a builder serves a different purpose. Do not confuse changing a species colour with changing a charge-density colour range."
@@ -1455,7 +1455,7 @@
         {
           "id": "interface-size",
           "title": "Adapt the interface to the screen",
-          "start": "Open \\ui{Settings > Interface size}.",
+          "start": "Open \\ui{Settings > Interface Size}.",
           "steps": [
             "Start with Automatic. Choose Larger (125\\%) or Large (150\\%) if labels are difficult to read; Extra large is 200\\% and Compact is 85\\%.",
             "Resize the application. Scroll stacked dialogs to reach lower panels, then return to Automatic to restore display-derived scaling."
@@ -1470,7 +1470,7 @@
                 638,
                 204
               ],
-              "caption": "Current Settings > Interface size menu, with Automatic selected and all five scale choices visible."
+              "caption": "Current Settings > Interface Size menu, with Automatic selected and all five scale choices visible."
             }
           ]
         }
@@ -1482,7 +1482,7 @@
         {
           "id": "rdf",
           "title": "Run an RDF and inspect its shell window",
-          "start": "Open \\code{examples/cu_ni_alloy.cif}, then \\ui{Analysis > Structure and defects > Radial Distribution Function}.",
+          "start": "Open \\code{examples/cu_ni_alloy.cif}, then \\ui{Analysis > Structure and Defects > Radial Distribution Function}.",
           "images": [
             {
               "file": "tutorials/rdf-analysis.jpg",
@@ -1554,7 +1554,7 @@
         {
           "id": "electronic-volume",
           "title": "Compare electronic volume and surface views",
-          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic structure > Electronic Post-Processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
+          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic Structure > Electronic Post-Processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
           "images": [
             {
               "file": "electronic-volume.png",
@@ -1562,17 +1562,17 @@
             }
           ],
           "steps": [
-            "Choose a density field, select a layout with 3D, and use Estimate level for a data-derived starting level.",
+            "Choose a density field, select a layout with 3D, and use Estimate Level for a data-derived starting level.",
             "Compare Volume with Isosurface. Set transparency to zero for opaque rendering, then increase it to reveal internal overlap.",
-            "Orbit with left drag, pan with right drag, zoom with the wheel, and use Fit view to reset framing."
+            "Orbit with left drag, pan with right drag, zoom with the wheel, and use Fit View to reset framing."
           ],
           "check": "An isosurface is a boundary; volume mode depicts interior values. Read the range warning and legend rather than treating a brighter colour as a different quantity.",
-          "options": "Update surface regenerates the mesh when needed. Appearance offers Spectrum, Blue-white-red, Sequential blue, automatic/manual range, and surface specular/shininess controls. Layout can show both views or only one."
+          "options": "Update Surface regenerates the mesh when needed. Appearance offers Spectrum, Blue-white-red, Sequential blue, automatic/manual range, and surface specular/shininess controls. Layout can show both views or only one."
         },
         {
           "id": "electronic-plane",
           "title": "Choose a 2D intersection and its guide",
-          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic structure > Electronic Post-Processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
+          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic Structure > Electronic Post-Processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
           "images": [
             {
               "file": "electronic-arbitrary.png",
@@ -1590,7 +1590,7 @@
         {
           "id": "electronic-operations",
           "title": "Run charge-transfer and general operations",
-          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic structure > Electronic Post-Processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
+          "start": "Load the supplied CHGCAR in \\ui{Analysis > Electronic Structure > Electronic Post-Processing}. See Chapter~\\ref{ch:electronic} for quantity and channel selection.",
           "images": [
             {
               "file": "electronic-volume.png",
