@@ -180,6 +180,56 @@ std::string describeFile(const std::string& path)
 }
 
 // Persistent sidebar width shared across all three file-browser dialogs.
+// The folder field of the file dialogs. A path too long for the field shows
+// its end (".../Documents/AtomForge") while not being edited, since the
+// end names the folder; clicking it edits the whole path. Returns true when
+// Enter confirms an edit, as InputText with EnterReturnsTrue does.
+static bool pathField(const char* id, char* buffer, std::size_t size)
+{
+    ImGuiStorage* storage = ImGui::GetStateStorage();
+    const ImGuiID key = ImGui::GetID(id);
+    const int state = storage->GetInt(key, 0);  // 0 showing, 1 focus requested, 2 waiting for activation, 3 editing
+    const float width = ImGui::CalcItemWidth();
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float inner = width - 2.0f * style.FramePadding.x;
+    if (state == 0 && ImGui::GetActiveID() != key && ImGui::CalcTextSize(buffer).x > inner)
+    {
+        const ImVec2 min = ImGui::GetCursorScreenPos();
+        const ImVec2 max(min.x + width, min.y + ImGui::GetFrameHeight());
+        const bool clicked = ImGui::InvisibleButton(id, ImVec2(width, ImGui::GetFrameHeight()));
+        const bool hovered = ImGui::IsItemHovered();
+        ImDrawList* draw = ImGui::GetWindowDrawList();
+        draw->AddRectFilled(min, max, ImGui::GetColorU32(hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg), style.FrameRounding);
+        if (style.FrameBorderSize > 0.0f)
+            draw->AddRect(min, max, ImGui::GetColorU32(ImGuiCol_Border), style.FrameRounding, 0, style.FrameBorderSize);
+        // The longest tail that fits after an ellipsis, cut at a separator if possible.
+        const char* ellipsis = "\xe2\x80\xa6";
+        const float ellipsisWidth = ImGui::CalcTextSize(ellipsis).x;
+        const std::size_t length = std::strlen(buffer);
+        std::size_t start = length;
+        while (start > 0 && ImGui::CalcTextSize(buffer + start - 1).x + ellipsisWidth <= inner) --start;
+        for (std::size_t k = start; k < length; ++k)
+            if (buffer[k] == '/' || buffer[k] == '\\') { start = k; break; }
+        const std::string shown = std::string(ellipsis) + (buffer + start);
+        draw->AddText(ImVec2(min.x + style.FramePadding.x, min.y + style.FramePadding.y), ImGui::GetColorU32(ImGuiCol_Text), shown.c_str());
+        if (hovered) ImGui::SetTooltip("%s", buffer);
+        if (clicked) storage->SetInt(key, 1);
+        return false;
+    }
+    if (state == 1)
+    {
+        ImGui::SetKeyboardFocusHere();
+        storage->SetInt(key, 2);
+    }
+    ImGui::SetNextItemWidth(width);
+    const bool entered = ImGui::InputText(id, buffer, size, ImGuiInputTextFlags_EnterReturnsTrue);
+    // Focus takes a frame or two to activate the field; editing ends when an
+    // active field loses focus.
+    if (state == 2 && ImGui::IsItemActive()) storage->SetInt(key, 3);
+    if (state == 3 && !ImGui::IsItemActive()) storage->SetInt(key, 0);
+    return entered;
+}
+
 static float s_sidebarW = 150.0f;
 
 // The file dialogs' sidebar: common folders, the bundled examples and the
@@ -978,8 +1028,7 @@ void FileBrowser::drawOpenStructureDialog()
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Up one level");
         ImGui::SameLine(responsive::dp(0.0f), 8.0f);
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-        if (ImGui::InputText("##openPathBar", s_openPathBuf, sizeof(s_openPathBuf),
-                             ImGuiInputTextFlags_EnterReturnsTrue))
+        if (pathField("##openPathBar", s_openPathBuf, sizeof(s_openPathBuf)))
         {
             std::string newDir = normalizePathSeparators(std::string(s_openPathBuf));
             if (isDriveRootPath(newDir) && newDir.size() == 2)
@@ -1187,8 +1236,7 @@ void FileBrowser::drawSaveAsDialog(Structure& structure)
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Up one level");
         ImGui::SameLine(responsive::dp(0.0f), 8.0f);
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-        if (ImGui::InputText("##savePathBar", s_savePathBuf, sizeof(s_savePathBuf),
-                             ImGuiInputTextFlags_EnterReturnsTrue))
+        if (pathField("##savePathBar", s_savePathBuf, sizeof(s_savePathBuf)))
         {
             std::string newDir = normalizePathSeparators(std::string(s_savePathBuf));
             if (isDriveRootPath(newDir) && newDir.size() == 2)
@@ -1401,8 +1449,7 @@ void FileBrowser::drawExportImageDialog(Structure& structure)
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Up one level");
         ImGui::SameLine(responsive::dp(0.0f), 8.0f);
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-        if (ImGui::InputText("##exportPathBar", s_exportPathBuf, sizeof(s_exportPathBuf),
-                             ImGuiInputTextFlags_EnterReturnsTrue))
+        if (pathField("##exportPathBar", s_exportPathBuf, sizeof(s_exportPathBuf)))
         {
             std::string newDir = normalizePathSeparators(std::string(s_exportPathBuf));
             if (isDriveRootPath(newDir) && newDir.size() == 2)
