@@ -201,32 +201,12 @@ SroReportRC analyzeRaoCurtinSRO(const Structure& structure,
         return report;
     }
 
-    glm::dmat3 cell = buildCell(structure);
-    const std::vector<glm::dvec3> frac = fractionalPositions(structure, cell);
-    int N = report.nAtoms;
-
+    const int N = report.nAtoms;
     std::map<std::tuple<int, std::string, std::string>, int> pairs;
     std::vector<int> totalPerShell(report.nShells, 0);
-
-    for (int i = 0; i < N; ++i) {
-        const glm::dvec3& fi = frac[static_cast<std::size_t>(i)];
-        const std::string& si = structure.atoms[i].symbol;
-
-        for (int j = 0; j < N; ++j) {
-            if (i == j) continue;
-            const glm::dvec3& fj = frac[static_cast<std::size_t>(j)];
-            const std::string& sj = structure.atoms[j].symbol;
-            double d = sroPeriodicDist(cell, fi, fj);
-            if (d < 1e-6) continue;
-
-            for (int s = 0; s < report.nShells; ++s) {
-                if (std::abs(d - report.shellDistances[s]) < shellTolerance) {
-                    pairs[{s, si, sj}]++;
-                    totalPerShell[s]++;
-                    break;
-                }
-            }
-        }
+    for (const SroPair& p : buildSroPairs(structure, report.shellDistances, shellTolerance)) {
+        pairs[{p.shell, structure.atoms[static_cast<std::size_t>(p.i)].symbol, structure.atoms[static_cast<std::size_t>(p.j)].symbol}]++;
+        totalPerShell[static_cast<std::size_t>(p.shell)]++;
     }
 
     report.shellCoordination.resize(report.nShells);
