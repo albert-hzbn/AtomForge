@@ -123,6 +123,16 @@ void saveSharedRecentFiles()
 }
 }
 
+// The path made absolute (a command-line argument is relative to the working
+// folder), with forward slashes; unchanged if that fails.
+static std::string absolutePath(const std::string& path)
+{
+    if (path.empty()) return path;
+    std::error_code error;
+    const auto absolute = std::filesystem::absolute(std::filesystem::u8path(path), error);
+    return error ? path : normalizePathSeparators(absolute.lexically_normal().u8string());
+}
+
 // "CIF structure, 42.1 KB, modified 2026-09-09 14:02" ("" if not a file).
 std::string describeFile(const std::string& path)
 {
@@ -159,7 +169,39 @@ std::string describeFile(const std::string& path)
 }
 
 // Persistent sidebar width shared across all three file-browser dialogs.
-static float s_sidebarW = 130.0f;
+static float s_sidebarW = 150.0f;
+
+// The file dialogs' sidebar: common folders, the bundled examples and the
+// drives. Returns the folder chosen this frame ("" if none).
+static std::string drawLocations(const std::vector<std::string>& driveRoots)
+{
+    std::string chosen;
+    ImGui::TextDisabled("Locations");
+    ImGui::Separator();
+    const auto home = std::filesystem::u8path(detectHomePath());
+    if (ImGui::Selectable("Home")) chosen = home.u8string();
+    for (const char* name : {"Desktop", "Documents", "Downloads"})
+    {
+        std::error_code error;
+        const auto folder = home / name;
+        if (std::filesystem::is_directory(folder, error) && ImGui::Selectable(name)) chosen = folder.u8string();
+    }
+    static const std::filesystem::path examples = findExamplesDirectory(applicationDirectory());
+    if (!examples.empty())
+    {
+        if (ImGui::Selectable("Examples")) chosen = examples.u8string();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) ImGui::SetTooltip("The example structures shipped with AtomForge");
+    }
+    ImGui::Spacing();
+    ImGui::TextDisabled("Drives");
+    ImGui::Separator();
+    for (const auto& root : driveRoots)
+    {
+        if (ImGui::Selectable(root.c_str())) chosen = root;
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) ImGui::SetTooltip("%s", root.c_str());
+    }
+    return chosen.empty() ? chosen : normalizePathSeparators(chosen);
+}
  
 FileBrowser::FileBrowser()
         : showAbout(false),
@@ -295,7 +337,7 @@ void FileBrowser::rememberRecentFile(const std::string& path)
 
     loadSharedRecentFilesIfNeeded();
 
-    const std::string normalized = normalizePathSeparators(path);
+    const std::string normalized = absolutePath(path);
     auto& files = sharedRecentFiles();
     files.erase(
         std::remove(files.begin(), files.end(), normalized),
@@ -424,11 +466,12 @@ void FileBrowser::updatePolyhedralCenterAtomIndexFilter(const char* input)
     }
 }
 
-void FileBrowser::initFromPath(const std::string& initialPath)
+void FileBrowser::initFromPath(const std::string& requestedPath)
 {
     saveFilename[0] = '\0';
+    const std::string initialPath = absolutePath(requestedPath);
 
-    openDir = ".";
+    openDir = absolutePath(".");
     auto pos = initialPath.find_last_of("/\\");
     if (pos != std::string::npos)
         openDir = normalizePathSeparators(initialPath.substr(0, pos));
@@ -437,7 +480,7 @@ void FileBrowser::initFromPath(const std::string& initialPath)
         openDir += "/";
 
     if (openDir.empty())
-        openDir = ".";
+        openDir = absolutePath(".");
 
     pushHistory(openDir);
 
@@ -944,25 +987,11 @@ void FileBrowser::drawOpenStructureDialog()
 
         if (responsive::beginChild("##opensidebar", ImVec2(s_sidebarW, listH), true))
         {
-            ImGui::TextDisabled("Locations");
-            ImGui::Separator();
-            if (ImGui::Selectable("Home##openHome"))
+            if (const std::string place = drawLocations(driveRoots); !place.empty())
             {
-                openDir = detectHomePath();
+                openDir = place;
                 pushHistory(openDir);
                 openStatusMsg[0] = '\0';
-            }
-            ImGui::Spacing();
-            ImGui::TextDisabled("Drives");
-            ImGui::Separator();
-            for (const auto& root : driveRoots)
-            {
-                if (ImGui::Selectable(root.c_str()))
-                {
-                    openDir = root;
-                    pushHistory(openDir);
-                    openStatusMsg[0] = '\0';
-                }
             }
             ImGui::EndChild();
         }
@@ -1163,18 +1192,8 @@ void FileBrowser::drawSaveAsDialog(Structure& structure)
 
         if (responsive::beginChild("##savesidebar", ImVec2(s_sidebarW, listH), true))
         {
-            ImGui::TextDisabled("Locations");
-            ImGui::Separator();
-            if (ImGui::Selectable("Home##saveHome"))
-                pushSaveDir(detectHomePath());
-            ImGui::Spacing();
-            ImGui::TextDisabled("Drives");
-            ImGui::Separator();
-            for (const auto& root : driveRoots)
-            {
-                if (ImGui::Selectable(root.c_str()))
-                    pushSaveDir(root);
-            }
+            if (const std::string place = drawLocations(driveRoots); !place.empty())
+                pushSaveDir(place);
             ImGui::EndChild();
         }
 
@@ -1388,18 +1407,8 @@ void FileBrowser::drawExportImageDialog(Structure& structure)
 
         if (responsive::beginChild("##exportsidebar", ImVec2(s_sidebarW, listH), true))
         {
-            ImGui::TextDisabled("Locations");
-            ImGui::Separator();
-            if (ImGui::Selectable("Home##exportHome"))
-                pushExportDir(detectHomePath());
-            ImGui::Spacing();
-            ImGui::TextDisabled("Drives");
-            ImGui::Separator();
-            for (const auto& root : driveRoots)
-            {
-                if (ImGui::Selectable(root.c_str()))
-                    pushExportDir(root);
-            }
+            if (const std::string place = drawLocations(driveRoots); !place.empty())
+                pushExportDir(place);
             ImGui::EndChild();
         }
 
