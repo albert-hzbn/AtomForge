@@ -95,12 +95,35 @@ void ScientificToolsDialog::drawField(std::size_t i, const Structure& structure)
         ImGui::InputText("##number", field.value.data(), field.value.size(), ImGuiInputTextFlags_CharsScientific);
     } else {
         if (kind == "data" || kind == "structure" || kind == "file") {
-            int source = field.useFile ? 0 : 1;
-            if (kind != "file") {
+            if (kind == "structure" && !structure.atoms.empty()) {
+                // Where the structure comes from: the view's, a file or typed values.
+                int source = !field.useFile ? 2 : field.activeLabel.empty() ? 1 : 0;
+                ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(190)));
+                if (ImGui::Combo("##source", &source, "Active Structure\0File\0Enter Values\0")) {
+                    if (source == 0) {
+                        try { useActiveStructure(i, structure); }
+                        catch (const std::exception& error) { m_error = error.what(); }
+                    } else if (source == 1) {
+                        if (!field.activeLabel.empty()) field.path.clear();  // the saved copy of the view
+                        field.activeLabel.clear();
+                        field.useFile = true;
+                    } else {
+                        field.useFile = false;
+                    }
+                }
+            } else if (kind != "file") {
+                int source = field.useFile ? 0 : 1;
                 ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(170)));
-                if (ImGui::Combo("##source", &source, "Load from file\0Enter values\0")) field.useFile = source == 0;
+                if (ImGui::Combo("##source", &source, "File\0Enter Values\0")) field.useFile = source == 0;
             }
-            if (field.useFile) {
+            if (field.useFile && !field.activeLabel.empty() && kind == "structure") {
+                // "Active structure (4 atoms)" beside the source list: the count.
+                const std::size_t open = field.activeLabel.find('('), close = field.activeLabel.rfind(')');
+                const std::string count = open != std::string::npos && close > open ? field.activeLabel.substr(open + 1, close - open - 1) : field.activeLabel;
+                ImGui::SameLine();
+                ImGui::AlignTextToFramePadding();
+                ImGui::TextDisabled("%s", count.c_str());
+            } else if (field.useFile) {
                 if (ImGui::GetContentRegionAvail().x > responsive::dp(320)) ImGui::SameLine();
                 if (responsive::button("Browse")) { m_pickerTarget = static_cast<int>(i); m_picker.open(parameter.label, false, field.path); }
                 if (!field.activeLabel.empty()) ImGui::TextColored(dialogLayout::accent(), "%s", field.activeLabel.c_str());
@@ -119,7 +142,7 @@ void ScientificToolsDialog::drawField(std::size_t i, const Structure& structure)
                 std::snprintf(field.value.data(), field.value.size(), "%s", cellJson(structure).c_str());
                 field.useFile = false;
             }
-            if (!structure.atoms.empty() && (kind == "structure" || companionCell(name)) && responsive::button("Use Active Structure")) {
+            if (!structure.atoms.empty() && kind != "structure" && companionCell(name) && responsive::button("Use Active Structure")) {
                 try { useActiveStructure(i, structure); }
                 catch (const std::exception& error) { m_error = error.what(); }
             }
