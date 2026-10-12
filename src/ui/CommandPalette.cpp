@@ -83,6 +83,8 @@ void FileBrowser::drawCommandPalette(Structure& structure, EditMenuDialogs& edit
     add("File", "Open Project", [this] { projectAction = 1; projectPicker.open("Open AtomForge project", false, "project.afproject"); });
     add("File", "Save Project As", [this] { projectAction = 2; projectPicker.open("Save AtomForge project", true, "project.afproject"); });
     add("File", "Quit", [this] { requestQuit = true; });
+    add("Edit", undoDescription.empty() ? std::string("Undo") : "Undo " + undoDescription, [this] { requestUndo = true; }, !undoDescription.empty());
+    add("Edit", redoDescription.empty() ? std::string("Redo") : "Redo " + redoDescription, [this] { requestRedo = true; }, !redoDescription.empty());
     add("Build", "Bulk Crystal", [this] { bulkCrystalDialog.open(); });
 #if ATOMFORGE_ENABLE_SSS_BUILDER
     add("Build", "Substitutional Solid Solution", [this] { substitutionalSolidSolutionDialog.open(); });
