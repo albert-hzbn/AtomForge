@@ -2170,7 +2170,7 @@ void FileBrowser::draw(Structure& structure,
             wrappedBullet("GLM: mathematics library for transformations");
 
             dialogLayout::section("Chemistry Libraries");
-            wrappedBullet("Open Babel: reading CIF, PDB, MOL, SDF, MOL2, PWI and GJF files and writing PDB, SDF, MOL2, PWI and GJF (AtomForge itself reads XYZ, POSCAR and LAMMPS data and writes XYZ, CIF, POSCAR and LAMMPS data)");
+            wrappedBullet("Open Babel: reading PDB, MOL, SDF, MOL2, PWI and GJF files (and CIF with Cartesian coordinates only) and writing PDB, SDF, MOL2, PWI and GJF (AtomForge itself reads and writes XYZ, CIF, POSCAR and LAMMPS data)");
             wrappedBullet("spglib: crystallographic space group and symmetry operations");
 
             dialogLayout::section("Data & References");

@@ -34,6 +34,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 
+#ifdef ATOMS_ENABLE_SPGLIB
+#include <spglib.h>
+#endif
+
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -1683,8 +1687,10 @@ static bool readXyz(const std::string& text, Structure& structure, std::string& 
 // A disordered CIF lists several species on one site with occupancies below
 // 1 (Cu 0.5 and Ni 0.5 at the origin). An editable structure holds one atom
 // per site: keep the species with the largest occupancy (the first listed on
-// a tie) and say so in the load note. Sites with one species and an
-// occupancy below 1 (partial vacancies) are kept and counted.
+// a tie) and say so in the load note. A species split over nearby positions
+// (within 0.5 A, occupancies adding up to at most 1) keeps one of them.
+// Sites with one species and an occupancy below 1 (partial vacancies) are
+// kept and counted.
 static void resolvePartialOccupancy(Structure& structure, const std::vector<double>& occupancies)
 {
     if (occupancies.size() != structure.atoms.size()) return;
@@ -1692,7 +1698,8 @@ static void resolvePartialOccupancy(Structure& structure, const std::vector<doub
     if (structure.hasUnitCell) wrapAtomsIntoPrimaryCell(structure);
 
     // Partially occupied atoms within 0.05 A of each other (through the
-    // periodic boundary too) share a site; every other atom is a site alone.
+    // periodic boundary too) share a site, as do ones within 0.5 A while
+    // their occupancies add up to at most 1; every other atom is a site alone.
     glm::dmat3 cell(1.0), inverse(1.0);
     const bool periodic = cellMatricesD(structure, cell, inverse);
     const auto separation = [&](std::size_t i, std::size_t j) {
@@ -1717,20 +1724,29 @@ static void resolvePartialOccupancy(Structure& structure, const std::vector<doub
         if (siteOf[i] >= 0) continue;
         siteOf[i] = static_cast<int>(sites.size());
         sites.push_back({i});
+        double total = occupancies[i];
         for (std::size_t j : partials)
-            if (siteOf[j] < 0 && separation(i, j) < 0.05)
+        {
+            if (siteOf[j] >= 0) continue;
+            const double distance = separation(i, j);
+            if (distance < 0.05 || (distance < 0.5 && total + occupancies[j] <= 1.0 + 0.02))
             {
                 siteOf[j] = siteOf[i];
                 sites.back().push_back(j);
+                total += occupancies[j];
             }
+        }
     }
     std::vector<char> keep(structure.atoms.size(), 1);
-    std::size_t shared = 0, partial = 0;
+    std::size_t shared = 0, split = 0, partial = 0;
     for (const auto& members : sites)
     {
         if (members.size() > 1)
         {
-            ++shared;
+            const bool oneSpecies = std::all_of(members.begin(), members.end(), [&](std::size_t m) {
+                return structure.atoms[m].atomicNumber == structure.atoms[members[0]].atomicNumber;
+            });
+            ++(oneSpecies ? split : shared);
             std::size_t best = members[0];
             for (std::size_t m : members)
                 if (occupancies[m] > occupancies[best] + 1e-9) best = m;
@@ -1739,7 +1755,7 @@ static void resolvePartialOccupancy(Structure& structure, const std::vector<doub
         else if (occupancies[members[0]] < 1.0 - 1e-6)
             ++partial;
     }
-    if (shared)
+    if (shared || split)
     {
         std::vector<AtomSite> kept;
         kept.reserve(structure.atoms.size());
@@ -1752,9 +1768,12 @@ static void resolvePartialOccupancy(Structure& structure, const std::vector<doub
         note = std::to_string(shared) + (shared == 1 ? " site holds" : " sites hold") +
                " more than one species (partial occupancy); each keeps its majority species "
                "(Build > Substitutional Solid Solution makes a random mixture).";
+    if (split)
+        note += std::string(note.empty() ? "" : " ") + std::to_string(split) +
+                (split == 1 ? " atom is" : " atoms are") + " split over nearby positions (positional disorder); one position is kept.";
     if (partial)
         note += std::string(note.empty() ? "" : " ") + std::to_string(partial) +
-                (partial == 1 ? " site is" : " sites are") + " partially occupied; its atom is kept.";
+                (partial == 1 ? " site is partially occupied; its atom is kept." : " sites are partially occupied; their atoms are kept.");
     structure.loadNote = note;
 }
 
@@ -1971,6 +1990,559 @@ static bool readLammpsData(const std::string& text, Structure& structure, std::s
     return true;
 }
 
+// ---------------------------------------------------------------- CIF
+// A CIF 1.1 (or CIF 2 / mmCIF-style dotted tags) file as data blocks of
+// items and loops. Tags are lowercased with dots as underscores.
+namespace
+{
+struct CifLoop
+{
+    std::vector<std::string> tags;
+    std::vector<std::string> values;
+    int column(const std::string& tag) const
+    {
+        for (std::size_t i = 0; i < tags.size(); ++i)
+            if (tags[i] == tag) return static_cast<int>(i);
+        return -1;
+    }
+};
+
+struct CifBlock
+{
+    std::string name;
+    std::map<std::string, std::string> items;
+    std::vector<CifLoop> loops;
+    const CifLoop* loopWith(const std::string& tag) const
+    {
+        for (const auto& loop : loops)
+            if (loop.column(tag) >= 0) return &loop;
+        return nullptr;
+    }
+    // An item, or the only value of a one-row loop.
+    std::string item(const std::string& tag) const
+    {
+        const auto found = items.find(tag);
+        if (found != items.end()) return found->second;
+        if (const CifLoop* loop = loopWith(tag); loop && loop->values.size() == loop->tags.size())
+            return loop->values[(std::size_t)loop->column(tag)];
+        return std::string();
+    }
+};
+
+struct CifToken
+{
+    std::string text;
+    bool quoted = false;
+};
+
+std::vector<CifBlock> parseCif(const std::string& text)
+{
+    std::vector<CifToken> tokens;
+    std::istringstream in(text);
+    std::string line;
+    while (std::getline(in, line))
+    {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (!line.empty() && line[0] == ';')
+        {
+            // A text field, up to the next line starting with ';'.
+            std::string field = line.substr(1);
+            while (std::getline(in, line))
+            {
+                if (!line.empty() && line.back() == '\r') line.pop_back();
+                if (!line.empty() && line[0] == ';') break;
+                field += "\n" + line;
+            }
+            tokens.push_back({field, true});
+            continue;
+        }
+        std::size_t i = 0;
+        while (i < line.size())
+        {
+            while (i < line.size() && std::isspace(static_cast<unsigned char>(line[i]))) ++i;
+            if (i >= line.size() || line[i] == '#') break;
+            if (line[i] == '\'' || line[i] == '"')
+            {
+                // Closed by the same quote followed by a space or the line end.
+                const char quote = line[i];
+                std::size_t close = i + 1;
+                while (close < line.size() && !(line[close] == quote && (close + 1 == line.size() || std::isspace(static_cast<unsigned char>(line[close + 1])))))
+                    ++close;
+                tokens.push_back({line.substr(i + 1, close - i - 1), true});
+                i = close + 1;
+                continue;
+            }
+            const std::size_t start = i;
+            while (i < line.size() && !std::isspace(static_cast<unsigned char>(line[i]))) ++i;
+            tokens.push_back({line.substr(start, i - start), false});
+        }
+    }
+
+    const auto lower = [](std::string value) {
+        for (char& c : value) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return value;
+    };
+    const auto tagOf = [&](const std::string& value) {
+        std::string tag = lower(value);
+        std::replace(tag.begin(), tag.end(), '.', '_');
+        return tag;
+    };
+    const auto keyword = [&](const CifToken& token) {
+        if (token.quoted) return false;
+        const std::string word = lower(token.text);
+        return word.rfind("data_", 0) == 0 || word == "loop_" || word.rfind("save_", 0) == 0 || word == "global_" || word == "stop_";
+    };
+    const auto isTag = [](const CifToken& token) { return !token.quoted && !token.text.empty() && token.text[0] == '_'; };
+
+    std::vector<CifBlock> blocks;
+    const auto block = [&]() -> CifBlock& {
+        if (blocks.empty()) blocks.emplace_back();
+        return blocks.back();
+    };
+    for (std::size_t i = 0; i < tokens.size();)
+    {
+        const CifToken& token = tokens[i];
+        const std::string word = token.quoted ? std::string() : lower(token.text);
+        if (word.rfind("data_", 0) == 0)
+        {
+            blocks.emplace_back();
+            blocks.back().name = token.text.substr(5);
+            ++i;
+        }
+        else if (word == "loop_")
+        {
+            CifLoop loop;
+            ++i;
+            while (i < tokens.size() && isTag(tokens[i])) loop.tags.push_back(tagOf(tokens[i++].text));
+            while (i < tokens.size() && !isTag(tokens[i]) && !keyword(tokens[i])) loop.values.push_back(tokens[i++].text);
+            if (!loop.tags.empty()) block().loops.push_back(std::move(loop));
+        }
+        else if (isTag(token))
+        {
+            const std::string tag = tagOf(token.text);
+            ++i;
+            if (i < tokens.size() && !isTag(tokens[i]) && !keyword(tokens[i]))
+                block().items[tag] = tokens[i++].text;
+        }
+        else
+            ++i;
+    }
+    return blocks;
+}
+
+// A CIF number without its uncertainty ("5.4307(2)"); false for '?' and '.'.
+bool cifNumber(const std::string& value, double& number)
+{
+    std::string text = value.substr(0, value.find('('));
+    if (text.empty() || text == "?" || text == ".") return false;
+    char* end = nullptr;
+    number = std::strtod(text.c_str(), &end);
+    return end != text.c_str() && *end == '\0' && std::isfinite(number);
+}
+
+// A symmetry operation such as "-x+1/2, y, z" or "1/2+x,-y,z+0.5".
+bool parseSymop(const std::string& text, glm::dmat3& rotation, glm::dvec3& translation)
+{
+    std::string s;
+    for (char c : text)
+        if (!std::isspace(static_cast<unsigned char>(c)) && c != '\'' && c != '"') s += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    rotation = glm::dmat3(0.0);
+    translation = glm::dvec3(0.0);
+    int row = 0;
+    std::size_t i = 0;
+    while (i <= s.size())
+    {
+        if (i == s.size() || s[i] == ',')
+        {
+            ++row;
+            ++i;
+            if (row > 3) return false;
+            continue;
+        }
+        if (row > 2) return false;
+        double sign = 1.0;
+        while (i < s.size() && (s[i] == '+' || s[i] == '-'))
+        {
+            if (s[i] == '-') sign = -sign;
+            ++i;
+        }
+        if (i >= s.size()) return false;
+        if (s[i] >= 'x' && s[i] <= 'z')
+        {
+            rotation[s[i] - 'x'][row] += sign;  // column-major: [column][row]
+            ++i;
+            continue;
+        }
+        if (!std::isdigit(static_cast<unsigned char>(s[i])) && s[i] != '.') return false;
+        char* end = nullptr;
+        double value = std::strtod(s.c_str() + i, &end);
+        i = static_cast<std::size_t>(end - s.c_str());
+        if (i < s.size() && s[i] == '/')
+        {
+            ++i;
+            const double denominator = std::strtod(s.c_str() + i, &end);
+            if (end == s.c_str() + i || denominator == 0.0) return false;
+            i = static_cast<std::size_t>(end - s.c_str());
+            value /= denominator;
+        }
+        if (i < s.size() && s[i] == '*') ++i;
+        if (i < s.size() && s[i] >= 'x' && s[i] <= 'z')
+        {
+            rotation[s[i] - 'x'][row] += sign * value;
+            ++i;
+        }
+        else
+            translation[row] += sign * value;
+    }
+    return row == 3;
+}
+
+// The element of a CIF type symbol or label: Fe3+ and fe are Fe, CA2 is
+// Ca, OW1 is O, D is hydrogen. 0 when none.
+int cifElement(const std::string& text)
+{
+    std::size_t letters = 0;
+    while (letters < text.size() && std::isalpha(static_cast<unsigned char>(text[letters]))) ++letters;
+    if (letters == 0) return 0;
+    const auto find = [](const std::string& symbol) {
+        for (int z = 1; z <= 118; ++z)
+            if (symbol == elementSymbol(z)) return z;
+        return 0;
+    };
+    const char first = static_cast<char>(std::toupper(static_cast<unsigned char>(text[0])));
+    if (letters >= 2)
+        if (const int z = find(std::string(1, first) + static_cast<char>(std::tolower(static_cast<unsigned char>(text[1]))))) return z;
+    if (first == 'D' || first == 'T') return 1;
+    return find(std::string(1, first));
+}
+
+struct CifOperation
+{
+    glm::dmat3 rotation;
+    glm::dvec3 translation;
+};
+
+#ifdef ATOMS_ENABLE_SPGLIB
+std::vector<CifOperation> spglibOperations(int hall)
+{
+    int rotations[192][3][3];
+    double translations[192][3];
+    const int count = spg_get_symmetry_from_database(rotations, translations, hall);
+    std::vector<CifOperation> operations;
+    for (int n = 0; n < count; ++n)
+    {
+        CifOperation op;
+        for (int r = 0; r < 3; ++r)
+            for (int c = 0; c < 3; ++c) op.rotation[c][r] = rotations[n][r][c];
+        op.translation = glm::dvec3(translations[n][0], translations[n][1], translations[n][2]);
+        operations.push_back(op);
+    }
+    return operations;
+}
+
+std::string normalizedGroupName(std::string name)
+{
+    std::string out;
+    for (char c : name)
+        if (!std::isspace(static_cast<unsigned char>(c)) && c != '_' && c != '\'' && c != '"')
+            out += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return out;
+}
+
+// The Hall numbers a space-group name (H-M or Hall) or number denotes, and
+// the setting it asks for (1, 2, h, r) if any.
+std::vector<int> hallNumbersFor(const std::string& hallSymbol, std::string hm, int number, std::string& choice)
+{
+    std::vector<int> found;
+    if (!hallSymbol.empty())
+    {
+        const std::string wanted = normalizedGroupName(hallSymbol);
+        for (int hall = 1; hall <= 530; ++hall)
+            if (normalizedGroupName(spg_get_spacegroup_type(hall).hall_symbol) == wanted) return {hall};
+    }
+    if (!hm.empty())
+    {
+        // Settings: "F d -3 m:2", ICSD's "F d -3 m Z" (origin 2) and "S"
+        // (origin 1), and "R -3 m H" or ":R".
+        const std::size_t colon = hm.find(':');
+        if (colon != std::string::npos)
+        {
+            choice = normalizedGroupName(hm.substr(colon + 1));
+            hm = hm.substr(0, colon);
+        }
+        else
+        {
+            std::string trimmed = hm;
+            while (!trimmed.empty() && std::isspace(static_cast<unsigned char>(trimmed.back()))) trimmed.pop_back();
+            const std::size_t space = trimmed.find_last_of(" \t");
+            if (space != std::string::npos && trimmed.size() == space + 2 && std::strchr("ZSHR", trimmed.back()))
+            {
+                choice = std::string(1, static_cast<char>(std::tolower(static_cast<unsigned char>(trimmed.back()))));
+                hm = trimmed.substr(0, space);
+            }
+        }
+        if (choice == "z") choice = "2";
+        if (choice == "s") choice = "1";
+        const std::string wanted = normalizedGroupName(hm);
+        for (int hall = 1; hall <= 530; ++hall)
+        {
+            const SpglibSpacegroupType type = spg_get_spacegroup_type(hall);
+            std::vector<std::string> names = {type.international_short, type.international_full};
+            // The short form of a monoclinic setting: P 1 2_1/n 1 is P 2_1/n.
+            {
+                std::istringstream axes(type.international_full);
+                std::string shortName;
+                int kept = 0;
+                for (std::string axis; axes >> axis;)
+                    if (axis != "1") { shortName += axis + " "; ++kept; }
+                if (kept > 1) names.push_back(shortName);
+            }
+            std::string full = type.international;
+            for (std::size_t at; (at = full.find('=')) != std::string::npos; full = full.substr(at + 1))
+                names.push_back(full.substr(0, at));
+            names.push_back(full);
+            for (const auto& name : names)
+                if (normalizedGroupName(name) == wanted) { found.push_back(hall); break; }
+        }
+    }
+    if (found.empty() && number >= 1 && number <= 230)
+        for (int hall = 1; hall <= 530; ++hall)
+            if (spg_get_spacegroup_type(hall).number == number) found.push_back(hall);
+    if (!choice.empty())
+    {
+        std::vector<int> chosen;
+        for (int hall : found)
+            if (normalizedGroupName(spg_get_spacegroup_type(hall).choice) == choice) chosen.push_back(hall);
+        if (!chosen.empty()) found = chosen;
+    }
+    return found;
+}
+#endif
+
+struct CifSite
+{
+    int atomicNumber = 0;
+    glm::dvec3 fractional{0.0};
+    double occupancy = 1.0;
+};
+
+// Every symmetry image of each site in the cell. Images of one site that
+// land within 0.1 A of each other (a special position written with rounded
+// coordinates) are one atom at their mean position.
+std::vector<std::pair<glm::dvec3, std::size_t>> expandCifSites(const std::vector<CifSite>& sites, const std::vector<CifOperation>& operations,
+                                                               const glm::dmat3& cell)
+{
+    std::vector<std::pair<glm::dvec3, std::size_t>> atoms;
+    for (std::size_t index = 0; index < sites.size(); ++index)
+    {
+        struct Image { glm::dvec3 base, sum; int count; };
+        std::vector<Image> images;
+        for (const auto& op : operations)
+        {
+            glm::dvec3 f = op.rotation * sites[index].fractional + op.translation;
+            f -= glm::floor(f);
+            bool merged = false;
+            for (auto& image : images)
+            {
+                glm::dvec3 d = f - image.base;
+                d -= glm::round(d);
+                if (glm::length(cell * d) < 0.1)
+                {
+                    image.sum += d;
+                    ++image.count;
+                    merged = true;
+                    break;
+                }
+            }
+            if (!merged) images.push_back({f, glm::dvec3(0.0), 1});
+        }
+        for (const auto& image : images)
+        {
+            glm::dvec3 f = image.base + image.sum / static_cast<double>(image.count);
+            f -= glm::floor(f);
+            atoms.push_back({f, index});
+        }
+    }
+    return atoms;
+}
+}
+
+// A CIF read directly: the first data block with atoms, its cell, its
+// symmetry operations (listed, or from the Hall symbol, H-M name or number)
+// and its atom sites. 1 when read, 0 on an error, 2 when the file needs
+// Open Babel (Cartesian coordinates only).
+static int readCif(const std::string& text, Structure& structure, std::string& errorMessage)
+{
+    const auto blocks = parseCif(text);
+    const CifBlock* chosen = nullptr;
+    int withAtoms = 0;
+    for (const auto& block : blocks)
+        if (block.loopWith("_atom_site_fract_x"))
+        {
+            ++withAtoms;
+            if (!chosen) chosen = &block;
+        }
+    if (!chosen) return 2;
+    const CifBlock& block = *chosen;
+    const auto fail = [&](const std::string& message) { errorMessage = "Invalid CIF: " + message; return 0; };
+
+    // Cell, a along x and b in the xy plane.
+    double length[3], angle[3] = {90.0, 90.0, 90.0};
+    const char* lengthTags[3] = {"_cell_length_a", "_cell_length_b", "_cell_length_c"};
+    const char* angleTags[3] = {"_cell_angle_alpha", "_cell_angle_beta", "_cell_angle_gamma"};
+    for (int k = 0; k < 3; ++k)
+    {
+        if (!cifNumber(block.item(lengthTags[k]), length[k]) || length[k] <= 0.0) return fail("the cell length " + std::string(lengthTags[k]) + " is missing.");
+        const std::string value = block.item(angleTags[k]);
+        if (!value.empty() && (!cifNumber(value, angle[k]) || angle[k] <= 0.0 || angle[k] >= 180.0)) return fail(std::string(angleTags[k]) + " is not an angle.");
+    }
+    const auto cosine = [](double degrees) {
+        if (std::abs(degrees - 90.0) < 1e-10) return 0.0;
+        if (std::abs(degrees - 60.0) < 1e-10) return 0.5;
+        if (std::abs(degrees - 120.0) < 1e-10) return -0.5;
+        return std::cos(degrees * 3.14159265358979323846 / 180.0);
+    };
+    const double ca = cosine(angle[0]), cb = cosine(angle[1]), cg = cosine(angle[2]);
+    const double sg = std::sqrt(1.0 - cg * cg);
+    const double cy = (ca - cb * cg) / sg;
+    const double cz2 = 1.0 - cb * cb - cy * cy;
+    if (cz2 <= 1e-12) return fail("the cell angles do not make a cell.");
+    glm::dmat3 cell(glm::dvec3(length[0], 0.0, 0.0), glm::dvec3(length[1] * cg, length[1] * sg, 0.0),
+                    glm::dvec3(length[2] * cb, length[2] * cy, length[2] * std::sqrt(cz2)));
+
+    // Atom sites.
+    const CifLoop& loop = *block.loopWith("_atom_site_fract_x");
+    const int columns = static_cast<int>(loop.tags.size());
+    if (loop.values.size() % loop.tags.size() != 0) return fail("the atom-site loop has an incomplete row.");
+    const int label = loop.column("_atom_site_label"), type = loop.column("_atom_site_type_symbol");
+    const int fx = loop.column("_atom_site_fract_x"), fy = loop.column("_atom_site_fract_y"), fz = loop.column("_atom_site_fract_z");
+    const int occupancyColumn = loop.column("_atom_site_occupancy"), flag = loop.column("_atom_site_calc_flag");
+    if (fy < 0 || fz < 0) return fail("the atom sites need fract_x, fract_y and fract_z.");
+    if (label < 0 && type < 0) return fail("the atom sites need a label or a type symbol.");
+    std::vector<CifSite> sites;
+    std::size_t unplaced = 0;
+    for (std::size_t row = 0; row < loop.values.size(); row += (std::size_t)columns)
+    {
+        const auto value = [&](int column) { return column < 0 ? std::string() : loop.values[row + (std::size_t)column]; };
+        const std::string name = value(label).empty() ? value(type) : value(label);
+        if (value(flag) == "dum") continue;  // dummy sites (centroids)
+        CifSite site;
+        if (!cifNumber(value(fx), site.fractional.x) || !cifNumber(value(fy), site.fractional.y) || !cifNumber(value(fz), site.fractional.z))
+        {
+            ++unplaced;
+            continue;
+        }
+        site.atomicNumber = cifElement(value(type));
+        if (!site.atomicNumber) site.atomicNumber = cifElement(value(label));
+        if (!site.atomicNumber) return fail("the element of atom site '" + name + "' is unknown.");
+        double occupancy = 1.0;
+        if (cifNumber(value(occupancyColumn), occupancy) && occupancy > 0.0) site.occupancy = occupancy;
+        sites.push_back(site);
+    }
+
+    // Symmetry operations.
+    std::vector<CifOperation> operations;
+    const CifLoop* symops = block.loopWith("_space_group_symop_operation_xyz");
+    std::string symopTag = "_space_group_symop_operation_xyz";
+    if (!symops)
+    {
+        symops = block.loopWith("_symmetry_equiv_pos_as_xyz");
+        symopTag = "_symmetry_equiv_pos_as_xyz";
+    }
+    std::vector<std::string> symopTexts;
+    if (symops)
+        for (std::size_t row = (std::size_t)symops->column(symopTag); row < symops->values.size(); row += symops->tags.size())
+            symopTexts.push_back(symops->values[row]);
+    else if (const std::string single = block.items.count("_space_group_symop_operation_xyz") ? block.items.at("_space_group_symop_operation_xyz")
+                                                                                              : block.item("_symmetry_equiv_pos_as_xyz");
+             !single.empty())
+        symopTexts.push_back(single);
+    for (const auto& symop : symopTexts)
+    {
+        CifOperation op;
+        if (!parseSymop(symop, op.rotation, op.translation)) return fail("cannot read the symmetry operation '" + symop + "'.");
+        operations.push_back(op);
+    }
+    std::string note;
+    if (operations.empty())
+    {
+        std::string hall = block.item("_space_group_name_hall");
+        if (hall.empty()) hall = block.item("_symmetry_space_group_name_hall");
+        std::string hm = block.item("_space_group_name_h-m_alt");
+        if (hm.empty()) hm = block.item("_symmetry_space_group_name_h-m");
+        std::string numberText = block.item("_space_group_it_number");
+        if (numberText.empty()) numberText = block.item("_symmetry_int_tables_number");
+        double numberValue = 0.0;
+        const int number = cifNumber(numberText, numberValue) ? static_cast<int>(numberValue) : 0;
+        const bool named = !hall.empty() || (!hm.empty() && hm != "?") || number > 1;
+        if (named)
+        {
+#ifdef ATOMS_ENABLE_SPGLIB
+            std::string choice;
+            std::vector<int> halls = hallNumbersFor(hall == "?" ? std::string() : hall, hm == "?" ? std::string() : hm, number, choice);
+            if (halls.empty())
+                return fail("the space group '" + (hm.empty() ? hall.empty() ? numberText : hall : hm) +
+                            "' is not recognised; list its symmetry operations (_space_group_symop_operation_xyz).");
+            // Unnamed settings: hexagonal axes for a hexagonal-looking cell,
+            // else rhombohedral; the origin choice that puts the fewest
+            // atoms in the cell (a wrong origin splits special positions),
+            // origin 2 on a tie; else the standard setting.
+            const auto choiceOf = [](int candidate) { return normalizedGroupName(spg_get_spacegroup_type(candidate).choice); };
+            int hallNumber = halls.front();
+            const auto withChoice = [&](const std::string& wanted) {
+                for (int h : halls)
+                    if (choiceOf(h) == wanted) return h;
+                return 0;
+            };
+            if (halls.size() > 1 && withChoice("h") && withChoice("r"))
+                hallNumber = std::abs(angle[2] - 120.0) < 0.5 && std::abs(length[0] - length[1]) < 1e-3 * length[0] ? withChoice("h") : withChoice("r");
+            else if (halls.size() > 1 && withChoice("1") && withChoice("2"))
+            {
+                const auto one = expandCifSites(sites, spglibOperations(withChoice("1")), cell).size();
+                const auto two = expandCifSites(sites, spglibOperations(withChoice("2")), cell).size();
+                hallNumber = one < two ? withChoice("1") : withChoice("2");
+                if (one == two) note = "The file does not say which origin choice its space group uses; origin choice 2 is assumed.";
+            }
+            operations = spglibOperations(hallNumber);
+#else
+            return 2;
+#endif
+        }
+    }
+    if (operations.empty())
+        operations.push_back({glm::dmat3(1.0), glm::dvec3(0.0)});
+
+    const auto atoms = expandCifSites(sites, operations, cell);
+    if (atoms.size() > 5000000) return fail("it has more than 5000000 atoms.");
+    std::vector<double> occupancies;
+    structure.atoms.reserve(atoms.size());
+    occupancies.reserve(atoms.size());
+    for (const auto& [fractional, index] : atoms)
+    {
+        AtomSite site;
+        site.atomicNumber = sites[index].atomicNumber;
+        site.symbol = elementSymbol(site.atomicNumber);
+        const glm::dvec3 position = cell * fractional;
+        site.x = position.x;
+        site.y = position.y;
+        site.z = position.z;
+        getDefaultElementColor(site.atomicNumber, site.r, site.g, site.b);
+        structure.atoms.push_back(std::move(site));
+        occupancies.push_back(sites[index].occupancy);
+    }
+    structure.hasUnitCell = true;
+    for (int r = 0; r < 3; ++r)
+        structure.cellVectors[(size_t)r] = {cell[r][0], cell[r][1], cell[r][2]};
+    resolvePartialOccupancy(structure, occupancies);
+    const auto addNote = [&](const std::string& more) { note += (note.empty() ? "" : " ") + more; };
+    if (!structure.loadNote.empty()) addNote(structure.loadNote);
+    if (unplaced) addNote(std::to_string(unplaced) + (unplaced == 1 ? " atom site has" : " atom sites have") + " no coordinates and " + (unplaced == 1 ? "is" : "are") + " left out.");
+    if (withAtoms > 1)
+        addNote("The file holds " + std::to_string(withAtoms) + " structures; the first, '" + block.name + "', is opened.");
+    structure.loadNote = note;
+    return 1;
+}
+
 bool loadStructureFromFile(const std::string& filename, Structure& structure, std::string& errorMessage)
 {
     structure = Structure();
@@ -2015,6 +2587,16 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
         const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         if (!readPoscar(text, structure, errorMessage)) return false;
         return finishLoadedStructure(filename, structure, errorMessage);
+    }
+
+    if (extLower == ".cif")
+    {
+        std::ifstream in(filename, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        const int read = readCif(text, structure, errorMessage);
+        if (read == 0) return false;
+        if (read == 1) return finishLoadedStructure(filename, structure, errorMessage);
+        structure = Structure();
     }
 
     if (extLower == ".data" || extLower == ".lmp")

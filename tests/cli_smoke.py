@@ -207,6 +207,43 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
     note = run("--convert", "--input", disordered, "--output", ordered, "--format", "xyz")
     assert [line.split()[0] for line in ordered.read_text().splitlines()[2:]] == ["Cu"] * 4, ordered.read_text()
     assert "partial occupancy" in note.stderr, note.stderr
+    # CIF symmetry: a space group by name only (origin choice and hexagonal
+    # or rhombohedral axes chosen from the atoms and the cell), rounded
+    # coordinates on special positions, uppercase type symbols, a species
+    # split over nearby positions and a second data block.
+    def cif(name, header, atoms, cell="4 4 4 90 90 90"):
+        a, b, c, al, be, ga = cell.split()
+        path = root / name
+        path.write_text(f"data_{name.split('.')[0]}\n_cell_length_a {a}\n_cell_length_b {b}\n_cell_length_c {c}\n"
+                        f"_cell_angle_alpha {al}\n_cell_angle_beta {be}\n_cell_angle_gamma {ga}\n{header}"
+                        "loop_\n_atom_site_label\n_atom_site_type_symbol\n_atom_site_fract_x\n_atom_site_fract_y\n"
+                        f"_atom_site_fract_z\n_atom_site_occupancy\n{atoms}")
+        out = root / (name + ".xyz")
+        result = run("--convert", "--input", path, "--output", out, "--format", "xyz")
+        return [line.split()[0] for line in out.read_text().splitlines()[2:]], result.stderr
+    for origin in ("0.125 0.125 0.125", "0 0 0"):
+        symbols, _ = cif("si.cif", "_symmetry_space_group_name_H-M 'F d -3 m'\n", f"Si1 Si {origin} 1\n", "5.43 5.43 5.43 90 90 90")
+        assert symbols == ["Si"] * 8, (origin, symbols)
+    symbols, _ = cif("bt.cif", "_symmetry_space_group_name_H-M 'R -3 m'\n",
+                     "Bi1 Bi 0 0 0.4 1\nTe1 Te 0 0 0 1\nTe2 Te 0 0 0.79 1\n", "4.38 4.38 30.5 90 90 120")
+    assert sorted(symbols) == ["Bi"] * 6 + ["Te"] * 9, symbols
+    symbols, _ = cif("mg.cif", "_space_group_name_H-M_alt 'P 63/m m c'\n", "Mg1 Mg 0.333 0.667 0.25 1\n", "3.21 3.21 5.21 90 90 120")
+    assert symbols == ["Mg"] * 2, symbols
+    symbols, _ = cif("p21n.cif", "_symmetry_space_group_name_H-M 'P 21/n'\n", "Fe1 Fe 0.11 0.21 0.31 1\n", "5 6 7 90 100 90")
+    assert symbols == ["Fe"] * 4, symbols
+    symbols, _ = cif("upper.cif", "", "CA1 CA 0 0 0 1\nCL1 CL 0.5 0.5 0.5 1\nO1 O2- 0.5 0 0 1\n")
+    assert symbols == ["Ca", "Cl", "O"], symbols
+    symbols, note = cif("split.cif", "_symmetry_space_group_name_H-M 'P m -3 m'\n", "Ti1 Ti 0.52 0.5 0.5 0.1667\nBa1 Ba 0 0 0 1\n")
+    assert sorted(symbols) == ["Ba", "Ti"] and "split over nearby positions" in note, (symbols, note)
+    unknown = root / "unknown.cif"
+    unknown.write_text("data_x\n_cell_length_a 4\n_cell_length_b 4\n_cell_length_c 4\n_symmetry_space_group_name_H-M 'Q 9'\n"
+                       "loop_\n_atom_site_label\n_atom_site_fract_x\n_atom_site_fract_y\n_atom_site_fract_z\nFe1 0 0 0\n")
+    refused = run("--convert", "--input", unknown, "--output", root / "unknown.xyz", "--format", "xyz", success=False)
+    assert "not recognised" in refused.stderr + refused.stdout, refused
+    two = root / "two.cif"
+    two.write_text((root / "upper.cif").read_text() + "\n" + (root / "mg.cif").read_text())
+    note = run("--convert", "--input", two, "--output", root / "two.xyz", "--format", "xyz")
+    assert "holds 2 structures" in note.stderr and len((root / "two.xyz").read_text().splitlines()) == 5, note.stderr
     # Selective dynamics: read, reported, written back; fix-atoms sets it.
     fixed = root / "fixed_POSCAR"
     fixed.write_text("sd\n1.0\n4 0 0\n0 4 0\n0 0 4\nNa Cl\n1 1\nSelective dynamics\nDirect\n0 0 0 T T T\n0.5 0.5 0.5 F F T\n")
