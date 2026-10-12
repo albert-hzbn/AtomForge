@@ -213,6 +213,7 @@ void FileBrowser::drawCommandPalette(Structure& structure, EditMenuDialogs& edit
     } else {
         const float rowHeight = ImGui::GetTextLineHeightWithSpacing();
         ImGui::BeginChild("##matches", ImVec2(0, std::min(count, 10) * rowHeight), ImGuiChildFlags_None);
+        responsive::keepClearOfScrollbar();
         for (int i = 0; i < count; ++i) {
             const Command& command = *matches[static_cast<std::size_t>(i)].second;
             ImGui::PushID(i);

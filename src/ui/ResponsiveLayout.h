@@ -26,6 +26,11 @@ void drawMinimizedDialogs(float statusTop);
 bool escapeCloses();
 bool beginChild(const char* name, ImVec2 size = ImVec2(0, 0),
                 ImGuiChildFlags childFlags = 0, ImGuiWindowFlags flags = 0);
+// In the current window, when it shows a vertical scrollbar: keeps at least
+// 8 design pixels between the content and the scrollbar (windows without
+// padding, such as borderless panels, would otherwise put their fields
+// against it). begin, beginModal and beginChild call it.
+void keepClearOfScrollbar();
 bool button(const char* label, ImVec2 size = ImVec2(0, 0));
 // Keep the controls legible; previews give up width first, then stack above them.
 bool stacked(float minimumWidth = 860.0f);

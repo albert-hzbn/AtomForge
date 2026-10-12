@@ -89,6 +89,7 @@ bool begin(const char* name, bool* open, ImGuiWindowFlags flags)
     const bool docked = existing && existing->DockIsActive;
     if (docked) ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     const bool visible = ImGui::Begin(name, open, flags);
+    if (visible) keepClearOfScrollbar();
     if (docked) ImGui::PopStyleVar();
     if (visible && open && *open && !(flags & ImGuiWindowFlags_NoTitleBar) && escapeCloses()) *open = false;
     return visible;
@@ -166,6 +167,7 @@ bool beginModal(const char* name, bool* open, ImGuiWindowFlags flags)
     prepare(name);
     flags = (flags & ~ImGuiWindowFlags_NoScrollbar) | ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoCollapse;
     const bool visible = ImGui::BeginPopupModal(name, open, flags);
+    if (visible) keepClearOfScrollbar();
     lastMinimized = false;
     if (!visible) {
         lastMinimized = std::any_of(dialogs.begin(), dialogs.end(), [&](const MinimizedDialog& d) { return d.name == name; });
@@ -219,11 +221,25 @@ bool escapeCloses()
     return ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
 }
 
+void keepClearOfScrollbar()
+{
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (!window || !window->ScrollbarY) return;
+    const float gap = dp(8.0f) - window->WindowPadding.x;
+    if (gap <= 0.0f) return;
+    // Only the right edge moves: the content and work regions end before the gap.
+    window->WorkRect.Max.x = std::max(window->WorkRect.Min.x + 1.0f, window->WorkRect.Max.x - gap);
+    window->ContentRegionRect.Max.x = std::max(window->ContentRegionRect.Min.x + 1.0f, window->ContentRegionRect.Max.x - gap);
+    window->ParentWorkRect = window->WorkRect;
+}
+
 bool beginChild(const char* name, ImVec2 extent, ImGuiChildFlags childFlags, ImGuiWindowFlags flags)
 {
     // Canvas children retain their intentional no-scrollbar policy.
     if (!(flags & ImGuiWindowFlags_NoScrollbar)) flags |= ImGuiWindowFlags_HorizontalScrollbar;
-    return ImGui::BeginChild(name, extent, childFlags, flags);
+    const bool visible = ImGui::BeginChild(name, extent, childFlags, flags);
+    if (visible) keepClearOfScrollbar();
+    return visible;
 }
 
 bool button(const char* label, ImVec2 extent)

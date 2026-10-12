@@ -2168,6 +2168,7 @@ void FileBrowser::draw(Structure& structure,
         const float aboutFooter = ImGui::GetFrameHeight() + 3.0f * ImGui::GetStyle().ItemSpacing.y + responsive::dp(2) + 2.0f;
         if (ImGui::BeginChild("##about-scroll", ImVec2(0.0f, -aboutFooter), ImGuiChildFlags_None))
         {
+            responsive::keepClearOfScrollbar();
             dialogLayout::section("Creator");
             wrappedBullet("Albert Linda");
 
