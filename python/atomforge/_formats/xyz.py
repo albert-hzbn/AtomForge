@@ -30,7 +30,8 @@ def _load_xyz(path: str) -> "Structure":
         parts = line.split()
         if len(parts) < 4:
             raise ValueError("invalid XYZ: atom needs a symbol and three coordinates")
-        sym = parts[0]
+        # Element symbols in any case ("CU", "cu" -> "Cu"); other labels as written.
+        sym = parts[0].capitalize() if parts[0].isalpha() and len(parts[0]) <= 3 else parts[0]
         x, y, z = float(parts[1]), float(parts[2]), float(parts[3])
         cr, cg, cb = _default_color(sym)
         s.atoms.append(Atom(sym, x, y, z, cr, cg, cb))

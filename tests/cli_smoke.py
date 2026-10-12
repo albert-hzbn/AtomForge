@@ -148,6 +148,7 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
     for name, text, expected in (
         ("vol_POSCAR", "volume\n-64.0\n1 0 0\n0 1 0\n0 0 1\nCu\n1\nDirect\n0 0 0\n", ["Cu"]),
         ("v4_POSCAR", "Na Cl\n1.0\n4 0 0\n0 4 0\n0 0 4\n1 1\nDirect\n0 0 0\n0.5 0.5 0.5\n", ["Na", "Cl"]),
+        ("POSCAR-pv", "labels\n1.0\n4 0 0\n0 4 0\n0 0 4\nFe_pv O\n1 1\nDirect\n0 0 0\n0.5 0.5 0.5\n", ["Fe", "O"]),
     ):
         poscar = root / name
         poscar.write_text(text)

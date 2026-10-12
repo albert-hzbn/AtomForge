@@ -10,6 +10,16 @@ if TYPE_CHECKING:
     from .._structure import Structure
 
 
+def _species_symbol(word: str) -> str:
+    """The element of a POTCAR-style label ("Fe_pv" -> "Fe", "O" -> "O"), or ""."""
+    letters = ""
+    for char in word:
+        if not char.isalpha():
+            break
+        letters += char
+    return letters.capitalize() if 1 <= len(letters) <= 2 else ""
+
+
 def _load_vasp(path: str) -> "Structure":
     from .._structure import Atom, Structure
     with open(path, encoding="utf-8", errors="replace") as fh:
@@ -50,9 +60,11 @@ def _load_vasp(path: str) -> "Structure":
         counts  = [int(x) for x in tok6]
         coord_line = 7
     else:
-        species = [f"X{i+1}" for i in range(len(tok5))]
         counts  = [int(x) for x in tok5]
         coord_line = 6
+        # VASP 4 has no element line; tools name the species on the title line.
+        named = [_species_symbol(word) for word in lines[0].split()]
+        species = named if len(named) == len(counts) and all(named) else [f"X{i+1}" for i in range(len(tok5))]
 
     if len(species) != len(counts) or not counts or any(n < 0 for n in counts):
         raise ValueError("invalid POSCAR: species and non-negative counts must match")
@@ -72,7 +84,7 @@ def _load_vasp(path: str) -> "Structure":
     s = Structure()
     s.cell = cell
     for sym, count in zip(species, counts):
-        sym = _clean_symbol(sym)
+        sym = _species_symbol(sym) or _clean_symbol(sym)
         for _ in range(count):
             if coord_line >= len(lines):
                 raise ValueError("invalid POSCAR: fewer atom coordinates than declared")

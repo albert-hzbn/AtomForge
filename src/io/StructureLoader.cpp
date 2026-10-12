@@ -1364,6 +1364,25 @@ static bool normalizePoscar(std::string& text)
     bool allCounts = !counts.empty();
     for (const auto& count : counts)
         allCounts = allCounts && count.find_first_not_of("0123456789") == std::string::npos;
+    if (!allCounts && !counts.empty())
+    {
+        // Element line with POTCAR labels ("Fe_pv", "O_s", "Ti/abc"): the element.
+        std::string line;
+        bool relabelled = false;
+        for (const auto& word : counts)
+        {
+            std::size_t letters = 0;
+            while (letters < word.size() && std::isalpha(static_cast<unsigned char>(word[letters]))) ++letters;
+            const std::string symbol = letters >= 1 && letters <= 2 && letters < word.size() ? word.substr(0, letters) : word;
+            relabelled = relabelled || symbol != word;
+            line += (line.empty() ? "" : " ") + symbol;
+        }
+        if (relabelled)
+        {
+            lines[5] = line + "\n";
+            changed = true;
+        }
+    }
     if (allCounts)
     {
         std::vector<std::string> species;

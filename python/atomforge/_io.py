@@ -42,7 +42,8 @@ def _resolve_format(path: str) -> Tuple[Callable, Callable]:
     """Resolve both directions together so read/write filename rules agree."""
     filename = Path(path)
     extension = filename.suffix.lower()
-    if not extension and filename.name.upper() in ("POSCAR", "CONTCAR"):
+    # POSCAR, CONTCAR_relaxed, Cu_POSCAR, POSCAR-001 (phonopy), as the desktop reads them.
+    if extension not in _FORMAT_MAP and ("POSCAR" in filename.name.upper() or "CONTCAR" in filename.name.upper()):
         return _load_vasp, _save_vasp
     return _FORMAT_MAP.get(extension, (_load_xyz, _save_xyz))
 

@@ -22,6 +22,16 @@ class FileIntegrityTests(unittest.TestCase):
         s.add_atom("Fe", 1, 2, 3)
         return s
 
+    def test_vasp_and_xyz_variants(self):
+        # POSCAR anywhere in the name; VASP 4 species from the title line;
+        # POTCAR-style labels; XYZ symbols in any case.
+        (self.root / "Cu_POSCAR").write_text("Na Cl\n1.0\n4 0 0\n0 4 0\n0 0 4\n1 1\nDirect\n0 0 0\n0.5 0.5 0.5\n")
+        self.assertEqual([a.symbol for a in af.load(self.root / "Cu_POSCAR").atoms], ["Na", "Cl"])
+        (self.root / "POSCAR-001").write_text("pv labels\n1.0\n4 0 0\n0 4 0\n0 0 4\nFe_pv O\n1 1\nDirect\n0 0 0\n0.5 0.5 0.5\n")
+        self.assertEqual([a.symbol for a in af.load(self.root / "POSCAR-001").atoms], ["Fe", "O"])
+        (self.root / "upper.xyz").write_text("3\n\nCU 0 0 0\nni 1.8 0 0\nO 0 1.8 0\n")
+        self.assertEqual([a.symbol for a in af.load(self.root / "upper.xyz").atoms], ["Cu", "Ni", "O"])
+
     def test_extensionless_vasp_roundtrip(self):
         for name in ("POSCAR", "CONTCAR"):
             path = self.root / name
