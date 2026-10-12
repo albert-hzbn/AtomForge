@@ -730,7 +730,7 @@
     },
     {
       "source": "src/app/EditorApplication.cpp",
-      "sha256": "8071deed83d6d20f1b168f0ae4f5e3284164c7179c0d059b763056b24fd120c5",
+      "sha256": "bdc42936a25bfd3b6cf951d603a5523976c3b93368654cb8d54d42a2c5bde477",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -1058,7 +1058,7 @@
     },
     {
       "source": "src/pipeline/Modifiers.cpp",
-      "sha256": "517aefe3f584b7071cacb5b57adc9f22e0859fe233b77a470178e7578a6c9932",
+      "sha256": "1a2a460c9ccb513bd10d3268a7fd479eee2bb0ff390a0b3985905ce7dee8e07e",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -1265,7 +1265,7 @@
     },
     {
       "source": "src/science/ScienceData.h",
-      "sha256": "b48e03037a6889c70ac1b12b9516af0d6e56c0c8d4947e3f268c17aa6d953a4b",
+      "sha256": "838d4a5bad5ce44222b0dc36923acfa8db98eed9d9e260c3491ab464a84a20d6",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -3812,7 +3812,7 @@
     },
     {
       "source": "src/ui/MeasurementOverlay.cpp",
-      "sha256": "48829783ec8e9e0d8a245b681ba21aa45f6c89f8a61781b34dad6e6a2b00b4e6",
+      "sha256": "82b2eaad4593237a5007264003ed8e60515f0bf978279fae479b47032562d4a3",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3823,7 +3823,7 @@
     },
     {
       "source": "src/ui/MeasurementOverlay.h",
-      "sha256": "348c7e4e58887f97fe02ae41d11a1fa466e2f4245ecc26944f824cda1ac3cdcf",
+      "sha256": "cef7c81265fb7b15cae26bc382a3cd9db9a881b575d325ef44ea7fd167ac240f",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
