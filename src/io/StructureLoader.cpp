@@ -2056,9 +2056,8 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
             return std::acos(cosine) * 180.0 / 3.14159265358979323846;
         };
         const auto clean = [](double v) { return std::abs(v) < 5e-11 ? 0.0 : v; };
-        char buffer[200];
-        out << "# CIF file written by AtomForge\n";
-        out << "data_" << (structure.atoms.empty() ? std::string("structure") : std::string("AtomForge")) << "\n";
+        char buffer[512];  // six cell parameters of up to 24 characters each
+        out << "# CIF file written by AtomForge\ndata_AtomForge\n";
         std::snprintf(buffer, sizeof(buffer),
                       "_cell_length_a %.10g\n_cell_length_b %.10g\n_cell_length_c %.10g\n"
                       "_cell_angle_alpha %.10g\n_cell_angle_beta %.10g\n_cell_angle_gamma %.10g\n",
