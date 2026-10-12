@@ -27,6 +27,24 @@ std::string titleOf(const atomforge::pipeline::Modifier& m)
     if (!m.label.empty()) title = m.label + "  (" + title + ")";
     return title;
 }
+
+// A row of controls that wraps instead of running past the panel's edge:
+// next(width) keeps the next control on the line when it fits.
+struct Flow
+{
+    float right = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x;
+    bool first = true;
+    void next(float width)
+    {
+        if (!first && ImGui::GetItemRectMax().x + ImGui::GetStyle().ItemSpacing.x + width <= right) ImGui::SameLine();
+        first = false;
+    }
+    void button(const char* label) { next(ImGui::CalcTextSize(label, nullptr, true).x + 2 * ImGui::GetStyle().FramePadding.x); }
+    void checkbox(const char* label)
+    {
+        next(ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x + ImGui::CalcTextSize(label, nullptr, true).x);
+    }
+};
 }
 
 void PipelineDialog::requestDialog(std::size_t index)
@@ -265,14 +283,51 @@ void PipelineDialog::drawList()
         if (ImGui::IsItemHovered()) ImGui::SetTooltip(enabled ? "Applied; untick to bypass this step" : "Bypassed");
         ImGui::SameLine();
         const std::string title = std::to_string(i + 1) + "  " + titleOf(m);
+        // The step's result after the last evaluation: on the same line when it
+        // fits beside the name, else on a line of its own below.
+        std::string status;
+        bool failed = false;
+        if (i < stages.size()) {
+            const auto& stage = stages[i];
+            if (!stage.error.empty()) failed = true;
+            else if (stage.skipped) status = m.enabled ? "not run (an earlier step failed)" : "bypassed";
+            else {
+                char text[96];
+                std::snprintf(text, sizeof(text), "%zu atoms, %zu selected, %.1f ms", stage.atoms, stage.selected, stage.milliseconds);
+                status = text;
+            }
+        }
         // A bypassed step is greyed but still selectable, draggable and right-clickable.
         if (!m.enabled) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
         const ImGuiStyle& style = ImGui::GetStyle();
         // Up, down and remove: three square buttons.
         const float buttons = 3 * ImGui::GetFrameHeight() + 3 * style.ItemSpacing.x;
-        if (ImGui::Selectable(title.c_str(), m_selected == static_cast<int>(i), ImGuiSelectableFlags_AllowOverlap,
-                              ImVec2(std::max(responsive::dp(80), ImGui::GetContentRegionAvail().x - buttons), ImGui::GetFrameHeight())))
-            m_selected = static_cast<int>(i);
+        const float nameWidth = std::max(responsive::dp(80), ImGui::GetContentRegionAvail().x - buttons);
+        // Beside the name in full, else shortened ("512 atoms, 192 sel."), else below.
+        const float titleWidth = ImGui::CalcTextSize(title.c_str()).x + style.FramePadding.x * 2;
+        const auto fits = [&](const std::string& text) {
+            return ImGui::CalcTextSize(text.c_str()).x + 2 * style.ItemSpacing.x + titleWidth <= nameWidth;
+        };
+        if (!status.empty() && !fits(status) && i < stages.size() && stages[i].error.empty() && !stages[i].skipped) {
+            const std::string shorter = std::to_string(stages[i].atoms) + " atoms, " + std::to_string(stages[i].selected) + " sel.";
+            if (fits(shorter)) status = shorter;
+        }
+        const float statusWidth = status.empty() ? 0.0f : ImGui::CalcTextSize(status.c_str()).x + 2 * style.ItemSpacing.x;
+        const bool statusBeside = !status.empty() && fits(status);
+        // The checkbox's text baseline would push the name below the row's centre.
+        ImGui::GetCurrentWindow()->DC.CurrLineTextBaseOffset = 0.0f;
+        const ImVec2 nameMin = ImGui::GetCursorScreenPos();
+        ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0.0f, 0.5f));
+        const bool clicked = ImGui::Selectable(title.c_str(), m_selected == static_cast<int>(i), ImGuiSelectableFlags_AllowOverlap,
+                                               ImVec2(nameWidth, ImGui::GetFrameHeight()));
+        ImGui::PopStyleVar();
+        if (clicked) m_selected = static_cast<int>(i);
+        if (statusBeside) {
+            // Right-aligned in the name's row, clipped to it.
+            const ImVec2 at(nameMin.x + nameWidth - statusWidth + style.ItemSpacing.x,
+                            nameMin.y + 0.5f * (ImGui::GetFrameHeight() - ImGui::GetTextLineHeight()));
+            draw->AddText(at, ImGui::GetColorU32(ImGuiCol_TextDisabled), status.c_str());
+        }
         if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) requestDialog(i);
         if (ImGui::IsItemHovered() && !ImGui::IsMouseDown(ImGuiMouseButton_Left) && dragging < 0)
             ImGui::SetTooltip("Drag to move; right-click to replace, insert or remove; double-click to edit in the %s dialog", menuPathOf(m.type).c_str());
@@ -339,25 +394,31 @@ void PipelineDialog::drawList()
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Remove this step");
         record("remove " + std::to_string(i));
         right = ImGui::GetItemRectMax().x;
-        // Status of the step after the last evaluation.
-        if (i < stages.size()) {
-            const auto& stage = stages[i];
-            ImGui::Indent(responsive::dp(34));
-            if (!stage.error.empty()) {
+        // An error, or a status too long for the name's row, below it.
+        if (failed || (!status.empty() && !statusBeside)) {
+            const float under = gripWidth + ImGui::GetFrameHeight() + 2 * style.ItemSpacing.x;
+            ImGui::Indent(under);
+            ImGui::PushTextWrapPos(right - ImGui::GetWindowPos().x + ImGui::GetScrollX());
+            if (failed) {
                 ImGui::PushStyleColor(ImGuiCol_Text, themeStatusError());
-                ImGui::TextWrapped("%s", stage.error.c_str());
+                ImGui::TextUnformatted(stages[i].error.c_str());
                 ImGui::PopStyleColor();
-            } else if (stage.skipped) ImGui::TextDisabled(m.enabled ? "not run (an earlier step failed)" : "bypassed");
-            else ImGui::TextDisabled("%zu atoms, %zu selected, %.1f ms", stage.atoms, stage.selected, stage.milliseconds);
-            ImGui::Unindent(responsive::dp(34));
+            } else ImGui::TextDisabled("%s", status.c_str());
+            ImGui::PopTextWrapPos();
+            ImGui::Unindent(under);
         }
         if (dragging == static_cast<int>(i)) ImGui::PopStyleVar();
         ImGui::Unindent(indent);
         rowBottom.push_back(ImGui::GetCursorScreenPos().y - ImGui::GetStyle().ItemSpacing.y);
         ImGui::PopID();
     }
-    if (m_editor.size() == 0) ImGui::TextDisabled("No modifiers yet: add one below, or right-click here. The output equals the input.");
-    else ImGui::TextDisabled("Drag steps by their grip or name; right-click a step to replace it.");
+    // The hint sits beside the pipe, not over it.
+    ImGui::Indent(indent);
+    ImGui::PushTextWrapPos(0.0f);
+    if (m_editor.size() == 0) ImGui::TextDisabled("No modifiers yet: use Add Modifier, or right-click here. The output equals the input.");
+    else ImGui::TextDisabled("Drag a step by its grip or name to reorder; right-click it for more.");
+    ImGui::PopTextWrapPos();
+    ImGui::Unindent(indent);
     node();
     ImGui::Indent(indent);
     ImGui::AlignTextToFramePadding();
@@ -457,37 +518,54 @@ void PipelineDialog::drawEditor()
     const std::size_t index = static_cast<std::size_t>(m_selected);
     const auto& m = m_editor.modifier(index);
     const ModifierType* type = atomforge::pipeline::findModifierType(m.type);
-    ImGui::SeparatorText((std::to_string(index + 1) + "  " + type->title).c_str());
-    ImGui::BeginDisabled(index == 0);
-    if (responsive::button("Move Up")) { moveStep(index, index - 1); ImGui::EndDisabled(); return; }
-    record("move up");
-    ImGui::EndDisabled();
-    ImGui::SameLine();
-    ImGui::BeginDisabled(index + 1 >= m_editor.size());
-    if (responsive::button("Move Down")) { moveStep(index, index + 1); ImGui::EndDisabled(); return; }
-    record("move down");
-    ImGui::EndDisabled();
-    ImGui::SameLine();
-    if (responsive::button("Duplicate")) { duplicateStep(index); return; }
-    record("duplicate");
-    ImGui::SameLine();
-    if (responsive::button("Remove")) { removeStep(index); return; }
-    record("remove");
-    ImGui::SameLine();
-    bool enabled = m.enabled;
-    if (ImGui::Checkbox("Enabled", &enabled)) m_editor.setEnabled(index, enabled);
+    ImGui::SeparatorText(("Step " + std::to_string(index + 1) + ": " + type->title).c_str());
+    ImGui::PushTextWrapPos(0.0f);
+    ImGui::TextDisabled("%s", modifierDescription(*type).c_str());
+    ImGui::PopTextWrapPos();
+    // Parameters first: they are what a step is selected for.
+    char label[128];
+    std::snprintf(label, sizeof(label), "%s", m.label.c_str());
+    if (ImGui::BeginTable("##name", 2, ImGuiTableFlags_SizingStretchProp)) {
+        // The same columns as the parameter form below.
+        ImGui::TableSetupColumn("label", ImGuiTableColumnFlags_WidthStretch, 0.42f);
+        ImGui::TableSetupColumn("field", ImGuiTableColumnFlags_WidthStretch, 0.58f);
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Display name");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::InputTextWithHint("##label", "optional", label, sizeof(label))) m_editor.setLabel(index, label);
+        ImGui::EndTable();
+    }
+    drawModifierParameters(*type, m.parameters, [&](const std::string& name, const Json& value) { m_editor.setParameter(index, name, value); });
+    ImGui::Spacing();
+    Flow flow;
+    flow.button("Edit in Dialog");
     // The same dialog as the Build or Edit menu, editing this step.
     if (responsive::button("Edit in Dialog")) requestDialog(index);
     record("edit in dialog");
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Open %s on this step", menuPathOf(m.type).c_str());
-    ImGui::PushTextWrapPos(0.0f);
-    ImGui::TextDisabled("%s", modifierDescription(*type).c_str());
-    ImGui::PopTextWrapPos();
-    char label[128];
-    std::snprintf(label, sizeof(label), "%s", m.label.c_str());
-    ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(300)));
-    if (ImGui::InputTextWithHint("Name##label", "optional display name", label, sizeof(label))) m_editor.setLabel(index, label);
-    drawModifierParameters(*type, m.parameters, [&](const std::string& name, const Json& value) { m_editor.setParameter(index, name, value); });
+    flow.checkbox("Enabled");
+    bool enabled = m.enabled;
+    if (ImGui::Checkbox("Enabled", &enabled)) m_editor.setEnabled(index, enabled);
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Untick to bypass this step");
+    flow.button("Move Up");
+    ImGui::BeginDisabled(index == 0);
+    if (responsive::button("Move Up")) { moveStep(index, index - 1); ImGui::EndDisabled(); return; }
+    record("move up");
+    ImGui::EndDisabled();
+    flow.button("Move Down");
+    ImGui::BeginDisabled(index + 1 >= m_editor.size());
+    if (responsive::button("Move Down")) { moveStep(index, index + 1); ImGui::EndDisabled(); return; }
+    record("move down");
+    ImGui::EndDisabled();
+    flow.button("Duplicate");
+    if (responsive::button("Duplicate")) { duplicateStep(index); return; }
+    record("duplicate");
+    flow.button("Remove");
+    if (dialogLayout::dangerButton("Remove")) { removeStep(index); return; }
+    record("remove");
 }
 
 void PipelineDialog::drawText()
@@ -496,11 +574,15 @@ void PipelineDialog::drawText()
     const std::string text = m_editor.pipeline().toText();
     ImGui::SeparatorText("As a command");
     ImGui::PushTextWrapPos(0.0f);
-    ImGui::TextUnformatted(text.empty() ? "(empty pipeline)" : text.c_str());
+    if (text.empty()) ImGui::TextDisabled("(empty pipeline)");
+    else ImGui::TextUnformatted(text.c_str());
     ImGui::PopTextWrapPos();
+    Flow flow;
+    flow.button("Copy as Command");
     if (responsive::button("Copy as Command"))
         ImGui::SetClipboardText(("AtomForge --pipe \"" + text + "\" --input INPUT --output OUTPUT").c_str());
-    ImGui::SameLine();
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Copy an AtomForge --pipe command line that runs these steps");
+    flow.button(m_showText ? "Cancel Text Edit" : "Edit as Text");
     if (responsive::button(m_showText ? "Cancel Text Edit" : "Edit as Text")) {
         m_showText = !m_showText;
         std::snprintf(m_textBuffer.data(), m_textBuffer.size(), "%s", text.c_str());
@@ -528,9 +610,10 @@ void PipelineDialog::draw(Structure& structure, const std::function<void(Structu
     if (!m_open) return;
     m_controls.clear();
     responsive::windowSize(ImVec2(560, 760), ImGuiCond_FirstUseEver);
+    responsive::windowConstraints(ImVec2(420, 480), ImVec2(FLT_MAX, FLT_MAX));
     if (responsive::begin("Structure Pipeline###Structure pipeline", &m_open, ImGuiWindowFlags_NoCollapse)) {
         ImGui::PushTextWrapPos(0.0f);
-        ImGui::TextDisabled("Modifiers transform a copy of the structure in order, like a shell pipe; the input is kept, so steps can be edited, bypassed, reordered or removed at any time.");
+        ImGui::TextDisabled("Modifiers change a copy of the structure in order; the input is kept, so steps can be edited, bypassed, reordered or removed at any time.");
         ImGui::PopTextWrapPos();
         if (!m_editor.active()) {
             ImGui::BeginDisabled(structure.atoms.empty());
@@ -543,24 +626,26 @@ void PipelineDialog::draw(Structure& structure, const std::function<void(Structu
             else ImGui::TextDisabled("Adding a modifier also starts the pipeline from the active structure.");
         } else {
             // Edits made outside the pipeline would be overwritten by its next update.
-            if (!m_editor.dirty() && !m_editor.isCurrentOutput(structure) && !m_colourSelection) {
+            const bool changedOutside = !m_editor.dirty() && !m_editor.isCurrentOutput(structure) && !m_colourSelection;
+            if (changedOutside) {
                 ImGui::PushStyleColor(ImGuiCol_Text, themeStatusError());
-                ImGui::TextWrapped("The structure was changed outside the pipeline.");
+                ImGui::TextWrapped("The structure was changed outside the pipeline; its next update would replace those changes.");
                 ImGui::PopStyleColor();
+                Flow choices;
+                choices.button("Use It as the Pipeline Input");
                 if (responsive::button("Use It as the Pipeline Input")) m_editor.setInput(structure);
-                ImGui::SameLine();
+                choices.button("Restore the Pipeline Output");
                 if (responsive::button("Restore the Pipeline Output")) show(structure, update, showAtomProperty);
             }
-            if (responsive::button("Use the Active Structure as Input")) m_editor.setInput(structure);
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Restart the pipeline from the structure now in the view.");
-            ImGui::SameLine();
+            Flow flow;
+            flow.button("Bake");
             if (dialogLayout::primaryButton("Bake")) {
                 structure = m_editor.bake();
                 m_selected = -1;
                 update(structure);  // a normal edit: it enters undo history
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Make the output the structure and end the pipeline.");
-            ImGui::SameLine();
+            flow.button("Discard");
             if (dialogLayout::dangerButton("Discard")) {
                 structure = m_editor.input();
                 m_editor.reset();
@@ -570,34 +655,45 @@ void PipelineDialog::draw(Structure& structure, const std::function<void(Structu
                 m_updating = false;
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("End the pipeline and show the input structure again.");
+            flow.button("Use the Active Structure as Input");
+            if (responsive::button("Use the Active Structure as Input")) m_editor.setInput(structure);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Restart the pipeline from the structure now in the view.");
         }
         {
             ImGui::Separator();
-            // Tall enough for the input and every step (two lines each), up to
-            // 60% of the panel; it scrolls beyond that.
-            const ImGuiStyle& style = ImGui::GetStyle();
-            const float row = ImGui::GetFrameHeight() + ImGui::GetTextLineHeight() + 2.0f * style.ItemSpacing.y;
-            const float wanted = static_cast<float>(m_editor.size()) * row + ImGui::GetTextLineHeightWithSpacing() + 2.0f * style.WindowPadding.y + row * 0.5f;
-            const float listHeight = std::clamp(wanted, responsive::dp(160), std::max(responsive::dp(160), ImGui::GetContentRegionAvail().y * 0.6f));
-            responsive::beginChild("Pipeline steps", ImVec2(0, listHeight), true);
+            // Exactly as tall as the input, the steps and the hint, between
+            // three rows and 45% of the panel; it scrolls beyond that.
+            const float row = ImGui::GetFrameHeightWithSpacing();
+            const float maximum = std::max(4.0f * row, ImGui::GetContentRegionAvail().y * 0.45f);
+            ImGui::SetNextWindowSizeConstraints(ImVec2(0, std::min(4.0f * row, maximum)), ImVec2(FLT_MAX, maximum));
+            responsive::beginChild("Pipeline steps", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
             drawList();
             ImGui::EndChild();
+            Flow flow;
+            flow.button("Add Modifier");
             drawAddMenu(structure);
-            ImGui::SameLine();
+            flow.checkbox("Update automatically");
             ImGui::Checkbox("Update automatically", &m_autoUpdate);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Recompute the output after every edit");
             if (!m_autoUpdate) {
-                ImGui::SameLine();
+                flow.button("Update");
                 ImGui::BeginDisabled(!m_editor.dirty());
                 if (responsive::button("Update")) show(structure, update, showAtomProperty);
                 ImGui::EndDisabled();
             }
+            flow.checkbox("Colour atoms by selection");
             if (ImGui::Checkbox("Colour atoms by selection", &m_colourSelection) && m_editor.active()) show(structure, update, showAtomProperty);
-            responsive::beginChild("Step editor", ImVec2(0, 0), false);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Colour the output's selected atoms (1) apart from the others (0)");
+            // The selected step's form, the command and the file: the rest of the panel.
+            const float messageHeight = m_message.empty() ? 0.0f : 2.0f * ImGui::GetTextLineHeightWithSpacing();
+            responsive::beginChild("Step editor", ImVec2(0, -messageHeight), ImGuiChildFlags_Borders);
             drawEditor();
             drawText();
             ImGui::SeparatorText("Pipeline file");
+            Flow file;
+            file.button("Save Pipeline");
             if (responsive::button("Save Pipeline")) { m_pickerAction = 2; m_picker.open("Save pipeline", true, "pipeline.json"); }
-            ImGui::SameLine();
+            file.button("Load Pipeline");
             if (responsive::button("Load Pipeline")) { m_pickerAction = 1; m_picker.open("Load pipeline (JSON or text)", false, "pipeline.json"); }
             ImGui::EndChild();
         }

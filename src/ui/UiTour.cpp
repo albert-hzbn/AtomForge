@@ -98,7 +98,7 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         for (const char* menu : {"File", "Edit", "Build", "View", "Analysis", "Settings", "Help"})
             t.steps.push_back({std::string("menu-") + menu, [this, menu](Structure&, EditMenuDialogs&, const UiTour::Update&) { tourMenu = menu; }});
         t.steps.push_back({"pipeline-panel", [this](Structure& structure, EditMenuDialogs&, const UiTour::Update&) {
-            pipelineDialog.restore(R"({"format":"atomforge-pipeline","version":1,"active":true,"open":true,"modifiers":[
+            pipelineDialog.restore(R"({"format":"atomforge-pipeline","version":1,"active":true,"open":true,"selected":1,"modifiers":[
                 {"type":"replicate","parameters":{"counts":[2,1,1]}},
                 {"type":"select-expression","parameters":{"expression":"fz > 0.5"}},
                 {"type":"assign-element","parameters":{"element":"Al","target":"selected"}},
