@@ -853,6 +853,7 @@ Parameters::Parameters(const std::string& tool, const Json& request, const std::
                 else if (name == "cell" || name == "reference_cell" || name == "current_cell") selected = "cell";
             }
             m_arrays[name] = framesField(readFrames(path, reader), selected, timestep);
+            if (name == "cell" && selected == "cell") m_cellFromStructureFile = true;
         }
     }
 }
@@ -904,6 +905,9 @@ bool Parameters::boolean(const std::string& name, bool fallback) const
 
 Pbc Parameters::pbc(const std::string& name, Pbc fallback) const
 {
+    // A cell read from a structure file comes with its periodicity: without
+    // an explicit pbc, a periodic file's cell is periodic along all axes.
+    if (!has(name) && name == "pbc" && m_cellFromStructureFile) return {true, true, true};
     if (!has(name)) return fallback;
     return parsePbc(json(name));
 }

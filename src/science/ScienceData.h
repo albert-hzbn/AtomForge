@@ -103,6 +103,7 @@ private:
     std::map<std::string, NdArray> m_arrays;
     std::map<std::string, StructureInput> m_structures;
     std::map<std::string, std::vector<FrameData>> m_frames;
+    bool m_cellFromStructureFile = false;  // "cell": {"file": a structure file}
 };
 
 // A tool's numerical result plus any structural frames it produced.
