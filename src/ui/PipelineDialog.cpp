@@ -268,7 +268,8 @@ void PipelineDialog::drawList()
         // A bypassed step is greyed but still selectable, draggable and right-clickable.
         if (!m.enabled) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
         const ImGuiStyle& style = ImGui::GetStyle();
-        const float buttons = 2 * ImGui::GetFrameHeight() + ImGui::CalcTextSize("X").x + 2 * style.FramePadding.x + 3 * style.ItemSpacing.x;
+        // Up, down and remove: three square buttons.
+        const float buttons = 3 * ImGui::GetFrameHeight() + 3 * style.ItemSpacing.x;
         if (ImGui::Selectable(title.c_str(), m_selected == static_cast<int>(i), ImGuiSelectableFlags_AllowOverlap,
                               ImVec2(std::max(responsive::dp(80), ImGui::GetContentRegionAvail().x - buttons), ImGui::GetFrameHeight())))
             m_selected = static_cast<int>(i);
