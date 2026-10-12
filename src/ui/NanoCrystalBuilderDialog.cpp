@@ -55,19 +55,7 @@ namespace
 
 bool nanoIsSupportedFile(const std::string& name)
 {
-    static const char* exts[] = {
-        ".cif",".mol",".pdb",".xyz",".sdf",".vasp",".mol2",".pwi",".gjf",
-        nullptr
-    };
-    std::string low = name;
-    for (char& c : low) c = (char)std::tolower((unsigned char)c);
-    for (int i = 0; exts[i]; ++i) {
-        const std::string ext(exts[i]);
-        if (low.size() >= ext.size() &&
-            low.compare(low.size() - ext.size(), ext.size(), ext) == 0)
-            return true;
-    }
-    return false;
+    return isSupportedStructureFile(name);
 }
 
 void nanoLoadDirEntries(const std::string& dir,

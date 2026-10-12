@@ -46,6 +46,7 @@ static const SaveFormat kSaveFormats[] = {
     { "XYZ (.xyz)",               ".xyz",  "xyz"   },
     { "CIF (.cif)",               ".cif",  "cif"   },
     { "VASP POSCAR (.vasp)",      ".vasp", "vasp"  },
+    { "LAMMPS Data (.data)",      ".data", "data"  },
     { "PDB (.pdb)",               ".pdb",  "pdb"   },
     { "SDF (.sdf)",               ".sdf",  "sdf"   },
     { "Mol2 (.mol2)",             ".mol2", "mol2"  },
@@ -282,7 +283,6 @@ FileBrowser::FileBrowser()
             millerDirInputW(0),
             millerDirInputLength(5.0f)
 {
-    allowedExtensions = {".cif", ".mol", ".pdb", ".xyz", ".sdf", ".vasp", ".mol2", ".pwi", ".gjf"};
 
     const std::string homePath = detectHomePath();
 
@@ -2655,19 +2655,11 @@ std::string FileBrowser::toLower(const std::string& s)
     return toLowerStr(s);
 }
 
+// What Open accepts: structure files (POSCAR and CONTCAR without an
+// extension too) and the large-data formats.
 bool FileBrowser::isAllowedFile(const std::string& name) const
 {
-    auto dot = name.find_last_of('.');
-    if (dot == std::string::npos)
-        return false;
-
-    std::string ext = toLower(name.substr(dot));
-    for (const auto& allowed : allowedExtensions)
-    {
-        if (ext == allowed)
-            return true;
-    }
-    return false;
+    return isSupportedStructureFile(name) || isLargeDataFile(name);
 }
 
 void FileBrowser::openPdfManual()

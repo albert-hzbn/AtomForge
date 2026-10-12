@@ -589,7 +589,6 @@ private:
     std::unordered_map<int, std::array<float, 3>> elementColorOverrides;
 
     std::vector<std::string> driveRoots;
-    std::vector<std::string> allowedExtensions;
 
     char openFilename[1024];
     char bondElementFilterInput[256];

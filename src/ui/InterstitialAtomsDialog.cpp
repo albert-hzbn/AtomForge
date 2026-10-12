@@ -846,9 +846,7 @@ void InterstitialAtomsDialog::feedDroppedFile(const std::string& path)
 
 bool InterstitialAtomsDialog::acceptsStructurePath(const std::string& path) const
 {
-    return hasExt(path, ".cif") || hasExt(path, ".xyz") || hasExt(path, ".pdb")
-        || hasExt(path, ".mol") || hasExt(path, ".sdf") || hasExt(path, ".mol2")
-        || hasExt(path, ".vasp") || hasExt(path, ".pwi") || hasExt(path, ".gjf");
+    return isSupportedStructureFile(path);
 }
 
 bool InterstitialAtomsDialog::acceptsMeshPath(const std::string& path) const

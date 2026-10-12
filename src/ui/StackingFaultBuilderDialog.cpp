@@ -35,6 +35,7 @@ constexpr ExportFormatOption kExportFormats[] = {
     {"XYZ (.xyz)", ".xyz", "xyz"},
     {"CIF (.cif)", ".cif", "cif"},
     {"VASP (.vasp)", ".vasp", "vasp"},
+    {"LAMMPS Data (.data)", ".data", "data"},
     {"Quantum ESPRESSO (.pwi)", ".pwi", "pwscf"},
 };
 
