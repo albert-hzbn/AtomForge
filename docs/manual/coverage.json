@@ -2882,7 +2882,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "820b61942e97870fd1108e1e7c4c3dc13a46db6916bc5cefd8b2297a895df46d",
+      "sha256": "c6b0ea3a00d0af6ed70a3fc0dbe580c5376f8afaf8686b7542a6f8451a3fb9e1",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
