@@ -33,6 +33,7 @@ add_library(atomforge_core STATIC
     ${PROJECT_SOURCE_DIR}/src/algorithms/RadialDistributionAnalysis.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/AngularDistributionAnalysis.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/ShortRangeOrderAnalysis.cpp
+    ${PROJECT_SOURCE_DIR}/src/math/NeighbourSearch.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/InterstitialVoidAnalysis.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/VoronoiComputation.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/MeshLoader.cpp

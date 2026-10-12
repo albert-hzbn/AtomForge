@@ -257,6 +257,19 @@ int main()
         const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
         check(big.nShells == 2 && std::abs(big.shellDistances[0] - a / std::sqrt(2.0)) < 1e-6, "Large-structure SRO shells");
         check(seconds < 20.0, "SRO of 13500 atoms must not scale with all N^2 pairs");
+
+        // fcc first shell (cutoff between the first and second shells): every
+        // atom has 12 neighbours and 66 angle pairs, 60, 90, 120 and 180 degrees.
+        AdfParams adfParams;
+        adfParams.rCutoff = static_cast<float>(a * 0.85);
+        adfParams.smoothPasses = 0;
+        const auto adfStarted = std::chrono::steady_clock::now();
+        const AdfResult fccAngles = computeADF(large, adfParams);
+        const double adfSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - adfStarted).count();
+        check(fccAngles.valid && fccAngles.nTriplets == static_cast<long long>(large.atoms.size()) * 66, "fcc ADF triplet count");
+        check(adfSeconds < 20.0, "ADF of 13500 atoms must not scale with all N^2 pairs");
+        const AdfResult singleAngles = computeADF(single, adfParams);
+        check(singleAngles.valid && singleAngles.nTriplets == 4 * 66, "ADF of one fcc cell counts every periodic image");
     }
 
     std::atomic<bool> finished{false};

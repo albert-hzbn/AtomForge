@@ -1,4 +1,5 @@
 #include "AngularDistributionAnalysis.h"
+#include "math/NeighbourSearch.h"
 #include "math/StructureMath.h"
 
 #include <glm/glm.hpp>
@@ -13,17 +14,6 @@
 // ---------------------------------------------------------------------------
 
 static constexpr float kPiAdf = 3.14159265358979323846f;
-
-static glm::vec3 adfMinImage(glm::vec3 delta, const glm::mat3& cell,
-                              const glm::mat3& invCell, bool usePbc)
-{
-    if (!usePbc) return delta;
-    glm::vec3 frac = invCell * delta;
-    frac.x -= std::round(frac.x);
-    frac.y -= std::round(frac.y);
-    frac.z -= std::round(frac.z);
-    return cell * frac;
-}
 
 static float angleDeg(const glm::vec3& rij, const glm::vec3& rik)
 {
@@ -140,7 +130,6 @@ AdfResult computeADF(const Structure& structure, const AdfParams& params)
         return params.neighSymbol2.empty() || a.symbol == params.neighSymbol2;
     };
 
-    const float rc2 = params.rCutoff * params.rCutoff;
     int N = result.nAtoms;
 
     // Histogram bins [0, 180°]
@@ -151,25 +140,27 @@ AdfResult computeADF(const Structure& structure, const AdfParams& params)
 
     long long nTriplets = 0;
 
+    // Neighbours from a cell list (grouped by centre), over every periodic
+    // image within the cutoff.
+    std::vector<neighbours::Pair> pairs;
+    try {
+        pairs = neighbours::within(structure, params.rCutoff, usePbc);
+    } catch (const std::exception& error) {
+        result.message = error.what();
+        return result;
+    }
+    std::size_t next = 0;
     for (int i = 0; i < N; ++i)
     {
+        const std::size_t begin = next;
+        while (next < pairs.size() && pairs[next].i == i) ++next;
         const AtomSite& ai = structure.atoms[i];
         if (!isCentre(ai)) continue;
 
-        glm::vec3 pi(ai.x, ai.y, ai.z);
-
         // Collect neighbours of i
         std::vector<std::pair<int, glm::vec3>> neighs;
-        for (int j = 0; j < N; ++j)
-        {
-            if (j == i) continue;
-            const AtomSite& aj = structure.atoms[j];
-            glm::vec3 pj(aj.x, aj.y, aj.z);
-            glm::vec3 rij = adfMinImage(pj - pi, cell, invCell, usePbc);
-            float d2 = glm::dot(rij, rij);
-            if (d2 > 1e-12f && d2 <= rc2)
-                neighs.push_back({j, rij});
-        }
+        for (std::size_t k = begin; k < next; ++k)
+            neighs.push_back({pairs[k].j, glm::vec3(pairs[k].d)});
 
         coordCounts[ai.symbol].push_back(static_cast<int>(neighs.size()));
 

@@ -1,4 +1,5 @@
 #include "ShortRangeOrderAnalysis.h"
+#include "math/NeighbourSearch.h"
 #include <algorithm>
 #include <array>
 #include <map>
@@ -20,55 +21,7 @@ struct SroDistance {
 
 static std::vector<SroDistance> sroNeighbours(const Structure& s, double cutoff) {
     std::vector<SroDistance> pairs;
-    const std::size_t n = s.atoms.size();
-    if (n == 0 || cutoff <= 0.0) return pairs;
-    glm::dmat3 cell(0.0);  // columns: a, b, c
-    for (int r = 0; r < 3; ++r)
-        for (int c = 0; c < 3; ++c) cell[r][c] = s.cellVectors[static_cast<std::size_t>(r)][static_cast<std::size_t>(c)];
-    const glm::dmat3 inverse = glm::inverse(cell);
-    // Images needed along each axis: the planes of constant fractional
-    // coordinate k lie 1/|row k of the inverse| apart.
-    int range[3];
-    for (int k = 0; k < 3; ++k) {
-        const glm::dvec3 row(inverse[0][k], inverse[1][k], inverse[2][k]);
-        range[k] = static_cast<int>(std::ceil(cutoff * glm::length(row)));
-        if (range[k] > 50) throw std::runtime_error("SRO cutoff spans too many periodic images");
-    }
-    // Atoms wrapped into the cell, binned on a grid of the cutoff.
-    std::vector<glm::dvec3> wrapped(n);
-    for (std::size_t i = 0; i < n; ++i) {
-        glm::dvec3 f = inverse * glm::dvec3(s.atoms[i].x, s.atoms[i].y, s.atoms[i].z);
-        f -= glm::floor(f);
-        wrapped[i] = cell * f;
-    }
-    const auto binOf = [cutoff](const glm::dvec3& p) {
-        return std::array<long long, 3>{static_cast<long long>(std::floor(p.x / cutoff)),
-                                        static_cast<long long>(std::floor(p.y / cutoff)),
-                                        static_cast<long long>(std::floor(p.z / cutoff))};
-    };
-    std::map<std::array<long long, 3>, std::vector<int>> bins;
-    for (std::size_t j = 0; j < n; ++j) bins[binOf(wrapped[j])].push_back(static_cast<int>(j));
-    const double cutoff2 = cutoff * cutoff;
-    for (std::size_t i = 0; i < n; ++i)
-        for (int a = -range[0]; a <= range[0]; ++a)
-            for (int b = -range[1]; b <= range[1]; ++b)
-                for (int c = -range[2]; c <= range[2]; ++c) {
-                    const glm::dvec3 shift = cell * glm::dvec3(a, b, c);
-                    // Atom j's image at wrapped[j] + shift is near i when wrapped[j] is near wrapped[i] - shift.
-                    const auto centre = binOf(wrapped[i] - shift);
-                    for (long long dx = -1; dx <= 1; ++dx)
-                        for (long long dy = -1; dy <= 1; ++dy)
-                            for (long long dz = -1; dz <= 1; ++dz) {
-                                const auto found = bins.find({centre[0] + dx, centre[1] + dy, centre[2] + dz});
-                                if (found == bins.end()) continue;
-                                for (int j : found->second) {
-                                    if (j == static_cast<int>(i) && a == 0 && b == 0 && c == 0) continue;
-                                    const glm::dvec3 d = wrapped[static_cast<std::size_t>(j)] + shift - wrapped[i];
-                                    const double d2 = glm::dot(d, d);
-                                    if (d2 < cutoff2 && d2 > 1e-12) pairs.push_back({static_cast<int>(i), j, std::sqrt(d2)});
-                                }
-                            }
-                }
+    for (const auto& pair : neighbours::within(s, cutoff, true)) pairs.push_back({pair.i, pair.j, pair.r});
     return pairs;
 }
 
