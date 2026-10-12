@@ -60,6 +60,38 @@ inline bool tryCartesianToFractional(const Structure& structure,
     return true;
 }
 
+// Double-precision fractional <-> Cartesian (relative to the cell origin),
+// for editing coordinates without rounding them.
+inline bool cellMatricesD(const Structure& structure, glm::dmat3& cell, glm::dmat3& inverse)
+{
+    if (!structure.hasUnitCell)
+        return false;
+    for (int r = 0; r < 3; ++r)
+        for (int c = 0; c < 3; ++c) cell[r][c] = structure.cellVectors[(std::size_t)r][(std::size_t)c];
+    if (std::abs(glm::determinant(cell)) < 1e-12)
+        return false;
+    inverse = glm::inverse(cell);
+    return true;
+}
+
+inline bool cartesianToFractionalD(const Structure& structure, const glm::dvec3& cart, glm::dvec3& frac)
+{
+    glm::dmat3 cell(1.0), inverse(1.0);
+    if (!cellMatricesD(structure, cell, inverse))
+        return false;
+    frac = inverse * (cart - glm::dvec3(structure.cellOffset[0], structure.cellOffset[1], structure.cellOffset[2]));
+    return true;
+}
+
+inline bool fractionalToCartesianD(const Structure& structure, const glm::dvec3& frac, glm::dvec3& cart)
+{
+    glm::dmat3 cell(1.0), inverse(1.0);
+    if (!cellMatricesD(structure, cell, inverse))
+        return false;
+    cart = glm::dvec3(structure.cellOffset[0], structure.cellOffset[1], structure.cellOffset[2]) + cell * frac;
+    return true;
+}
+
 inline bool tryFractionalToCartesian(const Structure& structure,
                                      const glm::vec3& frac,
                                      glm::vec3& cart)

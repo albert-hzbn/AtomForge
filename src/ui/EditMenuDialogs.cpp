@@ -513,12 +513,15 @@ void EditMenuDialogs::drawPopups(Structure& structure,
             const std::string positionHeader = m_useDirectCoords ? "Position (u, v, w)" : "Position (x, y, z in \xc3\x85)";
 
             const ImGuiTableFlags flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH;
-            if (ImGui::BeginTable("##atom-edit-rows", 4, flags, ImVec2(0.0f, std::max(responsive::dp(160.0f), ImGui::GetContentRegionAvail().y - footerHeight))))
+            if (ImGui::BeginTable("##atom-edit-rows", 5, flags, ImVec2(0.0f, std::max(responsive::dp(160.0f), ImGui::GetContentRegionAvail().y - footerHeight))))
             {
                 ImGui::TableSetupScrollFreeze(0, 1);
                 ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize("000000").x);
                 ImGui::TableSetupColumn("Element", ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize("Element").x + ImGui::GetStyle().FramePadding.x * 2);
                 ImGui::TableSetupColumn(positionHeader.c_str(), ImGuiTableColumnFlags_WidthStretch);
+                const ImGuiStyle& tableStyle = ImGui::GetStyle();
+                ImGui::TableSetupColumn("Fixed", ImGuiTableColumnFlags_WidthFixed,
+                                        3 * (ImGui::GetFrameHeight() + tableStyle.ItemInnerSpacing.x + ImGui::CalcTextSize("x").x) + 2 * tableStyle.ItemSpacing.x);
                 ImGui::TableSetupColumn("##delete", ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize("Delete").x + ImGui::GetStyle().FramePadding.x * 2);
                 ImGui::TableHeadersRow();
 
@@ -554,16 +557,21 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                         ImGui::SetNextItemWidth(-FLT_MIN);
                         if (m_useDirectCoords && structure.hasUnitCell)
                         {
-                            glm::vec3 frac(0.0f);
-                            const glm::vec3 cart((float)atom.x, (float)atom.y, (float)atom.z);
-                            tryCartesianToFractional(structure, cart, frac);
-                            float editPos[3] = { frac.x, frac.y, frac.z };
-                            for (float& value : editPos)
-                                if (std::abs(value) < 5e-6f) value = 0.0f;  // no "-0.00000"
-                            if (ImGui::DragFloat3("##DirectPos", editPos, 0.001f, -1000.0f, 1000.0f, "%.5f"))
+                            // In double precision: editing one coordinate leaves the others exact.
+                            glm::dvec3 frac(0.0);
+                            cartesianToFractionalD(structure, glm::dvec3(atom.x, atom.y, atom.z), frac);
+                            double editPos[3] = { frac.x, frac.y, frac.z };
+                            for (double& value : editPos)
+                                if (std::abs(value) < 5e-11) value = 0.0;  // no "-0.00000"
+                            const double before[3] = { editPos[0], editPos[1], editPos[2] };
+                            const double speed = 0.001;
+                            if (ImGui::DragScalarN("##DirectPos", ImGuiDataType_Double, editPos, 3, static_cast<float>(speed), nullptr, nullptr, "%.5f"))
                             {
-                                glm::vec3 newCart(0.0f);
-                                if (tryFractionalToCartesian(structure, glm::vec3(editPos[0], editPos[1], editPos[2]), newCart))
+                                glm::dvec3 newFrac = frac;
+                                for (int k = 0; k < 3; ++k)
+                                    if (editPos[k] != before[k]) newFrac[k] = editPos[k];
+                                glm::dvec3 newCart(0.0);
+                                if (fractionalToCartesianD(structure, newFrac, newCart))
                                 {
                                     atom.x = newCart.x;
                                     atom.y = newCart.y;
@@ -584,7 +592,22 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                             }
                         }
 
+                        // Selective dynamics: coordinates held fixed in a relaxation.
                         ImGui::TableSetColumnIndex(3);
+                        for (int k = 0; k < 3; ++k)
+                        {
+                            bool fixedAxis = ((atom.fixed >> k) & 1) != 0;
+                            const char* axisLabel[3] = {"x##fixed-x", "y##fixed-y", "z##fixed-z"};
+                            if (k) ImGui::SameLine();
+                            if (ImGui::Checkbox(axisLabel[k], &fixedAxis))
+                            {
+                                atom.fixed = static_cast<std::uint8_t>(fixedAxis ? atom.fixed | (1 << k) : atom.fixed & ~(1 << k));
+                                anyPositionChanged = true;
+                            }
+                            dialogLayout::hint("Held fixed in a relaxation (POSCAR selective dynamics)");
+                        }
+
+                        ImGui::TableSetColumnIndex(4);
                         if (dialogLayout::dangerButton("Delete"))
                             pendingDelete = i;
 

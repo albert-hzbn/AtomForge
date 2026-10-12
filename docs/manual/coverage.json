@@ -2367,7 +2367,7 @@
     },
     {
       "source": "src/ui/EditMenuDialogs.cpp",
-      "sha256": "b4147f961375f920424aad1bf8d910f0d180eca50f213ab3d7dddfe859ecb116",
+      "sha256": "8335541bcbdb07adc2dd357f3810e810a5f63e142ef515ed45fcef12a2891c65",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -2483,11 +2483,11 @@
           "declaration_label": "Coordinates"
         },
         {
-          "line": 563,
+          "line": 568,
           "declaration_label": "##DirectPos"
         },
         {
-          "line": 578,
+          "line": 586,
           "declaration_label": "##CartesianPos"
         }
       ]
