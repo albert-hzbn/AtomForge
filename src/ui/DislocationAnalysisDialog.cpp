@@ -185,6 +185,10 @@ void DislocationAnalysisDialog::drawDialog()
 
     responsive::nextPanel(stackPanels);
     responsive::beginChild("Dislocation analysis results", responsive::size(0, stackPanels ? 520 : 0), false);
+    if (!m_nyeResult.success && !m_vitekResult.success && !m_patternResult.success && !m_dragResult.success && !m_fitResult.success)
+        dialogLayout::emptyState(m_referenceLoaded && m_deformedLoaded
+            ? "Compute any of the analyses on the left; the results appear here."
+            : "Open a reference (undeformed) and a deformed structure with the same atoms, then compute; the results appear here.");
 
     if (m_nyeResult.success)
     {
