@@ -165,6 +165,20 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
         lines = converted.read_text().splitlines()
         assert lines[1].startswith('Lattice="4 0 0 0 4 0 0 0 4"'), (name, lines[1])
         assert [line.split()[0] for line in lines[2:]] == expected, (name, lines)
+    # The space group sets the crystal system; fractions are exact.
+    hcp = root / "hcp.xyz"
+    run("--build", "bulk", "--spacegroup", "194", "--a", "3.21", "--c", "5.21", "--atom", "Mg 1/3 2/3 1/4", "--output", hcp)
+    hcp_lines = hcp.read_text().splitlines()
+    assert hcp_lines[1].startswith('Lattice="3.21 0 0 -1.605 2.779941546 0 0 0 5.21"'), hcp_lines[1]
+    assert hcp_lines[2].split()[1:] == ["0.0000000000", "1.8532943641", "1.3025000000"], hcp_lines[2]
+    run("--build", "bulk", "--system", "cubic", "--spacegroup", "194", "--atom", "Mg 0 0 0", "--output", root / "no.xyz", success=False)
+    # LAMMPS data: written and read back with the same cell and atoms.
+    data = root / "hcp.data"
+    run("--convert", "--input", hcp, "--output", data)
+    assert "1 24.305  # Mg" in data.read_text(), data.read_text()
+    back = root / "hcp_back.xyz"
+    run("--convert", "--input", data, "--output", back, "--format", "xyz")
+    assert back.read_text().splitlines() == hcp_lines, back.read_text()
     # Paths with accented names are read and written (UTF-8 on Windows too).
     accented = root / "døssier é"
     accented.mkdir()

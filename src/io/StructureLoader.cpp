@@ -1250,33 +1250,38 @@ void wrapAtomsIntoPrimaryCell(Structure& structure)
     if (!structure.hasUnitCell || structure.atoms.empty())
         return;
 
-    const glm::vec3 origin(0.0f, 0.0f, 0.0f);
-    const glm::vec3 a((float)structure.cellVectors[0][0], (float)structure.cellVectors[0][1], (float)structure.cellVectors[0][2]);
-    const glm::vec3 b((float)structure.cellVectors[1][0], (float)structure.cellVectors[1][1], (float)structure.cellVectors[1][2]);
-    const glm::vec3 c((float)structure.cellVectors[2][0], (float)structure.cellVectors[2][1], (float)structure.cellVectors[2][2]);
+    // In double precision, relative to the cell's origin; an atom already
+    // inside the cell keeps its coordinates exactly.
+    const glm::dvec3 origin(structure.cellOffset[0], structure.cellOffset[1], structure.cellOffset[2]);
+    const glm::dvec3 a(structure.cellVectors[0][0], structure.cellVectors[0][1], structure.cellVectors[0][2]);
+    const glm::dvec3 b(structure.cellVectors[1][0], structure.cellVectors[1][1], structure.cellVectors[1][2]);
+    const glm::dvec3 c(structure.cellVectors[2][0], structure.cellVectors[2][1], structure.cellVectors[2][2]);
 
-    const glm::mat3 cellMat(a, b, c);
-    const float det = glm::determinant(cellMat);
-    if (std::abs(det) <= 1e-8f)
+    const glm::dmat3 cellMat(a, b, c);
+    if (std::abs(glm::determinant(cellMat)) <= 1e-8)
         return;
 
-    const glm::mat3 invCellMat = glm::inverse(cellMat);
-    constexpr float kWrapTol = 1e-5f;
+    const glm::dmat3 invCellMat = glm::inverse(cellMat);
+    constexpr double kWrapTol = 1e-5;
 
     for (auto& atom : structure.atoms)
     {
-        glm::vec3 pos((float)atom.x, (float)atom.y, (float)atom.z);
-        glm::vec3 frac = invCellMat * (pos - origin);
+        const glm::dvec3 pos(atom.x, atom.y, atom.z);
+        glm::dvec3 frac = invCellMat * (pos - origin);
+        bool inside = true;
+        for (int k = 0; k < 3; ++k)
+            inside = inside && frac[k] >= -1e-12 && frac[k] < 1.0 - kWrapTol;
+        if (inside)
+            continue;
 
-        frac.x -= std::floor(frac.x);
-        frac.y -= std::floor(frac.y);
-        frac.z -= std::floor(frac.z);
+        for (int k = 0; k < 3; ++k)
+        {
+            frac[k] -= std::floor(frac[k]);
+            // Just below 1 (or a rounding error below 0) is the 0 face.
+            if (std::abs(frac[k]) <= kWrapTol || std::abs(1.0 - frac[k]) <= kWrapTol) frac[k] = 0.0;
+        }
 
-        if (std::abs(frac.x) <= kWrapTol || std::abs(1.0f - frac.x) <= kWrapTol) frac.x = 0.0f;
-        if (std::abs(frac.y) <= kWrapTol || std::abs(1.0f - frac.y) <= kWrapTol) frac.y = 0.0f;
-        if (std::abs(frac.z) <= kWrapTol || std::abs(1.0f - frac.z) <= kWrapTol) frac.z = 0.0f;
-
-        const glm::vec3 wrapped = origin + frac.x * a + frac.y * b + frac.z * c;
+        const glm::dvec3 wrapped = origin + frac.x * a + frac.y * b + frac.z * c;
         atom.x = wrapped.x;
         atom.y = wrapped.y;
         atom.z = wrapped.z;

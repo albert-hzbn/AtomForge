@@ -46,7 +46,8 @@ void printHelpBulk()
 "  --alpha <deg>               Cell angle alpha          (default: 90)\n"
 "  --beta  <deg>               Cell angle beta           (default: 90)\n"
 "  --gamma <deg>               Cell angle gamma          (default: 90)\n"
-"  --atom  \"SYMBOL fx fy fz\"   Asymmetric unit atom (fractional coords).\n"
+"  --atom  \"SYMBOL fx fy fz\"   Asymmetric unit atom (fractional coords,\n"
+"                               decimals or fractions such as 1/3).\n"
 "                               May be repeated for multiple atoms.\n"
 "                               Example: --atom \"Cu 0 0 0\"\n"
 "  --output <file>             Output file (format from extension)\n"
@@ -55,6 +56,32 @@ void printHelpBulk()
 "  AtomForge --build bulk --system cubic --spacegroup 225 ^\n"
 "            --a 3.61 --atom \"Cu 0 0 0\" --output cu_fcc.cif\n"
 << std::endl;
+}
+
+// A fractional coordinate as a decimal or a fraction ("0.25", "1/3", "-2/3").
+static bool parseFraction(const std::string& text, double& value)
+{
+    try
+    {
+        std::size_t used = 0;
+        const std::size_t slash = text.find('/');
+        if (slash == std::string::npos)
+        {
+            value = std::stod(text, &used);
+            return used == text.size() && std::isfinite(value);
+        }
+        const double numerator = std::stod(text.substr(0, slash), &used);
+        if (used != slash) return false;
+        const std::string rest = text.substr(slash + 1);
+        const double denominator = std::stod(rest, &used);
+        if (used != rest.size() || denominator == 0.0) return false;
+        value = numerator / denominator;
+        return std::isfinite(value);
+    }
+    catch (const std::exception&)
+    {
+        return false;
+    }
 }
 
 int runBulk(int argc, char* argv[])
@@ -126,12 +153,13 @@ int runBulk(int argc, char* argv[])
     for (const auto& str : atomStrs)
     {
         std::istringstream iss(str);
-        std::string sym;
-        double fx, fy, fz;
-        if (!(iss >> sym >> fx >> fy >> fz))
+        std::string sym, tx, ty, tz, extra;
+        double fx = 0, fy = 0, fz = 0;
+        if (!(iss >> sym >> tx >> ty >> tz) || (iss >> extra) ||
+            !parseFraction(tx, fx) || !parseFraction(ty, fy) || !parseFraction(tz, fz))
         {
             std::cerr << "Error: cannot parse --atom value '" << str
-                      << "'.  Expected: \"SYMBOL fx fy fz\"\n";
+                      << "'.  Expected: \"SYMBOL fx fy fz\" (decimals or fractions such as 1/3)\n";
             return 1;
         }
         int z = atomicNumberFromSymbol(sym);
