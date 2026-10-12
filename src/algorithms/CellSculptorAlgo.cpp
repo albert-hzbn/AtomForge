@@ -292,11 +292,14 @@ Structure cscBuildSupercell(const Structure& source, int nx, int ny, int nz)
         (float)cv[0][0], (float)cv[0][1], (float)cv[0][2],
         (float)cv[1][0], (float)cv[1][1], (float)cv[1][2],
         (float)cv[2][0], (float)cv[2][1], (float)cv[2][2]);
-    const glm::mat3 Ainv   = glm::inverse(A);
     const glm::vec3 origin((float)source.cellOffset[0],
                             (float)source.cellOffset[1],
                             (float)source.cellOffset[2]);
 
+    const glm::dvec3 aD(cv[0][0], cv[0][1], cv[0][2]), bD(cv[1][0], cv[1][1], cv[1][2]), cD(cv[2][0], cv[2][1], cv[2][2]);
+    const glm::dvec3 originD(source.cellOffset[0], source.cellOffset[1], source.cellOffset[2]);
+    const glm::dmat3 AD(aD, bD, cD);
+    const glm::dmat3 AinvD = std::abs(glm::determinant(AD)) > 1e-12 ? glm::inverse(AD) : glm::dmat3(1.0);
     sc.atoms.reserve(source.atoms.size() * (size_t)(nx * ny * nz));
     for (int ia = ia_min; ia < ia_max; ++ia)
     for (int ib = ib_min; ib < ib_max; ++ib)
@@ -314,14 +317,14 @@ Structure cscBuildSupercell(const Structure& source, int nx, int ny, int nz)
             // exactly 1.0, or atoms moved by the editor) are placed correctly.
             if (source.hasUnitCell)
             {
-                const glm::vec3 cart((float)a.x, (float)a.y, (float)a.z);
-                glm::vec3 frac = Ainv * (cart - origin);
-                for (int i = 0; i < 3; ++i)
-                    frac[i] -= std::floor(frac[i]);
-                const glm::vec3 wrapped = A * frac + origin;
-                a.x = (double)wrapped.x;
-                a.y = (double)wrapped.y;
-                a.z = (double)wrapped.z;
+                // By whole cell vectors in double precision, so coordinates
+                // keep every digit.
+                const glm::dvec3 frac = AinvD * (glm::dvec3(a.x, a.y, a.z) - originD);
+                const glm::dvec3 cells = glm::floor(frac);
+                const glm::dvec3 shift = cells.x * aD + cells.y * bD + cells.z * cD;
+                a.x -= shift.x;
+                a.y -= shift.y;
+                a.z -= shift.z;
             }
 
             a.x += tx; a.y += ty; a.z += tz;
@@ -436,6 +439,34 @@ Structure cscApplySlabs(const Structure& sc,
     else
     {
         result.hasUnitCell = false;
+    }
+
+    // The planes are solved in single precision: a cell vector or corner
+    // within 1e-3 A of a translation of the source lattice (including the
+    // centring ones, in twelfths of the cell vectors) is that translation
+    // exactly (3.61, not 3.6099999).
+    if (result.hasUnitCell && source.hasUnitCell)
+    {
+        const auto& scv = source.cellVectors;
+        const glm::dmat3 lattice(glm::dvec3(scv[0][0], scv[0][1], scv[0][2]),
+                                 glm::dvec3(scv[1][0], scv[1][1], scv[1][2]),
+                                 glm::dvec3(scv[2][0], scv[2][1], scv[2][2]));
+        if (std::abs(glm::determinant(lattice)) > 1e-12)
+        {
+            const glm::dmat3 toLattice = glm::inverse(lattice);
+            const auto snap = [&](glm::dvec3 v, double tolerance) {
+                const glm::dvec3 exact = lattice * (glm::round(toLattice * v * 12.0) / 12.0);
+                return glm::length(exact - v) < tolerance ? exact : v;
+            };
+            for (int j = 0; j < 3; ++j)
+            {
+                const glm::dvec3 v = snap(glm::dvec3(result.cellVectors[j][0], result.cellVectors[j][1], result.cellVectors[j][2]), 1e-3);
+                result.cellVectors[j] = {v.x, v.y, v.z};
+            }
+            const glm::dvec3 sourceOrigin(source.cellOffset[0], source.cellOffset[1], source.cellOffset[2]);
+            const glm::dvec3 corner = sourceOrigin + snap(glm::dvec3(result.cellOffset[0], result.cellOffset[1], result.cellOffset[2]) - sourceOrigin, 1e-3);
+            result.cellOffset = {corner.x, corner.y, corner.z};
+        }
     }
 
     // Remove duplicate atoms after final cell assignment.
