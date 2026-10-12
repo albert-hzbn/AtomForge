@@ -1698,40 +1698,42 @@ void FileBrowser::draw(Structure& structure,
     {
         if (!structure.hasUnitCell)
         {
-            ImGui::TextDisabled("Current structure has no unit cell. Lattice planes are unavailable.");
-            if (responsive::button("Close", responsive::size(120,0)))
+            dialogLayout::note(dialogLayout::Note::Info, "Lattice planes need a unit cell, and this structure has none.");
+            if (dialogLayout::footer("Close", nullptr) == 1)
                 ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }
         else
         {
             ImGui::Checkbox("Show lattice planes", &showLatticePlanes);
-            ImGui::TextDisabled("Live edit enabled: HKL and offset updates are shown immediately.");
-            ImGui::Separator();
+            ImGui::TextDisabled("Planes update in the view as you edit them.");
 
-            ImGui::Text("New plane:");
+            dialogLayout::section("New Plane");
             ImGui::SetNextItemWidth(responsive::dp(85.0f));
-            ImGui::DragInt("H##plane", &latticePlaneInputH, 0.2f, -50, 50);
+            ImGui::DragInt("h##plane", &latticePlaneInputH, 0.2f, -50, 50);
             ImGui::SameLine();
             ImGui::SetNextItemWidth(responsive::dp(85.0f));
-            ImGui::DragInt("K##plane", &latticePlaneInputK, 0.2f, -50, 50);
+            ImGui::DragInt("k##plane", &latticePlaneInputK, 0.2f, -50, 50);
             ImGui::SameLine();
             ImGui::SetNextItemWidth(responsive::dp(85.0f));
-            ImGui::DragInt("L##plane", &latticePlaneInputL, 0.2f, -50, 50);
+            ImGui::DragInt("l##plane", &latticePlaneInputL, 0.2f, -50, 50);
 
             ImGui::SetNextItemWidth(responsive::dp(210.0f));
             ImGui::DragFloat("Offset n##plane", &latticePlaneInputOffset, 0.01f, -50.0f, 50.0f, "%.3f");
             ImGui::SetNextItemWidth(responsive::dp(210.0f));
             ImGui::SliderFloat("Opacity##plane", &latticePlaneInputOpacity, 0.0f, 1.0f, "%.2f");
             ImGui::SameLine();
-            ImGui::ColorEdit3("Color##plane", latticePlaneInputColor, ImGuiColorEditFlags_NoInputs);
+            ImGui::ColorEdit3("Colour##plane", latticePlaneInputColor, ImGuiColorEditFlags_NoInputs);
 
             const bool invalidMiller =
                 (latticePlaneInputH == 0 && latticePlaneInputK == 0 && latticePlaneInputL == 0);
             if (invalidMiller)
-                ImGui::TextDisabled("(h, k, l) cannot all be zero.");
+                dialogLayout::note(dialogLayout::Note::Warning, "h, k and l cannot all be zero.");
 
-            if ((responsive::button("Add Plane", responsive::size(140.0f,0.0f)) || uiScript::take("lattice.add")) && !invalidMiller)
+            ImGui::BeginDisabled(invalidMiller);
+            const bool addPlane = dialogLayout::secondaryButton("Add Plane", responsive::size(140.0f,0.0f));
+            ImGui::EndDisabled();
+            if ((addPlane || uiScript::take("lattice.add")) && !invalidMiller)
             {
                 LatticePlane plane;
                 plane.h = latticePlaneInputH;
@@ -1749,8 +1751,7 @@ void FileBrowser::draw(Structure& structure,
                 showLatticePlanes = true;
             }
 
-            ImGui::Separator();
-            ImGui::Text("Saved planes:");
+            dialogLayout::section("Planes");
 
             if (latticePlanes.empty())
             {
@@ -1769,19 +1770,19 @@ void FileBrowser::draw(Structure& structure,
                     ImGui::Text("Plane %d", (int)i + 1);
 
                     ImGui::SetNextItemWidth(responsive::dp(80.0f));
-                    ImGui::DragInt("H##plane-h", &plane.h, 0.2f, -50, 50);
+                    ImGui::DragInt("h##plane-h", &plane.h, 0.2f, -50, 50);
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(responsive::dp(80.0f));
-                    ImGui::DragInt("K##plane-k", &plane.k, 0.2f, -50, 50);
+                    ImGui::DragInt("k##plane-k", &plane.k, 0.2f, -50, 50);
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(responsive::dp(80.0f));
-                    ImGui::DragInt("L##plane-l", &plane.l, 0.2f, -50, 50);
+                    ImGui::DragInt("l##plane-l", &plane.l, 0.2f, -50, 50);
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(responsive::dp(120.0f));
                     ImGui::DragFloat("n##plane-offset", &plane.offset, 0.01f, -50.0f, 50.0f, "%.3f");
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(responsive::dp(95.0f));
-                    ImGui::SliderFloat("a##plane-opacity", &plane.opacity, 0.0f, 1.0f, "%.2f");
+                    ImGui::SliderFloat("opacity##plane-opacity", &plane.opacity, 0.0f, 1.0f, "%.2f");
 
                     if (plane.h == 0 && plane.k == 0 && plane.l == 0)
                         plane.h = 1;
@@ -1795,7 +1796,7 @@ void FileBrowser::draw(Structure& structure,
                     }
 
                     ImGui::SameLine();
-                    if (responsive::button("Delete"))
+                    if (dialogLayout::dangerButton("Delete"))
                         deleteIndex = (int)i;
 
                     ImGui::Separator();
@@ -1809,8 +1810,7 @@ void FileBrowser::draw(Structure& structure,
                 ImGui::EndChild();
             }
 
-            ImGui::Spacing();
-            if (responsive::button("Close", responsive::size(120,0)))
+            if (dialogLayout::footer("Close", nullptr) == 1)
                 ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }
@@ -1831,8 +1831,8 @@ void FileBrowser::draw(Structure& structure,
     {
         if (!structure.hasUnitCell)
         {
-            ImGui::TextDisabled("Current structure has no unit cell. Miller directions are unavailable.");
-            if (responsive::button("Close", responsive::size(120,0)))
+            dialogLayout::note(dialogLayout::Note::Info, "Miller directions need a unit cell, and this structure has none.");
+            if (dialogLayout::footer("Close", nullptr) == 1)
                 ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }
@@ -1840,29 +1840,31 @@ void FileBrowser::draw(Structure& structure,
         {
             ImGui::Checkbox("Show Miller directions", &showMillerDirections);
             ImGui::TextDisabled("Arrows are drawn from the cell origin along the [uvw] direction.");
-            ImGui::Separator();
 
-            ImGui::Text("New direction:");
+            dialogLayout::section("New Direction");
             ImGui::SetNextItemWidth(responsive::dp(85.0f));
-            ImGui::DragInt("U##dir", &millerDirInputU, 0.2f, -50, 50);
+            ImGui::DragInt("u##dir", &millerDirInputU, 0.2f, -50, 50);
             ImGui::SameLine();
             ImGui::SetNextItemWidth(responsive::dp(85.0f));
-            ImGui::DragInt("V##dir", &millerDirInputV, 0.2f, -50, 50);
+            ImGui::DragInt("v##dir", &millerDirInputV, 0.2f, -50, 50);
             ImGui::SameLine();
             ImGui::SetNextItemWidth(responsive::dp(85.0f));
-            ImGui::DragInt("W##dir", &millerDirInputW, 0.2f, -50, 50);
+            ImGui::DragInt("w##dir", &millerDirInputW, 0.2f, -50, 50);
 
             ImGui::SetNextItemWidth(responsive::dp(210.0f));
-            ImGui::DragFloat("Length (A)##dir", &millerDirInputLength, 0.1f, 0.5f, 100.0f, "%.1f");
+            ImGui::DragFloat("Length (\xc3\x85)##dir", &millerDirInputLength, 0.1f, 0.5f, 100.0f, "%.1f");
             ImGui::SameLine();
-            ImGui::ColorEdit3("Color##dir", millerDirInputColor, ImGuiColorEditFlags_NoInputs);
+            ImGui::ColorEdit3("Colour##dir", millerDirInputColor, ImGuiColorEditFlags_NoInputs);
 
             const bool invalidDir =
                 (millerDirInputU == 0 && millerDirInputV == 0 && millerDirInputW == 0);
             if (invalidDir)
-                ImGui::TextDisabled("(u, v, w) cannot all be zero.");
+                dialogLayout::note(dialogLayout::Note::Warning, "u, v and w cannot all be zero.");
 
-            if ((responsive::button("Add Direction", responsive::size(140.0f,0.0f)) || uiScript::take("miller.add")) && !invalidDir)
+            ImGui::BeginDisabled(invalidDir);
+            const bool addDirection = dialogLayout::secondaryButton("Add Direction", responsive::size(140.0f,0.0f));
+            ImGui::EndDisabled();
+            if ((addDirection || uiScript::take("miller.add")) && !invalidDir)
             {
                 MillerDirection md;
                 md.u = millerDirInputU;
@@ -1875,8 +1877,7 @@ void FileBrowser::draw(Structure& structure,
                 showMillerDirections = true;
             }
 
-            ImGui::Separator();
-            ImGui::Text("Saved directions:");
+            dialogLayout::section("Directions");
 
             if (millerDirections.empty())
             {
@@ -1892,19 +1893,19 @@ void FileBrowser::draw(Structure& structure,
 
                     ImGui::Checkbox("##vis", &md.visible);
                     ImGui::SameLine();
-                    ImGui::Text("Dir %d", (int)i + 1);
+                    ImGui::Text("Direction %d", (int)i + 1);
 
                     ImGui::SetNextItemWidth(responsive::dp(80.0f));
-                    ImGui::DragInt("U##du", &md.u, 0.2f, -50, 50);
+                    ImGui::DragInt("u##du", &md.u, 0.2f, -50, 50);
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(responsive::dp(80.0f));
-                    ImGui::DragInt("V##dv", &md.v, 0.2f, -50, 50);
+                    ImGui::DragInt("v##dv", &md.v, 0.2f, -50, 50);
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(responsive::dp(80.0f));
-                    ImGui::DragInt("W##dw", &md.w, 0.2f, -50, 50);
+                    ImGui::DragInt("w##dw", &md.w, 0.2f, -50, 50);
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth(responsive::dp(100.0f));
-                    ImGui::DragFloat("L##dl", &md.length, 0.1f, 0.5f, 100.0f, "%.1f");
+                    ImGui::DragFloat("\xc3\x85##dl", &md.length, 0.1f, 0.5f, 100.0f, "%.1f");
 
                     if (md.u == 0 && md.v == 0 && md.w == 0)
                         md.u = 1;
@@ -1918,7 +1919,7 @@ void FileBrowser::draw(Structure& structure,
                         md.color[2] = col[2];
                     }
                     ImGui::SameLine();
-                    if (responsive::button("Delete##ddel"))
+                    if (dialogLayout::dangerButton("Delete##ddel"))
                         deleteIndex = (int)i;
 
                     ImGui::Separator();
@@ -1931,8 +1932,7 @@ void FileBrowser::draw(Structure& structure,
                 ImGui::EndChild();
             }
 
-            ImGui::Spacing();
-            if (responsive::button("Close##dclose", responsive::size(120,0)))
+            if (dialogLayout::footer("Close", nullptr) == 1)
                 ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }
@@ -1951,12 +1951,11 @@ void FileBrowser::draw(Structure& structure,
     bool polyhedralSettingsOpen = true;
     if (responsive::beginModal("Polyhedral Settings", &polyhedralSettingsOpen, ImGuiWindowFlags_AlwaysAutoResize))
     {
+        dialogLayout::section("Polyhedra");
         ImGui::SetNextItemWidth(responsive::dp(240.0f));
         ImGui::SliderInt("Max displayed centers", &polyhedralSettings.maxDisplayedCenters, 1, 2000);
         ImGui::SetNextItemWidth(responsive::dp(240.0f));
         ImGui::SliderInt("Nearest neighbors", &polyhedralSettings.maxNeighborCandidates, 4, 64);
-
-        ImGui::Separator();
 
         if (ImGui::Checkbox("Specify center atom indices", &polyhedralSettings.centerAtomIndexFilterEnabled)
             && polyhedralSettings.centerAtomIndexFilterEnabled)
@@ -1976,16 +1975,14 @@ void FileBrowser::draw(Structure& structure,
             ImGui::TextDisabled("Parsed centers: %d", (int)polyhedralSettings.centerAtomIndices.size());
         }
 
-        ImGui::Separator();
-
+        dialogLayout::section("Appearance");
         ImGui::Checkbox("Show polyhedral edges", &polyhedralSettings.showEdges);
         ImGui::SetNextItemWidth(responsive::dp(220.0f));
         ImGui::SliderFloat("Face opacity", &polyhedralSettings.faceOpacity, 0.00f, 1.00f, "%.2f");
         ImGui::SetNextItemWidth(responsive::dp(220.0f));
         ImGui::SliderFloat("Edge opacity", &polyhedralSettings.edgeOpacity, 0.00f, 1.00f, "%.2f");
 
-        ImGui::Separator();
-
+        dialogLayout::section("Elements");
         if (ImGui::Checkbox("Filter center elements", &polyhedralSettings.centerElementFilterEnabled)
             && polyhedralSettings.centerElementFilterEnabled)
         {
@@ -2024,16 +2021,15 @@ void FileBrowser::draw(Structure& structure,
             ImGui::TextDisabled("Comma-separated symbols, e.g. O,N,S,F");
         }
 
-        ImGui::Separator();
-        if (responsive::button("Reset Defaults", responsive::size(150.0f,0.0f)))
+        const int polyhedralPressed = dialogLayout::footer("Close", "Reset Defaults");
+        if (polyhedralPressed == 2)
         {
             polyhedralSettings = PolyhedralOverlaySettings{};
             polyhedralCenterAtomIndexInput[0] = '\0';
             polyhedralCenterFilterInput[0] = '\0';
             polyhedralLigandFilterInput[0] = '\0';
         }
-        ImGui::SameLine(responsive::dp(0.0f), 8.0f);
-        if (responsive::button("Close##polySettings", responsive::size(120.0f,0.0f)))
+        if (polyhedralPressed == 1)
             ImGui::CloseCurrentPopup();
 
         ImGui::EndPopup();
