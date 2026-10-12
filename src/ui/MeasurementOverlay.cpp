@@ -526,11 +526,16 @@ void processMeasurementRequests(MeasurementOverlayState& state,
                                          elementName(atom.atomicNumber), atom.symbol.c_str());
                     len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
                                          "Atomic number:  %d\n", atom.atomicNumber);
+                    len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                                         "Index:  #%d\n", baseIdx);
                 }
 
+                // Positions come from the float render buffers: five decimals,
+                // and rounding noise ("-0.00000") as zero.
+                const auto shown = [](float v) { return std::abs(v) < 5e-6f ? 0.0f : v; };
                 len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
-                                     "Cartesian:  (%.6f, %.6f, %.6f) \xc3\x85\n",
-                                     pos.x, pos.y, pos.z);
+                                     "Cartesian:  (%.5f, %.5f, %.5f) \xc3\x85\n",
+                                     shown(pos.x), shown(pos.y), shown(pos.z));
 
                 if (structure.hasUnitCell)
                 {
@@ -543,8 +548,8 @@ void processMeasurementRequests(MeasurementOverlayState& state,
                                          (float)structure.cellOffset[2]);
                         glm::vec3 frac = invCellMat * (pos - origin);
                         std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
-                                      "Direct:  (%.6f, %.6f, %.6f)",
-                                      frac.x, frac.y, frac.z);
+                                      "Direct:  (%.5f, %.5f, %.5f)",
+                                      shown(frac.x), shown(frac.y), shown(frac.z));
                         len = (int)std::strlen(state.atomInfoMessage);
                     }
                 }
