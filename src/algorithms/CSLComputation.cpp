@@ -731,15 +731,16 @@ bool reduceToPrimitive(Structure& s, double symprec)
 
     int natom = (int)s.atoms.size();
 
+    // spglib takes the cell vectors as columns; AtomForge stores them as rows.
     double lattice[3][3];
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
-            lattice[i][j] = s.cellVectors[i][j];
+            lattice[i][j] = s.cellVectors[j][i];
 
     M3 cellM;
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
-            cellM[i][j] = lattice[i][j];
+            cellM[i][j] = s.cellVectors[i][j];
     M3 cellInv = inv3(cellM);
 
     std::vector<double> positions(natom * 3);
@@ -775,7 +776,7 @@ bool reduceToPrimitive(Structure& s, double symprec)
 
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
-            s.cellVectors[i][j] = lattice[i][j];
+            s.cellVectors[i][j] = lattice[j][i];
 
     struct ElemInfo { std::string sym; float r, g, b; };
     std::map<int, ElemInfo> zInfo;
@@ -789,7 +790,7 @@ bool reduceToPrimitive(Structure& s, double symprec)
         double cart[3] = {0, 0, 0};
         for (int j = 0; j < 3; j++)
             for (int i = 0; i < 3; i++)
-                cart[j] += frac[i] * lattice[i][j];
+                cart[j] += frac[i] * s.cellVectors[i][j];
         newAtoms[ai].x = cart[0];
         newAtoms[ai].y = cart[1];
         newAtoms[ai].z = cart[2];

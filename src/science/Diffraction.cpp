@@ -115,6 +115,12 @@ ToolOutput powderXrd(const StructureInput& structure, const Parameters& p)
     struct Peak { double twoTheta, d, intensity; std::vector<std::array<int, 3>> hkls; };
     std::map<long long, Peak> peaks;
     const auto all = reflections(c, gMax);
+    // Reflections whose structure factor vanishes (absences, and those of a
+    // supercell that the crystal's lattice does not have) are not counted in
+    // a peak's multiplicity.
+    double electrons = 0;
+    for (const auto& atom : structure.structure.atoms) electrons += atom.atomicNumber;
+    const double vanishing = 1e-10 * std::max(1.0, electrons * electrons);
     for (std::size_t n = 0; n < all.size(); ++n) {
         if (n % 512 == 0) taskProgress(static_cast<double>(n) / static_cast<double>(all.size()));
         const auto& hkl = all[n];
@@ -128,7 +134,7 @@ ToolOutput powderXrd(const StructureInput& structure, const Parameters& p)
         auto& peak = peaks[key];
         if (peak.hkls.empty()) { peak.twoTheta = twoTheta; peak.d = 1 / g; }
         peak.intensity += std::norm(f) * lorentz;
-        peak.hkls.push_back(hkl);
+        if (std::norm(f) > vanishing) peak.hkls.push_back(hkl);
     }
     double maximum = 0;
     for (const auto& [key, peak] : peaks) maximum = std::max(maximum, peak.intensity);
@@ -156,7 +162,7 @@ ToolOutput powderXrd(const StructureInput& structure, const Parameters& p)
     std::vector<std::pair<double, double>> kept;
     for (const auto& [key, peak] : peaks) {
         const double scaled = maximum > 0 ? 100 * peak.intensity / maximum : 0;
-        if (scaled < 1e-3) continue;  // systematic absences and negligible peaks
+        if (scaled < 1e-3 || peak.hkls.empty()) continue;  // systematic absences and negligible peaks
         auto representative = *std::max_element(peak.hkls.begin(), peak.hkls.end(), canonicalLess);
         Json entry = Json::object();
         entry["two_theta_deg"] = peak.twoTheta;

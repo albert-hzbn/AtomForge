@@ -138,7 +138,34 @@ int runBulk(int argc, char* argv[])
     lp.alpha = argDouble(argc, argv, "--alpha", 90.0);
     lp.beta  = argDouble(argc, argv, "--beta",  90.0);
     lp.gamma = argDouble(argc, argv, "--gamma", 90.0);
+    // A value the crystal system fixes is refused rather than overwritten.
+    const LatticeParameters given = lp;
     applySystemConstraints(system, lp);
+    {
+        const struct { const char* flag; double typed, fixed; } checks[] = {
+            {"--b", given.b, lp.b}, {"--c", given.c, lp.c},
+            {"--alpha", given.alpha, lp.alpha}, {"--beta", given.beta, lp.beta}, {"--gamma", given.gamma, lp.gamma}};
+        for (const auto& check : checks)
+        {
+            if (!findArg(argc, argv, check.flag) || std::abs(check.typed - check.fixed) <= 1e-6 * std::max(1.0, std::abs(check.fixed)))
+                continue;
+            std::string label = crystalSystemLabel(system);
+            for (char& ch : label) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            std::cerr << "Error: a " << label << " cell has " << (check.flag + 2) << " = " << check.fixed
+                      << ", not " << check.typed << "; leave out " << check.flag << ".";
+            if (system == CrystalSystem::Trigonal && given.alpha == given.beta && given.beta == given.gamma && given.alpha != 90.0)
+            {
+                // Rhombohedral axes to the hexagonal ones the builder uses.
+                const double alpha = given.alpha * 3.14159265358979323846 / 180.0;
+                std::cerr << " Trigonal groups are built on hexagonal axes: rhombohedral a = " << given.a << ", alpha = "
+                          << given.alpha << " is --a " << 2.0 * given.a * std::sin(alpha / 2.0) << " --c "
+                          << given.a * std::sqrt(3.0 * (1.0 + 2.0 * std::cos(alpha)))
+                          << " (with the sites in hexagonal coordinates).";
+            }
+            std::cerr << "\n";
+            return 1;
+        }
+    }
 
     // Validate
     std::string validErr;

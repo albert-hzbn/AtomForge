@@ -405,7 +405,11 @@ BulkBuildResult buildBulkCrystal(Structure& structure,
             {
                 if (generatedAtoms[existingIndex].atomicNumber != basisAtom.atomicNumber)
                     continue;
-                if (sameFractionalPosition(transformed, generatedFrac[existingIndex], 1e-5))
+                // Within 0.01 A: the same site, typed with rounded fractions
+                // (0.3333 for 1/3).
+                glm::dvec3 delta = transformed - generatedFrac[existingIndex];
+                delta -= glm::round(delta);
+                if (glm::length(a * delta.x + b * delta.y + c * delta.z) < 0.01)
                 {
                     duplicate = true;
                     break;

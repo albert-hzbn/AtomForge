@@ -1510,6 +1510,9 @@ int main()
         check(superFirst.at("hkl").items()[0].number() == 2 && superFirst.contains("hkl_conventional") &&
               superFirst.at("hkl_conventional").items()[0].number() == 1 && superFirst.at("hkl_conventional").items()[1].number() == 1 &&
               superFirst.at("hkl_conventional").items()[2].number() == 1, "supercell peaks indexed in the conventional cell");
+        for (int i = 0; i < 5; ++i)
+            check(super.at("peaks").items()[static_cast<std::size_t>(i)].at("multiplicity").number() == multiplicity[i],
+                  "a supercell's vanishing reflections are not counted in the multiplicity");
         const double i200 = peaks[1].at("intensity").number(), i220 = peaks[2].at("intensity").number(), i311 = peaks[3].at("intensity").number();
         check(i200 > 35 && i200 < 60 && i220 > 12 && i220 < 35 && i311 > 12 && i311 < 35, "Cu relative intensities (200 " + std::to_string(i200) + ")");
         // Rock salt: (111) is the weak difference reflection, (200) the strongest.

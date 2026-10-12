@@ -194,6 +194,22 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
         built = run("--build", "bulk", "--spacegroup", "227", "--a", "5.431", "--atom", site, "--origin", origin, "--output", silicon)
         assert f"origin choice {origin}" in built.stdout and silicon.read_text().splitlines()[0] == "8", (built.stdout, silicon.read_text())
     run("--build", "bulk", "--spacegroup", "225", "--atom", "Cu 0 0 0", "--origin", "2", "--output", root / "no.xyz", success=False)
+    # Rounded fractions (0.3333 for 1/3) are one site; a value the crystal
+    # system fixes is refused rather than overwritten.
+    boron = root / "boron.xyz"
+    run("--build", "bulk", "--spacegroup", "191", "--a", "3", "--c", "3", "--atom", "B 0.3333 0.6667 0", "--output", boron)
+    assert boron.read_text().splitlines()[0] == "2", boron.read_text()
+    refused = run("--build", "bulk", "--spacegroup", "166", "--a", "4.75", "--alpha", "57.2", "--beta", "57.2", "--gamma", "57.2",
+                  "--atom", "Bi 0.237 0.237 0.237", "--output", root / "no.xyz", success=False)
+    assert "hexagonal axes" in refused.stderr and "--a 4.54757" in refused.stderr, refused.stderr
+    # The primitive cell of hcp keeps its shape (a = b, gamma = 120).
+    titanium = root / "ti.vasp"
+    run("--build", "bulk", "--spacegroup", "194", "--a", "2.95", "--c", "4.68", "--atom", "Ti 1/3 2/3 1/4", "--output", titanium)
+    primitive = root / "ti_primitive.xyz"
+    run("--build", "primitive", "--input", titanium, "--output", primitive)
+    lattice = [float(v) for v in primitive.read_text().splitlines()[1].split('"')[1].split()]
+    lengths = [sum(x * x for x in lattice[3 * k:3 * k + 3]) ** 0.5 for k in range(3)]
+    assert sorted(round(v, 6) for v in lengths) == [2.95, 2.95, 4.68], lengths
     # LAMMPS data: written and read back with the same cell and atoms.
     data = root / "hcp.data"
     run("--convert", "--input", hcp, "--output", data)
