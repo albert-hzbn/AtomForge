@@ -47,7 +47,10 @@ void validateKeys(const ScienceToolDef& tool, const Json& request)
                                      suggest::didYouMean(member.first, known) + "; it takes " + suggest::list(known));
     for (const auto& parameter : tool.parameters)
         if (parameter.required && !request.contains(parameter.name))
-            throw std::runtime_error(std::string(tool.id) + " requires parameter '" + parameter.name + "'");
+            throw std::runtime_error(std::string(tool.id) + " requires parameter '" + parameter.name + "'" +
+                                     (parameter.value && *parameter.value
+                                          ? std::string(", for example \"") + parameter.name + "\": " + parameter.value
+                                          : std::string()));
 }
 
 DynamicsOptions dynamicsOptions(const Parameters& p, bool npt)
