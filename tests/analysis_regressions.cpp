@@ -147,6 +147,27 @@ int main()
         }
     }
 
+    {
+        // The one-atom primitive FCC cell (60 degree angles): one octahedral
+        // and two tetrahedral sites, found through the true nearest images.
+        Structure primitive;
+        primitive.hasUnitCell = true;
+        primitive.cellVectors = {{{0, .5, .5}, {.5, 0, .5}, {.5, .5, 0}}};
+        AtomSite atom = iron; atom.x = atom.y = atom.z = 0;
+        primitive.atoms = {atom};
+        InterstitialVoidDetectionParams voidParams;
+        voidParams.minClearance = 0.3f;
+        voidParams.minSeparation = 0.2f;
+        const auto voids = detectInterstitialVoidRegions(primitive, voidParams);
+        int octahedral = 0, tetrahedral = 0;
+        for (const auto& region : voids.regions) {
+            if (region.coordination == 6 && std::abs(region.clearance - 0.5f) < 1e-3f) ++octahedral;
+            if (region.coordination == 4 && std::abs(region.clearance - 0.4330f) < 1e-3f) ++tetrahedral;
+        }
+        check(octahedral == 1 && tetrahedral == 2 && voids.regions.size() == 3,
+              "Primitive FCC cell must give one octahedral and two tetrahedral sites, no false ones");
+    }
+
     for (int repeat : {4, 1}) {
         Structure hcp;
         const double root3=std::sqrt(3.0),height=std::sqrt(8.0/3);

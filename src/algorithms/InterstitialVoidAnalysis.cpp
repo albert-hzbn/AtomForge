@@ -98,6 +98,28 @@ bool computeCircumsphere(const glm::vec3& a,
     return std::isfinite(radius);
 }
 
+// The shortest periodic image of a separation. Rounding fractional
+// coordinates (minimumImageDelta) misses it in a small or skewed cell when
+// the distance nears half the cell width; `exact` also tries the 26
+// neighbouring images.
+glm::vec3 nearestImage(const glm::vec3& d, bool usePbc, const glm::mat3& cell, const glm::mat3& invCell, bool exact)
+{
+    const glm::vec3 base = minimumImageDelta(d, usePbc, cell, invCell);
+    if (!usePbc || !exact)
+        return base;
+    glm::vec3 best = base;
+    float bestLength = glm::dot(base, base);
+    for (int a = -1; a <= 1; ++a)
+        for (int b = -1; b <= 1; ++b)
+            for (int c = -1; c <= 1; ++c)
+            {
+                const glm::vec3 candidate = base + cell * glm::vec3((float)a, (float)b, (float)c);
+                const float length = glm::dot(candidate, candidate);
+                if (length < bestLength) { best = candidate; bestLength = length; }
+            }
+    return best;
+}
+
 std::vector<NeighborShellPoint> buildFirstNeighborShell(
     const glm::vec3& center,
     const std::vector<glm::vec3>& atomPos,
@@ -105,7 +127,8 @@ std::vector<NeighborShellPoint> buildFirstNeighborShell(
     const glm::mat3& cell,
     const glm::mat3& invCell,
     float shellFactor,
-    int maxNeighborCount)
+    int maxNeighborCount,
+    bool exactImages = false)
 {
     struct DistAtom
     {
@@ -119,7 +142,7 @@ std::vector<NeighborShellPoint> buildFirstNeighborShell(
     float minD2 = std::numeric_limits<float>::max();
     for (int ai = 0; ai < (int)atomPos.size(); ++ai)
     {
-        const glm::vec3 delta = minimumImageDelta(atomPos[(size_t)ai] - center, usePbc, cell, invCell);
+        const glm::vec3 delta = nearestImage(atomPos[(size_t)ai] - center, usePbc, cell, invCell, exactImages);
         const float d2 = glm::dot(delta, delta);
         minD2 = std::min(minD2, d2);
         near.push_back({d2, ai, center + delta});
@@ -346,11 +369,12 @@ bool buildPolyhedralFacesFromFirstNeighbors(const glm::vec3& center,
             int li1 = verts[t];
             int li2 = verts[t + 1];
 
+            if (glm::dot(glm::cross(shell[(size_t)li1] - shell[(size_t)li0], shell[(size_t)li2] - shell[(size_t)li0]), plane.normal) < 0.0f)
+                std::swap(li1, li2);
+            // The vertices in the face's outward winding, as its indices.
             const glm::vec3& a = shell[(size_t)li0];
             const glm::vec3& b = shell[(size_t)li1];
             const glm::vec3& c = shell[(size_t)li2];
-            if (glm::dot(glm::cross(b - a, c - a), plane.normal) < 0.0f)
-                std::swap(li1, li2);
 
             const int gi0 = shellPoints[(size_t)li0].atomIndex;
             const int gi1 = shellPoints[(size_t)li1].atomIndex;
@@ -477,12 +501,16 @@ InterstitialVoidDetectionResult detectInterstitialVoidRegions(
             if (glm::length(row) > 0.0f) width = std::min(width, 1.0f / glm::length(row));
         }
         const float spacing = std::cbrt(std::abs(glm::determinant(cell)) / (float)std::max<std::size_t>(1, atomPos.size()));
+        // Two cells each way: the pool reaches some 1.9 nearest-neighbour
+        // distances, which can exceed 1.5 plane spacings of a one-atom cell.
         if (width < 4.4f * spacing)
-            for (int a = -1; a <= 1; ++a)
-                for (int b = -1; b <= 1; ++b)
-                    for (int c = -1; c <= 1; ++c)
+            for (int a = -2; a <= 2; ++a)
+                for (int b = -2; b <= 2; ++b)
+                    for (int c = -2; c <= 2; ++c)
                         if (a != 0 || b != 0 || c != 0) imageShifts.push_back(cell * glm::vec3((float)a, (float)b, (float)c));
     }
+    // Small cells also need the true nearest image for every distance.
+    const bool exactImages = imageShifts.size() > 1;
 
     std::vector<InterstitialVoidRegion> regions;
     if (limitVoids)
@@ -686,7 +714,7 @@ InterstitialVoidDetectionResult detectInterstitialVoidRegions(
                 float nearest2 = std::numeric_limits<float>::max();
                 for (const glm::vec3& a : atomPos)
                 {
-                    const glm::vec3 d = minimumImageDelta(p - a, usePbc, cell, invCell);
+                    const glm::vec3 d = nearestImage(p - a, usePbc, cell, invCell, exactImages);
                     nearest2 = std::min(nearest2, glm::dot(d, d));
                 }
 
@@ -758,18 +786,18 @@ InterstitialVoidDetectionResult detectInterstitialVoidRegions(
         float nearest2 = std::numeric_limits<float>::max();
         for (const glm::vec3& a : atomPos)
         {
-            const glm::vec3 d = minimumImageDelta(point - a, usePbc, cell, invCell);
+            const glm::vec3 d = nearestImage(point - a, usePbc, cell, invCell, exactImages);
             nearest2 = std::min(nearest2, glm::dot(d, d));
         }
         return std::sqrt(std::max(0.0f, nearest2));
     };
     const auto shellAt = [&](const glm::vec3& point) {
         std::vector<NeighborShellPoint> shell = buildFirstNeighborShell(
-            point, atomPos, usePbc, cell, invCell, neighborShell, maxNeighbor);
+            point, atomPos, usePbc, cell, invCell, neighborShell, maxNeighbor, exactImages);
         if ((int)shell.size() < 4)
             shell = buildFirstNeighborShell(
                 point, atomPos, usePbc, cell, invCell,
-                std::max(1.5f, neighborShell), std::max(8, maxNeighbor));
+                std::max(1.5f, neighborShell), std::max(8, maxNeighbor), exactImages);
         return shell;
     };
 
@@ -820,7 +848,7 @@ InterstitialVoidDetectionResult detectInterstitialVoidRegions(
                     if (found == siteBins.end()) continue;
                     for (int index : found->second)
                     {
-                        const glm::vec3 d = minimumImageDelta(p - regions[(size_t)index].position, usePbc, cell, invCell);
+                        const glm::vec3 d = nearestImage(p - regions[(size_t)index].position, usePbc, cell, invCell, exactImages);
                         if (glm::dot(d, d) < minSep * minSep) return true;
                     }
                 }
@@ -829,7 +857,7 @@ InterstitialVoidDetectionResult detectInterstitialVoidRegions(
             // Small cells: bins wrap onto themselves; check every site.
             for (const InterstitialVoidRegion& c : regions)
             {
-                const glm::vec3 d = minimumImageDelta(p - c.position, usePbc, cell, invCell);
+                const glm::vec3 d = nearestImage(p - c.position, usePbc, cell, invCell, exactImages);
                 if (glm::dot(d, d) < minSep * minSep) return true;
             }
         }
