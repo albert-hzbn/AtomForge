@@ -197,7 +197,13 @@ class Pipeline:
                 continue
             step_type, _, rest = words.partition(" ")
             if step_type.startswith("build-"):
-                pipeline.steps.append(Step(step_type, {"options": rest.strip()} if rest.strip() else {}))
+                # "build-nano --radius 12" or "build-nano options=--radius 12" (or quoted).
+                options = rest.strip()
+                if options.startswith("options="):
+                    options = options[len("options="):].strip()
+                    if len(options) >= 2 and options[0] == options[-1] and options[0] in "\"'":
+                        options = options[1:-1]
+                pipeline.steps.append(Step(step_type, {"options": options} if options else {}))
             else:
                 pipeline.steps.append(Step.from_json(json.loads(_call("afs_pipeline_parse", words.encode("utf-8")))["modifiers"][0]))
         return pipeline
