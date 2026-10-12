@@ -81,6 +81,8 @@ void LobsterAnalysisDialog::drawDialog()
 
     responsive::nextPanel(stackPanels);
     responsive::beginChild("Lobster results",responsive::size(0,stackPanels?520:0),false);
+    if (m_cohpcar.energies.empty() && m_icohplist.entries.empty())
+        dialogLayout::emptyState("Open a LOBSTER COHPCAR.lobster (bonding curves) or ICOHPLIST.lobster (integrated bond strengths); they appear here.");
     if (!m_cohpcar.energies.empty())
     {
         const std::size_t spin = static_cast<std::size_t>(m_spinChannel);

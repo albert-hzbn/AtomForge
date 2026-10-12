@@ -133,6 +133,9 @@ void WannierAnalysisDialog::drawDialog()
 
     responsive::nextPanel(stackPanels);
     responsive::beginChild("Wannier results",responsive::size(0,stackPanels?520:0),false);
+    if (m_bands.numWann<=0 && m_curvature.empty() && !m_chernComputed)
+        dialogLayout::emptyState(m_loadedPath.empty() ? "Open a Wannier90 seedname_hr.dat, then compute bands, Berry curvature or a Chern number; the results appear here."
+                                                     : "Compute bands, Berry curvature or a Chern number on the left; the results appear here.");
     if (m_bands.numWann>0)
     {
         ImGui::TextWrapped("%d bands, %d k-points along the path (index axis; no reciprocal-lattice distance is stored in seedname_hr.dat).",m_bands.numWann,m_bands.numK);
