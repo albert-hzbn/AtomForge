@@ -11,6 +11,22 @@ if TYPE_CHECKING:
     from .._structure import Structure
 
 
+def _identity_only(rest: str) -> bool:
+    """Whether the symmetry-operation loop values that follow its tag are
+    just the identity (x, y, z), possibly numbered and quoted."""
+    operations = []
+    for line in rest.splitlines()[1:]:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            if operations:
+                break
+            continue
+        if stripped.startswith("_") or stripped.lower().startswith(("loop_", "data_")):
+            break
+        operations.append(re.sub(r"^\d+\s+", "", stripped).strip("'\"").replace(" ", "").lower())
+    return operations == ["x,y,z"]
+
+
 def _load_cif(path: str, *, _expanded=False) -> "Structure":
     """
     Load a CIF file.  Reads cell parameters and the first _atom_site loop.
@@ -24,6 +40,8 @@ def _load_cif(path: str, *, _expanded=False) -> "Structure":
         text = fh.read()
 
     symmetry = re.search(r"(?im)^\s*_(?:symmetry_equiv_pos_as_xyz|space_group_symop_operation_xyz)\b", text)
+    if symmetry and _identity_only(text[symmetry.end():]):
+        symmetry = None  # an operations loop with just x, y, z is P1
     group = re.search(r"(?im)^\s*_(?:symmetry_Int_Tables_number|space_group_IT_number)\s+['\"]?(\d+)", text)
     name = re.search(r"(?im)^\s*_(?:symmetry_space_group_name_H-M|space_group_name_H-M_alt)\s+([^\n]+)", text)
     nontrivial_name = name and name.group(1).strip().strip("'\"").replace(" ", "").upper() != "P1"
@@ -155,12 +173,12 @@ def _save_cif(s: "Structure", path: str) -> None:
     if s.cell:
         a, b, c, alpha, beta, gamma = _params_from_cell(s.cell)
         lines += [
-            f"_cell_length_a   {a:.6f}\n",
-            f"_cell_length_b   {b:.6f}\n",
-            f"_cell_length_c   {c:.6f}\n",
-            f"_cell_angle_alpha   {alpha:.4f}\n",
-            f"_cell_angle_beta    {beta:.4f}\n",
-            f"_cell_angle_gamma   {gamma:.4f}\n",
+            f"_cell_length_a   {a:.10g}\n",
+            f"_cell_length_b   {b:.10g}\n",
+            f"_cell_length_c   {c:.10g}\n",
+            f"_cell_angle_alpha   {alpha:.10g}\n",
+            f"_cell_angle_beta    {beta:.10g}\n",
+            f"_cell_angle_gamma   {gamma:.10g}\n",
             "_symmetry_space_group_name_H-M  'P 1'\n\n",
         ]
     lines += [
@@ -179,6 +197,7 @@ def _save_cif(s: "Structure", path: str) -> None:
             fx, fy, fz = _cart_to_frac(a.x, a.y, a.z, s.cell)
         else:
             fx, fy, fz = a.x, a.y, a.z
-        lines.append(f"{a.symbol}  {label}  {fx:.6f}  {fy:.6f}  {fz:.6f}\n")
+        # Twelve decimals: six would move atoms by up to 5e-7 of the cell edge.
+        lines.append(f"{a.symbol}  {label}  {fx:.12f}  {fy:.12f}  {fz:.12f}\n")
     with open(path, "w", encoding="utf-8") as fh:
         fh.writelines(lines)

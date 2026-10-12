@@ -1969,6 +1969,63 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
 
     if (formatLower == "extxyz") formatLower = "xyz";
 
+    // CIF is written here, in P1 with the cell as lengths and angles and
+    // fractional coordinates to twelve decimals (Open Babel keeps five, which
+    // moves atoms by up to 5e-6 of the cell edge).
+    if (formatLower == "cif")
+    {
+        std::ofstream out(filename, std::ios::binary);
+        if (!out)
+        {
+            g_lastSaveError = "Could not write " + filename + "; check that the folder exists and is writable.";
+            return false;
+        }
+        glm::dmat3 cell(1.0);  // columns a, b, c
+        for (int r = 0; r < 3; ++r)
+            for (int c = 0; c < 3; ++c) cell[r][c] = structure.cellVectors[(size_t)r][(size_t)c];
+        if (std::abs(glm::determinant(cell)) < 1e-9)
+        {
+            g_lastSaveError = "The unit cell has no volume, so it cannot be written as CIF.";
+            return false;
+        }
+        const glm::dmat3 toFractional = glm::inverse(cell);
+        const glm::dvec3 origin(structure.cellOffset[0], structure.cellOffset[1], structure.cellOffset[2]);
+        const double la = glm::length(cell[0]), lb = glm::length(cell[1]), lc = glm::length(cell[2]);
+        const auto angle = [](const glm::dvec3& u, const glm::dvec3& v) {
+            const double cosine = std::max(-1.0, std::min(1.0, glm::dot(u, v) / (glm::length(u) * glm::length(v))));
+            return std::acos(cosine) * 180.0 / 3.14159265358979323846;
+        };
+        const auto clean = [](double v) { return std::abs(v) < 5e-11 ? 0.0 : v; };
+        char buffer[200];
+        out << "# CIF file written by AtomForge\n";
+        out << "data_" << (structure.atoms.empty() ? std::string("structure") : std::string("AtomForge")) << "\n";
+        std::snprintf(buffer, sizeof(buffer),
+                      "_cell_length_a %.10g\n_cell_length_b %.10g\n_cell_length_c %.10g\n"
+                      "_cell_angle_alpha %.10g\n_cell_angle_beta %.10g\n_cell_angle_gamma %.10g\n",
+                      la, lb, lc, angle(cell[1], cell[2]), angle(cell[0], cell[2]), angle(cell[0], cell[1]));
+        out << buffer;
+        out << "_symmetry_space_group_name_H-M 'P 1'\n_symmetry_Int_Tables_number 1\n"
+               "loop_\n_symmetry_equiv_pos_as_xyz\n'x, y, z'\n"
+               "loop_\n_atom_site_label\n_atom_site_type_symbol\n_atom_site_fract_x\n_atom_site_fract_y\n_atom_site_fract_z\n_atom_site_occupancy\n";
+        std::map<std::string, int> serial;
+        for (const auto& site : structure.atoms)
+        {
+            const std::string symbol = site.symbol.empty() ? std::string(elementSymbol(site.atomicNumber)) : site.symbol;
+            const glm::dvec3 f = toFractional * (glm::dvec3(site.x, site.y, site.z) - origin);
+            const std::string label = symbol + std::to_string(++serial[symbol]);
+            std::snprintf(buffer, sizeof(buffer), "%-7s %-3s %16.12f %16.12f %16.12f 1\n", label.c_str(), symbol.c_str(),
+                          clean(f.x), clean(f.y), clean(f.z));
+            out << buffer;
+        }
+        out.close();
+        if (!out)
+        {
+            g_lastSaveError = "Could not write " + filename + "; check that the folder exists and is writable.";
+            return false;
+        }
+        return saveIpfSidecar(structure, filename);
+    }
+
     // LAMMPS data (read_data, atomic style) is written here. LAMMPS boxes
     // have a along x and b in the xy plane, so the cell and positions are
     // rotated into that frame; each mass names its element ("1 63.546 # Cu").

@@ -50,7 +50,7 @@
     },
     {
       "source": "python/atomforge/_formats/cif.py",
-      "sha256": "1f1b2ce349446a60976472050ad94787d51fc555964361a52ce060d94535a3b0",
+      "sha256": "e3095a54d5fc36511f7e4634b59613bef59c351e9ebd04f8beaf81642dfd1f25",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"

@@ -179,6 +179,14 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
     back = root / "hcp_back.xyz"
     run("--convert", "--input", data, "--output", back, "--format", "xyz")
     assert back.read_text().splitlines() == hcp_lines, back.read_text()
+    # CIF keeps full precision: 1/6 of a 10.83 A cell stays 1.805 A.
+    big = root / "big.cif"
+    run("--pipe", "replicate 3 3 3", "--input", source, "--output", big)
+    big_xyz = root / "big.xyz"
+    run("--convert", "--input", big, "--output", big_xyz, "--format", "xyz")
+    for line in big_xyz.read_text().splitlines()[2:]:
+        for value in map(float, line.split()[1:]):
+            assert abs(value / 1.805 - round(value / 1.805)) < 1e-9, line
     # Paths with accented names are read and written (UTF-8 on Windows too).
     accented = root / "døssier é"
     accented.mkdir()

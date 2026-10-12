@@ -1,5 +1,6 @@
 """Regression cases for file integrity and viewer failure cleanup."""
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -31,6 +32,13 @@ class FileIntegrityTests(unittest.TestCase):
         self.assertEqual([a.symbol for a in af.load(self.root / "POSCAR-001").atoms], ["Fe", "O"])
         (self.root / "upper.xyz").write_text("3\n\nCU 0 0 0\nni 1.8 0 0\nO 0 1.8 0\n")
         self.assertEqual([a.symbol for a in af.load(self.root / "upper.xyz").atoms], ["Cu", "Ni", "O"])
+        # A P1 CIF that lists only the identity operation needs no symmetry library.
+        (self.root / "p1.cif").write_text("data_x\n_cell_length_a 4\n_cell_length_b 4\n_cell_length_c 4\n"
+                                          "_cell_angle_alpha 90\n_cell_angle_beta 90\n_cell_angle_gamma 90\n"
+                                          "loop_\n_symmetry_equiv_pos_as_xyz\n'x, y, z'\n"
+                                          "loop_\n_atom_site_label\n_atom_site_type_symbol\n_atom_site_fract_x\n"
+                                          "_atom_site_fract_y\n_atom_site_fract_z\nNa1 Na 0 0 0\nCl1 Cl 0.5 0.5 0.5\n")
+        self.assertEqual([a.symbol for a in af.load(self.root / "p1.cif").atoms], ["Na", "Cl"])
         # Extended XYZ columns in any order (an id first, extra columns after).
         (self.root / "ids.xyz").write_text('2\nProperties=id:I:1:species:S:1:pos:R:3:forces:R:3 Lattice="4 0 0 0 4 0 0 0 4"\n'
                                            "1 Na 0 0 0 0 0 0\n2 Cl 2 2 2 0 0 0\n")
@@ -70,7 +78,7 @@ class FileIntegrityTests(unittest.TestCase):
     def test_invalid_cif_cell_rejected(self):
         path = self.root / "invalid.cif"
         self.structure().save(path)
-        path.write_text(path.read_text().replace("70.0000", "0.0000"))
+        path.write_text(re.sub(r"(_cell_angle_alpha\s+)\S+", r"\g<1>0", path.read_text()))
         with self.assertRaises(ValueError):
             af.load(path)
 
