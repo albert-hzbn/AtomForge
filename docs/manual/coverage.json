@@ -809,7 +809,7 @@
     },
     {
       "source": "src/cli/AnalysisCLI.cpp",
-      "sha256": "f9bd7e789d4e9d0ebdf4a911aad0bcdb64006b3c8cf749c10b810f42938b36d5",
+      "sha256": "7b2b224e2556258f8ac79d17f262a9eef28501f24da349d3bfeac956aef28193",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -881,7 +881,7 @@
     },
     {
       "source": "src/cli/CliArgs.cpp",
-      "sha256": "84b1187d97e56c46939b31efaa87b21f3ccb4a5f455e288cdcf8078bb2df8a97",
+      "sha256": "c659846938cf34972a8e5c3e79c20d27fbc9d423f54a78fc8c4db4f64ec86826",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -5020,7 +5020,7 @@
     },
     {
       "source": "src/ui/StructureInfoDialog.cpp",
-      "sha256": "36657b36a8ac38fb8b7f27c2540ab17594097ba3bc2866e28b157f9913e5869e",
+      "sha256": "17c6c96b2b7aa7f62053fa5c026d8b2625b4a13d3037cc60a27a55956d63031c",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

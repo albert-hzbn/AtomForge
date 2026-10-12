@@ -239,6 +239,9 @@ Rows summaryRows(const Structure& structure, const StructureInfoComputedData* da
 {
     Rows rows;
     rows.push_back({"Atoms", std::to_string(structure.atoms.size())});
+    const auto fixedCount = std::count_if(structure.atoms.begin(), structure.atoms.end(), [](const AtomSite& a) { return a.fixed != 0; });
+    if (fixedCount)
+        rows.push_back({"Fixed atoms", std::to_string(fixedCount) + " (selective dynamics)"});
     if (data)
     {
         const std::string reduced = reducedFormula(data->elementCounts);
