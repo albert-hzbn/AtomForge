@@ -101,7 +101,17 @@ void loadSharedRecentFilesIfNeeded()
         if (line.empty())
             continue;
 
-        const std::string normalized = normalizePathSeparators(line);
+        std::string normalized = normalizePathSeparators(line);
+        // Older versions stored command-line paths relative to the working
+        // folder: resolve one that still names a file here, else drop it.
+        if (std::filesystem::u8path(normalized).is_relative())
+        {
+            std::error_code error;
+            const auto absolute = std::filesystem::absolute(std::filesystem::u8path(normalized), error).lexically_normal();
+            if (error || !std::filesystem::is_regular_file(absolute, error))
+                continue;
+            normalized = normalizePathSeparators(absolute.u8string());
+        }
         auto& files = sharedRecentFiles();
         if (std::find(files.begin(), files.end(), normalized) != files.end())
             continue;
