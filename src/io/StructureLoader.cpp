@@ -1274,14 +1274,15 @@ void wrapAtomsIntoPrimaryCell(Structure& structure)
         if (inside)
             continue;
 
+        // Move by whole cell vectors, so only the coordinates that leave the
+        // cell change. Just below 1 (or a rounding error below 0) is the 0 face.
+        glm::dvec3 cells(0.0);
         for (int k = 0; k < 3; ++k)
         {
-            frac[k] -= std::floor(frac[k]);
-            // Just below 1 (or a rounding error below 0) is the 0 face.
-            if (std::abs(frac[k]) <= kWrapTol || std::abs(1.0 - frac[k]) <= kWrapTol) frac[k] = 0.0;
+            cells[k] = std::floor(frac[k]);
+            if (frac[k] - cells[k] >= 1.0 - kWrapTol) cells[k] += 1.0;
         }
-
-        const glm::dvec3 wrapped = origin + frac.x * a + frac.y * b + frac.z * c;
+        const glm::dvec3 wrapped = pos - (cells.x * a + cells.y * b + cells.z * c);
         atom.x = wrapped.x;
         atom.y = wrapped.y;
         atom.z = wrapped.z;
