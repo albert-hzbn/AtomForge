@@ -32,6 +32,15 @@ class FileIntegrityTests(unittest.TestCase):
         self.assertEqual([a.symbol for a in af.load(self.root / "POSCAR-001").atoms], ["Fe", "O"])
         (self.root / "upper.xyz").write_text("3\n\nCU 0 0 0\nni 1.8 0 0\nO 0 1.8 0\n")
         self.assertEqual([a.symbol for a in af.load(self.root / "upper.xyz").atoms], ["Cu", "Ni", "O"])
+        # LAMMPS data: atoms by id, the style from the column count, and an
+        # unknown element refused rather than guessed.
+        (self.root / "charge.data").write_text("x\n\n2 atoms\n2 atom types\n0 4 xlo xhi\n0 4 ylo yhi\n0 4 zlo zhi\n\n"
+                                               "Masses\n\n1 22.99\n2 35.45\n\nAtoms\n\n2 2 -0.5 2 2 2\n1 1 0.5 0 0 0\n")
+        self.assertEqual([(a.symbol, a.x) for a in af.load(self.root / "charge.data").atoms], [("Na", 0), ("Cl", 2)])
+        (self.root / "heavy.data").write_text("x\n\n1 atoms\n1 atom types\n0 4 xlo xhi\n0 4 ylo yhi\n0 4 zlo zhi\n\n"
+                                              "Masses\n\n1 999\n\nAtoms # atomic\n\n1 1 0 0 0\n")
+        with self.assertRaises(ValueError):
+            af.load(self.root / "heavy.data")
         # A P1 CIF that lists only the identity operation needs no symmetry library.
         (self.root / "p1.cif").write_text("data_x\n_cell_length_a 4\n_cell_length_b 4\n_cell_length_c 4\n"
                                           "_cell_angle_alpha 90\n_cell_angle_beta 90\n_cell_angle_gamma 90\n"

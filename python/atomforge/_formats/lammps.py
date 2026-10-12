@@ -30,12 +30,13 @@ def _load_lammps(path: str) -> "Structure":
         195.084: "Pt", 196.967: "Au",
     }
 
-    def _closest_mass(m: float) -> str:
-        best, sym = 1e9, "X"
+    def _closest_mass(m: float):
+        """The element whose standard mass is within 0.5 u, else None."""
+        best, sym = 1e9, None
         for mass, s in _MASS_TO_SYM.items():
             if abs(m - mass) < best:
                 best, sym = abs(m - mass), s
-        return sym if best < 2.0 else "X"
+        return sym if best < 0.5 else None
 
     with open(path, encoding="utf-8", errors="replace") as fh:
         lines = fh.readlines()
@@ -78,7 +79,8 @@ def _load_lammps(path: str) -> "Structure":
                 mass = float(parts[1])
                 cm = re.search(r"#\s*([A-Za-z]+)", mline)
                 sym = _clean_symbol(cm.group(1)) if cm else _closest_mass(mass)
-                type_to_sym[tid] = sym
+                if sym:
+                    type_to_sym[tid] = sym
             continue
 
         elif line.startswith("Atoms"):
@@ -96,23 +98,21 @@ def _load_lammps(path: str) -> "Structure":
                     i -= 1
                     break
                 parts = aline.partition("#")[0].split()
-                if len(parts) < 5:
-                    continue
-                # atomic: id type x y z
-                # full:   id mol type charge x y z
+                # atomic: id type x y z;  charge: id type q x y z
+                # full:   id mol type q x y z;  molecular: id mol type x y z
+                # (image flags may follow). Without a style comment the
+                # column count decides, as in the desktop.
+                row_style = style or {5: "atomic", 8: "atomic", 6: "charge", 9: "charge",
+                                      7: "full", 10: "full"}.get(len(parts))
+                if row_style is None:
+                    raise ValueError(f"cannot tell the LAMMPS atom style of {aline!r}; "
+                                     "name it after the section, e.g. 'Atoms # atomic'")
+                type_col, x_col = {"atomic": (1, 2), "charge": (1, 3), "full": (2, 4)}.get(row_style, (2, 3))
                 try:
-                    row_style = style or ("full" if len(parts) in (7, 10) else "atomic")
-                    if row_style == "full":
-                        tid = int(parts[2]); x, y, z = float(parts[4]), float(parts[5]), float(parts[6])
-                    elif row_style == "charge":
-                        tid = int(parts[1]); x, y, z = map(float, parts[3:6])
-                    elif row_style in ("molecular", "bond", "angle"):
-                        tid = int(parts[2]); x, y, z = map(float, parts[3:6])
-                    else:
-                        tid = int(parts[1]); x, y, z = float(parts[2]), float(parts[3]), float(parts[4])
-                    atoms.append((tid, x, y, z))
-                except (ValueError, IndexError):
-                    pass
+                    atoms.append((int(parts[0]), int(parts[type_col]),
+                                  float(parts[x_col]), float(parts[x_col + 1]), float(parts[x_col + 2])))
+                except (ValueError, IndexError) as error:
+                    raise ValueError(f"cannot read LAMMPS atom line {aline!r} as {row_style} style") from error
             continue
         i += 1
 
@@ -122,8 +122,13 @@ def _load_lammps(path: str) -> "Structure":
         [xy,         yhi - ylo, 0.0],
         [xz,         yz,        zhi - zlo],
     ]
-    for tid, x, y, z in atoms:
-        sym = type_to_sym.get(tid, f"X{tid}")
+    unknown = sorted({tid for _, tid, *_ in atoms if tid not in type_to_sym})
+    if unknown:
+        raise ValueError(f"the element of LAMMPS atom type {', '.join(map(str, unknown))} is unknown: "
+                         "give its mass, or its symbol after the mass ('1 63.546 # Cu')")
+    atoms.sort(key=lambda row: row[0])  # LAMMPS order is by atom id
+    for _, tid, x, y, z in atoms:
+        sym = type_to_sym[tid]
         cr, cg, cb = _default_color(sym)
         s.atoms.append(Atom(sym, x - xlo, y - ylo, z - zlo, cr, cg, cb))
     return s
@@ -171,10 +176,10 @@ def _save_lammps(s: "Structure", path: str) -> None:
         "AtomForge structure\n\n",
         f"{len(s.atoms)} atoms\n",
         f"{len(seen)} atom types\n\n",
-        f"{xlo:.6f} {xhi:.6f} xlo xhi\n",
-        f"{ylo:.6f} {yhi:.6f} ylo yhi\n",
-        f"{zlo:.6f} {zhi:.6f} zlo zhi\n",
-        f"{xy:.6f} {xz:.6f} {yz:.6f} xy xz yz\n\n",
+        f"{xlo:.10f} {xhi:.10f} xlo xhi\n",
+        f"{ylo:.10f} {yhi:.10f} ylo yhi\n",
+        f"{zlo:.10f} {zhi:.10f} zlo zhi\n",
+        f"{xy:.10f} {xz:.10f} {yz:.10f} xy xz yz\n\n",
         "Masses\n\n",
     ]
     for sym in seen:
@@ -184,6 +189,6 @@ def _save_lammps(s: "Structure", path: str) -> None:
         lines.append(f"  {sym_to_tid[sym]}  {mass:.3f}  # {sym}\n")
     lines.append("\nAtoms  # atomic\n\n")
     for i, (a, (x, y, z)) in enumerate(zip(s.atoms, positions), 1):
-        lines.append(f"{i} {sym_to_tid[a.symbol]} {x:.6f} {y:.6f} {z:.6f}\n")
+        lines.append(f"{i} {sym_to_tid[a.symbol]} {x:.10f} {y:.10f} {z:.10f}\n")
     with open(path, "w", encoding="utf-8") as fh:
         fh.writelines(lines)
