@@ -1578,6 +1578,9 @@ void FileBrowser::draw(Structure& structure,
     auto updateFromBuilderToNewTab = [&](Structure& s) {
         Structure result = std::move(s);
         s = std::move(preBuilderState);
+        // Say where the result went (a new tab, or this empty one).
+        showNotification("Built " + std::to_string(result.atoms.size()) + (result.atoms.size() == 1 ? " atom" : " atoms") +
+                         (s.atoms.empty() ? "." : " in a new tab."));
         openInNewTab(std::move(result));
     };
 
