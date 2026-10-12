@@ -188,6 +188,12 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
     assert hcp_lines[1].startswith('Lattice="3.21 0 0 -1.605 2.779941546 0 0 0 5.21"'), hcp_lines[1]
     assert hcp_lines[2].split()[1:] == ["0.0000000000", "1.8532943641", "1.3025000000"], hcp_lines[2]
     run("--build", "bulk", "--system", "cubic", "--spacegroup", "194", "--atom", "Mg 0 0 0", "--output", root / "no.xyz", success=False)
+    # Origin choices: Si at 0 0 0 (choice 1) or 1/8 1/8 1/8 (choice 2) gives the same 8-atom diamond.
+    for origin, site in (("1", "Si 0 0 0"), ("2", "Si 1/8 1/8 1/8")):
+        silicon = root / f"si{origin}.xyz"
+        built = run("--build", "bulk", "--spacegroup", "227", "--a", "5.431", "--atom", site, "--origin", origin, "--output", silicon)
+        assert f"origin choice {origin}" in built.stdout and silicon.read_text().splitlines()[0] == "8", (built.stdout, silicon.read_text())
+    run("--build", "bulk", "--spacegroup", "225", "--atom", "Cu 0 0 0", "--origin", "2", "--output", root / "no.xyz", success=False)
     # LAMMPS data: written and read back with the same cell and atoms.
     data = root / "hcp.data"
     run("--convert", "--input", hcp, "--output", data)

@@ -72,6 +72,11 @@ std::vector<int>& hallBySpaceGroup();
 
 std::string spaceGroupLabel(int spaceGroupNumber);
 
+// Whether a space group has two origin choices in the International Tables
+// (the 24 centrosymmetric groups such as Fd-3m); builds use choice 1 unless
+// told otherwise.
+bool hasTwoOrigins(int spaceGroupNumber);
+
 glm::dvec3 wrapFractional(const glm::dvec3& frac);
 
 bool sameFractionalPosition(const glm::dvec3& lhs, const glm::dvec3& rhs, double tol);
@@ -83,7 +88,8 @@ bool sameFractionalPosition(const glm::dvec3& lhs, const glm::dvec3& rhs, double
                                  int spaceGroupNumber,
                                  const LatticeParameters& params,
                                  const std::vector<AtomSite>& asymmetricAtoms,
-                                 const std::vector<glm::vec3>& elementColors);
+                                 const std::vector<glm::vec3>& elementColors,
+                                 int originChoice = 1);
 
 void addDefaultAsymmetricAtom(std::vector<AtomSite>& atoms,
                               const std::vector<glm::vec3>& elementColors);

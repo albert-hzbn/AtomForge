@@ -134,6 +134,7 @@ bool BulkCrystalBuilderDialog::editStep(StepEdit edit)
         if (system == kSystemNames[i]) m_crystalSystemIndex = i;
     m_lastCrystalSystemIndex = m_crystalSystemIndex;
     m_selectedSpaceGroup = reader.integer("--spacegroup", 225);
+    m_originChoice = reader.integer("--origin", 1) == 2 ? 2 : 1;
 
     m_latticeParams.a = reader.number("--a", 4.0);
     m_latticeParams.b = reader.number("--b", m_latticeParams.a);
@@ -171,6 +172,7 @@ std::string BulkCrystalBuilderDialog::stepOptions() const
        .add("--spacegroup", m_selectedSpaceGroup)
        .add("--a", lp.a).add("--b", lp.b).add("--c", lp.c)
        .add("--alpha", lp.alpha).add("--beta", lp.beta).add("--gamma", lp.gamma);
+    if (hasTwoOrigins(m_selectedSpaceGroup) && m_originChoice == 2) out.add("--origin", 2);
     for (const AtomSite& atom : m_asymmetricAtoms)
         out.add("--atom", atom.symbol + " " + out.number(atom.x) + " " + out.number(atom.y) + " " + out.number(atom.z));
     return out.str();
@@ -256,6 +258,16 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
         if (ImGui::Combo("##spacegroup", &sgIndex, sgGetter, (void*)&range, range.last - range.first + 1))
             selectedSpaceGroup = range.first + sgIndex;
         ImGui::PopItemWidth();
+        if (hasTwoOrigins(selectedSpaceGroup))
+        {
+            ImGui::TextUnformatted("Origin choice");
+            ImGui::SameLine();
+            ImGui::RadioButton("1##origin", &m_originChoice, 1);
+            ImGui::SameLine();
+            ImGui::RadioButton("2##origin", &m_originChoice, 2);
+            dialogLayout::hint("The International Tables give this group two origins; site coordinates differ between them\n"
+                               "(Si in Fd-3m: 0 0 0 in choice 1, 1/8 1/8 1/8 in choice 2). Match the source of your coordinates.");
+        }
 
         dialogLayout::section("Lattice parameters (\xc3\x85, \xc2\xb0)");
         drawLatticeParameterInputs((CrystalSystem)crystalSystemIndex, latticeParams);
@@ -383,7 +395,8 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
                                           selectedSpaceGroup,
                                           latticeParams,
                                           asymmetricAtoms,
-                                          elementColors);
+                                          elementColors,
+                                          hasTwoOrigins(selectedSpaceGroup) ? m_originChoice : 1);
             if (lastResult.success)
             {
                 updateBuffers(structure);

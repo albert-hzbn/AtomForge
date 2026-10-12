@@ -257,6 +257,29 @@ std::string spaceGroupLabel(int spaceGroupNumber)
     return out.str();
 }
 
+// The Hall number of a space group's origin choice 2, or 0 when it has one origin.
+static int secondOriginHall(int spaceGroupNumber)
+{
+#ifdef ATOMS_ENABLE_SPGLIB
+    const std::vector<int>& hallMap = hallBySpaceGroup();
+    if (spaceGroupNumber < 1 || spaceGroupNumber > 230 || hallMap[spaceGroupNumber] == 0) return 0;
+    for (int hall = hallMap[spaceGroupNumber]; hall <= 530; ++hall)
+    {
+        const SpglibSpacegroupType type = spg_get_spacegroup_type(hall);
+        if (type.number != spaceGroupNumber) break;
+        if (std::string(type.choice) == "2") return hall;
+    }
+#else
+    (void)spaceGroupNumber;
+#endif
+    return 0;
+}
+
+bool hasTwoOrigins(int spaceGroupNumber)
+{
+    return secondOriginHall(spaceGroupNumber) != 0;
+}
+
 glm::dvec3 wrapFractional(const glm::dvec3& frac)
 {
     glm::dvec3 wrapped = frac;
@@ -294,11 +317,24 @@ BulkBuildResult buildBulkCrystal(Structure& structure,
                                  int spaceGroupNumber,
                                  const LatticeParameters& params,
                                  const std::vector<AtomSite>& asymmetricAtoms,
-                                 const std::vector<glm::vec3>& elementColors)
+                                 const std::vector<glm::vec3>& elementColors,
+                                 int originChoice)
 {
     BulkBuildResult result;
     result.spaceGroupNumber = spaceGroupNumber;
     result.spaceGroupSymbol = spaceGroupLabel(spaceGroupNumber);
+    if (originChoice != 1 && originChoice != 2)
+    {
+        result.message = "The origin choice must be 1 or 2.";
+        return result;
+    }
+    if (hasTwoOrigins(spaceGroupNumber))
+        result.spaceGroupSymbol += ", origin choice " + std::to_string(originChoice);
+    else if (originChoice == 2)
+    {
+        result.message = "Space group " + std::to_string(spaceGroupNumber) + " has only one origin choice.";
+        return result;
+    }
 
 #ifndef ATOMS_ENABLE_SPGLIB
     (void)system;
@@ -327,7 +363,7 @@ BulkBuildResult buildBulkCrystal(Structure& structure,
         return result;
     }
 
-    const int hallNumber = hallMap[spaceGroupNumber];
+    const int hallNumber = originChoice == 2 ? secondOriginHall(spaceGroupNumber) : hallMap[spaceGroupNumber];
     int rotations[192][3][3];
     double translations[192][3];
     int operationCount = spg_get_symmetry_from_database(rotations, translations, hallNumber);

@@ -35,6 +35,7 @@ private:
     // Builder settings.
     int m_crystalSystemIndex = (int)CrystalSystem::Cubic;
     int m_selectedSpaceGroup = 225;
+    int m_originChoice = 1;
     int m_lastCrystalSystemIndex = (int)CrystalSystem::Cubic;
     LatticeParameters m_latticeParams;
     std::vector<AtomSite> m_asymmetricAtoms;

@@ -40,6 +40,9 @@ void printHelpBulk()
 "                               hexagonal | cubic   (default: that of\n"
 "                               the space group)\n"
 "  --spacegroup <N>            Space-group number 1-230  (default: 225)\n"
+"  --origin <1|2>              Origin choice of the 24 groups that have two,\n"
+"                               such as Fd-3m (default: 1; Si is at\n"
+"                               0 0 0 in choice 1 and 1/8 1/8 1/8 in 2)\n"
 "  --a   <Ang>                 Lattice parameter a       (default: 4.0)\n"
 "  --b   <Ang>                 Lattice parameter b       (default: a)\n"
 "  --c   <Ang>                 Lattice parameter c       (default: a)\n"
@@ -191,7 +194,8 @@ int runBulk(int argc, char* argv[])
     // Build
     Structure structure;
     BulkBuildResult result = buildBulkCrystal(structure, system, sgNumber,
-                                               lp, asymAtoms, elementColors);
+                                               lp, asymAtoms, elementColors,
+                                               argInt(argc, argv, "--origin", 1));
     if (!result.success)
     {
         std::cerr << "Error building bulk crystal: " << result.message << "\n";
