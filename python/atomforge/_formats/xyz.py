@@ -68,11 +68,11 @@ def _load_xyz(path: str) -> "Structure":
 def _save_xyz(s: "Structure", path: str) -> None:
     lines = [str(len(s.atoms)) + "\n"]
     if s.cell:
-        lat = " ".join(f"{v:.6f}" for row in s.cell for v in row)
-        lines.append(f'Lattice="{lat}" Properties=species:S:1:pos:R:3\n')
+        lat = " ".join(f"{v:.10g}" for row in s.cell for v in row)
+        lines.append(f'Lattice="{lat}" Properties=species:S:1:pos:R:3 pbc="T T T"\n')
     else:
         lines.append("AtomForge structure\n")
     for a in s.atoms:
-        lines.append(f"{a.symbol} {a.x:.6f} {a.y:.6f} {a.z:.6f}\n")
+        lines.append(f"{a.symbol} {a.x:.10f} {a.y:.10f} {a.z:.10f}\n")
     with open(path, "w", encoding="utf-8") as fh:
         fh.writelines(lines)

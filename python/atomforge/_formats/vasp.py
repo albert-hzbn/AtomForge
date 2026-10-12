@@ -126,6 +126,6 @@ def _save_vasp(s: "Structure", path: str) -> None:
                 fx, fy, fz = _cart_to_frac(a.x, a.y, a.z, cell)
             else:
                 fx, fy, fz = a.x, a.y, a.z
-            lines.append(f"  {fx:16.10f}  {fy:16.10f}  {fz:16.10f}\n")
+            lines.append(f"  {fx:16.12f}  {fy:16.12f}  {fz:16.12f}\n")
     with open(path, "w", encoding="utf-8") as fh:
         fh.writelines(lines)
