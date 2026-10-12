@@ -1,4 +1,5 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/DialogLayout.h"
 #include "StructureInfoDialog.h"
 
 #include "ElementData.h"
@@ -9,14 +10,19 @@
 
 #include <algorithm>
 #include <array>
+#include <cfloat>
+#include <cstdarg>
+#include <cstdio>
 #include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <future>
 #include <map>
+#include <numeric>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #ifdef ATOMS_ENABLE_SPGLIB
@@ -191,62 +197,133 @@ SymmetryInfo analyzeSymmetryWithSpglib(const Structure& structure)
 #endif
 }
 
-void drawLatticeInfo(const Structure& structure)
+using Rows = std::vector<std::pair<std::string, std::string>>;
+
+std::string formatText(const char* format, ...)
 {
-    glm::vec3 a((float)structure.cellVectors[0][0],
-                (float)structure.cellVectors[0][1],
-                (float)structure.cellVectors[0][2]);
-    glm::vec3 b((float)structure.cellVectors[1][0],
-                (float)structure.cellVectors[1][1],
-                (float)structure.cellVectors[1][2]);
-    glm::vec3 c((float)structure.cellVectors[2][0],
-                (float)structure.cellVectors[2][1],
-                (float)structure.cellVectors[2][2]);
-
-    float lenA = glm::length(a);
-    float lenB = glm::length(b);
-    float lenC = glm::length(c);
-
-    auto safeAngleDeg = [](const glm::vec3& u, const glm::vec3& v) -> float {
-        float lu = glm::length(u);
-        float lv = glm::length(v);
-        if (lu <= 1e-10f || lv <= 1e-10f)
-            return 0.0f;
-        float cosang = glm::dot(u, v) / (lu * lv);
-        cosang = std::max(-1.0f, std::min(1.0f, cosang));
-        return kRadToDeg * std::acos(cosang);
-    };
-
-    float alpha = safeAngleDeg(b, c);
-    float beta = safeAngleDeg(a, c);
-    float gamma = safeAngleDeg(a, b);
-
-    float volume = std::abs(glm::dot(a, glm::cross(b, c)));
-
-    ImGui::Text("Lattice a,b,c (A):  %.5f  %.5f  %.5f", lenA, lenB, lenC);
-    ImGui::Text("Angles alpha,beta,gamma (deg):  %.3f  %.3f  %.3f", alpha, beta, gamma);
-    ImGui::Text("Cell volume (A^3):  %.5f", volume);
+    char text[512];
+    va_list args;
+    va_start(args, format);
+    std::vsnprintf(text, sizeof(text), format, args);
+    va_end(args);
+    return text;
 }
 
-void drawElementCountsTable(const std::map<int, int>& counts)
+// The formula reduced by the common divisor of the counts, e.g. Al2Cu3.
+std::string reducedFormula(const std::map<int, int>& counts)
 {
-    if (!ImGui::BeginTable("##element-counts", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+    int divisor = 0;
+    for (const auto& [z, count] : counts)
+        if (z > 0 && count > 0) divisor = std::gcd(divisor, count);
+    std::string formula;
+    for (const auto& [z, count] : counts)
+    {
+        if (z <= 0 || count <= 0) continue;
+        formula += elementSymbol(z);
+        if (count / divisor > 1) formula += std::to_string(count / divisor);
+    }
+    return formula;
+}
+
+float safeAngleDeg(const glm::vec3& u, const glm::vec3& v)
+{
+    const float lu = glm::length(u);
+    const float lv = glm::length(v);
+    if (lu <= 1e-10f || lv <= 1e-10f)
+        return 0.0f;
+    const float cosang = std::max(-1.0f, std::min(1.0f, glm::dot(u, v) / (lu * lv)));
+    return kRadToDeg * std::acos(cosang);
+}
+
+Rows summaryRows(const Structure& structure, const StructureInfoComputedData* data)
+{
+    Rows rows;
+    rows.push_back({"Atoms", std::to_string(structure.atoms.size())});
+    if (data)
+    {
+        const std::string reduced = reducedFormula(data->elementCounts);
+        std::string full = data->formula;
+        full.erase(std::remove(full.begin(), full.end(), ' '), full.end());
+        rows.push_back({"Formula", reduced == full ? reduced : reduced + "   (cell: " + full + ")"});
+    }
+    else
+        rows.push_back({"Formula", "computing..."});
+
+    if (!structure.hasUnitCell)
+    {
+        rows.push_back({"Cell", "none (an isolated molecule or cluster)"});
+        return rows;
+    }
+    const glm::vec3 a((float)structure.cellVectors[0][0], (float)structure.cellVectors[0][1], (float)structure.cellVectors[0][2]);
+    const glm::vec3 b((float)structure.cellVectors[1][0], (float)structure.cellVectors[1][1], (float)structure.cellVectors[1][2]);
+    const glm::vec3 c((float)structure.cellVectors[2][0], (float)structure.cellVectors[2][1], (float)structure.cellVectors[2][2]);
+    const float volume = std::abs(glm::dot(a, glm::cross(b, c)));
+    rows.push_back({"Cell lengths", formatText("a = %.4f \xc3\x85    b = %.4f \xc3\x85    c = %.4f \xc3\x85", glm::length(a), glm::length(b), glm::length(c))});
+    rows.push_back({"Cell angles", formatText("\xce\xb1 = %.2f\xc2\xb0    \xce\xb2 = %.2f\xc2\xb0    \xce\xb3 = %.2f\xc2\xb0", safeAngleDeg(b, c), safeAngleDeg(a, c), safeAngleDeg(a, b))});
+    rows.push_back({"Volume", formatText("%.3f \xc3\x85\xc2\xb3", volume)});
+    if (data && volume > 1e-6f)
+    {
+        double mass = 0.0;  // atomic mass units
+        for (const auto& [z, count] : data->elementCounts)
+            if (z > 0) mass += count * elementAtomicMass(z);
+        constexpr double kAmuPerCubicAngstromToGramsPerCm3 = 1.66053906660;
+        rows.push_back({"Density", formatText("%.4f g/cm\xc2\xb3    (%.5f atoms/\xc3\x85\xc2\xb3)",
+                                              mass * kAmuPerCubicAngstromToGramsPerCm3 / volume,
+                                              static_cast<double>(structure.atoms.size()) / volume)});
+    }
+    return rows;
+}
+
+Rows symmetryRows(const StructureInfoComputedData* data)
+{
+    if (!data)
+        return {{"Space group", "computing..."}};
+    if (!data->symmetrySuccess)
+        return {{"Space group", "unavailable (" + data->symmetryError + ")"}};
+    return {{"Space group", formatText("%s (No. %d)", data->symmetryInternationalSymbol.c_str(), data->symmetrySpaceGroupNumber)},
+            {"Point group", data->symmetryPointGroup},
+            {"Hall symbol", data->symmetryHallSymbol}};
+}
+
+void drawRows(const char* id, const Rows& rows)
+{
+    if (!ImGui::BeginTable(id, 2, ImGuiTableFlags_SizingFixedFit))
+        return;
+    ImGui::TableSetupColumn("label", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFontSize() * 7.5f);
+    ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
+    for (const auto& [label, value] : rows)
+    {
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextDisabled("%s", label.c_str());
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted(value.c_str());
+    }
+    ImGui::EndTable();
+}
+
+void drawElementCountsTable(const std::map<int, int>& counts, std::size_t total)
+{
+    if (!ImGui::BeginTable("##element-counts", 4, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame))
         return;
 
-    ImGui::TableSetupColumn("Z", ImGuiTableColumnFlags_WidthFixed, 70.0f);
-    ImGui::TableSetupColumn("Element", ImGuiTableColumnFlags_WidthFixed, 120.0f);
-    ImGui::TableSetupColumn("Count", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+    ImGui::TableSetupColumn("Element");
+    ImGui::TableSetupColumn("Z");
+    ImGui::TableSetupColumn("Count");
+    ImGui::TableSetupColumn("Fraction");
     ImGui::TableHeadersRow();
 
     for (const auto& [z, count] : counts)
     {
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
-        ImGui::Text("%d", z);
-        ImGui::TableSetColumnIndex(1);
         ImGui::Text("%s", elementSymbol(z));
+        ImGui::TableSetColumnIndex(1);
+        ImGui::Text("%d", z);
         ImGui::TableSetColumnIndex(2);
         ImGui::Text("%d", count);
+        ImGui::TableSetColumnIndex(3);
+        ImGui::Text("%.2f %%", total ? 100.0 * count / static_cast<double>(total) : 0.0);
     }
 
     ImGui::EndTable();
@@ -271,46 +348,27 @@ StructureInfoComputedData computeStructureInfo(const Structure& structure)
     return data;
 }
 
-void drawSymmetrySection(const StructureInfoComputedData& data)
-{
-    ImGui::Separator();
-    ImGui::Text("Symmetry (spglib)");
-
-    if (!data.ready)
-    {
-        ImGui::Text("Computing symmetry...");
-        return;
-    }
-
-    if (!data.symmetrySuccess)
-    {
-        ImGui::TextWrapped("Space group: unavailable (%s)", data.symmetryError.c_str());
-        return;
-    }
-
-    ImGui::Text("Space group: %d (%s)", data.symmetrySpaceGroupNumber, data.symmetryInternationalSymbol.c_str());
-    ImGui::Text("Hall symbol: %s", data.symmetryHallSymbol.c_str());
-    ImGui::Text("Point group: %s", data.symmetryPointGroup.c_str());
-}
-
 void drawAtomicPositionsTable(const Structure& structure, bool hasValidLattice)
 {
     if (!ImGui::BeginTable("##position-table", 8,
-                           ImGuiTableFlags_Borders |
+                           ImGuiTableFlags_BordersInnerH |
+                           ImGuiTableFlags_BordersOuter |
                            ImGuiTableFlags_RowBg |
-                           ImGuiTableFlags_ScrollY))
+                           ImGuiTableFlags_ScrollY |
+                           ImGuiTableFlags_SizingStretchProp))
     {
         return;
     }
 
-    ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 55.0f);
-    ImGui::TableSetupColumn("El", ImGuiTableColumnFlags_WidthFixed, 55.0f);
-    ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-    ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-    ImGui::TableSetupColumn("Z", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-    ImGui::TableSetupColumn("u", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-    ImGui::TableSetupColumn("v", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-    ImGui::TableSetupColumn("w", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+    ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthStretch, 0.6f);
+    ImGui::TableSetupColumn("Element", ImGuiTableColumnFlags_WidthStretch, 0.6f);
+    ImGui::TableSetupColumn("x (\xc3\x85)", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+    ImGui::TableSetupColumn("y (\xc3\x85)", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+    ImGui::TableSetupColumn("z (\xc3\x85)", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+    ImGui::TableSetupColumn("u", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+    ImGui::TableSetupColumn("v", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+    ImGui::TableSetupColumn("w", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+    ImGui::TableSetupScrollFreeze(0, 1);
     ImGui::TableHeadersRow();
 
     for (int i = 0; i < (int)structure.atoms.size(); ++i)
@@ -327,17 +385,17 @@ void drawAtomicPositionsTable(const Structure& structure, bool hasValidLattice)
         ImGui::TableSetColumnIndex(1);
         ImGui::Text("%s", atom.symbol.c_str());
         ImGui::TableSetColumnIndex(2);
-        ImGui::Text("%.6f", atom.x);
+        ImGui::Text("%.5f", atom.x);
         ImGui::TableSetColumnIndex(3);
-        ImGui::Text("%.6f", atom.y);
+        ImGui::Text("%.5f", atom.y);
         ImGui::TableSetColumnIndex(4);
-        ImGui::Text("%.6f", atom.z);
+        ImGui::Text("%.5f", atom.z);
         ImGui::TableSetColumnIndex(5);
-        ImGui::Text("%.6f", frac.x);
+        ImGui::Text("%.5f", frac.x);
         ImGui::TableSetColumnIndex(6);
-        ImGui::Text("%.6f", frac.y);
+        ImGui::Text("%.5f", frac.y);
         ImGui::TableSetColumnIndex(7);
-        ImGui::Text("%.6f", frac.z);
+        ImGui::Text("%.5f", frac.z);
     }
 
     ImGui::EndTable();
@@ -381,65 +439,65 @@ void drawStructureInfoDialog(StructureInfoDialogState& state,
         state.openRequested = false;
     }
 
-    responsive::windowSize(ImVec2(980.0f, 700.0f), ImGuiCond_FirstUseEver);
+    // A fixed width and a height that follows the content.
+    const float width = responsive::dp(760);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(width, 0), ImVec2(width, FLT_MAX));
     bool popupOpen = true;
-    if (responsive::beginModal("Structure Info", &popupOpen, ImGuiWindowFlags_NoResize))
+    if (responsive::beginModal("Structure Info", &popupOpen, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize))
     {
-        ImGui::Text("Structure Summary");
-        ImGui::Separator();
-
         const bool hasComputedData = state.cachedData.ready && state.cachedFingerprint == currentFingerprint;
+        const StructureInfoComputedData* data = hasComputedData ? &state.cachedData : nullptr;
+        const Rows summary = summaryRows(structure, data);
+        const Rows symmetry = symmetryRows(data);
 
-        const int totalAtoms = static_cast<int>(structure.atoms.size());
-        const int uniqueElements = hasComputedData
-                                       ? static_cast<int>(state.cachedData.elementCounts.size())
-                                       : 0;
+        dialogLayout::section("Summary");
+        drawRows("##summary", summary);
 
-        ImGui::Text("Total atoms: %d", totalAtoms);
-        if (hasComputedData)
-        {
-            ImGui::Text("Unique elements: %d", uniqueElements);
-            ImGui::Text("Formula: %s", state.cachedData.formula.c_str());
-        }
+        dialogLayout::section("Composition");
+        if (data)
+            drawElementCountsTable(data->elementCounts, structure.atoms.size());
         else
-        {
-            ImGui::Text("Unique elements: computing...");
-            ImGui::Text("Formula: computing...");
-        }
-        ImGui::Text("Has unit cell: %s", structure.hasUnitCell ? "Yes" : "No");
+            ImGui::TextDisabled("Counting elements...");
 
-        if (structure.hasUnitCell)
-            drawLatticeInfo(structure);
+        dialogLayout::section("Symmetry");
+        drawRows("##symmetry", symmetry);
 
-        ImGui::Separator();
-        ImGui::Text("Element Counts");
-        if (hasComputedData)
-            drawElementCountsTable(state.cachedData.elementCounts);
-        else
-            ImGui::Text("Computing element counts...");
-
-        drawSymmetrySection(hasComputedData ? state.cachedData : StructureInfoComputedData{});
-
-        ImGui::Separator();
-        ImGui::Text("Atomic Positions");
-
+        dialogLayout::section("Atomic Positions");
         constexpr std::size_t kMaxAtomsForPositionsTable = 500;
-        if (structure.atoms.size() > kMaxAtomsForPositionsTable)
+        if (structure.atoms.empty())
+            ImGui::TextDisabled("No atoms.");
+        else if (structure.atoms.size() > kMaxAtomsForPositionsTable)
         {
-            ImGui::TextWrapped(
-                "Atomic position table is disabled for structures larger than %d atoms to keep the UI stable.",
-                static_cast<int>(kMaxAtomsForPositionsTable));
+            dialogLayout::notef(dialogLayout::Note::Info,
+                "The position table lists up to %d atoms; this structure has %zu. Save it (File > Save As) as an XYZ or CIF file to read every position.",
+                static_cast<int>(kMaxAtomsForPositionsTable), structure.atoms.size());
         }
         else
         {
             glm::mat3 lattice(1.0f);
             glm::vec3 origin(0.0f);
             bool hasValidLattice = buildLatticeMatrix(structure, lattice, origin);
-
-            responsive::beginChild("##positions", responsive::size(940.0f,250.0f), true);
+            const float rows = static_cast<float>(std::min<std::size_t>(structure.atoms.size(), 10) + 1);
+            const float rowHeight = ImGui::GetTextLineHeight() + 2 * ImGui::GetStyle().CellPadding.y;
+            responsive::beginChild("##positions", ImVec2(0, rows * rowHeight + 2.0f), false);
             drawAtomicPositionsTable(structure, hasValidLattice);
             ImGui::EndChild();
         }
+
+        const int pressed = dialogLayout::footer("Close", "Copy Summary");
+        if (pressed == 2)
+        {
+            std::string text;
+            for (const Rows* group : {&summary, &symmetry})
+                for (const auto& [label, value] : *group)
+                    text += label + ": " + value + "\n";
+            if (data)
+                for (const auto& [z, count] : data->elementCounts)
+                    text += std::string(elementSymbol(z)) + ": " + std::to_string(count) + " atoms\n";
+            ImGui::SetClipboardText(text.c_str());
+        }
+        if (pressed == 1)
+            popupOpen = false;
 
         ImGui::EndPopup();
     }

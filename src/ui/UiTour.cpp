@@ -188,6 +188,7 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         t.steps.push_back({"hover-atom", [](Structure&, EditMenuDialogs&, const UiTour::Update&) {
             ImGui::GetIO().AddMousePosEvent(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f);
         }});
+        t.steps.push_back({"structure-info-small", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { requestStructureInfo = true; }});
         t.steps.push_back({"periodic-table", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
             requestedSelection = {100};
             selectionRequested = true;
