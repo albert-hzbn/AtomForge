@@ -91,7 +91,8 @@ Light and dark themes, adjustable interface size and responsive dialogs support 
 
 | Data | Supported formats |
 | --- | --- |
-| **Desktop structures** | XYZ and extended XYZ (with its cell), CIF, PDB, SDF, MOL, VASP, MOL2, Quantum ESPRESSO PWI and Gaussian GJF |
+| **Desktop structures** | XYZ and extended XYZ (with its cell, columns in any order), CIF (disordered sites resolved to the majority species), VASP POSCAR/CONTCAR, LAMMPS data, PDB, SDF, MOL, MOL2, Quantum ESPRESSO PWI and Gaussian GJF; XYZ, CIF, POSCAR and LAMMPS data are written at full precision |
+| **Trajectories** | XYZ/extended XYZ, XDATCAR and LAMMPS dumps (Cartesian or scaled positions, atoms in id order) |
 | **Custom meshes** | OBJ and STL |
 | **Electronic input grids** | VASP charge, potential and ELF files; Gaussian Cube; XSF |
 | **Rendered images** | PNG, JPEG and SVG |
