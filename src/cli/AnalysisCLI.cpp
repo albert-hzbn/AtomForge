@@ -127,6 +127,7 @@ int runAnalysisCLI(int argc, char* argv[])
             }
         Structure structure; std::string error;
         if (!loadStructureFromFile(args.at("--input"),structure,error)) throw std::runtime_error(error);
+        if (!structure.loadNote.empty()) std::cerr << "Note: " << structure.loadNote << "\n";
         if (args.count("--convert")) {
             std::string format=args.count("--format") ? args.at("--format")
                 : std::filesystem::path(args.at("--output")).extension().string().substr(1);

@@ -730,7 +730,7 @@
     },
     {
       "source": "src/app/EditorApplication.cpp",
-      "sha256": "172927ccfe5c433c9007031f238a09193ef4c38d8a25560d53718e89d3df18cd",
+      "sha256": "8071deed83d6d20f1b168f0ae4f5e3284164c7179c0d059b763056b24fd120c5",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -809,7 +809,7 @@
     },
     {
       "source": "src/cli/AnalysisCLI.cpp",
-      "sha256": "380f3a094fb93cf1304a32be80526628821c96a4bc5f9ebe49f356eab9c48f32",
+      "sha256": "f9bd7e789d4e9d0ebdf4a911aad0bcdb64006b3c8cf749c10b810f42938b36d5",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"

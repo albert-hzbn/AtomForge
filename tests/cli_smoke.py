@@ -179,6 +179,18 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
     back = root / "hcp_back.xyz"
     run("--convert", "--input", data, "--output", back, "--format", "xyz")
     assert back.read_text().splitlines() == hcp_lines, back.read_text()
+    # A disordered CIF (Cu 0.6 and Ni 0.4 on one FCC site): one atom per site,
+    # the majority species, and a note saying so.
+    disordered = root / "disordered.cif"
+    disordered.write_text("data_x\n_cell_length_a 3.6\n_cell_length_b 3.6\n_cell_length_c 3.6\n"
+                          "_cell_angle_alpha 90\n_cell_angle_beta 90\n_cell_angle_gamma 90\n"
+                          "_symmetry_space_group_name_H-M 'F m -3 m'\nloop_\n_atom_site_label\n_atom_site_type_symbol\n"
+                          "_atom_site_fract_x\n_atom_site_fract_y\n_atom_site_fract_z\n_atom_site_occupancy\n"
+                          "Ni1 Ni 0 0 0 0.4\nCu1 Cu 0 0 0 0.6\n")
+    ordered = root / "disordered.xyz"
+    note = run("--convert", "--input", disordered, "--output", ordered, "--format", "xyz")
+    assert [line.split()[0] for line in ordered.read_text().splitlines()[2:]] == ["Cu"] * 4, ordered.read_text()
+    assert "partial occupancy" in note.stderr, note.stderr
     # CIF keeps full precision: 1/6 of a 10.83 A cell stays 1.805 A.
     big = root / "big.cif"
     run("--pipe", "replicate 3 3 3", "--input", source, "--output", big)

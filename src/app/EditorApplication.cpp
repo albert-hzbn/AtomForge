@@ -53,6 +53,8 @@ std::string loadedMessage(const std::string& path, const Structure& structure)
                           std::to_string(structure.atoms.size()) + (structure.atoms.size() == 1 ? " atom)." : " atoms).");
     if (structure.ipfLoadStatus.rfind("IPF loaded", 0) == 0)
         message += " Crystal orientations restored from the saved metadata.";
+    if (!structure.loadNote.empty())
+        message += " " + structure.loadNote;
     return message;
 }
 

@@ -54,6 +54,10 @@ struct Structure
     // (metadata sidecar, geometry fallback, or unavailable).
     std::string ipfLoadStatus;
 
+    // Something the reader changed or assumed that the user should know
+    // (shown with the "Opened" message and printed by the command line).
+    std::string loadNote;
+
     // 3D convex-hull boundary of the displaced atom region, populated by the
     // dislocation builder.  Projected onto the slip plane (e1–lineDir), so it
     // forms a closed polygon that can be rendered with GL_LINE_LOOP.

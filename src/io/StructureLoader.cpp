@@ -1522,6 +1522,59 @@ bool isLargeDataFile(const std::string& filename)
 
 static bool finishLoadedStructure(const std::string& filename, Structure& structure, std::string& errorMessage);
 
+// A disordered CIF lists several species on one site with occupancies below
+// 1 (Cu 0.5 and Ni 0.5 at the origin). An editable structure holds one atom
+// per site: keep the species with the largest occupancy (the first listed on
+// a tie) and say so in the load note. Sites with one species and an
+// occupancy below 1 (partial vacancies) are kept and counted.
+static void resolvePartialOccupancy(Structure& structure, const std::vector<double>& occupancies)
+{
+    if (occupancies.size() != structure.atoms.size()) return;
+    if (std::none_of(occupancies.begin(), occupancies.end(), [](double o) { return o < 1.0 - 1e-6; })) return;
+    if (structure.hasUnitCell) wrapAtomsIntoPrimaryCell(structure);
+
+    // Group atoms by position, to 0.01 A; atoms at fractional 0 and 1 are
+    // the same site after wrapping.
+    std::map<std::array<long long, 3>, std::vector<std::size_t>> sites;
+    for (std::size_t i = 0; i < structure.atoms.size(); ++i)
+    {
+        const auto& a = structure.atoms[i];
+        sites[{std::llround(a.x * 100.0), std::llround(a.y * 100.0), std::llround(a.z * 100.0)}].push_back(i);
+    }
+    std::vector<char> keep(structure.atoms.size(), 1);
+    std::size_t shared = 0, partial = 0;
+    for (const auto& [key, members] : sites)
+    {
+        if (members.size() > 1)
+        {
+            ++shared;
+            std::size_t best = members[0];
+            for (std::size_t m : members)
+                if (occupancies[m] > occupancies[best] + 1e-9) best = m;
+            for (std::size_t m : members) keep[m] = m == best;
+        }
+        else if (occupancies[members[0]] < 1.0 - 1e-6)
+            ++partial;
+    }
+    if (shared)
+    {
+        std::vector<AtomSite> kept;
+        kept.reserve(structure.atoms.size());
+        for (std::size_t i = 0; i < structure.atoms.size(); ++i)
+            if (keep[i]) kept.push_back(structure.atoms[i]);
+        structure.atoms.swap(kept);
+    }
+    std::string note;
+    if (shared)
+        note = std::to_string(shared) + (shared == 1 ? " site holds" : " sites hold") +
+               " more than one species (partial occupancy); each keeps its majority species "
+               "(Build > Substitutional Solid Solution makes a random mixture).";
+    if (partial)
+        note += std::string(note.empty() ? "" : " ") + std::to_string(partial) +
+                (partial == 1 ? " site is" : " sites are") + " partially occupied; its atom is kept.";
+    structure.loadNote = note;
+}
+
 // The element of a LAMMPS atom type: a label after its mass ("1 63.546 # Cu",
 // as AtomForge, ASE and others write), a label from an "Atom Type Labels"
 // section, or else the element whose standard mass is nearest (within 0.5 u).
@@ -1875,6 +1928,8 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
         return false;
     }
     structure.atoms.reserve(mol.NumAtoms());
+    std::vector<double> occupancies;
+    occupancies.reserve(mol.NumAtoms());
 
     for(OpenBabel::OBAtom* atom = mol.BeginAtom(ai);
         atom;
@@ -1892,9 +1947,15 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
 
         getDefaultElementColor(site.atomicNumber, site.r, site.g, site.b);
 
+        double occupancy = 1.0;
+        if (auto* data = dynamic_cast<OpenBabel::OBPairFloatingPoint*>(atom->GetData("_atom_site_occupancy")))
+            occupancy = data->GetGenericValue();
+        occupancies.push_back(occupancy);
+
         structure.atoms.push_back(site);
     }
 
+    resolvePartialOccupancy(structure, occupancies);
     return finishLoadedStructure(filename, structure, errorMessage);
 }
 
