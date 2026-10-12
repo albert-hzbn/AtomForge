@@ -26,6 +26,7 @@
 #include <numeric>
 #include <queue>
 #include <sstream>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 #include <sys/stat.h>
@@ -136,7 +137,11 @@ void removeIpfSidecar(const std::string& filename)
 
 bool saveIpfSidecar(const Structure& structure, const std::string& filename)
 {
-    if (structure.grainColors.size() != structure.atoms.size() || structure.atoms.empty())
+    // Orientation colours reconstructed from the geometry on loading are
+    // reconstructed again on the next load: writing them would put a file
+    // larger than the structure beside every save of a crystal.
+    const bool reconstructed = structure.ipfLoadStatus.rfind("IPF reconstructed", 0) == 0 && structure.grainRegionIds.empty();
+    if (structure.grainColors.size() != structure.atoms.size() || structure.atoms.empty() || reconstructed)
     {
         removeIpfSidecar(filename);
         return true;
@@ -1530,6 +1535,132 @@ bool isLargeDataFile(const std::string& filename)
 
 static bool finishLoadedStructure(const std::string& filename, Structure& structure, std::string& errorMessage);
 
+// The first frame of an XYZ or extended XYZ file, read directly: the count,
+// the comment (Lattice and Properties keys) and one line per atom, whose
+// element is a symbol in any case, a label starting with one (Cu1) or an
+// atomic number.
+static bool readXyz(const std::string& text, Structure& structure, std::string& errorMessage)
+{
+    std::size_t pos = 0;
+    const auto nextLine = [&](std::string_view& line) {
+        if (pos >= text.size()) return false;
+        std::size_t end = text.find('\n', pos);
+        if (end == std::string::npos) end = text.size();
+        line = std::string_view(text).substr(pos, end - pos);
+        if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
+        pos = end + 1;
+        return true;
+    };
+    std::string_view line;
+    do
+    {
+        if (!nextLine(line))
+        {
+            errorMessage = "The XYZ file is empty.";
+            return false;
+        }
+    } while (line.find_first_not_of(" \t") == std::string_view::npos);
+    char* end = nullptr;
+    const std::string countText(line);
+    const long long count = std::strtoll(countText.c_str(), &end, 10);
+    if (end == countText.c_str() || count < 0 || std::string_view(end).find_first_not_of(" \t") != std::string_view::npos)
+    {
+        errorMessage = "Not an XYZ file: the first line must be the number of atoms.";
+        return false;
+    }
+    if (count > 5000000)
+    {
+        errorMessage = "The file has " + std::to_string(count) + " atoms, more than the 5000000 that can be edited; "
+                       "open it to view it as an atom cloud.";
+        return false;
+    }
+    std::string_view comment;
+    nextLine(comment);
+    int speciesColumn = 0, positionColumn = 1;
+    if (!extendedXyzColumns(std::string(comment), speciesColumn, positionColumn))
+    {
+        speciesColumn = 0;
+        positionColumn = 1;
+    }
+    const int needed = std::max(speciesColumn, positionColumn + 2) + 1;
+
+    std::vector<std::string_view> words;
+    structure.atoms.reserve(static_cast<std::size_t>(count));
+    for (long long n = 0; n < count; ++n)
+    {
+        if (!nextLine(line))
+        {
+            errorMessage = "The XYZ file declares " + std::to_string(count) + " atoms but has only " + std::to_string(n) + ".";
+            return false;
+        }
+        words.clear();
+        for (std::size_t i = 0; i < line.size() && (int)words.size() < needed;)
+        {
+            while (i < line.size() && (line[i] == ' ' || line[i] == '\t')) ++i;
+            const std::size_t start = i;
+            while (i < line.size() && line[i] != ' ' && line[i] != '\t') ++i;
+            if (i > start) words.push_back(line.substr(start, i - start));
+        }
+        if ((int)words.size() < needed)
+        {
+            errorMessage = "XYZ atom " + std::to_string(n + 1) + " needs an element and three coordinates: " + std::string(line);
+            return false;
+        }
+        AtomSite site;
+        const std::string_view label = words[(std::size_t)speciesColumn];
+        int z = 0;
+        if (std::isdigit(static_cast<unsigned char>(label[0])))
+            z = std::atoi(std::string(label).c_str());
+        else
+        {
+            std::string symbol;
+            for (char c : label)
+            {
+                if (!std::isalpha(static_cast<unsigned char>(c)) || symbol.size() == 2) break;
+                symbol += symbol.empty() ? static_cast<char>(std::toupper(static_cast<unsigned char>(c)))
+                                         : static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            }
+            for (int k = 1; k <= 118 && !z; ++k)
+                if (symbol == elementSymbol(k)) z = k;
+            // "CA1" style labels: a one-letter element followed by more letters.
+            if (!z && symbol.size() == 2)
+                for (int k = 1; k <= 118 && !z; ++k)
+                    if (symbol.substr(0, 1) == elementSymbol(k)) z = k;
+        }
+        if (z < 1 || z > 118)
+        {
+            errorMessage = "Unknown element '" + std::string(label) + "' on XYZ atom " + std::to_string(n + 1) + ".";
+            return false;
+        }
+        double xyz[3];
+        for (int k = 0; k < 3; ++k)
+        {
+            const std::string number(words[(std::size_t)(positionColumn + k)]);
+            char* parsed = nullptr;
+            xyz[k] = std::strtod(number.c_str(), &parsed);
+            if (parsed == number.c_str() || *parsed || !std::isfinite(xyz[k]))
+            {
+                errorMessage = "XYZ atom " + std::to_string(n + 1) + " has an invalid coordinate '" + number + "'.";
+                return false;
+            }
+        }
+        site.atomicNumber = z;
+        site.symbol = elementSymbol(z);
+        site.x = xyz[0];
+        site.y = xyz[1];
+        site.z = xyz[2];
+        getDefaultElementColor(z, site.r, site.g, site.b);
+        structure.atoms.push_back(std::move(site));
+    }
+    std::array<std::array<double, 3>, 3> cell{};
+    if (readExtendedXyzLattice(text, cell))
+    {
+        structure.hasUnitCell = true;
+        structure.cellVectors = cell;
+    }
+    return true;
+}
+
 // A disordered CIF lists several species on one site with occupancies below
 // 1 (Cu 0.5 and Ni 0.5 at the origin). An editable structure holds one atom
 // per site: keep the species with the largest occupancy (the first listed on
@@ -1851,6 +1982,14 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
         return false;
     }
 
+    if (extLower == ".xyz" || extLower == ".extxyz")
+    {
+        std::ifstream in(filename, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        if (!readXyz(text, structure, errorMessage)) return false;
+        return finishLoadedStructure(filename, structure, errorMessage);
+    }
+
     if (extLower == ".data" || extLower == ".lmp")
     {
         std::ifstream in(filename, std::ios::binary);
@@ -1914,8 +2053,8 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
     {
         std::ifstream in(filename, std::ios::binary);
         std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-        // Selective dynamics: the line after the counts starts with S. The
-        // flags are not kept, which a relaxation of the saved file would miss.
+        // Selective dynamics: the line after the counts starts with S, and
+        // each coordinate line carries T/F flags.
         {
             std::istringstream lines(text);
             std::string line;

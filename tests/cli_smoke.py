@@ -134,6 +134,8 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
     run("--convert", "--input", rocksalt, "--output", expanded, "--format", "xyz")
     lines = expanded.read_text().splitlines()
     assert lines[0].strip() == "8", lines[:3]
+    # Orientation colours reconstructed from the geometry are not written beside it.
+    assert not (root / "rocksalt.atomforge-ipf").exists(), "a reconstructed orientation sidecar was written"
     assert lines[1].startswith('Lattice="5.64 0 0 0 5.64 0 0 0 5.64"'), lines[1]
     back = root / "rocksalt_back.cif"
     run("--convert", "--input", expanded, "--output", back)
