@@ -122,6 +122,27 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
         output = root / "invalid.cif"
         run("--build", "sss", "--input", source, "--frac", fraction, "--output", output, success=False)
         assert not output.exists()
+    # A CIF that names its space group but lists no symmetry operations is
+    # expanded (rock salt: 8 atoms); XYZ symbols in any case; the extended XYZ
+    # cell survives a round trip through XYZ and CIF.
+    rocksalt = root / "rocksalt.cif"
+    rocksalt.write_text("data_NaCl\n_cell_length_a 5.64\n_cell_length_b 5.64\n_cell_length_c 5.64\n"
+                        "_cell_angle_alpha 90\n_cell_angle_beta 90\n_cell_angle_gamma 90\n"
+                        "_space_group_IT_number 225\nloop_\n_atom_site_label\n_atom_site_type_symbol\n"
+                        "_atom_site_fract_x\n_atom_site_fract_y\n_atom_site_fract_z\nNa1 Na 0 0 0\nCl1 Cl 0.5 0.5 0.5\n")
+    expanded = root / "rocksalt.xyz"
+    run("--convert", "--input", rocksalt, "--output", expanded, "--format", "xyz")
+    lines = expanded.read_text().splitlines()
+    assert lines[0].strip() == "8", lines[:3]
+    assert lines[1].startswith('Lattice="5.64 0 0 0 5.64 0 0 0 5.64"'), lines[1]
+    back = root / "rocksalt_back.cif"
+    run("--convert", "--input", expanded, "--output", back)
+    assert "_cell_length_a 5.64" in back.read_text(), back.read_text()[:300]
+    upper = root / "upper.xyz"
+    upper.write_text("3\n\nCU 0 0 0\nni 1.8 0 0\nO 0 1.8 0\n")
+    symbols = root / "upper_out.xyz"
+    run("--convert", "--input", upper, "--output", symbols, "--format", "xyz")
+    assert [line.split()[0] for line in symbols.read_text().splitlines()[2:5]] == ["Cu", "Ni", "O"], symbols.read_text()
     run("--build", "bulk", "--a", "nan", "--output", root / "invalid.cif", success=False)
     run("--build", "unknown", success=False)
 print("CLI smoke tests passed (version, 15 help modes, 12 builders, 6 invalid inputs)")

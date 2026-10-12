@@ -987,6 +987,59 @@ void setBabelLibDir(const std::string& path)
 #endif
 }
 
+// Open Babel reads its data files (space-groups.txt among them) from
+// BABEL_DATADIR. Without them a CIF that names its space group but lists no
+// symmetry operations is not expanded, so point it at the data next to the
+// plugins in use, or at a bundled copy.
+void ensureOpenBabelData()
+{
+    const auto hasSpaceGroups = [](const std::string& dir) {
+        std::ifstream probe(joinPath(dir, "space-groups.txt"));
+        return probe.good();
+    };
+    const char* current = std::getenv("BABEL_DATADIR");
+    if (current && *current && hasSpaceGroups(normalizeSeparators(current)))
+        return;
+
+    std::vector<std::string> candidates;
+    const std::string exeDir = executableDirectory();
+    if (!exeDir.empty())
+    {
+        appendVersionedPluginCandidates(joinPath(exeDir, "openbabel-data"), candidates);
+        const std::string prefixDir = parentDirectory(exeDir);
+        if (!prefixDir.empty())
+            appendVersionedPluginCandidates(joinPath(joinPath(prefixDir, "share"), "openbabel"), candidates);
+    }
+    // <prefix>/lib/openbabel[/<version>] -> <prefix>/share/openbabel/<version>
+    if (const char* libDir = std::getenv("BABEL_LIBDIR"); libDir && *libDir)
+    {
+        const std::string plugins = normalizeSeparators(libDir);
+        const std::size_t lib = plugins.rfind("/lib/");
+        if (lib != std::string::npos)
+            appendVersionedPluginCandidates(joinPath(joinPath(plugins.substr(0, lib), "share"), "openbabel"), candidates);
+    }
+#ifdef _WIN32
+    appendVersionedPluginCandidates("C:/msys64/ucrt64/share/openbabel", candidates);
+    appendVersionedPluginCandidates("C:/msys64/mingw64/share/openbabel", candidates);
+#else
+    appendVersionedPluginCandidates("/usr/share/openbabel", candidates);
+    appendVersionedPluginCandidates("/usr/local/share/openbabel", candidates);
+#endif
+    for (const std::string& candidate : candidates)
+    {
+        if (!hasSpaceGroups(candidate))
+            continue;
+        std::string dir = candidate;
+        while (dir.size() > 1 && dir.back() == '/') dir.pop_back();
+#ifdef _WIN32
+        _putenv_s("BABEL_DATADIR", dir.c_str());
+#else
+        setenv("BABEL_DATADIR", dir.c_str(), 1);
+#endif
+        return;
+    }
+}
+
 void ensureOpenBabelPlugins()
 {
     static bool initialized = false;
@@ -1017,6 +1070,7 @@ void ensureOpenBabelPlugins()
             OpenBabel::OBConversion probe;
             if (probe.SetInFormat("cif") || probe.SetInFormat("vasp"))
             {
+                ensureOpenBabelData();
                 OpenBabel::obErrorLog.SetOutputLevel(savedLevel);
                 return;
             }
@@ -1102,6 +1156,7 @@ void ensureOpenBabelPlugins()
     if (!pluginsReady)
         OpenBabel::OBPlugin::LoadAllPlugins();
 
+    ensureOpenBabelData();
     OpenBabel::obErrorLog.SetOutputLevel(savedLevel);
 }
 
@@ -1224,6 +1279,79 @@ void wrapAtomsIntoPrimaryCell(Structure& structure)
 
 
 
+// XYZ element symbols in standard case ("NI", "cu" -> "Ni", "Cu"): Open Babel
+// only capitalises the first letter, so an all-capitals symbol would load as
+// an unknown element. Returns false (text unchanged) if the frames do not
+// follow the XYZ layout.
+// The cell of an extended XYZ file: Lattice="ax ay az bx by bz cx cy cz" on
+// the first frame's comment line (Open Babel does not read it).
+static bool readExtendedXyzLattice(const std::string& text, std::array<std::array<double, 3>, 3>& cell)
+{
+    const std::size_t first = text.find('\n');
+    if (first == std::string::npos) return false;
+    const std::size_t second = text.find('\n', first + 1);
+    const std::string comment = text.substr(first + 1, second == std::string::npos ? std::string::npos : second - first - 1);
+    std::size_t key = std::string::npos;
+    for (std::size_t at = comment.find("attice="); at != std::string::npos; at = comment.find("attice=", at + 1))
+        if (at > 0 && (comment[at - 1] == 'L' || comment[at - 1] == 'l')) { key = at + 7; break; }
+    if (key == std::string::npos || key >= comment.size()) return false;
+    const char quote = comment[key];
+    if (quote != '"' && quote != '\'') return false;
+    const std::size_t close = comment.find(quote, key + 1);
+    if (close == std::string::npos) return false;
+    std::istringstream values(comment.substr(key + 1, close - key - 1));
+    for (auto& row : cell)
+        for (double& value : row)
+            if (!(values >> value) || !std::isfinite(value)) return false;
+    return true;
+}
+
+static bool normalizeXyzSymbols(std::string& text)
+{
+    std::string out;
+    out.reserve(text.size());
+    std::size_t pos = 0;
+    const auto nextLine = [&](std::string& line) {
+        if (pos >= text.size()) return false;
+        const std::size_t end = text.find('\n', pos);
+        line = text.substr(pos, end == std::string::npos ? std::string::npos : end - pos + 1);
+        pos = end == std::string::npos ? text.size() : end + 1;
+        return true;
+    };
+    std::string line;
+    while (nextLine(line))
+    {
+        char* endPtr = nullptr;
+        const long count = std::strtol(line.c_str(), &endPtr, 10);
+        if (endPtr == line.c_str() || count < 0)
+        {
+            // Trailing blank lines are fine; anything else is not XYZ.
+            if (line.find_first_not_of(" \t\r\n") != std::string::npos) return false;
+            out += line;
+            continue;
+        }
+        out += line;
+        if (!nextLine(line)) return false;  // the comment line
+        out += line;
+        for (long n = 0; n < count; ++n)
+        {
+            if (!nextLine(line)) return false;
+            const std::size_t start = line.find_first_not_of(" \t");
+            std::size_t stop = start;
+            while (stop < line.size() && std::isalpha(static_cast<unsigned char>(line[stop]))) ++stop;
+            if (start != std::string::npos && stop > start)
+            {
+                line[start] = static_cast<char>(std::toupper(static_cast<unsigned char>(line[start])));
+                for (std::size_t k = start + 1; k < stop; ++k)
+                    line[k] = static_cast<char>(std::tolower(static_cast<unsigned char>(line[k])));
+            }
+            out += line;
+        }
+    }
+    text.swap(out);
+    return true;
+}
+
 bool isSupportedStructureFile(const std::string& filename)
 {
     const std::string extLower = toLowerCopy(extractExtension(filename));
@@ -1305,7 +1433,19 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
     // application so there is no value in the O(n²) work.
     conv.AddOption("b", OpenBabel::OBConversion::INOPTIONS);
 
-    if (!conv.ReadFile(&mol, filename))
+    bool read = false;
+    bool xyzLattice = false;
+    std::array<std::array<double, 3>, 3> xyzCell{};
+    if (extLower == ".xyz")
+    {
+        std::ifstream in(filename, std::ios::binary);
+        std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        xyzLattice = readExtendedXyzLattice(text, xyzCell);
+        read = normalizeXyzSymbols(text) ? conv.ReadString(&mol, text) : conv.ReadFile(&mol, filename);
+    }
+    else
+        read = conv.ReadFile(&mol, filename);
+    if (!read)
     {
         errorMessage = "Failed to load file. The file may be corrupted or unreadable.";
         return false;
@@ -1337,6 +1477,12 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
                 }
             }
         }
+    }
+
+    if (!structure.hasUnitCell && xyzLattice)
+    {
+        structure.hasUnitCell = true;
+        structure.cellVectors = xyzCell;
     }
 
     OpenBabel::OBAtomIterator ai;
@@ -1480,6 +1626,19 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
         OpenBabel::vector3 vc(src->cellVectors[2][0], src->cellVectors[2][1], src->cellVectors[2][2]);
         cell->SetData(va, vb, vc);
         mol.SetData(cell);
+
+        // XYZ keeps the cell as extended XYZ (ASE) on its comment line.
+        if (format == "xyz" || format == "XYZ")
+        {
+            std::ostringstream comment;
+            comment << std::setprecision(10) << "Lattice=\"";
+            for (int r = 0; r < 3; ++r)
+                for (int c = 0; c < 3; ++c)
+                    comment << (r || c ? " " : "") << (std::abs(src->cellVectors[r][c]) < 1e-12 ? 0.0 : src->cellVectors[r][c]);
+            comment << "\" Properties=species:S:1:pos:R:3 pbc=\"T T T\"";
+            std::string title = comment.str();
+            mol.SetTitle(title);
+        }
     }
 
     // ConnectTheDots / PerceiveBondOrders are O(n²) and cause OOM crashes

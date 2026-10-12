@@ -349,6 +349,18 @@ if(BUILD_PORTABLE)
     else()
         message(WARNING "OPENBABEL_PLUGINDIR not found; portable package may miss Open Babel plugins")
     endif()
+    # And its data (space-groups.txt expands CIFs that name only their space
+    # group): <prefix>/lib/openbabel -> <prefix>/share/openbabel.
+    if(OPENBABEL_PLUGINDIR)
+        get_filename_component(_ob_lib_dir "${OPENBABEL_PLUGINDIR}" DIRECTORY)
+        get_filename_component(_ob_prefix "${_ob_lib_dir}" DIRECTORY)
+        if(EXISTS "${_ob_prefix}/share/openbabel")
+            install(DIRECTORY "${_ob_prefix}/share/openbabel/"
+                    DESTINATION "${ATOMFORGE_PORTABLE_BIN_DIR}/openbabel-data")
+        else()
+            message(WARNING "Open Babel data not found; CIFs without symmetry operations will not be expanded in the portable package")
+        endif()
+    endif()
 
     set(ATOMFORGE_PORTABLE_EXE_NAME "AtomForge${CMAKE_EXECUTABLE_SUFFIX}")
     set(ATOMFORGE_ELECTRONIC_LIBRARY_NAME "atomforge_electronic${CMAKE_SHARED_LIBRARY_SUFFIX}")
