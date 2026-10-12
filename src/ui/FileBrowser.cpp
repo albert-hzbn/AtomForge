@@ -993,8 +993,8 @@ void FileBrowser::drawOpenStructureDialog()
                 pushHistory(openDir);
                 openStatusMsg[0] = '\0';
             }
-            ImGui::EndChild();
         }
+        ImGui::EndChild();
 
         // Draggable splitter
         ImGui::SameLine(responsive::dp(0.0f), 0.0f);
@@ -1042,8 +1042,8 @@ void FileBrowser::drawOpenStructureDialog()
                     }, &openFileDoubleClicked);
             }
 
-            ImGui::EndChild();
         }
+        ImGui::EndChild();
 
         {
             ImGui::AlignTextToFramePadding();
@@ -1194,8 +1194,8 @@ void FileBrowser::drawSaveAsDialog(Structure& structure)
         {
             if (const std::string place = drawLocations(driveRoots); !place.empty())
                 pushSaveDir(place);
-            ImGui::EndChild();
         }
+        ImGui::EndChild();
 
         // Draggable splitter
         ImGui::SameLine(responsive::dp(0.0f), 0.0f);
@@ -1244,8 +1244,8 @@ void FileBrowser::drawSaveAsDialog(Structure& structure)
                         pushSaveDir(joinPath(saveDir, name));
                     });
             }
-            ImGui::EndChild();
         }
+        ImGui::EndChild();
 
         dialogLayout::fieldLabel("File name", ImGui::GetFontSize() * 5.5f);
         ImGui::SetNextItemWidth(-FLT_MIN);
@@ -1409,8 +1409,8 @@ void FileBrowser::drawExportImageDialog(Structure& structure)
         {
             if (const std::string place = drawLocations(driveRoots); !place.empty())
                 pushExportDir(place);
-            ImGui::EndChild();
         }
+        ImGui::EndChild();
 
         // Draggable splitter
         ImGui::SameLine(responsive::dp(0.0f), 0.0f);
@@ -1459,8 +1459,8 @@ void FileBrowser::drawExportImageDialog(Structure& structure)
                         pushExportDir(joinPath(exportDir, name));
                     });
             }
-            ImGui::EndChild();
         }
+        ImGui::EndChild();
 
         const float labelColumn = ImGui::GetFontSize() * 7.5f;
         dialogLayout::fieldLabel("File name", labelColumn);
@@ -1770,56 +1770,59 @@ void FileBrowser::draw(Structure& structure,
             {
                 ImGui::TextDisabled("No lattice planes added.");
             }
-            else if (responsive::beginChild("##lattice-plane-list", responsive::size(0.0f,220.0f), true))
+            else
             {
-                int deleteIndex = -1;
-                for (size_t i = 0; i < latticePlanes.size(); ++i)
+                if (responsive::beginChild("##lattice-plane-list", responsive::size(0.0f,220.0f), true))
                 {
-                    ImGui::PushID((int)i + 30000);
-                    LatticePlane& plane = latticePlanes[i];
-
-                    ImGui::Checkbox("##visible", &plane.visible);
-                    ImGui::SameLine();
-                    ImGui::Text("Plane %d", (int)i + 1);
-
-                    ImGui::SetNextItemWidth(responsive::dp(80.0f));
-                    ImGui::DragInt("h##plane-h", &plane.h, 0.2f, -50, 50);
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(responsive::dp(80.0f));
-                    ImGui::DragInt("k##plane-k", &plane.k, 0.2f, -50, 50);
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(responsive::dp(80.0f));
-                    ImGui::DragInt("l##plane-l", &plane.l, 0.2f, -50, 50);
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(responsive::dp(120.0f));
-                    ImGui::DragFloat("n##plane-offset", &plane.offset, 0.01f, -50.0f, 50.0f, "%.3f");
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(responsive::dp(95.0f));
-                    ImGui::SliderFloat("opacity##plane-opacity", &plane.opacity, 0.0f, 1.0f, "%.2f");
-
-                    if (plane.h == 0 && plane.k == 0 && plane.l == 0)
-                        plane.h = 1;
-
-                    float color[3] = {plane.color[0], plane.color[1], plane.color[2]};
-                    if (ImGui::ColorEdit3("##plane-color", color, ImGuiColorEditFlags_NoInputs))
+                    int deleteIndex = -1;
+                    for (size_t i = 0; i < latticePlanes.size(); ++i)
                     {
-                        plane.color[0] = color[0];
-                        plane.color[1] = color[1];
-                        plane.color[2] = color[2];
+                        ImGui::PushID((int)i + 30000);
+                        LatticePlane& plane = latticePlanes[i];
+
+                        ImGui::Checkbox("##visible", &plane.visible);
+                        ImGui::SameLine();
+                        ImGui::Text("Plane %d", (int)i + 1);
+
+                        ImGui::SetNextItemWidth(responsive::dp(80.0f));
+                        ImGui::DragInt("h##plane-h", &plane.h, 0.2f, -50, 50);
+                        ImGui::SameLine();
+                        ImGui::SetNextItemWidth(responsive::dp(80.0f));
+                        ImGui::DragInt("k##plane-k", &plane.k, 0.2f, -50, 50);
+                        ImGui::SameLine();
+                        ImGui::SetNextItemWidth(responsive::dp(80.0f));
+                        ImGui::DragInt("l##plane-l", &plane.l, 0.2f, -50, 50);
+                        ImGui::SameLine();
+                        ImGui::SetNextItemWidth(responsive::dp(120.0f));
+                        ImGui::DragFloat("n##plane-offset", &plane.offset, 0.01f, -50.0f, 50.0f, "%.3f");
+                        ImGui::SameLine();
+                        ImGui::SetNextItemWidth(responsive::dp(95.0f));
+                        ImGui::SliderFloat("opacity##plane-opacity", &plane.opacity, 0.0f, 1.0f, "%.2f");
+
+                        if (plane.h == 0 && plane.k == 0 && plane.l == 0)
+                            plane.h = 1;
+
+                        float color[3] = {plane.color[0], plane.color[1], plane.color[2]};
+                        if (ImGui::ColorEdit3("##plane-color", color, ImGuiColorEditFlags_NoInputs))
+                        {
+                            plane.color[0] = color[0];
+                            plane.color[1] = color[1];
+                            plane.color[2] = color[2];
+                        }
+
+                        ImGui::SameLine();
+                        if (dialogLayout::dangerButton("Delete"))
+                            deleteIndex = (int)i;
+
+                        ImGui::Separator();
+
+                        ImGui::PopID();
                     }
 
-                    ImGui::SameLine();
-                    if (dialogLayout::dangerButton("Delete"))
-                        deleteIndex = (int)i;
+                    if (deleteIndex >= 0)
+                        latticePlanes.erase(latticePlanes.begin() + deleteIndex);
 
-                    ImGui::Separator();
-
-                    ImGui::PopID();
                 }
-
-                if (deleteIndex >= 0)
-                    latticePlanes.erase(latticePlanes.begin() + deleteIndex);
-
                 ImGui::EndChild();
             }
 
@@ -1896,52 +1899,55 @@ void FileBrowser::draw(Structure& structure,
             {
                 ImGui::TextDisabled("No Miller directions added.");
             }
-            else if (responsive::beginChild("##miller-dir-list", responsive::size(0.0f,200.0f), true))
+            else
             {
-                int deleteIndex = -1;
-                for (size_t i = 0; i < millerDirections.size(); ++i)
+                if (responsive::beginChild("##miller-dir-list", responsive::size(0.0f,200.0f), true))
                 {
-                    ImGui::PushID((int)i + 40000);
-                    MillerDirection& md = millerDirections[i];
-
-                    ImGui::Checkbox("##vis", &md.visible);
-                    ImGui::SameLine();
-                    ImGui::Text("Direction %d", (int)i + 1);
-
-                    ImGui::SetNextItemWidth(responsive::dp(80.0f));
-                    ImGui::DragInt("u##du", &md.u, 0.2f, -50, 50);
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(responsive::dp(80.0f));
-                    ImGui::DragInt("v##dv", &md.v, 0.2f, -50, 50);
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(responsive::dp(80.0f));
-                    ImGui::DragInt("w##dw", &md.w, 0.2f, -50, 50);
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(responsive::dp(100.0f));
-                    ImGui::DragFloat("\xc3\x85##dl", &md.length, 0.1f, 0.5f, 100.0f, "%.1f");
-
-                    if (md.u == 0 && md.v == 0 && md.w == 0)
-                        md.u = 1;
-
-                    float col[3] = { md.color[0], md.color[1], md.color[2] };
-                    ImGui::SameLine();
-                    if (ImGui::ColorEdit3("##dc", col, ImGuiColorEditFlags_NoInputs))
+                    int deleteIndex = -1;
+                    for (size_t i = 0; i < millerDirections.size(); ++i)
                     {
-                        md.color[0] = col[0];
-                        md.color[1] = col[1];
-                        md.color[2] = col[2];
+                        ImGui::PushID((int)i + 40000);
+                        MillerDirection& md = millerDirections[i];
+
+                        ImGui::Checkbox("##vis", &md.visible);
+                        ImGui::SameLine();
+                        ImGui::Text("Direction %d", (int)i + 1);
+
+                        ImGui::SetNextItemWidth(responsive::dp(80.0f));
+                        ImGui::DragInt("u##du", &md.u, 0.2f, -50, 50);
+                        ImGui::SameLine();
+                        ImGui::SetNextItemWidth(responsive::dp(80.0f));
+                        ImGui::DragInt("v##dv", &md.v, 0.2f, -50, 50);
+                        ImGui::SameLine();
+                        ImGui::SetNextItemWidth(responsive::dp(80.0f));
+                        ImGui::DragInt("w##dw", &md.w, 0.2f, -50, 50);
+                        ImGui::SameLine();
+                        ImGui::SetNextItemWidth(responsive::dp(100.0f));
+                        ImGui::DragFloat("\xc3\x85##dl", &md.length, 0.1f, 0.5f, 100.0f, "%.1f");
+
+                        if (md.u == 0 && md.v == 0 && md.w == 0)
+                            md.u = 1;
+
+                        float col[3] = { md.color[0], md.color[1], md.color[2] };
+                        ImGui::SameLine();
+                        if (ImGui::ColorEdit3("##dc", col, ImGuiColorEditFlags_NoInputs))
+                        {
+                            md.color[0] = col[0];
+                            md.color[1] = col[1];
+                            md.color[2] = col[2];
+                        }
+                        ImGui::SameLine();
+                        if (dialogLayout::dangerButton("Delete##ddel"))
+                            deleteIndex = (int)i;
+
+                        ImGui::Separator();
+                        ImGui::PopID();
                     }
-                    ImGui::SameLine();
-                    if (dialogLayout::dangerButton("Delete##ddel"))
-                        deleteIndex = (int)i;
 
-                    ImGui::Separator();
-                    ImGui::PopID();
+                    if (deleteIndex >= 0)
+                        millerDirections.erase(millerDirections.begin() + deleteIndex);
+
                 }
-
-                if (deleteIndex >= 0)
-                    millerDirections.erase(millerDirections.begin() + deleteIndex);
-
                 ImGui::EndChild();
             }
 
@@ -2118,45 +2124,44 @@ void FileBrowser::draw(Structure& structure,
         ImGui::SameLine();
 
         ImGui::BeginGroup();
-        ImGui::Text("AtomForge");
+        uiFonts::pushHeading();
+        ImGui::TextUnformatted("AtomForge");
+        uiFonts::popHeading();
         ImGui::PushTextWrapPos(0.0f);
         ImGui::TextDisabled("Version " ATOMFORGE_VERSION " - Atomistic structure builder, viewer, and editor with periodic-cell and finite-geometry workflows");
         ImGui::PopTextWrapPos();
         ImGui::EndGroup();
         ImGui::Separator();
 
-        if (responsive::beginChild("##about-scroll", ImVec2(0.0f, -ImGui::GetFrameHeightWithSpacing() - 6.0f), false))
+        // The text wraps, so the list scrolls only vertically.
+        const float aboutFooter = ImGui::GetFrameHeight() + 3.0f * ImGui::GetStyle().ItemSpacing.y + responsive::dp(2) + 2.0f;
+        if (ImGui::BeginChild("##about-scroll", ImVec2(0.0f, -aboutFooter), ImGuiChildFlags_None))
         {
-            ImGui::Text("Creator");
+            dialogLayout::section("Creator");
             wrappedBullet("Albert Linda");
 
-            ImGui::Spacing();
-            ImGui::Text("Core Libraries");
+            dialogLayout::section("Core Libraries");
             wrappedBullet("ImGui: immediate-mode GUI framework (by Omar Cornut)");
             wrappedBullet("OpenGL 3.3+: GPU rendering and visualization");
             wrappedBullet("GLFW 3: window and input management");
             wrappedBullet("GLEW: OpenGL extension loader");
             wrappedBullet("GLM: mathematics library for transformations");
 
-            ImGui::Spacing();
-            ImGui::Text("Chemistry Libraries");
+            dialogLayout::section("Chemistry Libraries");
             wrappedBullet("Open Babel: molecular file I/O (.cif, .mol, .pdb, .xyz, .sdf, .mol2, etc.)");
             wrappedBullet("spglib: crystallographic space group and symmetry operations");
 
-            ImGui::Spacing();
-            ImGui::Text("Data & References");
-            wrappedBullet("Periodic table element data (atomic numbers, masses, default colors)");
-            wrappedBullet("Cordero et al. (Dalton Trans. 2008): Van der Waals radii");
+            dialogLayout::section("Data & References");
+            wrappedBullet("Periodic table element data (atomic numbers, masses, default colours)");
+            wrappedBullet("Cordero et al. (Dalton Trans. 2008): covalent radii, the default atom sizes");
             wrappedBullet("Standard crystallographic conventions for cell vectors and positions");
 
-            ImGui::Spacing();
-            ImGui::Text("Algorithm References");
+            dialogLayout::section("Algorithm References");
             wrappedBullet("CSL Grain Boundary Builder: Jianli Cheng, Jian Luo, and Kesong Yang, Aimsgb: An Algorithm and Open-Source Python Library to Generate Periodic Grain Boundary Structures, Comput. Mater. Sci. 155, 92-103 (2018).");
             wrappedBullet("Nanocrystal Builder (Wulff construction): Georgios D. Barmparis, Zbigniew Lodziana, Nuria Lopez, and Ioannis N. Remediakis, Nanoparticle shapes by using Wulff constructions and first-principles calculations, Beilstein J. Nanotechnol. 6, 361-368 (2015).");
             wrappedBullet("Dislocation Builder and Post-Processing: native reimplementations of the physical models and algorithms used by the BABEL dislocation toolkit (Douin, Clouet et al.). Isotropic and anisotropic (Stroh sextic formalism) displacement fields: A. N. Stroh, Philos. Mag. 3, 625 (1958); J. Math. Phys. 41, 77 (1962); D. M. Barnett and J. Lothe, Phys. Norv. 7, 13 (1973); J. P. Hirth and J. Lothe, Theory of Dislocations, 2nd ed. (1982), ch. 13. Nye tensor: J. F. Nye, Acta Metall. 1, 153 (1953); Hartley and Mishin, Acta Mater. 53, 1313 (2005), with the index-order correction documented in BABEL's own source (attributed there to David Olmsted). Vitek differential-displacement map: V. Vitek, Philos. Mag. 18, 773 (1968).");
 
-            ImGui::Spacing();
-            ImGui::Text("Features");
+            dialogLayout::section("Features");
             wrappedBullet("Interactive 3D visualization with real-time rendering");
             wrappedBullet("Full undo/redo support for all editing operations");
             wrappedBullet("Multi-format structure loading and exporting");
@@ -2164,22 +2169,22 @@ void FileBrowser::draw(Structure& structure,
             wrappedBullet("Bulk crystal, CSL grain boundary, nanocrystal, polycrystal, substitutional solid solution, and custom mesh-filled structure builders");
             wrappedBullet("Wulff-construction nanocrystal builder with symmetry-expanded facet preview for periodic reference crystals, including non-cubic systems");
             wrappedBullet("Interactive Merge Structures workflow with per-structure 3D gizmo transforms");
-            wrappedBullet("Customizable atom colors, sizes, and materials");
-            wrappedBullet("Editable Wulff facet colors with dedicated 3D preview and high-contrast face boundaries");
-            wrappedBullet("Crystal-orientation IPF coloring with in-view legend and saved sidecar metadata");
+            wrappedBullet("Customisable atom colours, sizes, and materials");
+            wrappedBullet("Editable Wulff facet colours with dedicated 3D preview and high-contrast face boundaries");
+            wrappedBullet("Crystal-orientation IPF colouring with in-view legend and saved sidecar metadata");
             wrappedBullet("Distance and angle measurement tools");
             wrappedBullet("Light and dark UI themes with matching overlay rendering");
             wrappedBullet("High-resolution image export with adjustable scale and HiDPI-aware interface scaling");
             wrappedBullet("Supercell transformation with periodic boundary visualization");
             wrappedBullet("Headless CLI builder workflows via --build modes (bulk, gb, poly, nano, amorphous, sss, custom)");
 
-            ImGui::EndChild();
         }
+        ImGui::EndChild();
 
-        if (responsive::button("Manual##about", responsive::size(120.0f,0.0f)))
+        const int aboutPressed = dialogLayout::footer("Close", "Manual");
+        if (aboutPressed == 2)
             openPdfManual();
-        ImGui::SameLine();
-        if (responsive::button("Close##about", responsive::size(120.0f,0.0f)))
+        else if (aboutPressed == 1)
             ImGui::CloseCurrentPopup();
 
         ImGui::EndPopup();

@@ -1019,8 +1019,8 @@ void DislocationBuilderDialog::drawDialog(
                     ImGui::DragFloat2("##pt", &m_params.freeformPoints[i].x, 0.05f, -500.0f, 500.0f, "%.2f");
                     ImGui::PopID();
                 }
-                ImGui::EndChild();
             }
+            ImGui::EndChild();
         }
 
         ImGui::Spacing();
