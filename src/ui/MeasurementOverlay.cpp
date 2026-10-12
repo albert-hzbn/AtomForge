@@ -333,6 +333,47 @@ void MeasurementOverlayState::clearVisuals()
     showAngleLines = false;
 }
 
+namespace {
+// A selection made by atom (Select Atoms, the pipeline) covers every periodic
+// image. When it holds exactly `count` distinct atoms, keep one image of each,
+// as close together as possible: the nearest pair for a distance, the images
+// nearest the vertex for an angle. Any other selection is returned unchanged.
+std::vector<int> nearestImages(const std::vector<int>& selected, const SceneBuffers& buffers, std::size_t count)
+{
+    if (selected.size() <= count) return selected;
+    std::vector<int> atoms;
+    std::vector<std::vector<int>> images;
+    for (int instance : selected) {
+        if (instance < 0 || instance >= (int)buffers.atomIndices.size() || instance >= (int)buffers.atomPositions.size()) return selected;
+        const int atom = buffers.atomIndices[instance];
+        const auto found = std::find(atoms.begin(), atoms.end(), atom);
+        if (found == atoms.end()) { atoms.push_back(atom); images.push_back({instance}); }
+        else images[static_cast<std::size_t>(found - atoms.begin())].push_back(instance);
+    }
+    if (atoms.size() != count) return selected;
+    if (count == 2) {
+        std::vector<int> best{images[0].front(), images[1].front()};
+        float bestDistance = FLT_MAX;
+        for (int a : images[0])
+            for (int b : images[1])
+                if (const float d = glm::length(buffers.atomPositions[a] - buffers.atomPositions[b]); d < bestDistance) { bestDistance = d; best = {a, b}; }
+        return best;
+    }
+    const std::size_t anchor = count == 3 ? 1 : 0;  // an angle's vertex
+    const glm::vec3 centre = buffers.atomPositions[images[anchor].front()];
+    std::vector<int> result;
+    for (std::size_t k = 0; k < count; ++k) {
+        int best = images[k].front();
+        float bestDistance = FLT_MAX;
+        if (k != anchor)
+            for (int i : images[k])
+                if (const float d = glm::length(buffers.atomPositions[i] - centre); d < bestDistance) { bestDistance = d; best = i; }
+        result.push_back(best);
+    }
+    return result;
+}
+} // namespace
+
 void processMeasurementRequests(MeasurementOverlayState& state,
                                 bool requestMeasureDistance,
                                 bool requestMeasureAngle,
@@ -355,16 +396,17 @@ void processMeasurementRequests(MeasurementOverlayState& state,
 
     if (requestMeasureDistance)
     {
+        const std::vector<int> pair = nearestImages(selectedInstanceIndices, sceneBuffers, 2);
         state.distanceValue[0] = '\0';
-        if (selectedInstanceIndices.size() != 2)
+        if (pair.size() != 2)
         {
             std::snprintf(state.distanceMessage, sizeof(state.distanceMessage),
                           "Select exactly 2 atoms to measure distance.");
         }
         else
         {
-            int idxA = selectedInstanceIndices[0];
-            int idxB = selectedInstanceIndices[1];
+            int idxA = pair[0];
+            int idxB = pair[1];
 
             bool validA = idxA >= 0 && idxA < (int)sceneBuffers.atomPositions.size();
             bool validB = idxB >= 0 && idxB < (int)sceneBuffers.atomPositions.size();
@@ -399,8 +441,9 @@ void processMeasurementRequests(MeasurementOverlayState& state,
 
     if (requestMeasureAngle)
     {
+        const std::vector<int> triple = nearestImages(selectedInstanceIndices, sceneBuffers, 3);
         state.angleValue[0] = '\0';
-        if (selectedInstanceIndices.size() != 3)
+        if (triple.size() != 3)
         {
             std::snprintf(state.angleMessage, sizeof(state.angleMessage),
                           "Select exactly 3 atoms to measure angle.");
@@ -408,9 +451,9 @@ void processMeasurementRequests(MeasurementOverlayState& state,
         }
         else
         {
-            int idx0 = selectedInstanceIndices[0];
-            int idx1 = selectedInstanceIndices[1];
-            int idx2 = selectedInstanceIndices[2];
+            int idx0 = triple[0];
+            int idx1 = triple[1];
+            int idx2 = triple[2];
 
             bool ok = idx0 >= 0 && idx0 < (int)sceneBuffers.atomPositions.size() &&
                       idx1 >= 0 && idx1 < (int)sceneBuffers.atomPositions.size() &&
@@ -453,14 +496,15 @@ void processMeasurementRequests(MeasurementOverlayState& state,
 
     if (requestAtomInfo)
     {
-        if (selectedInstanceIndices.size() != 1)
+        const std::vector<int> single = nearestImages(selectedInstanceIndices, sceneBuffers, 1);
+        if (single.size() != 1)
         {
             std::snprintf(state.atomInfoMessage, sizeof(state.atomInfoMessage),
                           "Select exactly 1 atom to view info.");
         }
         else
         {
-            int idx = selectedInstanceIndices[0];
+            int idx = single[0];
             bool valid = idx >= 0 && idx < (int)sceneBuffers.atomPositions.size() &&
                          idx < (int)sceneBuffers.atomIndices.size();
             if (!valid)
