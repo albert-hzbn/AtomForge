@@ -57,6 +57,12 @@ void structureTypeProperties(const Json& result, std::vector<AtomProperty>& prop
     add(properties, "Structure type (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)", numbers(result.find("structure_type")));
 }
 
+void diamondStructureProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Diamond type (0 other, 1 cubic, 2 cubic 1st nb, 3 cubic 2nd nb, 4 hexagonal, 5 hex 1st nb, 6 hex 2nd nb)",
+        numbers(result.find("diamond_type")));
+}
+
 void centrosymmetryProperties(const Json& result, std::vector<AtomProperty>& properties)
 {
     add(properties, "Centrosymmetry (A^2)", numbers(result.find("centrosymmetry_A2")));
@@ -107,6 +113,7 @@ const std::map<std::string, PropertyBuilder>& propertyBuilders()
         {"void-analysis", voidAnalysisProperties},
         {"dislocation-lines", dislocationLinesProperties},
         {"structure-type", structureTypeProperties},
+        {"diamond-structure", diamondStructureProperties},
         {"centrosymmetry", centrosymmetryProperties},
         {"local-strain", localStrainProperties},
         {"bond-order", bondOrderProperties},

@@ -15,6 +15,7 @@ Json localStrain(const Parameters& p);
 Json centrosymmetry(const Parameters& p);
 // Ackland-Jones bond-angle structure type (other, fcc, hcp, bcc, icosahedral).
 Json structureType(const Parameters& p);
+Json diamondStructure(const Parameters& p);
 // Classification of one environment from its neighbour vectors (any order).
 int acklandJonesType(std::vector<Vec3> bonds);
 Json bondOrder(const Parameters& p);

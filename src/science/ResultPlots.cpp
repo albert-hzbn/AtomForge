@@ -240,6 +240,19 @@ void structureTypePlots(const Json& result, std::vector<PlotSpec>& plots)
     }
 }
 
+void diamondStructurePlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    if (const Json* counts = result.find("counts"); counts && counts->isObject()) {
+        std::vector<double> x, y;
+        for (std::size_t t = 0; t < counts->size(); ++t) {
+            x.push_back(static_cast<double>(t));
+            y.push_back(counts->members()[t].second.number());
+        }
+        plots.push_back(plot("Diamond types (0 other, 1 cubic, 2-3 its neighbours, 4 hexagonal, 5-6 its neighbours)", "Type", "Atoms",
+                             {line("atoms", x, y, true)}));
+    }
+}
+
 void centrosymmetryPlots(const Json& result, std::vector<PlotSpec>& plots)
 {
     addHistogram(plots, "Centrosymmetry distribution", "CSP (A^2)", numbers(result.find("centrosymmetry_A2")));
@@ -410,6 +423,7 @@ const std::map<std::string, PlotBuilder>& plotBuilders()
         {"cluster-analysis", clusterAnalysisPlots},
         {"void-analysis", voidAnalysisPlots},
         {"structure-type", structureTypePlots},
+        {"diamond-structure", diamondStructurePlots},
         {"centrosymmetry", centrosymmetryPlots},
         {"bond-order", bondOrderPlots},
         {"wigner-seitz", wignerSeitzPlots},

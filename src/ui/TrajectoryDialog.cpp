@@ -23,6 +23,7 @@ const std::vector<std::pair<std::string, std::string>>& TrajectoryDialog::frameA
 {
     static const std::vector<std::pair<std::string, std::string>> tools = {
         {"structure-type", "Structure type (Ackland-Jones)"},
+        {"diamond-structure", "Diamond structure (cubic, hexagonal)"},
         {"centrosymmetry", "Centrosymmetry parameter"},
         {"bond-order", "Steinhardt q6 bond order"},
     };
@@ -190,7 +191,8 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
                     if (ImGui::Selectable(frameAnalyses()[t].second.c_str(),static_cast<int>(t)==analysis)) { analysis=static_cast<int>(t); changed=analyse; }
                 ImGui::EndCombo();
             }
-            if (frameAnalyses()[static_cast<std::size_t>(analysis)].first!="structure-type" || !structure.hasUnitCell) {
+            if ((frameAnalyses()[static_cast<std::size_t>(analysis)].first!="structure-type" &&
+                 frameAnalyses()[static_cast<std::size_t>(analysis)].first!="diamond-structure") || !structure.hasUnitCell) {
                 ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x,responsive::dp(200)));
                 if (ImGui::InputFloat("Neighbour cutoff (\xc3\x85)",&analysisCutoff,0.1f,0.5f,"%.2f")) { analysisCutoff=std::max(0.5f,analysisCutoff); changed=analyse; }
             }

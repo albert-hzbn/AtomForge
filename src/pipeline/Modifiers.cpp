@@ -706,6 +706,7 @@ void computeProperty(const Json& p, PipelineData& data)
     const double cutoff = number(p, "compute-property", "cutoff");
     science::AtomProperty property;
     if (analysis == "structure-type") property = science::analysePerAtom(data.structure, "structure-type", cutoff);
+    else if (analysis == "diamond") property = science::analysePerAtom(data.structure, "diamond-structure", cutoff);
     else if (analysis == "centrosymmetry") property = science::analysePerAtom(data.structure, "centrosymmetry", cutoff);
     else if (analysis == "coordination") property = science::analysePerAtom(data.structure, "bond-order", cutoff, "Coordination");
     else property = science::analysePerAtom(data.structure, "bond-order", cutoff);
@@ -785,7 +786,7 @@ std::vector<ModifierType>& registry()
          {{"axis", "Cell vector", "choice", "c", "a|b|c"}, {"thickness", "Vacuum (Angstrom)", "float", "10", ""}, {"center", "Centre the atoms", "bool", "true", ""}}, addVacuum},
         // Analysis
         {"compute-property", "Compute per-atom property", "Analysis", "Computes a per-atom property for colouring and select-property: Ackland-Jones structure type, centrosymmetry, coordination or Steinhardt q6.",
-         {{"analysis", "Property", "choice", "structure-type", "structure-type|centrosymmetry|coordination|q6"}, {"cutoff", "Neighbour cutoff (Angstrom)", "float", "3", ""}}, computeProperty},
+         {{"analysis", "Property", "choice", "structure-type", "structure-type|diamond|centrosymmetry|coordination|q6"}, {"cutoff", "Neighbour cutoff (Angstrom)", "float", "3", ""}}, computeProperty},
         };
         for (auto& type : scienceStepTypes()) builtIn.push_back(std::move(type));
         builtIn.reserve(256);  // registered types keep their addresses

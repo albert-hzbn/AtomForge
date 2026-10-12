@@ -1350,6 +1350,54 @@ int main()
         expectError([&] { classify(ico, false, 0.0); }, "automatic cutoff needs a cell");
     });
 
+    test("Diamond structure types", [] {
+        auto classify = [](const Crystal& crystal, bool periodic) {
+            Json request = object({{"positions", rows(crystal.positions)}});
+            if (periodic) { request["cell"] = matrixJson(crystal.cell); request["pbc"] = Json::array({true, true, true}); }
+            else request["cutoff_A"] = 3.0;
+            return run("diamond-structure", request);
+        };
+        auto count = [](const Json& result, const char* type) { return result.at("counts").at(type).number(); };
+        // Cubic diamond: 3 x 3 x 3 conventional cells of Si.
+        Crystal cubic;
+        const double a = 5.431;
+        const Vec3 fccBasis[4] = {{0, 0, 0}, {0, .5, .5}, {.5, 0, .5}, {.5, .5, 0}};
+        for (int i = 0; i < 3; ++i) for (int j = 0; j < 3; ++j) for (int k = 0; k < 3; ++k)
+            for (const Vec3& b : fccBasis)
+                for (double shift : {0.0, 0.25}) {
+                    cubic.symbols.push_back("Si");
+                    cubic.positions.push_back({(i + b[0] + shift) * a, (j + b[1] + shift) * a, (k + b[2] + shift) * a});
+                }
+        cubic.cell = {{{3 * a, 0, 0}, {0, 3 * a, 0}, {0, 0, 3 * a}}};
+        close(count(classify(cubic, true), "cubic diamond"), 216, 0, "perfect cubic diamond");
+        // Hexagonal diamond (lonsdaleite), C at 4f (1/3, 2/3, 1/16) of P6_3/mmc.
+        Crystal hexagonal;
+        const double ah = 2.51, ch = 4.12;
+        const Mat3 hcell = {{{ah, 0, 0}, {-ah / 2, ah * std::sqrt(3.0) / 2, 0}, {0, 0, ch}}};
+        const double z = 1.0 / 16;
+        for (int i = 0; i < 4; ++i) for (int j = 0; j < 4; ++j) for (int k = 0; k < 3; ++k)
+            for (const Vec3& b : {Vec3{1.0 / 3, 2.0 / 3, z}, Vec3{2.0 / 3, 1.0 / 3, .5 + z}, Vec3{2.0 / 3, 1.0 / 3, 1 - z}, Vec3{1.0 / 3, 2.0 / 3, .5 - z}}) {
+                hexagonal.symbols.push_back("C");
+                hexagonal.positions.push_back(rowTimes({i + b[0], j + b[1], k + b[2]}, hcell));
+            }
+        hexagonal.cell = {{scale(hcell[0], 4), scale(hcell[1], 4), scale(hcell[2], 3)}};
+        close(count(classify(hexagonal, true), "hexagonal diamond"), 192, 0, "perfect hexagonal diamond");
+        // fcc is not diamond.
+        close(count(classify(fccCubic(3.61, 3), true), "other"), 108, 0, "fcc is not diamond");
+        // A vacancy: its four neighbours lose a bond (second neighbours of the
+        // crystal) and the twelve atoms bonded to them see a broken second
+        // shell (first neighbours); the rest stays cubic diamond.
+        Crystal vacancy = cubic;
+        vacancy.positions.erase(vacancy.positions.begin());
+        vacancy.symbols.erase(vacancy.symbols.begin());
+        const Json withVacancy = classify(vacancy, true);
+        check(count(withVacancy, "cubic diamond (2nd neighbor)") == 4, "the vacancy's four neighbours");
+        check(count(withVacancy, "cubic diamond (1st neighbor)") == 12, "the atoms bonded to them");
+        check(count(withVacancy, "cubic diamond") == 199, "the rest of the crystal");
+        check(perAtomProperties("diamond-structure", withVacancy).size() == 1, "per-atom diamond type");
+        expectError([&] { run("diamond-structure", object({{"positions", rows(cubic.positions)}})); }, "automatic cutoff needs a cell");
+    });
+
     test("cluster analysis: separation, periodic wrap, mask and percolation", [] {
         // Two dimers and a trimer; the trimer straddles the periodic x boundary.
         const std::vector<Vec3> atoms = {{1, 1, 1}, {2, 1, 1}, {5, 5, 5}, {5, 6, 5}, {9.6, 3, 3}, {0.4, 3, 3}, {1.4, 3, 3}};

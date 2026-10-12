@@ -239,6 +239,7 @@ const std::map<std::string, ToolRunner>& toolRunners()
         {"local-strain", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(localStrain(p)); }},
         {"centrosymmetry", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(centrosymmetry(p)); }},
         {"structure-type", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(structureType(p)); }},
+        {"diamond-structure", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(diamondStructure(p)); }},
         {"cluster-analysis", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(clusterAnalysis(p)); }},
         {"void-analysis", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(voidAnalysis(p)); }},
         {"dislocation-lines", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return dislocationLines(p.structure("reference"), p.structure("structure"), p); }},
@@ -300,8 +301,8 @@ AtomProperty analysePerAtom(const Structure& structure, const std::string& tool,
         request["cell"] = cell;
         request["pbc"] = Json::array({true, true, true});
     }
-    // Structure type picks its own cutoff in periodic cells.
-    if (tool != "structure-type" || !structure.hasUnitCell) request["cutoff_A"] = cutoffA;
+    // Structure types pick their own cutoff in periodic cells.
+    if ((tool != "structure-type" && tool != "diamond-structure") || !structure.hasUnitCell) request["cutoff_A"] = cutoffA;
     if (tool == "bond-order") request["degrees"] = Json::array({6});
     const auto properties = perAtomProperties(tool, runTool(tool, request).result);
     for (const auto& candidate : properties)

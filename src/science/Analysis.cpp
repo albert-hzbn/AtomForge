@@ -505,6 +505,119 @@ Json structureType(const Parameters& p)
     return result;
 }
 
+// The common-neighbour signature of a shell of twelve second neighbours:
+// 1 when every pair is 421 (fcc, so cubic diamond), 2 when six are 421 and
+// six 422 (hcp, so hexagonal diamond), else 0. Neighbours within the shell
+// are closer than (1 + sqrt 2) / 2 of its mean radius (adaptive CNA).
+int diamondShellType(const std::vector<Vec3>& shell)
+{
+    if (shell.size() != 12) return 0;
+    double mean = 0;
+    for (const auto& v : shell) mean += norm(v);
+    const double cutoff = mean / 12 * (1 + std::sqrt(2.0)) / 2;
+    const auto near = [&](std::size_t a, std::size_t b) { return norm(sub(shell[a], shell[b])) < cutoff; };
+    int n421 = 0, n422 = 0;
+    for (std::size_t k = 0; k < 12; ++k) {
+        std::vector<std::size_t> common;
+        for (std::size_t m = 0; m < 12; ++m)
+            if (m != k && near(k, m)) common.push_back(m);
+        if (common.size() != 4) return 0;
+        std::vector<std::pair<std::size_t, std::size_t>> bonds;
+        for (std::size_t a = 0; a < 4; ++a)
+            for (std::size_t b = a + 1; b < 4; ++b)
+                if (near(common[a], common[b])) bonds.push_back({a, b});
+        if (bonds.size() != 2) return 0;
+        const bool chained = bonds[0].first == bonds[1].first || bonds[0].first == bonds[1].second ||
+                             bonds[0].second == bonds[1].first || bonds[0].second == bonds[1].second;
+        ++(chained ? n422 : n421);
+    }
+    if (n421 == 12) return 1;
+    if (n421 == 6 && n422 == 6) return 2;
+    return 0;
+}
+
+Json diamondStructure(const Parameters& p)
+{
+    // Maras et al., Comput. Phys. Commun. 205, 13 (2016), as OVITO's
+    // Identify Diamond Structure: the four nearest neighbours of an atom and
+    // their own four nearest give its twelve second neighbours, which form
+    // an fcc shell in cubic and an hcp shell in hexagonal diamond. Atoms
+    // that are not crystalline but neighbour a crystalline one are its
+    // first or second neighbours.
+    const auto positions = points(p.array("positions"), "positions");
+    const Pbc pbc = p.pbc("pbc", {false, false, false});
+    double cutoff = p.number("cutoff_A", 0.0);
+    if (cutoff <= 0) {
+        // Automatic: two Wigner-Seitz radii reach the first diamond shell.
+        if (!p.has("cell")) throw std::runtime_error("Set cutoff_A for structures without a cell");
+        const double volume = cellVolume(cellMatrix(p.array("cell"))) / static_cast<double>(positions.size());
+        cutoff = 2.0 * std::cbrt(3 * volume / (4 * kPi));
+    }
+    Mat3 cell{};
+    const auto neighbors = localNeighbors(positions, cutoff, p, "cell", pbc, cell);
+    auto groups = byCenter(neighbors, positions.size());
+    const std::size_t count = positions.size();
+    std::vector<bool> fourfold(count, false);
+    for (std::size_t i = 0; i < count; ++i) {
+        auto& group = groups[i];
+        std::stable_sort(group.begin(), group.end(), [&](std::size_t a, std::size_t b) { return norm(neighbors[a].vector) < norm(neighbors[b].vector); });
+        if (group.size() >= 4) {
+            group.resize(4);
+            fourfold[i] = true;
+        }
+    }
+    std::vector<int> types(count, 0);
+    std::vector<std::vector<int>> second(count);
+    for (std::size_t i = 0; i < count; ++i) {
+        if (i % 256 == 0) taskProgress(static_cast<double>(i) / static_cast<double>(count));
+        if (!fourfold[i]) continue;
+        std::vector<Vec3> shell;
+        bool complete = true;
+        for (std::size_t g : groups[i]) {
+            const auto& first = neighbors[g];
+            if (!fourfold[static_cast<std::size_t>(first.j)]) { complete = false; break; }
+            int back = 0;
+            for (std::size_t h : groups[static_cast<std::size_t>(first.j)]) {
+                const Vec3 v = add(first.vector, neighbors[h].vector);
+                if (norm(v) < 0.25 * norm(first.vector)) { ++back; continue; }
+                shell.push_back(v);
+                second[i].push_back(neighbors[h].j);
+            }
+            if (back != 1) { complete = false; break; }
+        }
+        if (!complete) continue;
+        const int shellType = diamondShellType(shell);
+        types[i] = shellType == 1 ? 1 : shellType == 2 ? 4 : 0;
+    }
+    // Neighbours of crystalline atoms: 1st (bonded) and 2nd (second shell).
+    std::vector<int> labelled = types;
+    for (std::size_t i = 0; i < count; ++i)
+        if (types[i] == 1 || types[i] == 4)
+            for (std::size_t g : groups[i])
+                if (labelled[static_cast<std::size_t>(neighbors[g].j)] == 0) labelled[static_cast<std::size_t>(neighbors[g].j)] = types[i] + 1;
+    for (std::size_t i = 0; i < count; ++i)
+        if (types[i] == 1 || types[i] == 4)
+            for (int j : second[i])
+                if (labelled[static_cast<std::size_t>(j)] == 0) labelled[static_cast<std::size_t>(j)] = types[i] + 2;
+    static const char* names[] = {"other", "cubic diamond", "cubic diamond (1st neighbor)", "cubic diamond (2nd neighbor)",
+                                  "hexagonal diamond", "hexagonal diamond (1st neighbor)", "hexagonal diamond (2nd neighbor)"};
+    int counts[7] = {};
+    for (int t : labelled) ++counts[t];
+    Json result = Json::object();
+    result["diamond_type"] = toJson(labelled);
+    Json typeNames = Json::array(), countJson = Json::object(), fractions = Json::object();
+    for (int t = 0; t < 7; ++t) {
+        typeNames.push(names[t]);
+        countJson[names[t]] = counts[t];
+        fractions[names[t]] = count ? static_cast<double>(counts[t]) / static_cast<double>(count) : 0.0;
+    }
+    result["type_names"] = typeNames;
+    result["counts"] = countJson;
+    result["fractions"] = fractions;
+    result["cutoff_A"] = cutoff;
+    return result;
+}
+
 Json centrosymmetry(const Parameters& p)
 {
     const long long neighborCount = integer(p.number("neighbors", 12), "neighbors", 2);

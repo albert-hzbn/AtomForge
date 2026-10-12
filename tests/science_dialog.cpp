@@ -273,7 +273,9 @@ int main()
             for (double v : csp.values) if (!(std::abs(v) < 1e-9)) throw std::runtime_error("Perfect fcc frame has zero centrosymmetry");
             const auto q6 = TrajectoryDialog::analyseFrame(supercell, "bond-order", 3.0);
             if (q6.values.size() != 32 || std::abs(q6.values[0] - 0.574524) > 1e-5) throw std::runtime_error("Per-frame q6 of fcc");
-            if (TrajectoryDialog::frameAnalyses().size() != 3) throw std::runtime_error("Per-frame analysis list");
+            const auto diamond = TrajectoryDialog::analyseFrame(supercell, "diamond-structure", 3.0);
+            for (double t : diamond.values) if (t != 0) throw std::runtime_error("An fcc frame is not diamond");
+            if (TrajectoryDialog::frameAnalyses().size() != 4) throw std::runtime_error("Per-frame analysis list");
             for (const auto& [id, title] : TrajectoryDialog::frameAnalyses())
                 if (!findScienceTool(id)) throw std::runtime_error("Per-frame analysis names an unknown tool " + id);
         }

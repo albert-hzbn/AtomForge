@@ -55,6 +55,12 @@ const std::vector<ScienceToolDef>& scienceToolCatalog()
             {"cell", "Cell vectors (Angstrom)", "", "data", false},
             {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
         }, ScienceToolView::Atoms},
+        {"diamond-structure", "Diamond structure (cubic and hexagonal)", "Identify cubic and hexagonal diamond (Si, Ge, C) and their neighbours.\n\nMaras et al. (2016), as OVITO's Identify Diamond Structure: an atom's four\nnearest neighbours and their own four nearest give twelve second neighbours,\nwhich form an fcc shell (cubic diamond) or an hcp shell (hexagonal diamond)\nby adaptive common-neighbour analysis. Atoms that are not crystalline but are\nfirst or second neighbours of a crystalline atom are labelled as such, which\nmarks surfaces, stacking faults and defect cores. The cutoff must reach the\nfour nearest neighbours (automatic: two Wigner-Seitz radii of the cell).", "Structure and defects", {
+            {"positions", "Atomic positions (Angstrom)", "", "data", true},
+            {"cutoff_A", "Neighbor cutoff (Angstrom, 0 = automatic)", "0.0", "float", false},
+            {"cell", "Cell vectors (Angstrom)", "", "data", false},
+            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
+        }, ScienceToolView::Atoms},
         {"dislocation-lines", "Dislocation lines and Burgers vectors", "Extract dislocation lines, Burgers vectors and character (DXA-style).\n\nThe deformed structure is compared with its perfect reference (same atoms in\nthe same order). Atoms whose Ackland-Jones structure type changed form the\ncores and are clustered into lines; the direction is the lattice period of a\nline wrapping the cell, else the cluster's principal axis. The Burgers vector\nis the closure failure of a right-handed circuit about the line, with each\nstep reduced modulo lattice vectors; core clusters with zero closure failure\nare counted as non-dislocation defects. Lines closer than the circuit diameter\nor strongly curved lines need a smaller explicit circuit radius.", "Structure and defects", {
             {"reference", "Perfect reference structure", "", "structure", true},
             {"structure", "Deformed structure", "", "structure", true},
