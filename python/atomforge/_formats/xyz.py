@@ -10,6 +10,25 @@ if TYPE_CHECKING:
     from .._structure import Structure
 
 
+def _element_of(label: str) -> str:
+    """An XYZ label's element, as the desktop reads it: a symbol in any case
+    (CU, cu), a label starting with one (Cu1, OW) or an atomic number (29).
+    Other labels are kept as written."""
+    from .._elements import _MASSES
+    if label.isdigit():
+        symbols = list(_MASSES)
+        number = int(label)
+        return symbols[number - 1] if 1 <= number <= len(symbols) else label
+    letters = re.match(r"[A-Za-z]{1,2}", label)
+    if letters:
+        symbol = letters.group(0).capitalize()
+        if symbol in _MASSES:
+            return symbol
+        if symbol[0] in _MASSES:  # OW, HW1: a one-letter element and a tag
+            return symbol[0]
+    return label
+
+
 def _columns(comment: str) -> tuple[int, int]:
     """Species and position columns from an extended XYZ Properties key
     (e.g. id:I:1:species:S:1:pos:R:3); plain XYZ is (0, 1)."""
@@ -57,8 +76,7 @@ def _load_xyz(path: str) -> "Structure":
         if len(parts) <= max(species_col, pos_col + 2):
             raise ValueError("invalid XYZ: atom needs a symbol and three coordinates")
         # Element symbols in any case ("CU", "cu" -> "Cu"); other labels as written.
-        label = parts[species_col]
-        sym = label.capitalize() if label.isalpha() and len(label) <= 3 else label
+        sym = _element_of(parts[species_col])
         x, y, z = (float(v) for v in parts[pos_col:pos_col + 3])
         cr, cg, cb = _default_color(sym)
         s.atoms.append(Atom(sym, x, y, z, cr, cg, cb))
