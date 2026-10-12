@@ -40,7 +40,7 @@ Builder source buttons and drop targets feed the currently open tool, not necess
 \begin{longtable}{p{.30\linewidth}p{.64\linewidth}}
 \toprule Option & How to use it and what to expect \\ \midrule\endhead
 Show Element & Adds chemical-symbol labels. Use a small structure or zoom into a region to avoid overlapping labels. Toggle again to hide. \\
-View Structure By: Element Type & Colours by species using Settings > Display Settings > Colors. This is the useful starting point for composition comparisons. \\
+View Structure By: Element Type & Colours by species using Settings > Display Settings > Colours. This is the useful starting point for composition comparisons. \\
 Crystal Orientation & Uses available orientation/IPF information; a uniform single crystal may have one colour. Load the accompanying orientation sidecar when supplied with a generated polycrystal. A colour is not a strain or energy measurement. \\
 Grain Boundary & Emphasises the boundary classification carried by the structure. Verify the underlying geometry and metadata; switching modes alone is not a new grain-boundary calculation. \\
 Dislocation Lines / Show Dislocation Lines & Both menu locations control the same line-visibility flag. Lines require explicit dislocation geometry from a defect builder. The viewer does not infer lines from surface coordination changes. Building a new nanocrystal clears any old defect outline. Enabling the flag does not insert a dislocation or infer Burgers vectors from an arbitrary image. \\
@@ -71,10 +71,10 @@ This construction partitions geometric space; it is not Bader charge analysis an
 \subsection{Settings workflow: choose the control that changes the desired property}
 \begin{enumerate}
 \item For small text or crowded buttons, open \ui{Settings > Interface size}. Start with Automatic, increase to 125\% or 150\% for readability, and use 200\% when needed. Compact reduces interface size. These are session settings and multiply display scaling. Resize the window and scroll stacked panels to reach lower controls.
-\item For larger/smaller atomic spheres, choose \ui{Atomic Sizes}, select a species, and edit its radius in \angstrom. The selected species changes immediately. Apply Literature Radius To Selected Element restores that species; Reset to Literature Defaults restores all radii. Positions and lattice constants are unchanged.
+\item For larger/smaller atomic spheres, choose \ui{Atomic Sizes}, select a species, and edit its radius in \angstrom. The selected species changes immediately. Reset Element restores that species; Reset All Elements restores all radii. Positions and lattice constants are unchanged.
 \item For darker shadows or clearer depth cues, open \ui{Display Settings > Lighting}. Adjust one slider at a time while keeping the same camera. Ambient brightens shadowed areas; Saturation affects colour vividness; Contrast changes tonal separation; Shadow Strength controls shadow darkness. Reset Lighting Defaults provides a reproducible starting point.
 \item For broad/diffuse versus sharp highlights, use \ui{Material}. Specular Intensity changes brightness, Shininess Scale changes the per-element highlight response, and Shininess Floor prevents very diffuse highlights. Reset Material Defaults restores only this tab's three controls.
-\item For a different species palette, use \ui{Colors}, select the element, and edit its colour. Reset Color restores the selected species; Reset All Colors restores the palette. Return to Element Type colouring to see chemical colours when an orientation mode is active.
+\item For a different species palette, use \ui{Colours}, select the element, and edit its colour. Reset Element restores the selected species; Reset All Colours restores the palette. Return to Element Type colouring to see chemical colours when an orientation mode is active.
 \item For coordination faces, use \ui{Polyhedral Settings}. Choose a few centre IDs, centre and ligand species, neighbour count, and opacity, then enable Polyhedral Viewer. Reset Defaults restores those overlay controls; it does not reset lighting or atomic radii.
 \end{enumerate}
 Display Settings changes are live; closing the dialog retains them for the current application state. Keep camera, representation, palette, radii, illumination, and image-export scale consistent across comparison figures. These settings do not replace external relaxation or an electronic calculation.
@@ -100,11 +100,11 @@ Open View > Miller Directions. Enter nonzero U/V/W, Length in \angstrom, and col
 \textbf{Example.} For a metal oxide, filter centres to the metal and ligands to O. Start with a few specified centre IDs to inspect geometry, then broaden the selection. A blank view can result from hidden atoms/overlays, restrictive filters, insufficient neighbours, or zero opacity.
 
 \subsection{Atomic Sizes and Display Settings tabs}
-Atomic Sizes uses an element selector and Atomic Radius in \angstrom. Apply Literature Radius to Selected restores that species; Reset to Literature Defaults restores the set. Radius changes visual sphere size without moving centres. Record altered radii when comparing images or using tools that consume radius information.
+Atomic Sizes uses an element selector and Radius in \angstrom. Reset Element restores that species; Reset All Elements restores the set. Radius changes visual sphere size without moving centres. Record altered radii when comparing images or using tools that consume radius information.
 
 Display Settings has separate tabs. In \ui{Lighting}, Ambient sets shadow-side brightness (0--0.60, default 0.18); Saturation controls vividness (0.50--3.00, default 1.55); Contrast stretches dark-to-light response (0.50--2.50, default 1.25); Shadow Strength controls darkness (0--1, default 0.75). Reset Lighting Defaults restores all four.
 
-In \ui{Material}, Specular Intensity sets highlight brightness (0--2, default 0.65), Shininess Scale multiplies the per-element response (0.10--5, default 1.50), and Shininess Floor limits the minimum specular exponent (4--256, default 32). Reset Material Defaults restores these values. In \ui{Colors}, select an element in the periodic table, edit its colour, use Reset Color for that species, or Reset All Colors for the entire palette. Settings apply to rendering; they are not charge-density values or chemical substitutions.
+In \ui{Material}, Specular Intensity sets highlight brightness (0--2, default 0.65), Shininess Scale multiplies the per-element response (0.10--5, default 1.50), and Shininess Floor limits the minimum specular exponent (4--256, default 32). Reset Material Defaults restores these values. In \ui{Colours}, select an element in the periodic table, edit its colour, use Reset Element for that species, or Reset All Colours for the entire palette. Settings apply to rendering; they are not charge-density values or chemical substitutions.
 
 Light/Dark in View > Select Theme changes the desktop theme. Electronic Appearance has its own palette, range, and surface lighting controls. Keep these separate when trying to reproduce a figure.
 

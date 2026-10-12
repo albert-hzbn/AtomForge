@@ -13,6 +13,7 @@
 #include "imgui.h"
 
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
 #include <iostream>
 
@@ -207,33 +208,25 @@ void EditMenuDialogs::drawPopups(Structure& structure,
     if (responsive::beginModal("Atomic Sizes##edit", &atomicSizesOpen,
                                ImGuiWindowFlags_AlwaysAutoResize))
     {
-        ImGui::Text("Select an element in the periodic table and edit its radius.");
-        ImGui::Text("Defaults: Cordero et al., Dalton Trans. 2008.");
-
-        if (responsive::button("Reset to Literature Defaults"))
-        {
-            elementRadii = makeLiteratureCovalentRadii();
-            updateBuffers(structure);
-        }
-
-        ImGui::Separator();
+        ImGui::TextDisabled("Pick an element and set the radius its atoms are drawn with. Defaults: covalent radii of Cordero et al., Dalton Trans. 2008.");
+        ImGui::Spacing();
         drawPeriodicTableInlineSelector(m_selectedRadiusElement);
 
         if (isValidElementNumber(m_selectedRadiusElement))
         {
-            ImGui::Text("Selected: Z=%d (%s)",
-                        m_selectedRadiusElement,
-                        elementSymbol(m_selectedRadiusElement));
+            dialogLayout::section((std::string(elementSymbol(m_selectedRadiusElement)) + " (Z = " + std::to_string(m_selectedRadiusElement) + ")").c_str());
 
             float radius = elementRadii[m_selectedRadiusElement];
-            if (ImGui::DragFloat("Atomic Radius (A)", &radius,
-                                 0.01f, 0.20f, 3.50f, "%.2f A"))
+            ImGui::SetNextItemWidth(responsive::dp(240.0f));
+            if (ImGui::DragFloat("Radius", &radius,
+                                 0.01f, 0.20f, 3.50f, "%.2f \xc3\x85"))
             {
                 elementRadii[m_selectedRadiusElement] = radius;
                 updateBuffers(structure);
             }
 
-            if (responsive::button("Apply Literature Radius To Selected Element"))
+            ImGui::SameLine();
+            if (dialogLayout::secondaryButton("Reset Element"))
             {
                 const std::vector<float> defaults = makeLiteratureCovalentRadii();
                 elementRadii[m_selectedRadiusElement] =
@@ -243,8 +236,17 @@ void EditMenuDialogs::drawPopups(Structure& structure,
         }
         else
         {
-            ImGui::Text("Selected: None");
+            ImGui::TextDisabled("No element selected.");
         }
+
+        const int sizesPressed = dialogLayout::footer("Close", "Reset All Elements");
+        if (sizesPressed == 2)
+        {
+            elementRadii = makeLiteratureCovalentRadii();
+            updateBuffers(structure);
+        }
+        else if (sizesPressed == 1)
+            ImGui::CloseCurrentPopup();
 
         ImGui::EndPopup();
     }
@@ -284,7 +286,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                 lightRow("Ambient##L",        &lightAmbient,        0.00f, 0.60f, "%.2f",
                          "Shadow-side base brightness (default 0.18).");
                 lightRow("Saturation##L",     &lightSaturation,     0.50f, 3.00f, "%.2f",
-                         "Color vividness — 1.0 = neutral, >1 = more vivid (default 1.55).");
+                         "Colour vividness — 1.0 = neutral, >1 = more vivid (default 1.55).");
                 lightRow("Contrast##L",       &lightContrast,       0.50f, 2.50f, "%.2f",
                          "Dark-to-light stretch — 1.0 = none, >1 = more contrast (default 1.25).");
                 lightRow("Shadow Strength##L",&lightShadowStrength, 0.00f, 1.00f, "%.2f",
@@ -345,10 +347,10 @@ void EditMenuDialogs::drawPopups(Structure& structure,
             // ==============================================================
             // TAB: Colors
             // ==============================================================
-            if (ImGui::BeginTabItem("Colors", nullptr, uiScript::selectTab("display.colors")))
+            if (ImGui::BeginTabItem("Colours", nullptr, uiScript::selectTab("display.colors")))
             {
                 ImGui::Spacing();
-                ImGui::TextDisabled("Per-element display color.");
+                ImGui::TextDisabled("The colour each element is drawn with.");
                 ImGui::Spacing();
 
                 drawPeriodicTableInlineSelector(m_selectedColorElement);
@@ -359,10 +361,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
 
                 if (isValidElementNumber(m_selectedColorElement))
                 {
-                    ImGui::Text("Selected: Z=%d  %s",
-                                m_selectedColorElement,
-                                elementSymbol(m_selectedColorElement));
-                    ImGui::Spacing();
+                    ImGui::Text("%s (Z = %d)", elementSymbol(m_selectedColorElement), m_selectedColorElement);
 
                     float color[3] = {
                         elementColors[m_selectedColorElement].r,
@@ -370,15 +369,15 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                         elementColors[m_selectedColorElement].b
                     };
                     ImGui::SetNextItemWidth(kSliderW);
-                    if (ImGui::ColorEdit3("Color##el", color))
+                    if (ImGui::ColorEdit3("Colour##el", color))
                     {
                         elementColors[m_selectedColorElement] =
                             glm::vec3(color[0], color[1], color[2]);
                         updateBuffers(structure);
                     }
 
-                    ImGui::Spacing();
-                    if (responsive::button("Reset Color##sel"))
+                    ImGui::SameLine();
+                    if (dialogLayout::secondaryButton("Reset Element##sel"))
                     {
                         float r, g, b;
                         getDefaultElementColor(m_selectedColorElement, r, g, b);
@@ -394,7 +393,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                 ImGui::Spacing();
                 ImGui::Separator();
                 ImGui::Spacing();
-                if (responsive::button("Reset All Colors"))
+                if (dialogLayout::secondaryButton("Reset All Colours"))
                 {
                     elementColors = makeDefaultElementColors();
                     updateBuffers(structure);
@@ -406,6 +405,8 @@ void EditMenuDialogs::drawPopups(Structure& structure,
             ImGui::EndTabBar();
         }
 
+        if (dialogLayout::footer("Close", nullptr) == 1)
+            ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
     if (!elementColorsOpen)
@@ -434,67 +435,44 @@ void EditMenuDialogs::drawPopups(Structure& structure,
     else if (responsive::beginModal("Edit Structure##edit", &editStructureOpen,
                                     ImGuiWindowFlags_NoResize))
     {
-        ImGui::Text("Modify lattice vectors and atom list (add/edit/delete).\n"
-                "Click the element name next to position to substitute atom.");
-        ImGui::Separator();
+        ImGui::TextDisabled("Edit the cell and each atom; click an element to substitute it. Edit > Undo reverts changes.");
 
         // Lattice editing
-        ImGui::Text("Lattice Vectors (Cartesian)");
+        dialogLayout::section("Cell Vectors (\xc3\x85)");
         if (!structure.hasUnitCell)
         {
-            ImGui::TextDisabled("No unit cell present in this structure.");
+            ImGui::TextDisabled("This structure has no unit cell.");
         }
         else
         {
-            float aVec[3] = {
-                (float)structure.cellVectors[0][0],
-                (float)structure.cellVectors[0][1],
-                (float)structure.cellVectors[0][2]
-            };
-            float bVec[3] = {
-                (float)structure.cellVectors[1][0],
-                (float)structure.cellVectors[1][1],
-                (float)structure.cellVectors[1][2]
-            };
-            float cVec[3] = {
-                (float)structure.cellVectors[2][0],
-                (float)structure.cellVectors[2][1],
-                (float)structure.cellVectors[2][2]
-            };
-
             bool latticeChanged = false;
-            latticeChanged |= ImGui::DragFloat3("a", aVec, 0.01f, -1000.0f, 1000.0f, "%.6f");
-            latticeChanged |= ImGui::DragFloat3("b", bVec, 0.01f, -1000.0f, 1000.0f, "%.6f");
-            latticeChanged |= ImGui::DragFloat3("c", cVec, 0.01f, -1000.0f, 1000.0f, "%.6f");
-
-            if (latticeChanged)
+            const char* names[3] = {"a", "b", "c"};
+            const double step = 0.01;
+            for (int r = 0; r < 3; ++r)
             {
-                structure.cellVectors[0][0] = aVec[0];
-                structure.cellVectors[0][1] = aVec[1];
-                structure.cellVectors[0][2] = aVec[2];
-                structure.cellVectors[1][0] = bVec[0];
-                structure.cellVectors[1][1] = bVec[1];
-                structure.cellVectors[1][2] = bVec[2];
-                structure.cellVectors[2][0] = cVec[0];
-                structure.cellVectors[2][1] = cVec[1];
-                structure.cellVectors[2][2] = cVec[2];
-                updateBuffers(structure);
+                ImGui::SetNextItemWidth(responsive::dp(520.0f));
+                latticeChanged |= ImGui::DragScalarN(names[r], ImGuiDataType_Double, structure.cellVectors[r].data(), 3,
+                                                     static_cast<float>(step), nullptr, nullptr, "%.5f");
             }
+            if (latticeChanged)
+                updateBuffers(structure);
         }
 
-        ImGui::Separator();
-        ImGui::Text("Atom Editing");
+        const std::string atomsTitle = "Atoms (" + std::to_string(structure.atoms.size()) + ")";
+        dialogLayout::section(atomsTitle.c_str());
 
-        const char* modeLabels[] = { "Cartesian", "Direct" };
+        const char* modeLabels[] = { "Cartesian (\xc3\x85)", "Direct (fractional)" };
         int mode = m_useDirectCoords ? 1 : 0;
         if (!structure.hasUnitCell) ImGui::BeginDisabled();
-        if (ImGui::Combo("Position Mode", &mode, modeLabels, 2))
+        ImGui::SetNextItemWidth(responsive::dp(220.0f));
+        if (ImGui::Combo("Coordinates", &mode, modeLabels, 2))
             m_useDirectCoords = (mode == 1);
         if (!structure.hasUnitCell) ImGui::EndDisabled();
         if (!structure.hasUnitCell)
             m_useDirectCoords = false;
 
-        if (responsive::button("Add Atom"))
+        ImGui::SameLine();
+        if (dialogLayout::secondaryButton("Add Atom"))
         {
             AtomSite newAtom;
             newAtom.atomicNumber = 1;
@@ -521,94 +499,95 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                       << std::endl;
             updateBuffers(structure);
         }
+        dialogLayout::hint("Adds a hydrogen atom at the origin; set its element and position in its row");
 
-        ImGui::SameLine();
-        ImGui::TextDisabled("Rows update automatically as atoms are added/removed.");
-
+        const float footerHeight = ImGui::GetFrameHeight() + 3.0f * ImGui::GetStyle().ItemSpacing.y + responsive::dp(2) + 2.0f;
         if (structure.atoms.empty())
         {
-            ImGui::TextDisabled("No atoms available.");
+            ImGui::TextDisabled("No atoms. Add Atom places one at the origin.");
         }
         else
         {
-            ImGui::Separator();
-            ImGui::Text("Per-atom rows: Delete | Position | Element");
-
             int pendingDelete = -1;
             bool anyPositionChanged = false;
+            const std::string positionHeader = m_useDirectCoords ? "Position (u, v, w)" : "Position (x, y, z in \xc3\x85)";
 
-            if (responsive::beginChild("##atom-edit-rows", responsive::size(930.0f,260.0f), true))
+            const ImGuiTableFlags flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH;
+            if (ImGui::BeginTable("##atom-edit-rows", 4, flags, ImVec2(0.0f, std::max(responsive::dp(160.0f), ImGui::GetContentRegionAvail().y - footerHeight))))
             {
-                for (int i = 0; i < (int)structure.atoms.size(); ++i)
+                ImGui::TableSetupScrollFreeze(0, 1);
+                ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize("000000").x);
+                ImGui::TableSetupColumn("Element", ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize("Element").x + ImGui::GetStyle().FramePadding.x * 2);
+                ImGui::TableSetupColumn(positionHeader.c_str(), ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("##delete", ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize("Delete").x + ImGui::GetStyle().FramePadding.x * 2);
+                ImGui::TableHeadersRow();
+
+                ImGuiListClipper clipper;
+                clipper.Begin(static_cast<int>(structure.atoms.size()));
+                while (clipper.Step())
                 {
-                    AtomSite& atom = structure.atoms[i];
-
-                    ImGui::PushID(i);
-                    if (ImGui::SmallButton("Delete"))
-                        pendingDelete = i;
-
-                    ImGui::SameLine();
-                    ImGui::Text("#%d", i);
-
-                    ImGui::SameLine();
-
-                    glm::vec3 cart((float)atom.x, (float)atom.y, (float)atom.z);
-                    float editPos[3] = { cart.x, cart.y, cart.z };
-
-                    if (m_useDirectCoords && structure.hasUnitCell)
+                    for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
                     {
-                        glm::vec3 frac(0.0f);
-                        if (tryCartesianToFractional(structure, cart, frac))
+                        AtomSite& atom = structure.atoms[static_cast<std::size_t>(i)];
+                        ImGui::PushID(i);
+                        ImGui::TableNextRow();
+
+                        ImGui::TableSetColumnIndex(0);
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::TextDisabled("%d", i);
+
+                        ImGui::TableSetColumnIndex(1);
+                        std::string elemBtn = std::string(atom.symbol) + "##edit-atom-element";
+                        if (ImGui::Button(elemBtn.c_str(), ImVec2(-FLT_MIN, 0)))
                         {
-                            editPos[0] = frac.x;
-                            editPos[1] = frac.y;
-                            editPos[2] = frac.z;
+                            m_selectedEditAtom = i;
+                            m_editStructureElementTargetAtom = i;
+                            int z = atom.atomicNumber;
+                            if (isValidElementNumber(z))
+                                m_selectedEditElement = z;
+                            m_showEditStructureElementPicker = true;
+                            m_restoreEditStructureAfterElementPicker = true;
                         }
-                    }
+                        dialogLayout::hint("Substitute this atom's element");
 
-                    ImGui::PushItemWidth(responsive::dp(420.0f));
-                    bool rowPosChanged = ImGui::DragFloat3(m_useDirectCoords ? "##DirectPos" : "##CartesianPos",
-                                                           editPos, 0.005f, -1000.0f, 1000.0f, "%.6f");
-                    ImGui::PopItemWidth();
-
-                    if (rowPosChanged)
-                    {
+                        ImGui::TableSetColumnIndex(2);
+                        ImGui::SetNextItemWidth(-FLT_MIN);
                         if (m_useDirectCoords && structure.hasUnitCell)
                         {
-                            glm::vec3 frac(editPos[0], editPos[1], editPos[2]);
-                            glm::vec3 newCart(0.0f);
-                            if (tryFractionalToCartesian(structure, frac, newCart))
+                            glm::vec3 frac(0.0f);
+                            const glm::vec3 cart((float)atom.x, (float)atom.y, (float)atom.z);
+                            tryCartesianToFractional(structure, cart, frac);
+                            float editPos[3] = { frac.x, frac.y, frac.z };
+                            if (ImGui::DragFloat3("##DirectPos", editPos, 0.001f, -1000.0f, 1000.0f, "%.5f"))
                             {
-                                atom.x = newCart.x;
-                                atom.y = newCart.y;
-                                atom.z = newCart.z;
+                                glm::vec3 newCart(0.0f);
+                                if (tryFractionalToCartesian(structure, glm::vec3(editPos[0], editPos[1], editPos[2]), newCart))
+                                {
+                                    atom.x = newCart.x;
+                                    atom.y = newCart.y;
+                                    atom.z = newCart.z;
+                                    anyPositionChanged = true;
+                                }
                             }
                         }
                         else
                         {
-                            atom.x = editPos[0];
-                            atom.y = editPos[1];
-                            atom.z = editPos[2];
+                            double editPos[3] = { atom.x, atom.y, atom.z };
+                            if (ImGui::DragScalarN("##CartesianPos", ImGuiDataType_Double, editPos, 3, 0.005f, nullptr, nullptr, "%.5f"))
+                            {
+                                atom.x = editPos[0];
+                                atom.y = editPos[1];
+                                atom.z = editPos[2];
+                                anyPositionChanged = true;
+                            }
                         }
-                        anyPositionChanged = true;
-                    }
 
-                    ImGui::SameLine();
-                    std::string elemBtn = std::string(atom.symbol) + "##edit-atom-element";
-                    if (ImGui::SmallButton(elemBtn.c_str()))
-                    {
-                        m_selectedEditAtom = i;
-                        m_editStructureElementTargetAtom = i;
-                        int z = atom.atomicNumber;
-                        if (isValidElementNumber(z))
-                            m_selectedEditElement = z;
-                        m_showEditStructureElementPicker = true;
-                        m_restoreEditStructureAfterElementPicker = true;
-                    }
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("Click to substitute element");
+                        ImGui::TableSetColumnIndex(3);
+                        if (dialogLayout::dangerButton("Delete"))
+                            pendingDelete = i;
 
-                    ImGui::PopID();
+                        ImGui::PopID();
+                    }
                 }
 
                 if (m_scrollEditRowsToBottom)
@@ -616,7 +595,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                     ImGui::SetScrollY(ImGui::GetScrollMaxY());
                     m_scrollEditRowsToBottom = false;
                 }
-                ImGui::EndChild();
+                ImGui::EndTable();
             }
 
             if (pendingDelete >= 0 && pendingDelete < (int)structure.atoms.size())
@@ -636,6 +615,8 @@ void EditMenuDialogs::drawPopups(Structure& structure,
             }
 
         }
+        if (dialogLayout::footer("Close", nullptr) == 1)
+            ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
     if (!editStructureOpen)
