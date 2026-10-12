@@ -1049,7 +1049,7 @@ void drawAtomPropertyLegend(ImDrawList* drawList,
     drawList->AddText(ImVec2(x1 + 8.0f * scale, y1 + barHeight - ImGui::GetTextLineHeight()), muted, lowText);
 }
 
-void drawElementLegend(ImDrawList* drawList, float top, const Structure& structure, std::uint64_t revision)
+ElementLegendClick drawElementLegend(float top, const Structure& structure, std::uint64_t revision)
 {
     struct Entry { std::string symbol; std::size_t count; ImU32 colour; };
     static std::vector<Entry> entries;
@@ -1068,40 +1068,53 @@ void drawElementLegend(ImDrawList* drawList, float top, const Structure& structu
         }
         std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) { return a.count > b.count; });
     }
-    if (!drawList || entries.size() < 2) return;
+    ElementLegendClick clicked;
+    if (entries.size() < 2) return clicked;
 
+    // A small window (not a drawing), so its rows can be clicked.
     const float scale = ImGui::GetFontSize() / 16.0f;
-    const float margin = 14.0f * scale, pad = 10.0f * scale, swatch = 6.0f * scale;
-    const float rowHeight = ImGui::GetTextLineHeight() + 4.0f * scale;
-    const std::size_t shown = std::min<std::size_t>(entries.size(), 12);
-    float symbolWidth = 0, countWidth = 0;
-    char text[32];
-    for (std::size_t i = 0; i < shown; ++i) {
-        symbolWidth = std::max(symbolWidth, ImGui::CalcTextSize(entries[i].symbol.c_str()).x);
-        std::snprintf(text, sizeof(text), "%zu", entries[i].count);
-        countWidth = std::max(countWidth, ImGui::CalcTextSize(text).x);
-    }
-    const bool more = entries.size() > shown;
-    const float width = pad * 2 + swatch * 2 + 8 * scale + symbolWidth + 16 * scale + countWidth;
-    const float height = pad * 2 + rowHeight * static_cast<float>(shown + (more ? 1 : 0)) - 4.0f * scale;
-    const ImVec2 min(margin, top + margin), max(min.x + width, min.y + height);
+    ImGui::SetNextWindowPos(ImVec2(14.0f * scale, top + 14.0f * scale), ImGuiCond_Always);
     ImVec4 background = ImGui::GetStyleColorVec4(ImGuiCol_PopupBg);
     background.w = 0.9f;
-    drawList->AddRectFilled(min, max, ImGui::ColorConvertFloat4ToU32(background), 8.0f * scale);
-    drawList->AddRect(min, max, ImGui::GetColorU32(ImGuiCol_Border), 8.0f * scale);
-    const ImU32 textColour = ImGui::GetColorU32(ImGuiCol_Text), muted = ImGui::GetColorU32(ImGuiCol_TextDisabled);
-    float y = min.y + pad;
-    for (std::size_t i = 0; i < shown; ++i) {
-        const float centre = y + ImGui::GetTextLineHeight() * 0.5f;
-        drawList->AddCircleFilled(ImVec2(min.x + pad + swatch, centre), swatch, entries[i].colour);
-        drawList->AddCircle(ImVec2(min.x + pad + swatch, centre), swatch, muted, 0, 1.0f);
-        drawList->AddText(ImVec2(min.x + pad + swatch * 2 + 8 * scale, y), textColour, entries[i].symbol.c_str());
-        std::snprintf(text, sizeof(text), "%zu", entries[i].count);
-        drawList->AddText(ImVec2(max.x - pad - ImGui::CalcTextSize(text).x, y), muted, text);
-        y += rowHeight;
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, background);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f * scale, 8.0f * scale));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f * scale);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.0f * scale, 2.0f * scale));
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+                                   ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove |
+                                   ImGuiWindowFlags_NoBringToFrontOnFocus;
+    if (ImGui::Begin("##ElementLegend", nullptr, flags)) {
+        const std::size_t shown = std::min<std::size_t>(entries.size(), 12);
+        float countWidth = 0, symbolWidth = 0;
+        for (std::size_t i = 0; i < shown; ++i) {
+            countWidth = std::max(countWidth, ImGui::CalcTextSize(std::to_string(entries[i].count).c_str()).x);
+            symbolWidth = std::max(symbolWidth, ImGui::CalcTextSize(entries[i].symbol.c_str()).x);
+        }
+        const float swatch = 6.0f * scale;
+        const float rowWidth = swatch * 2 + 8.0f * scale + symbolWidth + 16.0f * scale + countWidth;
+        for (std::size_t i = 0; i < shown; ++i) {
+            const Entry& entry = entries[i];
+            ImGui::PushID(static_cast<int>(i));
+            const ImVec2 at = ImGui::GetCursorScreenPos();
+            if (ImGui::Selectable("##element", false, 0, ImVec2(rowWidth, ImGui::GetTextLineHeight()))) {
+                clicked.symbol = entry.symbol;
+                clicked.additive = ImGui::GetIO().KeyCtrl;
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Select the %zu %s atoms (Ctrl: add them to the selection)", entry.count, entry.symbol.c_str());
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            const float centre = at.y + ImGui::GetTextLineHeight() * 0.5f;
+            dl->AddCircleFilled(ImVec2(at.x + swatch, centre), swatch, entry.colour);
+            dl->AddCircle(ImVec2(at.x + swatch, centre), swatch, ImGui::GetColorU32(ImGuiCol_TextDisabled), 0, 1.0f);
+            dl->AddText(ImVec2(at.x + swatch * 2 + 8.0f * scale, at.y), ImGui::GetColorU32(ImGuiCol_Text), entry.symbol.c_str());
+            const std::string count = std::to_string(entry.count);
+            dl->AddText(ImVec2(at.x + rowWidth - ImGui::CalcTextSize(count.c_str()).x, at.y), ImGui::GetColorU32(ImGuiCol_TextDisabled), count.c_str());
+            ImGui::PopID();
+        }
+        if (entries.size() > shown) ImGui::TextDisabled("+%zu more", entries.size() - shown);
     }
-    if (more) {
-        std::snprintf(text, sizeof(text), "+%zu more", entries.size() - shown);
-        drawList->AddText(ImVec2(min.x + pad, y), muted, text);
-    }
+    ImGui::End();
+    ImGui::PopStyleVar(3);
+    ImGui::PopStyleColor();
+    return clicked;
 }

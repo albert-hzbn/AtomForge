@@ -1536,7 +1536,22 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             for (const char* name : {"##ViewToolbar", "##StructureTabBar"})
                 if (ImGuiWindow* bar = ImGui::FindWindowByName(name); bar && bar->WasActive)
                     top = std::max(top, bar->Pos.y + bar->Size.y);
-            drawElementLegend(drawList, top, activeState.structure, activeState.undoRedo.currentId());
+            const ElementLegendClick clicked = drawElementLegend(top, activeState.structure, activeState.undoRedo.currentId());
+            if (!clicked.symbol.empty())
+            {
+                // Select that element's atoms (with Ctrl, in addition to the selection).
+                std::vector<char> chosen(activeState.structure.atoms.size(), 0);
+                if (clicked.additive)
+                    for (const int instance : activeState.selectedInstanceIndices)
+                        if (instance >= 0 && static_cast<std::size_t>(instance) < activeState.sceneBuffers.atomIndices.size()) {
+                            const int atom = activeState.sceneBuffers.atomIndices[static_cast<std::size_t>(instance)];
+                            if (atom >= 0 && static_cast<std::size_t>(atom) < chosen.size()) chosen[static_cast<std::size_t>(atom)] = 1;
+                        }
+                std::vector<int> atoms;
+                for (std::size_t i = 0; i < activeState.structure.atoms.size(); ++i)
+                    if (chosen[i] || activeState.structure.atoms[i].symbol == clicked.symbol) atoms.push_back(static_cast<int>(i));
+                activeState.fileBrowser.requestSelection(std::move(atoms));
+            }
         }
 
         if (activeState.fileBrowser.getAtomColorMode() == AtomColorMode::CrystalOrientation)

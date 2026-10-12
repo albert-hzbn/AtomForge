@@ -124,6 +124,8 @@ struct FileBrowser
     // Atoms selected in the view (set by the application each frame) and a
     // selection requested by a menu operation (consumed by the application).
     void setViewSelection(std::vector<int> atoms) { viewSelectionAtoms = std::move(atoms); }
+    // Selects these atoms (and all their periodic images) in the view.
+    void requestSelection(std::vector<int> atoms) { requestedSelection = std::move(atoms); selectionRequested = true; }
     bool consumeSelectionRequest(std::vector<int>& atoms)
     {
         if (!selectionRequested) return false;

@@ -730,7 +730,7 @@
     },
     {
       "source": "src/app/EditorApplication.cpp",
-      "sha256": "ea8faf9308ede3fdb4deadc758d277b0822e65ba6e8b4307e3536037c7a94492",
+      "sha256": "6e780c33cf60adbe6ab24c2d8212975fe9b440a26f4fc9b4f028c290242a09ba",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3489,7 +3489,7 @@
     },
     {
       "source": "src/ui/FileBrowser.h",
-      "sha256": "e228d45eceadb657204b8e227e2c0956904f7db86439c1cff6fcec0dd5ebcacd",
+      "sha256": "dc32edd55ef3e0c68ca2389b8c17dbfffa1692ab326ad42a154e4d13222556ba",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3935,7 +3935,7 @@
     },
     {
       "source": "src/ui/MeasurementOverlay.cpp",
-      "sha256": "77a3fd893e9fdd2b2864f5554484cdc338673fe8139725679c9b029f2ca83eee",
+      "sha256": "340e28c1006e1d20c8601b73cdcfb3c9e8a3dadaf0270804e244c912f587d9eb",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3946,7 +3946,7 @@
     },
     {
       "source": "src/ui/MeasurementOverlay.h",
-      "sha256": "39797f39212db283d8f1dd2f99000397edb34dd8d0f3dce507df85a948ba65d4",
+      "sha256": "348c7e4e58887f97fe02ae41d11a1fa466e2f4245ecc26944f824cda1ac3cdcf",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
