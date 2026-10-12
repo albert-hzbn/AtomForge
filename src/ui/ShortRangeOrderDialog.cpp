@@ -1,4 +1,5 @@
 #include "ui/ResponsiveLayout.h"
+#include "ui/DialogLayout.h"
 #include "ui/UiScript.h"
 #include "ShortRangeOrderDialog.h"
 #include "ThemeUtils.h"
@@ -315,7 +316,8 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
     const ImVec4 kWarn    = ImVec4(1.0f, 0.60f, 0.10f, 1.0f);
     const ImVec4 kMuted   = ImVec4(0.52f, 0.52f, 0.52f, 1.0f);
 
-    const float  footerH  = ImGui::GetFrameHeightWithSpacing() + 6.0f;
+    // Below the panels: item spacing, a rule, spacing, then the button row.
+    const float  footerH  = ImGui::GetFrameHeight() + 3.0f * ImGui::GetStyle().ItemSpacing.y + 2.0f;
     const bool stackPanels = responsive::stacked();
     const float totalH = std::max(responsive::dp(260), ImGui::GetContentRegionAvail().y - footerH);
     const float leftW = stackPanels ? ImGui::GetContentRegionAvail().x : responsive::dp(240);
@@ -465,13 +467,9 @@ void drawShortRangeOrderDialog(ShortRangeOrderDialogState& state,
 
     if (!state.hasResults && !isComputing)
     {
-        float cy = totalH * 0.38f;
-        float cx = (ImGui::GetContentRegionAvail().x - 280.0f) * 0.5f;
-        ImGui::SetCursorPos({ std::max(cx, 0.0f), cy });
-        ImGui::TextColored(kMuted, "Configure parameters and click  Run Analysis.");
-        ImGui::SetCursorPos({ std::max(cx + 30.0f, 0.0f),
-                              cy + ImGui::GetTextLineHeightWithSpacing() * 1.2f });
-        ImGui::TextColored(kMuted, "A periodic unit cell is required.");
+        dialogLayout::emptyState(hasStructure
+            ? "Choose the neighbour shells and tolerance, then Run Analysis."
+            : "Short-range order needs a periodic unit cell; this structure has none.");
     }
     else if (isComputing && !state.hasResults)
     {

@@ -124,7 +124,7 @@ void AngularDistributionAnalysisDialog::drawPlot()
     {
         const char* msg = m_task.running()
             ? "Computing \xe2\x80\x94 please wait..."
-            : "No data.  Configure parameters and click  Compute ADF.";
+            : "No data yet: set the parameters, then Compute ADF.";
         ImVec2 ts = ImGui::CalcTextSize(msg);
         dl->AddText(ImVec2(pMin.x + (avail.x - ts.x) * 0.5f,
                            pMin.y + (avail.y - ts.y) * 0.5f),

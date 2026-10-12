@@ -140,6 +140,7 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         t.steps.push_back({"analysis-rdf", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { rdfDialog.open(); }});
         t.steps.push_back({"analysis-adf-result", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { angularDistributionDialog.open(); uiScript::request("adf.run"); }});
         t.steps.push_back({"analysis-adf", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { angularDistributionDialog.open(); }});
+        t.steps.push_back({"analysis-sro-result", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { shortRangeOrderDialog.openRequested = true; uiScript::request("sro.run"); }});
         t.steps.push_back({"analysis-sro", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { shortRangeOrderDialog.openRequested = true; }});
         t.steps.push_back({"analysis-dislocations", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { dislocationAnalysisDialog.open(); }});
         t.steps.push_back({"trajectory-loaded", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
