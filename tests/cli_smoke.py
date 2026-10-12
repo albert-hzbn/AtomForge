@@ -153,12 +153,26 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
     run("--convert", "--input", ids, "--output", reordered, "--format", "xyz")
     assert [line.split()[0] for line in reordered.read_text().splitlines()[2:4]] == ["Na", "Cl"], reordered.read_text()
     assert reordered.read_text().splitlines()[1].startswith('Lattice="4 0 0 0 4 0 0 0 4"'), reordered.read_text()
+    # Atomic numbers in a Z column; a cell after leading blank lines; a
+    # Properties key without species or positions is refused, not misread.
+    znum = root / "znum.xyz"
+    znum.write_text('\n\n2\nProperties=Z:I:1:pos:R:3 Lattice="4 0 0 0 4 0 0 0 4"\n11 0 0 0\n17 2 2 2\n')
+    znum_out = root / "znum_out.xyz"
+    run("--convert", "--input", znum, "--output", znum_out, "--format", "xyz")
+    assert [line.split()[0] for line in znum_out.read_text().splitlines()[2:4]] == ["Na", "Cl"], znum_out.read_text()
+    assert znum_out.read_text().splitlines()[1].startswith('Lattice="4 0 0 0 4 0 0 0 4"'), znum_out.read_text()
+    nospecies = root / "nospecies.xyz"
+    nospecies.write_text('1\nProperties=pos:R:3:mass:R:1\n0 0 0 1.0\n')
+    refused = run("--convert", "--input", nospecies, "--output", root / "nospecies_out.xyz", "--format", "xyz", success=False)
+    assert "Properties" in refused.stderr + refused.stdout, refused
     # POSCAR: a negative scale is the cell volume; VASP 4 names the species on
     # the title line instead of an element line.
     for name, text, expected in (
         ("vol_POSCAR", "volume\n-64.0\n1 0 0\n0 1 0\n0 0 1\nCu\n1\nDirect\n0 0 0\n", ["Cu"]),
         ("v4_POSCAR", "Na Cl\n1.0\n4 0 0\n0 4 0\n0 0 4\n1 1\nDirect\n0 0 0\n0.5 0.5 0.5\n", ["Na", "Cl"]),
         ("POSCAR-pv", "labels\n1.0\n4 0 0\n0 4 0\n0 0 4\nFe_pv O\n1 1\nDirect\n0 0 0\n0.5 0.5 0.5\n", ["Fe", "O"]),
+        # Comments after the scale and the counts; a title with an extra word.
+        ("cm_POSCAR", "Cu Ni alloy\n1.0 ! scale factor\n4 0 0\n0 4 0\n0 0 4\n1 1 ! counts\nDirect\n0 0 0\n0.5 0.5 0.5\n", ["Cu", "Ni"]),
     ):
         poscar = root / name
         poscar.write_text(text)

@@ -1306,13 +1306,9 @@ void wrapAtomsIntoPrimaryCell(Structure& structure)
 
 
 // The cell of an extended XYZ file: Lattice="ax ay az bx by bz cx cy cz" on
-// the first frame's comment line (Open Babel does not read it).
-static bool readExtendedXyzLattice(const std::string& text, std::array<std::array<double, 3>, 3>& cell)
+// the first frame's comment line.
+static bool readExtendedXyzLattice(const std::string& comment, std::array<std::array<double, 3>, 3>& cell)
 {
-    const std::size_t first = text.find('\n');
-    if (first == std::string::npos) return false;
-    const std::size_t second = text.find('\n', first + 1);
-    const std::string comment = text.substr(first + 1, second == std::string::npos ? std::string::npos : second - first - 1);
     std::size_t key = std::string::npos;
     for (std::size_t at = comment.find("attice="); at != std::string::npos; at = comment.find("attice=", at + 1))
         if (at > 0 && (comment[at - 1] == 'L' || comment[at - 1] == 'l')) { key = at + 7; break; }
@@ -1330,29 +1326,34 @@ static bool readExtendedXyzLattice(const std::string& text, std::array<std::arra
 
 // The columns of the species and the positions in an extended XYZ frame,
 // from Properties=name:type:count:... on its comment line (for example
-// id:I:1:species:S:1:pos:R:3). False without a usable Properties key.
-static bool extendedXyzColumns(const std::string& comment, int& speciesColumn, int& positionColumn)
+// id:I:1:species:S:1:pos:R:3); an atomic-number column (Z:I:1) stands in
+// for a missing species column. 1 when found, 0 when the key is present but
+// names no species or positions, -1 without a Properties key.
+static int extendedXyzColumns(const std::string& comment, int& speciesColumn, int& positionColumn)
 {
     std::size_t key = std::string::npos;
     for (std::size_t at = comment.find("roperties="); at != std::string::npos; at = comment.find("roperties=", at + 1))
         if (at > 0 && (comment[at - 1] == 'P' || comment[at - 1] == 'p')) { key = at + 10; break; }
-    if (key == std::string::npos) return false;
+    if (key == std::string::npos) return -1;
     const std::size_t end = comment.find_first_of(" \t\r\n", key);
     std::istringstream spec(comment.substr(key, end == std::string::npos ? std::string::npos : end - key));
     speciesColumn = positionColumn = -1;
+    int numberColumn = -1;
     int column = 0;
     for (std::string name, type, count; std::getline(spec, name, ':') && std::getline(spec, type, ':') && std::getline(spec, count, ':');)
     {
         int n = 0;
-        try { n = std::stoi(count); } catch (const std::exception&) { return false; }
-        if (n < 1) return false;
+        try { n = std::stoi(count); } catch (const std::exception&) { return 0; }
+        if (n < 1) return 0;
         std::string lower = name;
         for (char& c : lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (lower == "species" && n == 1) speciesColumn = column;
+        if (name == "Z" && n == 1) numberColumn = column;
         if ((lower == "pos" || lower == "positions") && n == 3) positionColumn = column;
         column += n;
     }
-    return speciesColumn >= 0 && positionColumn >= 0;
+    if (speciesColumn < 0) speciesColumn = numberColumn;
+    return speciesColumn >= 0 && positionColumn >= 0 ? 1 : 0;
 }
 
 bool isSupportedStructureFile(const std::string& filename)
@@ -1405,13 +1406,16 @@ static bool readPoscar(const std::string& text, Structure& structure, std::strin
     const auto scaleWords = words(lines[1]);
     double scale[3] = {1, 1, 1};
     double volume = 0.0;
-    if (scaleWords.size() == 1 || (scaleWords.size() > 1 && scaleWords.size() != 3))
+    double probe = 0.0;
+    const bool perAxis = scaleWords.size() >= 3 && number(scaleWords[0], probe) && number(scaleWords[1], probe) &&
+                         number(scaleWords[2], probe);
+    if (!scaleWords.empty() && !perAxis)
     {
         if (!number(scaleWords[0], scale[0]) || scale[0] == 0.0) return fail("the scale factor on line 2 is not a nonzero number.");
         if (scale[0] < 0.0) { volume = -scale[0]; scale[0] = 1.0; }
         scale[1] = scale[2] = scale[0];
     }
-    else if (scaleWords.size() == 3)
+    else if (perAxis)
     {
         for (int k = 0; k < 3; ++k)
             if (!number(scaleWords[(size_t)k], scale[k]) || scale[k] <= 0.0) return fail("the scale factors on line 2 must be positive.");
@@ -1465,16 +1469,19 @@ static bool readPoscar(const std::string& text, Structure& structure, std::strin
     for (const auto& word : words(lines[line]))
     {
         double value = 0;
-        if (!number(word, value) || value < 0 || value != std::floor(value)) return fail("the atom counts on line " + std::to_string(line + 1) + " must be whole numbers.");
+        if (!number(word, value)) break;
+        if (value < 0 || value != std::floor(value)) return fail("the atom counts on line " + std::to_string(line + 1) + " must be whole numbers.");
         counts.push_back(static_cast<long long>(value));
     }
+    if (counts.empty()) return fail("the atom counts on line " + std::to_string(line + 1) + " are missing.");
     ++line;
     if (!hasElementLine)
     {
         // VASP 4: the title names the species ("Na Cl").
-        for (const auto& word : words(lines[0]))
+        const auto title = words(lines[0]);
+        for (std::size_t i = 0; i < title.size() && i < counts.size(); ++i)
         {
-            const int z = symbolOf(word);
+            const int z = symbolOf(title[i]);
             if (!z) { elements.clear(); break; }
             elements.push_back(z);
         }
@@ -1581,8 +1588,15 @@ static bool readXyz(const std::string& text, Structure& structure, std::string& 
     }
     std::string_view comment;
     nextLine(comment);
+    const std::string commentText(comment);
     int speciesColumn = 0, positionColumn = 1;
-    if (!extendedXyzColumns(std::string(comment), speciesColumn, positionColumn))
+    const int columns = extendedXyzColumns(commentText, speciesColumn, positionColumn);
+    if (columns == 0)
+    {
+        errorMessage = "The extended XYZ Properties key names no species (or Z) and pos columns.";
+        return false;
+    }
+    if (columns < 0)
     {
         speciesColumn = 0;
         positionColumn = 1;
@@ -1658,7 +1672,7 @@ static bool readXyz(const std::string& text, Structure& structure, std::string& 
         structure.atoms.push_back(std::move(site));
     }
     std::array<std::array<double, 3>, 3> cell{};
-    if (readExtendedXyzLattice(text, cell))
+    if (readExtendedXyzLattice(commentText, cell))
     {
         structure.hasUnitCell = true;
         structure.cellVectors = cell;
