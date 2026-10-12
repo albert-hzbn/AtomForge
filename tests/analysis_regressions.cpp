@@ -2,6 +2,7 @@
 #include "algorithms/AngularDistributionAnalysis.h"
 #include "algorithms/RadialDistributionAnalysis.h"
 #include "algorithms/ShortRangeOrderAnalysis.h"
+#include "algorithms/VoronoiComputation.h"
 #include "util/BackgroundTask.h"
 
 #include <array>
@@ -282,6 +283,36 @@ int main()
         for (const auto& row : cnaLarge.atomRows) allFcc = allFcc && row.environment == "FCC-like";
         check(allFcc, "Every atom of a periodic fcc crystal is FCC-like");
         check(cnaSeconds < 20.0, "Periodic CNA of 13500 atoms must not scale with all N^2 pairs");
+
+        // fcc Voronoi cells are rhombic dodecahedra: 12 faces, volume a^3/4.
+        const auto cellVolume = [](const VoronoiCell& cell, const glm::vec3& centre) {
+            double volume = 0.0;
+            for (const auto& face : cell.faces)
+                for (std::size_t k = 1; k + 1 < face.vertices.size(); ++k)
+                    volume += std::abs(glm::dot(glm::dvec3(face.vertices[0] - centre),
+                                                glm::cross(glm::dvec3(face.vertices[k] - centre), glm::dvec3(face.vertices[k + 1] - centre)))) / 6.0;
+            return volume;
+        };
+        const auto checkFccVoronoi = [&](const Structure& crystal, const char* what) {
+            const VoronoiDiagram diagram = computeVoronoi(crystal);
+            check(diagram.cells.size() >= crystal.atoms.size(), what);
+            bool dodecahedra = true;
+            for (std::size_t i = 0; i < crystal.atoms.size(); ++i) {
+                const auto& cell = diagram.cells[i];
+                glm::vec3 centre(0.0f);
+                std::size_t count = 0;
+                for (const auto& face : cell.faces)
+                    for (const auto& v : face.vertices) { centre += v; ++count; }
+                if (count) centre /= static_cast<float>(count);
+                dodecahedra = dodecahedra && cell.faces.size() == 12 && std::abs(cellVolume(cell, centre) - a * a * a / 4.0) < 1e-2;
+            }
+            check(dodecahedra, what);
+        };
+        const auto voronoiStarted = std::chrono::steady_clock::now();
+        checkFccVoronoi(large, "Every Voronoi cell of a periodic fcc crystal is a rhombic dodecahedron of volume a^3/4");
+        const double voronoiSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - voronoiStarted).count();
+        check(voronoiSeconds < 30.0, "Voronoi of 13500 atoms must not scale with all N^2 pairs");
+        checkFccVoronoi(single, "The Voronoi cells of one fcc cell are rhombic dodecahedra");
     }
 
     std::atomic<bool> finished{false};

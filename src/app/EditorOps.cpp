@@ -1,4 +1,6 @@
 #include "app/EditorOps.h"
+#include "math/NeighbourSearch.h"
+#include <stdexcept>
 
 #include "Camera.h"
 #include "ElementData.h"
@@ -201,9 +203,39 @@ void applyGrainBoundaryColors(Structure& structure)
     }
     else
     {
-        for (int i = 0; i < (int)structure.atoms.size(); ++i)
-            for (int j = i + 1; j < (int)structure.atoms.size(); ++j)
-                tryAddBond(i, j);
+        // Candidate pairs from a cell list over the periodic images, each then
+        // judged by its minimum-image distance; all pairs only for cells too
+        // small to search.
+        float largestRadius = 0.0f;
+        for (const auto& atom : structure.atoms)
+            if (atom.atomicNumber >= 0 && atom.atomicNumber < (int)radii.size())
+                largestRadius = std::max(largestRadius, radii[atom.atomicNumber]);
+        largestRadius = std::max(largestRadius, 1.0f);
+        bool searched = false;
+        try
+        {
+            const auto pairs = neighbours::within(structure, 2.0 * largestRadius * kBondToleranceFactor * 1.001 + 1e-3, true);
+            std::vector<int> partners;
+            for (std::size_t k = 0; k < pairs.size();)
+            {
+                const int i = pairs[k].i;
+                partners.clear();
+                for (; k < pairs.size() && pairs[k].i == i; ++k)
+                    if (pairs[k].j > i) partners.push_back(pairs[k].j);
+                std::sort(partners.begin(), partners.end());
+                partners.erase(std::unique(partners.begin(), partners.end()), partners.end());
+                for (int j : partners)
+                    tryAddBond(i, j);
+            }
+            searched = true;
+        }
+        catch (const std::runtime_error&)
+        {
+        }
+        if (!searched)
+            for (int i = 0; i < (int)structure.atoms.size(); ++i)
+                for (int j = i + 1; j < (int)structure.atoms.size(); ++j)
+                    tryAddBond(i, j);
     }
 
     for (auto& nbrs : neighbors)

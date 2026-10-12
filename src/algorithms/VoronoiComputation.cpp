@@ -1,4 +1,6 @@
 #include "algorithms/VoronoiComputation.h"
+#include "math/NeighbourSearch.h"
+#include <stdexcept>
 #include "math/StructureMath.h"
 
 #include <algorithm>
@@ -251,13 +253,11 @@ VoronoiDiagram computeVoronoi(const Structure& structure)
 
     diagram.cells.resize(N);
 
-    for (size_t i = 0; i < N; ++i)
-    {
+    // Every image of every atom, for an atom whose cell the cutoff search
+    // below cannot prove complete.
+    auto fullNeighbours = [&](size_t i) {
         const glm::vec3& pi = positions[i];
-
-        // Build neighbour list.
         std::vector<Neighbor> neighbors;
-
         if (usePbc)
         {
             for (size_t j = 0; j < N; ++j)
@@ -290,7 +290,13 @@ VoronoiDiagram computeVoronoi(const Structure& structure)
                 neighbors.push_back({glm::dot(diff, diff), positions[j]});
             }
         }
+        return neighbors;
+    };
 
+    // The cell of atom i clipped by the bisectors of `neighbors`; `rmax2`
+    // returns the squared distance from the atom to its farthest vertex.
+    auto clip = [&](size_t i, std::vector<Neighbor> neighbors, float& rmax2) {
+        const glm::vec3& pi = positions[i];
         // Sort nearest first for fast convergence.
         std::sort(neighbors.begin(), neighbors.end(),
             [](const Neighbor& a, const Neighbor& b) { return a.dist2 < b.dist2; });
@@ -303,14 +309,14 @@ VoronoiDiagram computeVoronoi(const Structure& structure)
         else
             cell_poly = makeBox(bboxLo, bboxHi);
 
-        // Track the maximum squared distance from the atom to any vertex.
-        float rmax2 = 0.0f;
-        for (const auto& face : cell_poly.faces)
-            for (const auto& v : face.vertices)
-            {
-                float d2 = glm::dot(v - pi, v - pi);
-                if (d2 > rmax2) rmax2 = d2;
-            }
+        auto farthest = [&]() {
+            float r2 = 0.0f;
+            for (const auto& face : cell_poly.faces)
+                for (const auto& v : face.vertices)
+                    r2 = std::max(r2, glm::dot(v - pi, v - pi));
+            return r2;
+        };
+        rmax2 = farthest();
 
         // Clip against bisector planes, nearest neighbours first.
         for (const auto& nb : neighbors)
@@ -328,16 +334,63 @@ VoronoiDiagram computeVoronoi(const Structure& structure)
             glm::vec3 normal = (nb.pos - pi) / len;
 
             cell_poly = clipPolyhedronByPlane(cell_poly, midpoint, normal);
-
-            // Recompute rmax2 after clip.
-            rmax2 = 0.0f;
-            for (const auto& face : cell_poly.faces)
-                for (const auto& v : face.vertices)
-                {
-                    float d2 = glm::dot(v - pi, v - pi);
-                    if (d2 > rmax2) rmax2 = d2;
-                }
+            rmax2 = farthest();
         }
+        return cell_poly;
+    };
+
+    // Candidate neighbours from a cell list within a cutoff of a few atomic
+    // spacings, grouped by atom. A cell whose farthest vertex lies within
+    // half the cutoff is complete: no farther neighbour's bisector reaches it.
+    double searchCutoff = 0.0;
+    std::vector<neighbours::Pair> candidates;
+    std::vector<size_t> candidateStart(N + 1, 0);
+    {
+        double volume = 0.0;
+        if (usePbc)
+            volume = std::abs(glm::determinant(glm::dmat3(cell)));
+        else
+        {
+            glm::vec3 lo(1e30f), hi(-1e30f);
+            for (const auto& p : positions) { lo = glm::min(lo, p); hi = glm::max(hi, p); }
+            const glm::vec3 extent = glm::max(hi - lo, glm::vec3(1.0f));
+            volume = double(extent.x) * extent.y * extent.z;
+        }
+        searchCutoff = 3.0 * std::cbrt(std::max(volume, 1e-9) / static_cast<double>(N));
+        try
+        {
+            candidates = neighbours::within(structure, searchCutoff, usePbc);
+            for (const auto& pair : candidates) ++candidateStart[static_cast<size_t>(pair.i) + 1];
+            for (size_t i = 0; i < N; ++i) candidateStart[i + 1] += candidateStart[i];
+        }
+        catch (const std::runtime_error&)
+        {
+            searchCutoff = 0.0;  // a cell too small to search: every atom takes the full list
+        }
+    }
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        const glm::vec3& pi = positions[i];
+        ConvexPoly cell_poly;
+        float rmax2 = 0.0f;
+        bool complete = false;
+        if (searchCutoff > 0.0)
+        {
+            std::vector<Neighbor> nearby;
+            for (size_t k = candidateStart[i]; k < candidateStart[i + 1]; ++k)
+            {
+                const auto& pair = candidates[k];
+                const float d2 = static_cast<float>(pair.r * pair.r);
+                if (d2 < 1e-6f)
+                    continue;
+                nearby.push_back({d2, pi + glm::vec3(pair.d)});
+            }
+            cell_poly = clip(i, std::move(nearby), rmax2);
+            complete = !cell_poly.faces.empty() && 4.0 * rmax2 < searchCutoff * searchCutoff * 0.999;
+        }
+        if (!complete)
+            cell_poly = clip(i, fullNeighbours(i), rmax2);
 
         for (auto& face : cell_poly.faces)
             sortFaceVertices(face);
