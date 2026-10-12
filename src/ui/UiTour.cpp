@@ -112,6 +112,7 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         t.steps.push_back({"pipeline-undocked", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { pipelineDialog.show(); resetLayoutRequested = true; }});
         t.steps.push_back({"builder-interface-matches", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
             interfaceBuilderDialog.openExample();
+            uiScript::request("interface.find");
         }});
         t.steps.push_back({"operation-replicate", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { operationDialog.open("replicate"); }});
         t.steps.push_back({"operation-select", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { operationDialog.open("select-expression"); }});
@@ -241,6 +242,14 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
             structure = Structure();
             currentStructurePath.clear();
             updateBuffers(structure);
+        }});
+        // Last (the tab is empty now, so the result stays in it): Find Matches and
+        // Build pressed in the Interface Builder; the view shows the built Cu/Ni interface.
+        t.steps.push_back({"builder-interface-built", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            applyLightTheme();
+            interfaceBuilderDialog.openExample();
+            uiScript::request("interface.find");
+            uiScript::request("interface.build");  // taken once the search's preview exists
         }});
     }
     auto& t = *uiTour;

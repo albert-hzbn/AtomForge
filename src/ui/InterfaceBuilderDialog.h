@@ -50,8 +50,9 @@ struct InterfaceBuilderDialog
     bool editStep(StepEdit edit);
     // The dialog's settings as the step's options (flags of AtomForge --build interface).
     std::string stepOptions() const;
-    // Opens on an example (UI tour): fcc Cu (1 1 1) under fcc Ni (1 1 1),
-    // with the matches found.
+    // Opens on an example (UI tour): fcc Cu (1 1 1) under fcc Ni (1 1 1);
+    // the tour then presses Find Matches and Build ("interface.find",
+    // "interface.build").
     void openExample();
 
 private:

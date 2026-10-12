@@ -3,6 +3,7 @@
 #include "ui/DialogLayout.h"
 #include "ui/ResponsiveLayout.h"
 #include "ui/ThemeUtils.h"
+#include "ui/UiScript.h"
 
 #include "algorithms/InterfaceBuilder.h"
 #include "app/SceneView.h"
@@ -297,7 +298,10 @@ void InterfaceBuilderDialog::openExample()
     m_a.hkl[0] = m_a.hkl[1] = m_a.hkl[2] = 1;
     m_b.hkl[0] = m_b.hkl[1] = m_b.hkl[2] = 1;
     m_search.maxStrain = 0.03;
-    runSearch();
+    m_matches.clear();
+    m_searched = false;
+    m_selected = -1;
+    m_preview = Structure();
     m_openRequested = true;
 }
 
@@ -753,7 +757,7 @@ void InterfaceBuilderDialog::drawDialog(Structure& structure, const std::vector<
         ImGui::Spacing();
         const bool ready = !m_a.crystal.atoms.empty() && !m_b.crystal.atoms.empty();
         ImGui::BeginDisabled(!ready);
-        if (dialogLayout::primaryButton("Find Matches", ImVec2(-FLT_MIN, 0))) runSearch();
+        if (dialogLayout::primaryButton("Find Matches", ImVec2(-FLT_MIN, 0)) || (ready && uiScript::take("interface.find"))) runSearch();
         ImGui::EndDisabled();
         if (!ready) ImGui::TextDisabled("Set both crystals first.");
         else if (m_searched && m_stale)
@@ -809,7 +813,8 @@ void InterfaceBuilderDialog::drawDialog(Structure& structure, const std::vector<
     }
     ImGui::Separator();
     const bool canBuild = m_step.active() || !m_preview.atoms.empty();
-    const int pressed = dialogLayout::actionBar(status, dialogLayout::Note::Info, m_step.active() ? "Update Step" : "Build", "Close", canBuild);
+    int pressed = dialogLayout::actionBar(status, dialogLayout::Note::Info, m_step.active() ? "Update Step" : "Build", "Close", canBuild);
+    if (pressed == 0 && canBuild && uiScript::take("interface.build")) pressed = 1;
     if (pressed == 1)
     {
         if (m_step.active())
