@@ -1,6 +1,6 @@
 \chapter{Installation, builds, and troubleshooting}\label{ch:install}
 \section{Running a packaged desktop build}
-Extract a complete package into a writable folder and run the executable. Keep the bundled runtime libraries and Open Babel plugins in their supplied locations. Copying only \code{AtomForge.exe} to another machine can leave required DLLs or format plugins behind. To open a structure at launch, pass its path as the executable's argument.
+Extract a complete package into a writable folder and run the executable. Keep the bundled runtime libraries, Open Babel plugins and Open Babel data (\code{openbabel-data}, which supplies the space-group tables) in their supplied locations. Copying only \code{AtomForge.exe} to another machine can leave required DLLs or format plugins behind. To open a structure at launch, pass its path as the executable's argument.
 
 The desktop requires a working OpenGL environment. If the window fails to render, check the graphics driver and whether a remote/virtual session supplies the needed OpenGL support. A successful compiler run and a working graphics runtime are separate checks.
 
