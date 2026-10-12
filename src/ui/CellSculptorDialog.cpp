@@ -849,6 +849,7 @@ void CellSculptorDialog::drawDialog(
     bool dialogOpen = true;
     if (!responsive::beginModal("Cell Sculptor", &dialogOpen, 0))
     {
+        if (responsive::lastModalMinimized()) return;  // hidden, not closed: keeps its state
         m_isOpen = false;
         // Closed (Close, X): the menu path builds normally again.
         m_step.finish();

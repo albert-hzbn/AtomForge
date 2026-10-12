@@ -115,6 +115,22 @@ bool updateViewport(GLFWwindow* window, FrameView& frame)
     return true;
 }
 
+void fitProjectionToArea(FrameView& frame)
+{
+    frame.fullProjection = frame.projection;
+    const float width = static_cast<float>(frame.windowWidth), height = static_cast<float>(frame.windowHeight);
+    const float x0 = frame.area[0], y0 = frame.area[1], x1 = frame.area[2], y1 = frame.area[3];
+    if (width <= 0.0f || height <= 0.0f || x1 - x0 < 1.0f || y1 - y0 < 1.0f) return;
+    // In clip space: x' = s x + cx w, y' = s y + cy w (column-major).
+    const float s = (y1 - y0) / height;
+    glm::mat4 fit(1.0f);
+    fit[0][0] = s;
+    fit[1][1] = s;
+    fit[3][0] = (x0 + x1) / width - 1.0f;
+    fit[3][1] = 1.0f - (y0 + y1) / height;
+    frame.projection = fit * frame.projection;
+}
+
 void buildFrameView(
     Camera& camera,
     const SceneBuffers& sceneBuffers,

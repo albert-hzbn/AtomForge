@@ -1123,6 +1123,7 @@ void NanoCrystalBuilderDialog::drawDialog(
     responsive::windowSize(ImVec2(1160.0f, 900.0f), ImGuiCond_FirstUseEver);
     bool dialogOpen = true;
     if (!responsive::beginModal("Build Nanocrystal", &dialogOpen, 0)) {
+        if (responsive::lastModalMinimized()) return;  // hidden, not closed: keeps its state
         if (!openedNow) m_step.finish();  // closed with X
         m_isOpen = false;
         return;

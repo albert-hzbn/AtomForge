@@ -1238,7 +1238,7 @@ ElementLegendClick drawElementLegend(float top, const Structure& structure, std:
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.0f * scale, 2.0f * scale));
     const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
                                    ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove |
-                                   ImGuiWindowFlags_NoBringToFrontOnFocus;
+                                   ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoDocking;
     if (ImGui::Begin("##ElementLegend", nullptr, flags)) {
         const std::size_t shown = std::min<std::size_t>(entries.size(), 12);
         float countWidth = 0, symbolWidth = 0;

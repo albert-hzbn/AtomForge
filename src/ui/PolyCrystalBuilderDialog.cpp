@@ -375,6 +375,7 @@ void PolyCrystalBuilderDialog::drawDialog(
     responsive::windowSize(ImVec2(820.0f, 700.0f), ImGuiCond_FirstUseEver);
     bool dialogOpen = true;
     if (!responsive::beginModal("Build Polycrystal", &dialogOpen, 0)) {
+        if (responsive::lastModalMinimized()) return;  // hidden, not closed: keeps its state
         if (!openedNow) m_step.finish();  // closed with X
         m_isOpen = false;
         return;

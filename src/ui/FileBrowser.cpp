@@ -836,6 +836,14 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
             if (ImGui::MenuItem("Match the system", nullptr, themeMode() == ThemeMode::System)) setThemeMode(ThemeMode::System);
             ImGui::EndMenu();
         }
+        if (ImGui::MenuItem("Dock Structure Pipeline at the Right")) {
+            pipelineDialog.show();
+            dockRightRequested = "Structure Pipeline###Structure pipeline";
+        }
+        if (ImGui::MenuItem("Reset Window Layout")) resetLayoutRequested = true;
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Undock every tool window. Drag a window by its title onto the arrows that appear\n"
+                              "at the sides of the view to dock it, or onto another window to make them tabs.");
         ImGui::EndMenu();
     }
 
@@ -1601,6 +1609,7 @@ void FileBrowser::draw(Structure& structure,
     drawWelcome(structure);
     drawToolbar(structure, canUndo, canRedo);
     drawStatusBar(structure);
+    drawDockSpace();
 
     if (StepEdit request; pipelineDialog.consumeDialogRequest(request)) openStepDialog(std::move(request), editMenuDialogs);
     editMenuDialogs.drawPopups(structure, updateBuffers);

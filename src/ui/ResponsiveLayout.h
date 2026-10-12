@@ -13,6 +13,15 @@ void windowSize(ImVec2 designSize, ImGuiCond condition = ImGuiCond_None);
 void windowConstraints(ImVec2 minimum, ImVec2 maximum);
 bool begin(const char* name, bool* open = nullptr, ImGuiWindowFlags flags = 0);
 bool beginModal(const char* name, bool* open = nullptr, ImGuiWindowFlags flags = 0);
+// The large builder and analysis dialogs (which cover the view) have a
+// minimize button in their title bar: the dialog is hidden with its settings
+// kept and listed by drawMinimizedDialogs until restored. True when the
+// dialog of the last beginModal call is minimized (not closed), so that its
+// caller keeps its state instead of treating it as closed.
+bool lastModalMinimized();
+// The minimized dialogs as buttons that restore them, above the status bar
+// (whose top is statusTop).
+void drawMinimizedDialogs(float statusTop);
 // Esc pressed in the current (focused) dialog while no field is being edited.
 bool escapeCloses();
 bool beginChild(const char* name, ImVec2 size = ImVec2(0, 0),

@@ -431,6 +431,16 @@ private:
     // Main-window chrome (MainWindowChrome.cpp).
     void drawToolbar(const Structure& structure, bool canUndo, bool canRedo);
     void drawStatusBar(const Structure& structure);
+    // The area between the toolbars and the status bar, where tool windows
+    // dock (to its sides or as tabs); its centre stays the 3D view.
+    void drawDockSpace();
+    bool resetLayoutRequested = false;
+    // A window to dock at the right of the view in the next dock-space pass
+    // (its full name, with any ###id).
+    std::string dockRightRequested;
+    // The part of the window the 3D view fills, left free by docked windows,
+    // in window coordinates (x0, y0, x1, y1); all zero when nothing is docked.
+    std::array<float, 4> sceneArea{};
     void drawWelcome(const Structure& structure);
     void drawShortcuts();
     bool showShortcuts = false;
@@ -444,6 +454,7 @@ private:
     bool requestQuit = false;
 public:
     bool consumeQuitRequest() { const bool requested = requestQuit; requestQuit = false; return requested; }
+    const std::array<float, 4>& viewArea() const { return sceneArea; }
 private:
     std::vector<std::string> recentFiles();
     // UI tour (UiTour.cpp): ATOMFORGE_UI_TOUR=FOLDER screenshots the main window,

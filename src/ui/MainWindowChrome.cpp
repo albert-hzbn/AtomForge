@@ -96,7 +96,7 @@ void FileBrowser::drawToolbar(const Structure& structure, bool canUndo, bool can
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg));
     const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
                                    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar |
-                                   ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus;
+                                   ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoDocking;
     if (ImGui::Begin("##ViewToolbar", nullptr, flags)) {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, responsive::size(5, 5));
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, responsive::size(9, 4));
@@ -193,6 +193,77 @@ void FileBrowser::drawToolbar(const Structure& structure, bool canUndo, bool can
     ImGui::PopStyleVar(3);
 }
 
+void FileBrowser::drawDockSpace()
+{
+    // Below the toolbar and the structure tabs (as placed in the last frame),
+    // above the status bar.
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    float top = viewport->WorkPos.y;
+    for (const char* name : {"##ViewToolbar", "##StructureTabBar"})
+        if (ImGuiWindow* bar = ImGui::FindWindowByName(name); bar && bar->WasActive)
+            top = std::max(top, bar->Pos.y + bar->Size.y);
+    float bottom = viewport->WorkPos.y + viewport->WorkSize.y;
+    if (ImGuiWindow* status = ImGui::FindWindowByName("##StatusBar"); status && status->WasActive)
+        bottom = std::min(bottom, status->Pos.y);
+    responsive::drawMinimizedDialogs(bottom);
+    if (bottom - top < 50.0f) return;
+    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x, top));
+    ImGui::SetNextWindowSize(ImVec2(viewport->WorkSize.x, bottom - top));
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+                                   ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoBringToFrontOnFocus |
+                                   ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings |
+                                   ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+    ImGui::Begin("##DockHost", nullptr, flags);
+    ImGui::PopStyleVar(3);
+    const ImGuiID dockspace = ImGui::GetID("ToolWindows");
+    if (resetLayoutRequested) {
+        // Every window docked in the view's dock space floats again, where it was.
+        ImGuiContext& context = *ImGui::GetCurrentContext();
+        for (ImGuiWindow* window : context.Windows) {
+            if (!window->DockNode) continue;
+            ImGuiDockNode* root = window->DockNode;
+            while (root->ParentNode) root = root->ParentNode;
+            if (root->ID == dockspace) ImGui::DockContextQueueUndockWindow(&context, window);
+        }
+        resetLayoutRequested = false;
+    }
+    if (!dockRightRequested.empty()) {
+        // A third of the width at the right, beside whatever is docked there.
+        ImGuiDockNode* node = ImGui::DockBuilderGetNode(dockspace);
+        if (!node) {
+            ImGui::DockBuilderAddNode(dockspace, ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderSetNodeSize(dockspace, ImVec2(viewport->WorkSize.x, bottom - top));
+        }
+        ImGuiDockNode* central = ImGui::DockBuilderGetCentralNode(dockspace);
+        const ImGuiID target = central ? central->ID : dockspace;
+        ImGuiID right = 0, rest = 0;
+        ImGui::DockBuilderSplitNode(target, ImGuiDir_Right, 0.32f, &right, &rest);
+        ImGui::DockBuilderDockWindow(dockRightRequested.c_str(), right);
+        ImGui::DockBuilderFinish(dockspace);
+        dockRightRequested.clear();
+    }
+    // The centre is the view: clicks there reach the scene.
+    ImGui::DockSpace(dockspace, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoDockingOverCentralNode);
+    // The view fills the central node's width, and its height only when
+    // something is docked above or below (else the whole window's height, as
+    // without docking).
+    sceneArea = {};
+    if (const ImGuiDockNode* central = ImGui::DockBuilderGetCentralNode(dockspace)) {
+        const float x0 = central->Pos.x, x1 = central->Pos.x + central->Size.x;
+        const float y0 = central->Pos.y, y1 = central->Pos.y + central->Size.y;
+        const bool narrower = x0 > viewport->WorkPos.x + 1.0f || x1 < viewport->WorkPos.x + viewport->WorkSize.x - 1.0f;
+        const bool above = y0 > top + 1.0f, below = y1 < bottom - 1.0f;
+        if ((narrower || above || below) && x1 - x0 > 40.0f && y1 - y0 > 40.0f)
+            sceneArea = {x0 - viewport->Pos.x, above ? y0 - viewport->Pos.y : 0.0f,
+                         x1 - viewport->Pos.x, below ? y1 - viewport->Pos.y : viewport->Size.y};
+    }
+    ImGui::End();
+}
+
 void FileBrowser::drawStatusBar(const Structure& structure)
 {
     const ImGuiIO& io = ImGui::GetIO();
@@ -206,7 +277,7 @@ void FileBrowser::drawStatusBar(const Structure& structure)
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg));
     const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
                                    ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
-                                   ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+                                   ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDocking;
     if (ImGui::Begin("##StatusBar", nullptr, flags)) {
         // A rule along the top edge.
         const ImVec2 p = ImGui::GetWindowPos();
@@ -320,7 +391,7 @@ void FileBrowser::drawWelcome(const Structure& structure)
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetStyleColorVec4(ImGuiCol_ChildBg));
     const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
                                    ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
-                                   ImGuiWindowFlags_NoFocusOnAppearing;
+                                   ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking;
     if (ImGui::Begin("##Welcome", nullptr, flags)) {
         uiFonts::pushHeading(1.9f);
         ImGui::TextUnformatted("AtomForge");
@@ -429,7 +500,7 @@ void FileBrowser::drawWelcome(const Structure& structure)
         }
         ImGui::Spacing();
         ImGui::Separator();
-        ImGui::TextDisabled("Drop structure files here. Dumps of billions of atoms open with the large-data viewer.");
+        ImGui::TextDisabled("Drop structure files here.");
     }
     ImGui::End();
     ImGui::PopStyleColor();

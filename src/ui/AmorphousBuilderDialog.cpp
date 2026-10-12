@@ -224,6 +224,7 @@ void AmorphousBuilderDialog::drawDialog(
     if (!responsive::beginModal("Amorphous Structure Builder", &open,
                                  ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize))
     {
+        if (responsive::lastModalMinimized()) return;  // hidden, not closed: keeps its state
         if (!open)
             m_isOpen = false;
         if (!openedNow)

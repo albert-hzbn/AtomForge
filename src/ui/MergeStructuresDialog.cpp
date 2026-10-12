@@ -704,6 +704,7 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
     bool keepOpen = true;
     if (!responsive::beginModal("Merge Structures", &keepOpen, ImGuiWindowFlags_NoCollapse))
     {
+        if (responsive::lastModalMinimized()) return;  // hidden, not closed: keeps its state
         m_isOpen = false;
         // Closed (Close, X): the menu path merges normally again.
         finishStepEdit();

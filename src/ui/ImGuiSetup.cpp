@@ -324,6 +324,32 @@ void applyLightTheme()
     applyScaledStyle();
 }
 
+// Where the window and docking layout is kept between sessions; null (none)
+// in the automated modes, so that they always start from the default layout.
+static const char* layoutFile()
+{
+    for (const char* mode : {"ATOMFORGE_UI_TOUR", "ATOMFORGE_TUTORIAL_CAPTURE", "ATOMFORGE_STEP_DIALOG_CHECK",
+                             "ATOMFORGE_CLOUD_BENCHMARK", "ATOMFORGE_NO_LAYOUT"})
+        if (const char* value = std::getenv(mode); value && *value) return nullptr;
+    static std::string path;
+    try {
+        std::filesystem::path root;
+#ifdef _WIN32
+        if (const char* folder = std::getenv("LOCALAPPDATA")) root = std::filesystem::u8path(folder);
+#else
+        if (const char* folder = std::getenv("XDG_CONFIG_HOME")) root = std::filesystem::u8path(folder);
+        else if (const char* home = std::getenv("HOME")) root = std::filesystem::u8path(home) / ".config";
+#endif
+        if (root.empty()) return nullptr;
+        root /= "AtomForge";
+        std::filesystem::create_directories(root);
+        path = (root / "layout.ini").u8string();
+    } catch (const std::exception&) {
+        return nullptr;
+    }
+    return path.c_str();
+}
+
 void initImGui(GLFWwindow* window)
 {
     IMGUI_CHECKVERSION();
@@ -332,7 +358,11 @@ void initImGui(GLFWwindow* window)
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigWindowsMoveFromTitleBarOnly = true;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    io.IniFilename = nullptr;
+    // Tool windows (the pipeline, scientific tools, trajectory playback, ...)
+    // dock to the sides of the view or into each other as tabs.
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigDockingWithShift = false;
+    io.IniFilename = layoutFile();
 
     applyLightTheme();
 

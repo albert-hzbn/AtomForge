@@ -3,6 +3,8 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <string>
+#include <vector>
 
 namespace responsive
 {
@@ -25,6 +27,12 @@ void prepare(const char* name)
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 available = availableSize();
     ImGuiNextWindowData& next = ImGui::GetCurrentContext()->NextWindowData;
+    // A docked window (or one being docked) is placed and sized by its dock
+    // node: a position or size set for it would undock it.
+    if (const ImGuiWindow* window = ImGui::FindWindowByName(name); window && (window->DockId != 0 || window->DockIsActive)) {
+        next.HasFlags &= ~(ImGuiNextWindowDataFlags_HasPos | ImGuiNextWindowDataFlags_HasSize | ImGuiNextWindowDataFlags_HasSizeConstraint);
+        return;
+    }
     ImVec2 minimum = size(240, 120);
     ImVec2 maximum = available;
     if (next.HasFlags & ImGuiNextWindowDataFlags_HasSizeConstraint)
@@ -74,23 +82,130 @@ bool begin(const char* name, bool* open, ImGuiWindowFlags flags)
     if (!(flags & ImGuiWindowFlags_NoTitleBar))
     {
         prepare(name);
-        flags = (flags & ~ImGuiWindowFlags_NoScrollbar) | ImGuiWindowFlags_HorizontalScrollbar;
+        flags = (flags & ~(ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse)) | ImGuiWindowFlags_HorizontalScrollbar;
     }
+    // Docked windows are square, flush with the view and with each other.
+    const ImGuiWindow* existing = ImGui::FindWindowByName(name);
+    const bool docked = existing && existing->DockIsActive;
+    if (docked) ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     const bool visible = ImGui::Begin(name, open, flags);
+    if (docked) ImGui::PopStyleVar();
     if (visible && open && *open && !(flags & ImGuiWindowFlags_NoTitleBar) && escapeCloses()) *open = false;
     return visible;
 }
 
+namespace
+{
+// Dialogs worth hiding to look at (or work in) the view while they keep their settings.
+bool minimizable(const std::string& name)
+{
+    static const char* const names[] = {
+        "Build Bulk Crystal", "Amorphous Structure Builder", "Build Nanocrystal", "Build Polycrystal",
+        "CSL Grain Boundary Builder", "Interface Builder", "Stacking Faults", "Custom Structure",
+        "Substitutional Solid Solution", "Insert Dislocation", "Add Interstitial Atoms", "Merge Structures",
+        "Cell Sculptor", "Radial Distribution Function", "Angular Distribution Function",
+        "Common Neighbour Analysis", "Short-Range Order Analysis"};
+    const std::string title = name.substr(0, name.find("##"));
+    for (const char* candidate : names)
+        if (title == candidate) return true;
+    return false;
+}
+
+struct MinimizedDialog
+{
+    std::string name;
+    bool restore = false;
+};
+std::vector<MinimizedDialog>& minimizedDialogs()
+{
+    static std::vector<MinimizedDialog> dialogs;
+    return dialogs;
+}
+bool lastMinimized = false;
+
+// A "minimize" button left of the close button in the current window's title bar.
+bool titleBarMinimizeButton(bool hasCloseButton)
+{
+    ImGuiContext& g = *ImGui::GetCurrentContext();
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    const ImRect bar = window->TitleBarRect();
+    const float size = g.FontSize;
+    const float right = bar.Max.x - g.Style.FramePadding.x - (hasCloseButton ? size + g.Style.ItemInnerSpacing.x : 0.0f);
+    const ImRect box(ImVec2(right - size, bar.Min.y + g.Style.FramePadding.y), ImVec2(right, bar.Min.y + g.Style.FramePadding.y + size));
+    const ImGuiLastItemData saved = g.LastItemData;
+    ImGui::PushClipRect(bar.Min, bar.Max, false);
+    const ImGuiID id = window->GetID("#MINIMIZE");
+    bool pressed = false;
+    if (ImGui::ItemAdd(box, id, nullptr, ImGuiItemFlags_NoNav)) {
+        bool hovered = false, held = false;
+        pressed = ImGui::ButtonBehavior(box, id, &hovered, &held);
+        ImDrawList* draw = window->DrawList;
+        if (hovered)
+            draw->AddRectFilled(box.Min, box.Max, ImGui::GetColorU32(held ? ImGuiCol_ButtonActive : ImGuiCol_ButtonHovered), g.Style.FrameRounding);
+        const float inset = size * 0.25f, y = box.Max.y - size * 0.32f;
+        draw->AddLine(ImVec2(box.Min.x + inset, y), ImVec2(box.Max.x - inset, y), ImGui::GetColorU32(ImGuiCol_Text), std::max(1.0f, size * 0.09f));
+        if (hovered) ImGui::SetTooltip("Minimize: hide the dialog and keep its settings; restore it from the bar above the status bar");
+    }
+    ImGui::PopClipRect();
+    g.LastItemData = saved;
+    return pressed;
+}
+}
+
+bool lastModalMinimized() { return lastMinimized; }
+
 bool beginModal(const char* name, bool* open, ImGuiWindowFlags flags)
 {
+    auto& dialogs = minimizedDialogs();
+    const auto found = std::find_if(dialogs.begin(), dialogs.end(), [&](const MinimizedDialog& d) { return d.name == name; });
+    // Restored: reopened here, in the dialog's own ID scope.
+    if (found != dialogs.end() && found->restore) {
+        ImGui::OpenPopup(name);
+        dialogs.erase(found);
+    }
     prepare(name);
     flags = (flags & ~ImGuiWindowFlags_NoScrollbar) | ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoCollapse;
     const bool visible = ImGui::BeginPopupModal(name, open, flags);
-    if (visible && open && *open && escapeCloses()) {
+    lastMinimized = false;
+    if (!visible) {
+        lastMinimized = std::any_of(dialogs.begin(), dialogs.end(), [&](const MinimizedDialog& d) { return d.name == name; });
+        return false;
+    }
+    // Opened again from its menu while minimized: no longer minimized.
+    dialogs.erase(std::remove_if(dialogs.begin(), dialogs.end(), [&](const MinimizedDialog& d) { return d.name == name; }), dialogs.end());
+    if (minimizable(name) && titleBarMinimizeButton(open != nullptr)) {
+        dialogs.push_back({name, false});
+        ImGui::CloseCurrentPopup();
+    }
+    if (open && *open && escapeCloses()) {
         *open = false;
         ImGui::CloseCurrentPopup();
     }
     return visible;
+}
+
+void drawMinimizedDialogs(float statusTop)
+{
+    auto& dialogs = minimizedDialogs();
+    if (dialogs.empty()) return;
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f, statusTop - dp(6)), ImGuiCond_Always, ImVec2(0.5f, 1.0f));
+    ImGui::SetNextWindowBgAlpha(0.92f);
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+                                   ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
+    if (ImGui::Begin("##MinimizedDialogs", nullptr, flags)) {
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Minimized:");
+        for (std::size_t i = 0; i < dialogs.size(); ++i) {
+            ImGui::SameLine();
+            ImGui::PushID(static_cast<int>(i));
+            const std::string title = dialogs[i].name.substr(0, dialogs[i].name.find("##"));
+            if (button(title.c_str())) dialogs[i].restore = true;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Restore %s", title.c_str());
+            ImGui::PopID();
+        }
+    }
+    ImGui::End();
 }
 
 // Esc closes the focused dialog, like its close button, unless a field is

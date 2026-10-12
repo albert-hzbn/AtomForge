@@ -888,6 +888,7 @@ void InterfaceBuilderDialog::drawDialog(
     if (!responsive::beginModal("Interface Builder", &dialogOpen,
                                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
     {
+        if (responsive::lastModalMinimized()) return;  // hidden, not closed: keeps its state
         if (!dialogOpen || !m_isOpen)
         {
             m_isOpen = false;

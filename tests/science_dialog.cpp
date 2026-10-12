@@ -5,6 +5,7 @@
 #include "ui/ScientificToolsDialog.h"
 #include "ui/TrajectoryDialog.h"
 #include "ui/PipelineDialog.h"
+#include "ui/ResponsiveLayout.h"
 #include "ui/OperationDialog.h"
 #include "ui/MenuParity.h"
 #include "ui/ModifierEditor.h"
@@ -306,6 +307,60 @@ int main()
             PipelineDialog reopened;
             reopened.restore(panel.snapshot(), &copper);
             if (reopened.editor().size() != 3 || reopened.editor().modifier(2).enabled) throw std::runtime_error("Pipeline snapshot round trip");
+        }
+        // A large dialog minimizes from its title bar, keeps its state while
+        // hidden (not closed), and comes back from the minimized bar.
+        {
+            auto& io = ImGui::GetIO();
+            bool requested = true;
+            int typed = 0;
+            const auto dialog = [&] {
+                if (requested) { ImGui::OpenPopup("Build Bulk Crystal"); requested = false; }
+                bool open = true;
+                ImGui::SetNextWindowPos(ImVec2(60, 60), ImGuiCond_Appearing);
+                ImGui::SetNextWindowSize(ImVec2(420, 300), ImGuiCond_Appearing);
+                if (responsive::beginModal("Build Bulk Crystal", &open)) {
+                    ImGui::InputInt("value", &typed);
+                    ImGui::EndPopup();
+                    return 1;
+                }
+                return responsive::lastModalMinimized() ? 2 : 0;
+            };
+            int state = 0;
+            const auto frame = [&] {
+                ImGui::NewFrame();
+                state = dialog();
+                responsive::drawMinimizedDialogs(io.DisplaySize.y - 30);
+                ImGui::Render();
+            };
+            const auto clickAt = [&](ImVec2 at) {
+                io.AddMousePosEvent(at.x, at.y); frame();
+                io.AddMouseButtonEvent(0, true); frame();
+                io.AddMouseButtonEvent(0, false); frame();
+                frame();
+            };
+            for (int k = 0; k < 3; ++k) frame();
+            if (state != 1) throw std::runtime_error("The dialog opens");
+            typed = 42;
+            const ImGuiWindow* window = ImGui::FindWindowByName("Build Bulk Crystal");
+            const ImRect bar = window->TitleBarRect();
+            const ImGuiStyle& style = ImGui::GetStyle();
+            const float size = ImGui::GetFontSize();
+            const float right = bar.Max.x - style.FramePadding.x - size - style.ItemInnerSpacing.x;
+            clickAt(ImVec2(right - 0.5f * size, bar.Min.y + style.FramePadding.y + 0.5f * size));
+            if (state != 2) throw std::runtime_error("The minimize button hides the dialog as minimized, not closed (state " + std::to_string(state) + ")");
+            const ImGuiWindow* strip = ImGui::FindWindowByName("##MinimizedDialogs");
+            if (!strip || !strip->WasActive) throw std::runtime_error("A minimized dialog is listed above the status bar");
+            clickAt(ImVec2(strip->Pos.x + strip->Size.x - style.WindowPadding.x - 6, strip->Pos.y + 0.5f * strip->Size.y));
+            if (state != 1 || typed != 42) throw std::runtime_error("Restoring reopens the dialog with its settings");
+            frame();
+            if (const ImGuiWindow* gone = ImGui::FindWindowByName("##MinimizedDialogs"); gone && gone->Active)
+                throw std::runtime_error("A restored dialog leaves the minimized bar");
+            // Close it, so that the panels below start without a modal.
+            ImGui::NewFrame();
+            if (responsive::beginModal("Build Bulk Crystal")) { ImGui::CloseCurrentPopup(); ImGui::EndPopup(); }
+            ImGui::Render();
+            frame();
         }
         // Moving and removing steps with real mouse input on the drawn controls.
         {

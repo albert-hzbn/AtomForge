@@ -585,6 +585,7 @@ void StackingFaultBuilderDialog::drawDialog(
     bool keepOpen = true;
     if (!responsive::beginModal("Stacking Faults", &keepOpen, ImGuiWindowFlags_NoCollapse))
     {
+        if (responsive::lastModalMinimized()) return;  // hidden, not closed: keeps its state
         m_isOpen = false;
         m_step.finish();
         return;

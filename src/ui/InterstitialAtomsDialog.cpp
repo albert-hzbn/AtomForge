@@ -1209,6 +1209,7 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
     bool keepOpen = true;
     if (!responsive::beginModal("Add Interstitial Atoms", &keepOpen, ImGuiWindowFlags_NoCollapse))
     {
+        if (responsive::lastModalMinimized()) return;  // hidden, not closed: keeps its state
         m_isOpen = false;
         // Closed (Close, X): the menu path inserts normally again.
         m_step.finish();

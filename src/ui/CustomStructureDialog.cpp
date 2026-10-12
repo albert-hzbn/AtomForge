@@ -648,6 +648,7 @@ void CustomStructureDialog::drawDialog(Structure& structure,
     bool keepOpen = true;
     if (!responsive::beginModal("Custom Structure", &keepOpen, 0))
     {
+        if (responsive::lastModalMinimized()) return;  // hidden, not closed: keeps its state
         m_isOpen = false;
         // Closed with the X (or by another popup): the next menu build is normal.
         if (m_step.active() && !m_openRequested)

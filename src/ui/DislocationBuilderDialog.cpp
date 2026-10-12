@@ -653,6 +653,7 @@ void DislocationBuilderDialog::drawDialog(
     bool keepOpen = true;
     if (!responsive::beginModal("Insert Dislocation", &keepOpen, ImGuiWindowFlags_NoCollapse))
     {
+        if (responsive::lastModalMinimized()) return;  // hidden, not closed: keeps its state
         m_isOpen = false;
         m_step.finish();
         return;

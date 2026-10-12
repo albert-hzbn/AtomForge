@@ -731,7 +731,7 @@ void handleImageExportIfRequested(bool hasImageExportRequest,
     const int scale = std::max(1, imageExportRequest.resolutionScale);
     exportView.width = frame.framebufferWidth * scale;
     exportView.height = frame.framebufferHeight * scale;
-    exportView.projection = frame.projection;
+    exportView.projection = frame.fullProjection;
     exportView.view = frame.view;
     exportView.lightMVP = frame.lightMVP;
     exportView.lightPosition = frame.lightPosition;
@@ -779,7 +779,7 @@ void captureTrajectoryGifFrame(const FrameView& frame,
     ImageExportView exportView;
     exportView.width = frame.framebufferWidth;
     exportView.height = frame.framebufferHeight;
-    exportView.projection = frame.projection;
+    exportView.projection = frame.fullProjection;
     exportView.view = frame.view;
     exportView.lightMVP = frame.lightMVP;
     exportView.lightPosition = frame.lightPosition;
@@ -1146,6 +1146,9 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         buildFrameView(camera, state.sceneBuffers, state.fileBrowser.isOrthographicViewEnabled(), frame);
         if (state.hasCloud())
             adjustCloudProjection(frame, camera, *state.cloud, state.fileBrowser.isOrthographicViewEnabled());
+        // The view fills what docked windows leave free (as of the last frame).
+        for (int k = 0; k < 4; ++k) frame.area[k] = state.fileBrowser.viewArea()[static_cast<std::size_t>(k)];
+        fitProjectionToArea(frame);
 
         if (state.grabState.active)
         {
@@ -1325,7 +1328,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                 ImGuiWindowFlags_NoTitleBar    | ImGuiWindowFlags_NoMove    |
                 ImGuiWindowFlags_NoResize      | ImGuiWindowFlags_NoCollapse |
                 ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar |
-                ImGuiWindowFlags_NoScrollWithMouse;
+                ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoDocking;
 
             if (ImGui::Begin("##StructureTabBar", nullptr, kTabBarFlags))
             {
