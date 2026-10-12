@@ -34,6 +34,18 @@ bool toolButton(const char* icon, const char* text, const char* tooltip, bool en
     return pressed;
 }
 
+// A toolbar button for a mode: highlighted while the mode is on.
+bool toggleButton(const char* text, const char* tooltip, bool on, bool enabled = true)
+{
+    if (on) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
+        ImGui::PushStyleColor(ImGuiCol_Border, dialogLayout::accent());
+    }
+    const bool pressed = toolButton(nullptr, text, tooltip, enabled);
+    if (on) ImGui::PopStyleColor(2);
+    return pressed;
+}
+
 // A muted caption before a group of toolbar controls.
 void groupCaption(const char* text)
 {
@@ -136,6 +148,18 @@ void FileBrowser::drawToolbar(const Structure& structure, bool canUndo, bool can
         if (toolButton(Icon::Ruler, "Distance##measure", "Measure the distance between two atoms (pick them in the view)", hasAtoms)) requestMeasureDistance = true;
         ImGui::SameLine();
         if (toolButton(nullptr, "Angle##measure", "Measure the angle between three atoms (pick them in the view)", hasAtoms)) requestMeasureAngle = true;
+
+        nextGroup(unit * 7);
+        groupCaption("Select");
+        if (toggleButton("Box##select", "Box selection: drag a rectangle in the view to select atoms (Ctrl adds)", boxSelectMode, hasAtoms)) {
+            boxSelectMode = !boxSelectMode;
+            if (boxSelectMode) lassoSelectMode = false;
+        }
+        ImGui::SameLine();
+        if (toggleButton("Lasso##select", "Lasso selection: draw around atoms in the view to select them (Ctrl adds)", lassoSelectMode, hasAtoms)) {
+            lassoSelectMode = !lassoSelectMode;
+            if (lassoSelectMode) boxSelectMode = false;
+        }
 
         // Right-aligned: commands, the structure pipeline, the projection and the theme.
         const char* commandsLabel = "Commands";

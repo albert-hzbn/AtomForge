@@ -1832,7 +1832,7 @@
     },
     {
       "source": "src/ui/CommandPalette.cpp",
-      "sha256": "0f6e5a1beec48d3d108b1393f3beccc6cf4b3054fcefdbe4fa2a759b36199a05",
+      "sha256": "6405696b321219e510f8bed2b84331957f0eda94f9b6c29bdea2ace6437d3717",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -1841,7 +1841,7 @@
       ],
       "literal_controls": [
         {
-          "line": 189,
+          "line": 191,
           "declaration_label": "##query"
         }
       ]
@@ -3919,7 +3919,7 @@
     },
     {
       "source": "src/ui/MainWindowChrome.cpp",
-      "sha256": "7080a8cdef5cdc0f611458224f5d8654a551fc26e4073cb3f110fbbbe6c44af4",
+      "sha256": "f6e793439fdf8f29dd7c71fd48c42ebd024473f0ff7a8c66a17e173e420bb9b9",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3928,7 +3928,7 @@
       ],
       "literal_controls": [
         {
-          "line": 125,
+          "line": 137,
           "declaration_label": "##rotangle"
         }
       ]
