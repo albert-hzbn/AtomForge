@@ -270,6 +270,18 @@ int main()
         check(adfSeconds < 20.0, "ADF of 13500 atoms must not scale with all N^2 pairs");
         const AdfResult singleAngles = computeADF(single, adfParams);
         check(singleAngles.valid && singleAngles.nTriplets == 4 * 66, "ADF of one fcc cell counts every periodic image");
+
+        // Periodic CNA through the neighbour search: every atom fcc.
+        CnaParams cnaParams;
+        cnaParams.cutoffRadius = static_cast<float>(a * 0.85);
+        const auto cnaStarted = std::chrono::steady_clock::now();
+        const auto cnaLarge = computeCna(large, cnaParams);
+        const double cnaSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - cnaStarted).count();
+        check(cnaLarge.valid && cnaLarge.atomRows.size() == large.atoms.size(), "Large periodic CNA must succeed");
+        bool allFcc = true;
+        for (const auto& row : cnaLarge.atomRows) allFcc = allFcc && row.environment == "FCC-like";
+        check(allFcc, "Every atom of a periodic fcc crystal is FCC-like");
+        check(cnaSeconds < 20.0, "Periodic CNA of 13500 atoms must not scale with all N^2 pairs");
     }
 
     std::atomic<bool> finished{false};
