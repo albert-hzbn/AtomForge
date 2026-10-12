@@ -121,7 +121,10 @@ void OperationDialog::draw(Structure& structure, const std::vector<int>& viewSel
     // A fixed width and a height that follows the content.
     const float width = responsive::dp(500);
     ImGui::SetNextWindowSizeConstraints(ImVec2(width, 0), ImVec2(width, FLT_MAX));
-    const std::string title = std::string(type->title) + (editing ? " (pipeline step)" : "") + "###Structure operation";
+    // Titled like the menu item that opens it (the step's own title otherwise).
+    const auto separator = path.rfind(" > ");
+    const std::string windowName = separator == std::string::npos ? std::string(type->title) : path.substr(separator + 3);
+    const std::string title = windowName + (editing ? " (pipeline step)" : "") + "###Structure operation";
     if (responsive::begin(title.c_str(), &m_open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + width - 2 * ImGui::GetStyle().WindowPadding.x);
         ImGui::TextDisabled("%s", path.c_str());
