@@ -82,7 +82,13 @@ int main(int argc, char* argv[])
     // Build and Edit operations are also structure-pipeline steps (desktop and CLI).
     registerBuildModifiers();
     if (isCLIMode(argc, argv))
+    {
+#ifdef _WIN32
+        // Paths and units (Å, °) are printed as UTF-8, the process code page.
+        SetConsoleOutputCP(CP_UTF8);
+#endif
         return runCLI(argc, argv);
+    }
 
     std::vector<std::string> startupPaths;
     for (int i = 1; i < argc; ++i)

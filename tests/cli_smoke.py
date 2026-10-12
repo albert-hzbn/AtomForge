@@ -157,6 +157,13 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
         lines = converted.read_text().splitlines()
         assert lines[1].startswith('Lattice="4 0 0 0 4 0 0 0 4"'), (name, lines[1])
         assert [line.split()[0] for line in lines[2:]] == expected, (name, lines)
+    # Paths with accented names are read and written (UTF-8 on Windows too).
+    accented = root / "døssier é"
+    accented.mkdir()
+    copied = accented / "cu ü.cif"
+    run("--convert", "--input", source, "--output", copied)
+    run("--convert", "--input", copied, "--output", accented / "cu ü.xyz", "--format", "xyz")
+    assert (accented / "cu ü.xyz").stat().st_size > 0
     run("--build", "bulk", "--a", "nan", "--output", root / "invalid.cif", success=False)
     run("--build", "unknown", success=False)
 print("CLI smoke tests passed (version, 15 help modes, 12 builders, 6 invalid inputs)")
