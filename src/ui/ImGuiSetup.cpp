@@ -300,7 +300,7 @@ void applyLightTheme()
     applyCommonStyle();
     Palette p;
     p.text = ImVec4(0.11f, 0.12f, 0.14f, 1.00f);
-    p.textMuted = ImVec4(0.43f, 0.46f, 0.51f, 1.00f);
+    p.textMuted = ImVec4(0.40f, 0.43f, 0.48f, 1.00f);  // at least 4.5:1 on the window (WCAG AA)
     p.window = ImVec4(0.965f, 0.969f, 0.976f, 1.00f);
     p.surface = ImVec4(1.000f, 1.000f, 1.000f, 1.00f);
     p.popup = ImVec4(1.000f, 1.000f, 1.000f, 1.00f);

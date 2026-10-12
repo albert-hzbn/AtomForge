@@ -27,7 +27,7 @@ inline ImVec4 themeStatusError()
 // Amber/orange: warning / in-progress hint
 inline ImVec4 themeStatusWarn()
 {
-    return isLightTheme() ? ImVec4(0.68f, 0.38f, 0.00f, 1.0f)
+    return isLightTheme() ? ImVec4(0.62f, 0.34f, 0.00f, 1.0f)  // 4.5:1 or more as text (WCAG AA)
                           : ImVec4(1.00f, 0.62f, 0.10f, 1.0f);
 }
 
