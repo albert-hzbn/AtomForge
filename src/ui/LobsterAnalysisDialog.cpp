@@ -53,7 +53,7 @@ void LobsterAnalysisDialog::drawDialog()
         ImGui::Text("Fermi energy: %.4f eV",m_cohpcar.fermiEnergy);
         if (m_cohpcar.spinPolarized)
         {
-            ImGui::SetNextItemWidth(responsive::dp(-1));
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f);
             ImGui::Combo("Spin channel",&m_spinChannel,"Up\0Down\0");
         }
         m_spinChannel = std::clamp(m_spinChannel,0,m_cohpcar.spinPolarized?1:0);

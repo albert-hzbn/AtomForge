@@ -81,7 +81,7 @@ void WannierAnalysisDialog::drawDialog()
     dialogLayout::section("Bands");
     ImGui::TextWrapped("One fractional k-point (kx ky kz) per line; at least two, forming a piecewise path.");
     ImGui::InputTextMultiline("##kpath",m_kpath,sizeof(m_kpath),ImVec2(-1,90));
-    ImGui::SetNextItemWidth(responsive::dp(-1));
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f);
     ImGui::InputInt("Samples per segment",&m_samplesPerSegment);
     ImGui::BeginDisabled(m_bandsTask.running());
     if (dialogLayout::primaryButton("Compute bands",ImVec2(-FLT_MIN,0)))
@@ -99,8 +99,8 @@ void WannierAnalysisDialog::drawDialog()
     if (!m_bandsTask.error().empty()) ImGui::TextWrapped("%s",m_bandsTask.error().c_str());
 
     dialogLayout::section("Berry curvature (Hamiltonian-gauge/Kubo term)");
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::InputFloat3("k-point",m_curvatureK);
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::Combo("Plane",&m_curvaturePlane,"kx-ky\0kx-kz\0ky-kz\0");
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::InputFloat3("k-point",m_curvatureK);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::Combo("Plane",&m_curvaturePlane,"kx-ky\0kx-kz\0ky-kz\0");
     ImGui::BeginDisabled(m_curvatureTask.running());
     if (dialogLayout::primaryButton("Compute curvature",ImVec2(-FLT_MIN,0)))
     {
@@ -114,10 +114,10 @@ void WannierAnalysisDialog::drawDialog()
     ImGui::TextWrapped("Diverges at exact band degeneracies; use Chern number below for those k-points instead.");
 
     dialogLayout::section("Chern number (Fukui-Hatsugai-Suzuki)");
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::InputInt("Band (0-based)",&m_chernBand);
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::Combo("Plane##chern",&m_chernPlane,"kx-ky\0kx-kz\0ky-kz\0");
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::SliderInt("Mesh resolution",&m_chernGrid,4,120);
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::InputFloat("Fixed fractional coordinate",&m_chernFixed);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::InputInt("Band (0-based)",&m_chernBand);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::Combo("Plane##chern",&m_chernPlane,"kx-ky\0kx-kz\0ky-kz\0");
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::SliderInt("Mesh resolution",&m_chernGrid,4,120);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::InputFloat("Fixed fractional coordinate",&m_chernFixed);
     ImGui::BeginDisabled(m_chernTask.running());
     if (dialogLayout::primaryButton("Compute Chern number",ImVec2(-FLT_MIN,0)))
     {

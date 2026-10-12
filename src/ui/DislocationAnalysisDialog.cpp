@@ -66,8 +66,8 @@ void DislocationAnalysisDialog::drawDialog()
 
     dialogLayout::section("Nye tensor");
     ImGui::TextWrapped("Dislocation density tensor per atom (Hartley & Mishin lattice-correspondence method, matching BABEL's nyeTensor.f90).");
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::DragFloat("Cutoff (A)##nye", &m_nyeCutoff, 0.05f, 0.1f, 20.0f, "%.2f");
-    ImGui::Checkbox("Ignore periodicity##nye", &m_nyeNoPbc);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::DragFloat("Cutoff (A)##nye", &m_nyeCutoff, 0.05f, 0.1f, 20.0f, "%.2f"); dialogLayout::hint("Neighbour cutoff (Angstrom) for matching each atom's neighbours between the reference and the deformed structure; the first shell is usually enough.");
+    ImGui::Checkbox("Ignore periodicity##nye", &m_nyeNoPbc); dialogLayout::hint("Treat both structures as finite: neighbours are not found through periodic images.");
     ImGui::BeginDisabled(m_nyeTask.running());
     if (dialogLayout::primaryButton("Compute Nye tensor", ImVec2(-FLT_MIN, 0)))
     {
@@ -81,10 +81,10 @@ void DislocationAnalysisDialog::drawDialog()
 
     dialogLayout::section("Vitek differential-displacement map");
     ImGui::TextWrapped("Displacement difference between neighbor pairs, split into screw (along line) and edge components (matching BABEL's vitek.f90).");
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::InputFloat3("Line direction##vitek", m_vitekLine);
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::DragFloat("Burgers magnitude (A)##vitek", &m_vitekBurgers, 0.01f, 0.0f, 20.0f, "%.3f");
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::DragFloat("Cutoff (A, 0=auto)##vitek", &m_vitekCutoff, 0.05f, 0.0f, 20.0f, "%.2f");
-    ImGui::Checkbox("Ignore periodicity##vitek", &m_vitekNoPbc);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::InputFloat3("Line direction##vitek", m_vitekLine); dialogLayout::hint("Dislocation line direction (Cartesian). Displacement differences along it form the screw component, those across it the edge component.");
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::DragFloat("Burgers magnitude (A)##vitek", &m_vitekBurgers, 0.01f, 0.0f, 20.0f, "%.3f"); dialogLayout::hint("Length of the Burgers vector (Angstrom); the map's arrows are scaled relative to it.");
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::DragFloat("Cutoff (A, 0=auto)##vitek", &m_vitekCutoff, 0.05f, 0.0f, 20.0f, "%.2f"); dialogLayout::hint("Neighbour pairs closer than this (Angstrom) are compared; 0 uses the first-neighbour distance.");
+    ImGui::Checkbox("Ignore periodicity##vitek", &m_vitekNoPbc); dialogLayout::hint("Treat both structures as finite: neighbours are not found through periodic images.");
     ImGui::BeginDisabled(m_vitekTask.running());
     if (dialogLayout::primaryButton("Compute Vitek map", ImVec2(-FLT_MIN, 0)))
     {
@@ -99,9 +99,9 @@ void DislocationAnalysisDialog::drawDialog()
 
     dialogLayout::section("Pattern matching");
     ImGui::TextWrapped("Flags atoms whose local neighbor environment no longer matches the reference lattice (matching BABEL's patternInit/patternDetect).");
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::DragFloat("Cutoff (A)##pattern", &m_patternCutoff, 0.05f, 0.1f, 20.0f, "%.2f");
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::DragFloat("Angle threshold (deg)##pattern", &m_patternAngleThreshold, 0.2f, 0.5f, 90.0f, "%.1f");
-    ImGui::Checkbox("Ignore periodicity##pattern", &m_patternNoPbc);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::DragFloat("Cutoff (A)##pattern", &m_patternCutoff, 0.05f, 0.1f, 20.0f, "%.2f"); dialogLayout::hint("Neighbour cutoff (Angstrom) for the local environments compared with the reference lattice.");
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::DragFloat("Angle threshold (deg)##pattern", &m_patternAngleThreshold, 0.2f, 0.5f, 90.0f, "%.1f"); dialogLayout::hint("Largest bond-direction deviation (degrees) that still matches the reference pattern; atoms beyond it are flagged.");
+    ImGui::Checkbox("Ignore periodicity##pattern", &m_patternNoPbc); dialogLayout::hint("Treat both structures as finite: neighbours are not found through periodic images.");
     ImGui::BeginDisabled(m_patternBuildTask.running() || m_patternDetectTask.running());
     if (dialogLayout::primaryButton("Build pattern + detect", ImVec2(-FLT_MIN, 0)))
     {
@@ -130,9 +130,9 @@ void DislocationAnalysisDialog::drawDialog()
 
     dialogLayout::section("Prepare drag (migration barrier)");
     ImGui::TextWrapped("Interpolates reference -> deformed at reaction coordinate zeta for a constrained-minimization calculation (matching BABEL's prepareDrag). AtomForge does not itself run the constrained minimization.");
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::SliderFloat("Zeta##drag", &m_dragZeta, 0.0f, 1.0f, "%.3f");
-    ImGui::Checkbox("Clip displacement to minimum image##drag", &m_dragClipDisplacement);
-    ImGui::Checkbox("Ignore periodicity##drag", &m_dragNoPbc);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::SliderFloat("Zeta##drag", &m_dragZeta, 0.0f, 1.0f, "%.3f"); dialogLayout::hint("Reaction coordinate: 0 is the reference, 1 the deformed structure; positions in between are interpolated linearly.");
+    ImGui::Checkbox("Clip displacement to minimum image##drag", &m_dragClipDisplacement); dialogLayout::hint("Take each atom's displacement through the nearest periodic image, so atoms that crossed the cell boundary do not travel across the cell.");
+    ImGui::Checkbox("Ignore periodicity##drag", &m_dragNoPbc); dialogLayout::hint("Treat both structures as finite: neighbours are not found through periodic images.");
     ImGui::BeginDisabled(m_dragTask.running());
     if (dialogLayout::primaryButton("Interpolate", ImVec2(-FLT_MIN, 0)))
     {
@@ -150,10 +150,10 @@ void DislocationAnalysisDialog::drawDialog()
 
     dialogLayout::section("Fit dislocation (position/Burgers vector)");
     ImGui::TextWrapped("Recovers a dislocation's position and Burgers vector from the Nye tensor field (weighted centroid/integral), the same purpose as BABEL's displacementFit/vitekFit.");
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::InputFloat3("Line direction##fit", m_fitLine);
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::DragFloat("Cutoff (A)##fit", &m_fitCutoff, 0.05f, 0.1f, 20.0f, "%.2f");
-    ImGui::SetNextItemWidth(responsive::dp(-1)); ImGui::DragFloat("Area per atom (A^2)##fit", &m_fitArea, 0.05f, 0.001f, 1000.0f, "%.3f");
-    ImGui::Checkbox("Ignore periodicity##fit", &m_fitNoPbc);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::InputFloat3("Line direction##fit", m_fitLine);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::DragFloat("Cutoff (A)##fit", &m_fitCutoff, 0.05f, 0.1f, 20.0f, "%.2f"); dialogLayout::hint("Neighbour cutoff (Angstrom) for the Nye tensor the fit is computed from.");
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f); ImGui::DragFloat("Area per atom (A^2)##fit", &m_fitArea, 0.05f, 0.001f, 1000.0f, "%.3f"); dialogLayout::hint("Cross-sectional area each atom represents perpendicular to the line (Angstrom squared); it scales the integrated Burgers vector.");
+    ImGui::Checkbox("Ignore periodicity##fit", &m_fitNoPbc); dialogLayout::hint("Treat both structures as finite: neighbours are not found through periodic images.");
     ImGui::BeginDisabled(m_fitTask.running());
     if (dialogLayout::primaryButton("Fit dislocation", ImVec2(-FLT_MIN, 0)))
     {
