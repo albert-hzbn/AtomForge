@@ -88,6 +88,30 @@ int main()
         history.jumpTo(99);
         check(history.index() == 4, "Jumps clamp to the last step");
 
+        // A memory budget drops the oldest steps of large structures, keeping
+        // the current state and one undo step; the newest steps stay usable.
+        {
+            UndoRedoManager big;
+            big.setMaxBytes(UndoRedoManager::snapshotBytes(snapshot(20000)) * 3 + 1);
+            big.reset(snapshot(20000));
+            for (int step = 0; step < 10; ++step) {
+                EditorSnapshot next = snapshot(20000);
+                next.structure.atoms[0].x = step + 1.0;
+                big.commit(next);
+            }
+            check(big.size() == 3 && big.index() == 2, "Budget keeps three snapshots, got " + std::to_string(big.size()));
+            check(big.undo().structure.atoms[0].x == 9.0 && big.canUndo(), "The newest undo steps stay");
+            UndoRedoManager tight;
+            tight.setMaxBytes(1);
+            tight.reset(snapshot(4));
+            EditorSnapshot moved = snapshot(4);
+            moved.structure.atoms[0].x = 5.0;
+            tight.commit(moved);
+            moved.structure.atoms[0].x = 6.0;
+            tight.commit(moved);
+            check(tight.size() == 2 && tight.canUndo(), "One undo step always stays");
+        }
+
         std::cout << "Undo history checks passed.\n";
         return 0;
     } catch (const std::exception& error) {

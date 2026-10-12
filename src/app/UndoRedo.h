@@ -142,22 +142,39 @@ public:
         m_descriptions.push_back(description);
         m_history.push_back(snapshot);
         m_ids.push_back(displayOnly ? m_ids.back() : ++m_nextId);
-        if (m_history.size() > kMaxEntries)
+        m_index = m_history.size() - 1;
+
+        // The oldest steps go beyond kMaxEntries or maxBytes() of snapshots (a
+        // few steps of a structure of millions of atoms); the current state
+        // and one step to undo always stay.
+        std::size_t bytes = 0;
+        for (const auto& entry : m_history) bytes += snapshotBytes(entry);
+        while (m_history.size() > 2 && (m_history.size() > kMaxEntries || bytes > m_maxBytes))
         {
+            bytes -= snapshotBytes(m_history.front());
             m_history.erase(m_history.begin());
             m_ids.erase(m_ids.begin());
             m_descriptions.erase(m_descriptions.begin());
+            --m_index;
         }
-        else
-        {
-            ++m_index;
-        }
+    }
 
-        if (m_index >= m_history.size())
-            m_index = m_history.size() - 1;
+    // Approximate memory of one history entry.
+    static std::size_t snapshotBytes(const EditorSnapshot& snapshot)
+    {
+        const Structure& s = snapshot.structure;
+        // Element symbols fit in the strings' own buffers.
+        std::size_t bytes = sizeof(EditorSnapshot) + s.atoms.size() * sizeof(AtomSite);
+        bytes += s.grainRegionIds.size() * sizeof(s.grainRegionIds[0]) + s.grainColors.size() * sizeof(s.grainColors[0]);
+        bytes += (snapshot.elementRadii.size() + snapshot.elementShininess.size()) * sizeof(float)
+               + snapshot.elementColors.size() * sizeof(glm::vec3);
+        return bytes;
     }
 
     bool canUndo() const { return !m_history.empty() && m_index > 0; }
+    // The memory the history may use before its oldest steps go (1.5 GiB).
+    void setMaxBytes(std::size_t bytes) { m_maxBytes = bytes; }
+    std::size_t maxBytes() const { return m_maxBytes; }
     // Identifies the current state: unchanged by undo/redo back to it, so a
     // document is unmodified while this equals the id recorded when saved.
     // The history: entries 0..size()-1, the current one at index(); entry i
@@ -193,6 +210,7 @@ public:
 
 private:
     static const size_t kMaxEntries = 128;
+    std::size_t m_maxBytes = std::size_t(1536) << 20;  // 1.5 GiB
 
     std::vector<EditorSnapshot> m_history;
     std::vector<std::uint64_t> m_ids;  // one per history entry
