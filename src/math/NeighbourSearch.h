@@ -6,6 +6,7 @@
 
 #include <glm/glm.hpp>
 #include <algorithm>
+#include <functional>
 #include <stdexcept>
 #include <vector>
 
@@ -26,6 +27,10 @@ struct Pair
 // positions. Throws std::runtime_error for a singular cell or a cutoff that
 // spans more than 20 images of the cell.
 std::vector<Pair> within(const Structure& structure, double cutoff, bool periodic);
+
+// The same pairs, handed to visit one at a time instead of stored (for
+// large structures and cutoffs).
+void visitWithin(const Structure& structure, double cutoff, bool periodic, const std::function<void(const Pair&)>& visit);
 
 // Calls visit(i, j) once for each unordered pair i < j that may lie within
 // `cutoff`, as a candidate: the caller applies its own distance test (for

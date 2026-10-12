@@ -18,11 +18,10 @@ struct BinHash
 };
 }
 
-std::vector<Pair> within(const Structure& structure, double cutoff, bool periodic)
+void visitWithin(const Structure& structure, double cutoff, bool periodic, const std::function<void(const Pair&)>& visit)
 {
-    std::vector<Pair> pairs;
     const std::size_t n = structure.atoms.size();
-    if (n == 0 || !(cutoff > 0.0)) return pairs;
+    if (n == 0 || !(cutoff > 0.0)) return;
 
     glm::dmat3 cell(1.0);  // columns: a, b, c
     glm::dmat3 inverse(1.0);
@@ -76,10 +75,16 @@ std::vector<Pair> within(const Structure& structure, double cutoff, bool periodi
                                     const glm::dvec3 d = position[static_cast<std::size_t>(j)] + shift - position[i];
                                     const double d2 = glm::dot(d, d);
                                     if (d2 > cutoff2 || d2 < 1e-12) continue;  // also skips i itself
-                                    pairs.push_back({static_cast<int>(i), j, d, std::sqrt(d2)});
+                                    visit(Pair{static_cast<int>(i), j, d, std::sqrt(d2)});
                                 }
                             }
                 }
+}
+
+std::vector<Pair> within(const Structure& structure, double cutoff, bool periodic)
+{
+    std::vector<Pair> pairs;
+    visitWithin(structure, cutoff, periodic, [&pairs](const Pair& pair) { pairs.push_back(pair); });
     return pairs;
 }
 }

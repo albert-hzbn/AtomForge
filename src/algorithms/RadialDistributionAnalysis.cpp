@@ -1,5 +1,7 @@
 #include "algorithms/RadialDistributionAnalysis.h"
 #include "math/StructureMath.h"
+#include "math/NeighbourSearch.h"
+#include <stdexcept>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -110,28 +112,22 @@ RdfResult runRdf(const Structure& structure,
     }
 
     std::vector<float> histogram(binCount, 0.0f);
-    std::vector<glm::vec3> positions(structure.atoms.size());
-    for (int i = 0; i < (int)structure.atoms.size(); ++i)
-        positions[i] = glm::vec3((float)structure.atoms[i].x, (float)structure.atoms[i].y, (float)structure.atoms[i].z);
-
-    for (int a = 0; a < (int)refIndices.size(); ++a)
-    {
-        int i = refIndices[a];
-        for (int b = 0; b < (int)targetIndices.size(); ++b)
-        {
-            int j = targetIndices[b];
-            if (i == j)
-                continue;
-
-            glm::vec3 delta = minimumImageDelta(positions[j] - positions[i], usePbc, cell, invCell);
-            float r = glm::length(delta);
-            if (r < rMin || r >= rMax || r <= kMinDistance)
-                continue;
-
-            int bin = (int)((r - rMin) / result.binWidth);
-            if (bin >= 0 && bin < binCount)
-                histogram[bin] += 1.0f;
-        }
+    // Every periodic image within r_max, so a cell smaller than 2 r_max
+    // counts all its shells, as a supercell of it would.
+    std::vector<char> isRef(structure.atoms.size(), 0), isTarget(structure.atoms.size(), 0);
+    for (int i : refIndices) isRef[i] = 1;
+    for (int j : targetIndices) isTarget[j] = 1;
+    try {
+        neighbours::visitWithin(structure, rMax, usePbc, [&](const neighbours::Pair& pair) {
+            if (!isRef[pair.i] || !isTarget[pair.j]) return;
+            const double r = pair.r;
+            if (r < rMin || r >= rMax || r <= kMinDistance) return;
+            const int bin = (int)((r - rMin) / result.binWidth);
+            if (bin >= 0 && bin < binCount) histogram[bin] += 1.0f;
+        });
+    } catch (const std::runtime_error& error) {
+        result.message = error.what();
+        return result;
     }
 
     if (smoothingPasses > 0)

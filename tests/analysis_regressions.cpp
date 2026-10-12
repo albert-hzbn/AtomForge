@@ -107,6 +107,26 @@ int main()
         for (const auto& row : result.atomRows)
             check(row.environment == (bcc ? "BCC-like" : "FCC-like"),
                   "CNA must identify every atom in ideal periodic FCC/BCC");
+        if (!bcc) {
+            // FCC (a = 1, so a single cell is smaller than 2 r_max): 12 then
+            // 6 neighbours, from every periodic image.
+            RdfParams rdfParams;
+            rdfParams.normalize = false;
+            rdfParams.enableDistortionAnalysis = false;
+            rdfParams.rMax = 1.2f;
+            rdfParams.binCount = 120;
+            const auto rdf = computeRdf(crystal, rdfParams);
+            check(rdf.valid, "FCC RDF must succeed");
+            float firstShell = 0.0f, secondShell = 0.0f;
+            for (const auto& bin : rdf.bins) {
+                const float r = bin.rCenter;
+                if (std::abs(r - 0.7071f) < 0.02f) firstShell += bin.rawCount;
+                if (std::abs(r - 1.0f) < 0.02f) secondShell += bin.rawCount;
+            }
+            const float atoms = static_cast<float>(crystal.atoms.size());
+            check(firstShell == 12.0f * atoms && secondShell == 6.0f * atoms,
+                  "RDF must count all periodic images: 12 and 6 FCC neighbours");
+        }
     }
 
     for (int repeat : {4, 1}) {
