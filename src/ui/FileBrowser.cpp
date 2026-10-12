@@ -1123,7 +1123,20 @@ void FileBrowser::drawSaveAsDialog(Structure& structure)
 
         if (saveFilename[0] == '\0')
         {
+            // The format the structure was opened from, when it can be saved
+            // as such (POSCAR and CONTCAR names are VASP); CIF otherwise.
             selectedSaveFormat = kDefaultSaveFormatIndex;
+            if (!currentStructurePath.empty())
+            {
+                const std::string lowerPath = toLower(currentStructurePath);
+                bool matched = false;
+                for (int i = 0; i < kNumSaveFormats && !matched; ++i)
+                    if (hasExtension(lowerPath, kSaveFormats[i].ext)) { selectedSaveFormat = i; matched = true; }
+                const std::string baseName = lowerPath.substr(lowerPath.find_last_of("/\\") == std::string::npos ? 0 : lowerPath.find_last_of("/\\") + 1);
+                if (!matched && (baseName.find("poscar") != std::string::npos || baseName.find("contcar") != std::string::npos))
+                    for (int i = 0; i < kNumSaveFormats; ++i)
+                        if (std::string(kSaveFormats[i].fmt) == "vasp") selectedSaveFormat = i;
+            }
             std::string fallbackBase = "structure";
             if (!currentStructurePath.empty())
             {
