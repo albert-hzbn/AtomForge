@@ -218,6 +218,45 @@ int main()
                 check(e.zi == 27 * 12 && e.nij == 0 && std::abs(e.alpha - 1.0) < 1e-9, "L1_2 Au-Au first-shell SRO changed");
             }
         check(foundAuAu, "SRO must report the Au-Au pair");
+
+        // One conventional cell: the shells count periodic images, so Au still
+        // has 12 first neighbours (the minimum image alone would find fewer).
+        Structure single;
+        single.hasUnitCell = true;
+        single.cellVectors = {{{a, 0, 0}, {0, a, 0}, {0, 0, a}}};
+        for (std::size_t b = 0; b < basis.size(); ++b) {
+            AtomSite atom;
+            atom.symbol = b == 0 ? "Au" : "Cu";
+            atom.atomicNumber = b == 0 ? 79 : 29;
+            atom.x = basis[b][0] * a; atom.y = basis[b][1] * a; atom.z = basis[b][2] * a;
+            single.atoms.push_back(atom);
+        }
+        const SroReport small = analyzeWarrenCowleySRO(single, 1, 0.05);
+        bool foundSmall = false;
+        for (const auto& e : small.entries)
+            if (e.shell == 0 && e.centerElement == "Au" && e.neighborElement == "Cu") {
+                foundSmall = true;
+                check(e.zi == 12 && e.nij == 12, "A single L1_2 cell must give Au twelve Cu first neighbours");
+            }
+        check(foundSmall, "SRO must report the Au-Cu pair in a single cell");
+
+        // A large structure: neighbour search, not all N^2 pair distances.
+        Structure large;
+        large.hasUnitCell = true;
+        large.cellVectors = {{{15 * a, 0, 0}, {0, 15 * a, 0}, {0, 0, 15 * a}}};
+        for (int x = 0; x < 15; ++x) for (int y = 0; y < 15; ++y) for (int z = 0; z < 15; ++z)
+            for (std::size_t b = 0; b < basis.size(); ++b) {
+                AtomSite atom;
+                atom.symbol = b == 0 ? "Au" : "Cu";
+                atom.atomicNumber = b == 0 ? 79 : 29;
+                atom.x = (x + basis[b][0]) * a; atom.y = (y + basis[b][1]) * a; atom.z = (z + basis[b][2]) * a;
+                large.atoms.push_back(atom);
+            }
+        const auto started = std::chrono::steady_clock::now();
+        const SroReport big = analyzeWarrenCowleySRO(large, 2, 0.05);
+        const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+        check(big.nShells == 2 && std::abs(big.shellDistances[0] - a / std::sqrt(2.0)) < 1e-6, "Large-structure SRO shells");
+        check(seconds < 20.0, "SRO of 13500 atoms must not scale with all N^2 pairs");
     }
 
     std::atomic<bool> finished{false};
