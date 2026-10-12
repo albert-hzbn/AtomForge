@@ -2057,6 +2057,14 @@ void FileBrowser::draw(Structure& structure,
 
     if (ImGui::IsKeyPressed(ImGuiKey_F1, false) && !ImGui::GetIO().WantTextInput)
         showShortcuts = true;
+    // 1, 2, 3: look along x, y, z; with Shift along the lattice vectors a, b, c.
+    if (!ImGui::GetIO().WantTextInput && !ImGui::GetIO().KeyCtrl && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId) &&
+        !isAnyDialogOpen() && !structure.atoms.empty()) {
+        const bool shift = ImGui::GetIO().KeyShift;
+        if (ImGui::IsKeyPressed(ImGuiKey_1, false)) (shift ? requestViewLatticeA : requestViewAxisX) = true;
+        if (ImGui::IsKeyPressed(ImGuiKey_2, false)) (shift ? requestViewLatticeB : requestViewAxisY) = true;
+        if (ImGui::IsKeyPressed(ImGuiKey_3, false)) (shift ? requestViewLatticeC : requestViewAxisZ) = true;
+    }
     drawShortcuts();
     drawCommandPalette(structure, editMenuDialogs, updateBuffers);
 

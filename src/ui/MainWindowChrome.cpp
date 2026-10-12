@@ -117,17 +117,17 @@ void FileBrowser::drawToolbar(const Structure& structure, bool canUndo, bool can
 
         nextGroup(unit * 9.5f);
         groupCaption("View");
-        if (toolButton(nullptr, "X##axis", "Look along x")) requestViewAxisX = true;
+        if (toolButton(nullptr, "X##axis", "Look along x (1)")) requestViewAxisX = true;
         ImGui::SameLine();
-        if (toolButton(nullptr, "Y##axis", "Look along y")) requestViewAxisY = true;
+        if (toolButton(nullptr, "Y##axis", "Look along y (2)")) requestViewAxisY = true;
         ImGui::SameLine();
-        if (toolButton(nullptr, "Z##axis", "Look along z")) requestViewAxisZ = true;
+        if (toolButton(nullptr, "Z##axis", "Look along z (3)")) requestViewAxisZ = true;
         ImGui::SameLine(0, responsive::dp(9));
-        if (toolButton(nullptr, "a##latview", "Look along the lattice vector a", hasCell)) requestViewLatticeA = true;
+        if (toolButton(nullptr, "a##latview", "Look along the lattice vector a (Shift+1)", hasCell)) requestViewLatticeA = true;
         ImGui::SameLine();
-        if (toolButton(nullptr, "b##latview", "Look along the lattice vector b", hasCell)) requestViewLatticeB = true;
+        if (toolButton(nullptr, "b##latview", "Look along the lattice vector b (Shift+2)", hasCell)) requestViewLatticeB = true;
         ImGui::SameLine();
-        if (toolButton(nullptr, "c##latview", "Look along the lattice vector c", hasCell)) requestViewLatticeC = true;
+        if (toolButton(nullptr, "c##latview", "Look along the lattice vector c (Shift+3)", hasCell)) requestViewLatticeC = true;
         ImGui::SameLine(0, responsive::dp(9));
         if (toolButton(Icon::Home, "Reset", "Reset the view (R)", true, true)) requestResetDefaultView = true;
 
@@ -483,6 +483,8 @@ void FileBrowser::drawShortcuts()
                    {"Right drag", "Pan (when no box or lasso selection is active)"},
                    {"Wheel", "Zoom"},
                    {"R", "Reset the view"},
+                   {"1, 2, 3", "Look along x, y, z"},
+                   {"Shift+1, 2, 3", "Look along the lattice vectors a, b, c"},
                    {"F1", "This list"},
                    {"Ctrl+K", "Find any command by name"}});
     group("Dialogs", {{"Esc", "Close the dialog (in a field: cancel the edit)"},

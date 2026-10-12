@@ -2953,7 +2953,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "628d3cbb99d647a59d317e3f183aa6d71ae5fb721e4a7c65a6fcae70454a13bf",
+      "sha256": "62fc9eeb9576396ad3be8d6940abe2dad0ec9b90ff2b88fd54324b4555d2f8ce",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3450,39 +3450,39 @@
           "declaration_label": "Close##polySettings"
         },
         {
-          "line": 2162,
+          "line": 2170,
           "declaration_label": "Manual##about"
         },
         {
-          "line": 2165,
+          "line": 2173,
           "declaration_label": "Close##about"
         },
         {
-          "line": 2227,
+          "line": 2235,
           "declaration_label": "Color"
         },
         {
-          "line": 2276,
+          "line": 2284,
           "declaration_label": "Automatic colour range"
         },
         {
-          "line": 2279,
+          "line": 2287,
           "declaration_label": "Minimum"
         },
         {
-          "line": 2280,
+          "line": 2288,
           "declaration_label": "Maximum"
         },
         {
-          "line": 2282,
+          "line": 2290,
           "declaration_label": "Hide atoms outside the range"
         },
         {
-          "line": 2283,
+          "line": 2291,
           "declaration_label": "Hide atoms without a value"
         },
         {
-          "line": 2284,
+          "line": 2292,
           "declaration_label": "Show element colours"
         }
       ]
@@ -3919,7 +3919,7 @@
     },
     {
       "source": "src/ui/MainWindowChrome.cpp",
-      "sha256": "9b53944a5dd9ab74cace22dc316dd21dd48518e4099d4ff2a7b965ab4265ad7d",
+      "sha256": "8fadde3ceeddf072c3801f34e658529442d95eab9e27fac389ea7d565f6a094b",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4312,7 +4312,7 @@
     },
     {
       "source": "src/ui/OperationDialog.cpp",
-      "sha256": "b957831c534d239c1a1f33fa77f4ec1e88837ca293a4c2f02ec5ceecd01925fa",
+      "sha256": "1478aefd430a0475197edeb3f99d80ebbfe89bc58d918af0ac53aa535403f4ed",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4321,15 +4321,15 @@
       ],
       "literal_controls": [
         {
-          "line": 137,
+          "line": 140,
           "declaration_label": "All atoms"
         },
         {
-          "line": 141,
+          "line": 144,
           "declaration_label": "Atoms where"
         },
         {
-          "line": 144,
+          "line": 147,
           "declaration_label": "##condition"
         }
       ]
