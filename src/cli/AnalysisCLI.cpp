@@ -1,4 +1,5 @@
 #include "cli/AnalysisCLI.h"
+#include "cli/OptionCheck.h"
 #include "algorithms/CommonNeighbourAnalysis.h"
 #include "algorithms/AngularDistributionAnalysis.h"
 #include "algorithms/RadialDistributionAnalysis.h"
@@ -79,13 +80,16 @@ int runAnalysisCLI(int argc, char* argv[])
         const auto number=[&](const char* key,double fallback) {
             if (!args.count(key)) return fallback;
             std::size_t used=0;
-            const double value=std::stod(args.at(key),&used);
-            if (used!=args.at(key).size() || !std::isfinite(value)) throw std::invalid_argument(key);
+            double value=0;
+            try { value=std::stod(args.at(key),&used); } catch (const std::exception&) { used=0; }
+            if (used==0 || used!=args.at(key).size() || !std::isfinite(value))
+                throw std::invalid_argument(std::string(key)+" needs a finite number, not \""+args.at(key)+"\"");
             return value;
         };
         const auto integer=[&](const char* key,int fallback,int low,int high) {
             const double value=number(key,fallback);
-            if (value!=std::floor(value) || value<low || value>high) throw std::invalid_argument(key);
+            if (value!=std::floor(value) || value<low || value>high)
+                throw std::invalid_argument(std::string(key)+" must be a whole number from "+std::to_string(low)+" to "+std::to_string(high));
             return static_cast<int>(value);
         };
         if (!args.count("--input") || !args.count("--output"))
@@ -109,7 +113,18 @@ int runAnalysisCLI(int argc, char* argv[])
         for (const auto& arg:args)
             if (arg.first!="--input" && arg.first!="--output" &&
                 !(arg.first=="--analyze" && selected!="convert") && !options.at(selected).count(arg.first))
-                throw std::invalid_argument("Unsupported option for "+selected+": "+arg.first);
+            {
+                std::string known, suggestion;
+                std::size_t best=std::max<std::size_t>(1,(arg.first.size()-2)/3)+1;
+                for (const auto& option:options.at(selected)) {
+                    if (option=="--convert") continue;
+                    known+=(known.empty() ? "" : ", ")+option;
+                    if (const std::size_t d=cliOptions::distance(arg.first,option); d<best) { best=d; suggestion=option; }
+                }
+                throw std::invalid_argument("Unsupported option for "+selected+": "+arg.first+
+                    (suggestion.empty() ? "" : " (did you mean "+suggestion+"?)")+
+                    (known.empty() ? "" : "; it takes "+known));
+            }
         Structure structure; std::string error;
         if (!loadStructureFromFile(args.at("--input"),structure,error)) throw std::runtime_error(error);
         if (args.count("--convert")) {
