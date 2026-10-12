@@ -11,7 +11,7 @@ References must answer the intended scientific question. For an interaction-indu
 \section{Grid compatibility}
 Before subtraction or masks, compare cell vectors, origin, dimensions, periodic/finite convention, and units. Matching atom counts or filenames is insufficient. Arithmetic requires aligned samples. A translated density with the same cell can produce a misleading difference if it is not registered consistently.
 
-Use \ui{Resample to reference grid} only as an explicit interpolation step when geometries are suitable. Resampling does not fix a physically inconsistent reference, and interpolation need not preserve the integral exactly. Compare integrals before and after and refine the grid when needed. Do not resample merely to silence an error without understanding what differs.
+Use \ui{Resample onto reference} only as an explicit interpolation step when geometries are suitable. Resampling does not fix a physically inconsistent reference, and interpolation need not preserve the integral exactly. Compare integrals before and after and refine the grid when needed. Do not resample merely to silence an error without understanding what differs.
 
 \section{Weighted density difference: complete GUI recipe}
 \begin{enumerate}

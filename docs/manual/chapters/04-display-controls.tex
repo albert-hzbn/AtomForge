@@ -31,7 +31,7 @@ Builder source buttons and drop targets feed the currently open tool, not necess
 \begin{enumerate}
 \item Open \code{examples/cu_mesh.xyz} or a generated periodic crystal. Start with \ui{View > Reset View} (R). Left-drag the scene to orbit; right-drag to pan; use the wheel or middle-button vertical drag to zoom. Disable box/lasso selection before using right-drag for panning.
 \item Choose \ui{View > Projection > Orthographic} to remove perspective size variation, then click toolbar \ui{Z} for an XY projection. The atoms still form a 3D structure: atoms at different depths can overlap in this projection. It is not a 2D section or an electronic slice.
-\item Choose \ui{Isometric View} for the alternative view preset, and use \ui{X/Y/Z} or \ui{a/b/c} to compare directions. In a skew cell, a lattice vector need not coincide with a Cartesian axis. Orbiting remains available in either projection mode.
+\item Choose \ui{View > Projection > Perspective} for depth foreshortening, and use \ui{X/Y/Z} or \ui{a/b/c} to compare directions. In a skew cell, a lattice vector need not coincide with a Cartesian axis. Orbiting remains available in either projection mode.
 \item Enter a Rotate angle, then press the adjacent axis button for a repeatable viewing increment. This rotates the view, not the atomic coordinates. Use Edit tools for a structural rotation.
 \item Reset Default View restores framing after panning or zooming. Export an image only after checking the whole object fits and required overlays are visible. Main-view camera settings do not set the electronic dialog's independent 2D/3D cameras.
 \end{enumerate}
@@ -50,7 +50,7 @@ Space Filling & Uses larger visual spheres to emphasise the envelope. Interior a
 Polyhedral & Displays coordination polyhedra configured under Settings. Large structures are supported with a configurable centre limit. Hulls fill progressively and camera movement reuses their geometry. See the centre/ligand workflow below. \\
 Show Lattice Planes / Lattice Planes & The first toggles the collection; the second edits its rows. A unit cell is required. Both collection and per-row visibility matter. \\
 Show Miller Directions / Miller Directions & Toggle the collection or open its vector editor. A unit cell is required; row lengths and colours are independent. \\
-Isometric View / Orthographic View & Select the view/projection preset and reset framing. These do not cut the structure into a slice. \\
+Projection: Perspective / Orthographic & Select the projection; \ui{Reset View} (R) resets the framing. These do not cut the structure into a slice. \\
 Show Voronoi Volume & Draws geometric nearest-site cells, coloured by relative cell volume. See the limitations below before quantitative use. \\
 Polyhedral Viewer & Enables the coordination overlay independently of the selected atom representation. Thus the viewer can remain enabled after selecting Balls; disable this toggle as well to remove the overlay. \\
 Show Atoms & Hides or shows atom geometry without deleting sites. Analysis and export of structure coordinates still use the underlying atoms. \\

@@ -105,7 +105,7 @@ Set the 3D level and choose the Isosurface operation or \ui{Update Surface} in b
 
 \ui{Append surface level} retains an existing surface and adds another level; appended surfaces must use compatible colouring units. This supports multiple boundaries but can visually obscure one another. Set transparency deliberately and export the mesh when required. OBJ stores scalar comments and PLY stores a scalar vertex property; downstream tools may need an explicit colour mapping and may not automatically reproduce AtomForge's palette. Surface vertices are emitted as triangles without welding.
 
-\section{Resample to reference grid}
+\section{Resample onto reference}
 Select the source as Field and the desired target geometry as Reference. Calculate an interpolated source field sampled on that reference geometry. The reference's scalar values are not subtracted or blended by this operation. Check that the target points lie in the valid source domain for a finite source.
 
 Compare output shape, cell, origin, and periodicity with the target, and compare integrals and extrema with the source. This is interpolation, not a conservative charge-remapping guarantee. Resampling is useful for explicit alignment of compatible grids but cannot repair inconsistent physical calculations.
