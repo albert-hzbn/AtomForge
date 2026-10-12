@@ -27,7 +27,7 @@ namespace
 // UI-only helper that remains local to the dialog.
 void drawLatticeParameterInputs(CrystalSystem system, LatticeParameters& latticeParams)
 {
-    const float fieldWidth = 100.0f;
+    const float fieldWidth = responsive::dp(100.0f);
     const float spacing = 8.0f;
     const float hintGap = 20.0f;
 
@@ -43,16 +43,16 @@ void drawLatticeParameterInputs(CrystalSystem system, LatticeParameters& lattice
             inputField("a", &latticeParams.a);
             ImGui::SameLine(responsive::dp(0.0f), spacing); inputField("b", &latticeParams.b);
             ImGui::SameLine(responsive::dp(0.0f), spacing); inputField("c", &latticeParams.c);
-            inputField("alpha", &latticeParams.alpha);
-            ImGui::SameLine(responsive::dp(0.0f), spacing); inputField("beta", &latticeParams.beta);
-            ImGui::SameLine(responsive::dp(0.0f), spacing); inputField("gamma", &latticeParams.gamma);
+            inputField("\xce\xb1##alpha", &latticeParams.alpha);
+            ImGui::SameLine(responsive::dp(0.0f), spacing); inputField("\xce\xb2##beta", &latticeParams.beta);
+            ImGui::SameLine(responsive::dp(0.0f), spacing); inputField("\xce\xb3##gamma", &latticeParams.gamma);
             break;
         case CrystalSystem::Monoclinic:
             inputField("a", &latticeParams.a);
             ImGui::SameLine(responsive::dp(0.0f), spacing); inputField("b", &latticeParams.b);
             ImGui::SameLine(responsive::dp(0.0f), spacing); inputField("c", &latticeParams.c);
-            inputField("beta", &latticeParams.beta);
-            ImGui::SameLine(responsive::dp(0.0f), hintGap); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("alpha=gamma=90");
+            inputField("\xce\xb2##beta", &latticeParams.beta);
+            ImGui::SameLine(responsive::dp(0.0f), hintGap); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("\xce\xb1 = \xce\xb3 = 90\xc2\xb0");
             latticeParams.alpha = 90.0;
             latticeParams.gamma = 90.0;
             break;
@@ -60,7 +60,7 @@ void drawLatticeParameterInputs(CrystalSystem system, LatticeParameters& lattice
             inputField("a", &latticeParams.a);
             ImGui::SameLine(responsive::dp(0.0f), spacing); inputField("b", &latticeParams.b);
             ImGui::SameLine(responsive::dp(0.0f), spacing); inputField("c", &latticeParams.c);
-            ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("alpha=beta=gamma=90");
+            ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("\xce\xb1 = \xce\xb2 = \xce\xb3 = 90\xc2\xb0");
             latticeParams.alpha = 90.0;
             latticeParams.beta = 90.0;
             latticeParams.gamma = 90.0;
@@ -68,7 +68,7 @@ void drawLatticeParameterInputs(CrystalSystem system, LatticeParameters& lattice
         case CrystalSystem::Tetragonal:
             inputField("a", &latticeParams.a);
             ImGui::SameLine(responsive::dp(0.0f), spacing); inputField("c", &latticeParams.c);
-            ImGui::SameLine(responsive::dp(0.0f), hintGap); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("b=a, angles=90");
+            ImGui::SameLine(responsive::dp(0.0f), hintGap); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("b = a, all angles 90\xc2\xb0");
             latticeParams.b = latticeParams.a;
             latticeParams.alpha = 90.0;
             latticeParams.beta = 90.0;
@@ -77,7 +77,7 @@ void drawLatticeParameterInputs(CrystalSystem system, LatticeParameters& lattice
         case CrystalSystem::Trigonal:
             inputField("a", &latticeParams.a);
             ImGui::SameLine(responsive::dp(0.0f), spacing); inputField("c", &latticeParams.c);
-            ImGui::SameLine(responsive::dp(0.0f), hintGap); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("hex: b=a, gamma=120");
+            ImGui::SameLine(responsive::dp(0.0f), hintGap); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("hexagonal axes: b = a, \xce\xb3 = 120\xc2\xb0");
             latticeParams.b = latticeParams.a;
             latticeParams.alpha = 90.0;
             latticeParams.beta = 90.0;
@@ -86,7 +86,7 @@ void drawLatticeParameterInputs(CrystalSystem system, LatticeParameters& lattice
         case CrystalSystem::Hexagonal:
             inputField("a", &latticeParams.a);
             ImGui::SameLine(responsive::dp(0.0f), spacing); inputField("c", &latticeParams.c);
-            ImGui::SameLine(responsive::dp(0.0f), hintGap); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("b=a, gamma=120");
+            ImGui::SameLine(responsive::dp(0.0f), hintGap); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("b = a, \xce\xb3 = 120\xc2\xb0");
             latticeParams.b = latticeParams.a;
             latticeParams.alpha = 90.0;
             latticeParams.beta = 90.0;
@@ -94,7 +94,7 @@ void drawLatticeParameterInputs(CrystalSystem system, LatticeParameters& lattice
             break;
         case CrystalSystem::Cubic:
             inputField("a", &latticeParams.a);
-            ImGui::SameLine(responsive::dp(0.0f), hintGap); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("b=c=a, angles=90");
+            ImGui::SameLine(responsive::dp(0.0f), hintGap); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("b = c = a, all angles 90\xc2\xb0");
             latticeParams.b = latticeParams.a;
             latticeParams.c = latticeParams.a;
             latticeParams.alpha = 90.0;
@@ -257,14 +257,15 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
             selectedSpaceGroup = range.first + sgIndex;
         ImGui::PopItemWidth();
 
-        dialogLayout::section("Lattice parameters (A / degrees)");
+        dialogLayout::section("Lattice parameters (\xc3\x85, \xc2\xb0)");
         drawLatticeParameterInputs((CrystalSystem)crystalSystemIndex, latticeParams);
 
-        ImGui::Separator();
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("Asymmetric unit");
+        dialogLayout::section("Asymmetric unit");
+        ImGui::TextDisabled("Sites in fractional coordinates; the space group generates the rest.");
         ImGui::SameLine();
-        if (responsive::button("+ Add"))
+        const float unitButtons = dialogLayout::buttonRowWidth({"Add Site", "Reset"});
+        ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - unitButtons));
+        if (dialogLayout::secondaryButton("Add Site"))
         {
             addDefaultAsymmetricAtom(asymmetricAtoms, elementColors);
             scrollRowsToBottom = true;
@@ -274,56 +275,65 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
                       << " at [" << atom.x << ", " << atom.y << ", " << atom.z << "]"
                       << std::endl;
         }
+        dialogLayout::hint("Adds a hydrogen site at the origin; set its element and position in its row");
         ImGui::SameLine();
-        if (responsive::button("Clear"))
+        if (dialogLayout::secondaryButton("Reset"))
         {
             asymmetricAtoms.clear();
             addDefaultAsymmetricAtom(asymmetricAtoms, elementColors);
             std::cout << "[Operation] Cleared asymmetric atoms (bulk builder); reset to default H(1)" << std::endl;
         }
-        ImGui::SameLine();
-        ImGui::TextDisabled("(fractional coords)");
+        dialogLayout::hint("Replaces every site with a single hydrogen site at the origin");
 
         int pendingDelete = -1;
-        float listHeight = ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeightWithSpacing() * 2 - ImGui::GetStyle().ItemSpacing.y * 2;
-        if (listHeight < 60.0f) listHeight = 60.0f;
-        if (responsive::beginChild("##bulk-atom-rows", ImVec2(-1.0f, listHeight), true))
+        const float resultHeight = lastResult.message.empty() ? 0.0f : ImGui::GetFrameHeightWithSpacing() * 1.6f;
+        const float footerHeight = ImGui::GetFrameHeight() + 3.0f * ImGui::GetStyle().ItemSpacing.y + responsive::dp(2) + 2.0f;
+        const float listHeight = std::max(responsive::dp(110.0f), ImGui::GetContentRegionAvail().y - footerHeight - resultHeight);
+        const ImGuiTableFlags flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH;
+        if (ImGui::BeginTable("##bulk-atom-rows", 4, flags, ImVec2(0.0f, listHeight)))
         {
-            ImGui::TextDisabled("Sites / fractional coordinates (x, y, z) / element");
-            ImGui::Separator();
+            ImGui::TableSetupScrollFreeze(0, 1);
+            ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize("0000").x);
+            ImGui::TableSetupColumn("Element", ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize("Element").x + ImGui::GetStyle().FramePadding.x * 2);
+            ImGui::TableSetupColumn("Position (u, v, w)", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("##delete", ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize("Delete").x + ImGui::GetStyle().FramePadding.x * 2);
+            ImGui::TableHeadersRow();
             for (int i = 0; i < (int)asymmetricAtoms.size(); ++i)
             {
                 AtomSite& atom = asymmetricAtoms[i];
                 ImGui::PushID(i);
+                ImGui::TableNextRow();
 
-                if (responsive::button("Delete"))
-                    pendingDelete = i;
-                ImGui::SameLine();
-                ImGui::Text("#%d", i);
-                ImGui::SameLine();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::AlignTextToFramePadding();
+                ImGui::TextDisabled("%d", i);
 
-                float editPos[3] = { (float)atom.x, (float)atom.y, (float)atom.z };
-
-                ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - 50.0f);
-                if (ImGui::DragFloat3("##bulk-direct", editPos, 0.005f, -10.0f, 10.0f, "%.4f"))
-                {
-                    atom.x = editPos[0];
-                    atom.y = editPos[1];
-                    atom.z = editPos[2];
-                }
-                ImGui::PopItemWidth();
-
-                ImGui::SameLine();
+                ImGui::TableSetColumnIndex(1);
                 std::string elemButton = std::string(atom.symbol) + "##bulk-element";
-                if (responsive::button(elemButton.c_str()))
+                if (ImGui::Button(elemButton.c_str(), ImVec2(-FLT_MIN, 0)))
                 {
                     targetAtomIndex = i;
                     selectedEditElement = atom.atomicNumber;
                     showElementPicker = true;
                     reopenBulkDialogAfterPicker = true;
                 }
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("Click to substitute element");
+                dialogLayout::hint("Substitute this site's element");
+
+                ImGui::TableSetColumnIndex(2);
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                double editPos[3] = { atom.x, atom.y, atom.z };
+                if (ImGui::DragScalarN("##bulk-direct", ImGuiDataType_Double, editPos, 3, 0.005f, nullptr, nullptr, "%.4f"))
+                {
+                    atom.x = editPos[0];
+                    atom.y = editPos[1];
+                    atom.z = editPos[2];
+                }
+
+                ImGui::TableSetColumnIndex(3);
+                ImGui::BeginDisabled(asymmetricAtoms.size() == 1);
+                if (dialogLayout::dangerButton("Delete"))
+                    pendingDelete = i;
+                ImGui::EndDisabled();
 
                 ImGui::PopID();
             }
@@ -333,8 +343,8 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
                 ImGui::SetScrollY(ImGui::GetScrollMaxY());
                 scrollRowsToBottom = false;
             }
+            ImGui::EndTable();
         }
-        ImGui::EndChild();
 
         if (pendingDelete >= 0 && pendingDelete < (int)asymmetricAtoms.size())
         {
@@ -347,18 +357,25 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
                       << " row=" << pendingDelete << std::endl;
         }
 
-        ImGui::Separator();
-        if (m_step.active())
+        if (!lastResult.message.empty())
         {
-            if (dialogLayout::primaryButton("Update Step",dialogLayout::actionSize()))
-            {
-                m_step.commitOptions(stepOptions());
-                m_step.finish();
-                dialogOpen = false;
-                ImGui::CloseCurrentPopup();
-            }
+            ImGui::Spacing();
+            if (lastResult.success)
+                dialogLayout::notef(dialogLayout::Note::Success, "Built %d atoms in space group %d (%s).",
+                                    lastResult.generatedAtoms, lastResult.spaceGroupNumber, lastResult.spaceGroupSymbol.c_str());
+            else
+                dialogLayout::note(dialogLayout::Note::Error, lastResult.message.c_str());
         }
-        else if (dialogLayout::primaryButton("Build",dialogLayout::actionSize()))
+
+        const int pressed = dialogLayout::footer(m_step.active() ? "Update Step" : "Build", "Close");
+        if (pressed == 1 && m_step.active())
+        {
+            m_step.commitOptions(stepOptions());
+            m_step.finish();
+            dialogOpen = false;
+            ImGui::CloseCurrentPopup();
+        }
+        else if (pressed == 1)
         {
             applySystemConstraints((CrystalSystem)crystalSystemIndex, latticeParams);
             lastResult = buildBulkCrystal(structure,
@@ -383,20 +400,11 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
                 std::cout << "[Operation] Bulk crystal build failed: " << lastResult.message << std::endl;
             }
         }
-        ImGui::SameLine();
-        if (responsive::button("Close",dialogLayout::actionSize()))
+        else if (pressed == 2)
         {
             m_step.finish();
             dialogOpen = false;
             ImGui::CloseCurrentPopup();
-        }
-
-        if (!lastResult.message.empty())
-        {
-            if (lastResult.success)
-                ImGui::Text("OK: %d atoms, SG %d (%s)", lastResult.generatedAtoms, lastResult.spaceGroupNumber, lastResult.spaceGroupSymbol.c_str());
-            else
-                ImGui::TextWrapped("Error: %s", lastResult.message.c_str());
         }
 #endif
 
