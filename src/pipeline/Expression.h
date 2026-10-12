@@ -15,6 +15,7 @@ struct AtomVariables
     double property = 0;            // per-atom property (NaN when absent)
     double selected = 0;            // 1 when selected
     double atomicNumber = 0;
+    double fixed = 0;               // number of fixed coordinates (selective dynamics)
     std::string element;
 };
 

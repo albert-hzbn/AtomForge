@@ -152,6 +152,7 @@ void selectExpression(const Json& p, PipelineData& data)
         v.property = s.atomProperty.size() == s.atoms.size() ? s.atomProperty[i] : std::numeric_limits<double>::quiet_NaN();
         v.selected = data.selected[i] ? 1 : 0;
         v.atomicNumber = a.atomicNumber;
+        v.fixed = static_cast<double>((a.fixed & 1) + ((a.fixed >> 1) & 1) + ((a.fixed >> 2) & 1));
         v.element = a.symbol;
         mask[i] = expression.evaluate(v) != 0;
     }
@@ -250,6 +251,25 @@ void deleteSelected(const Json&, PipelineData& data)
     const std::size_t removed = data.structure.atoms.size() - keep.size();
     rebuild(data, keep);
     data.notes.push_back(std::to_string(removed) + " atoms deleted");
+}
+
+// Selective dynamics: hold coordinates of the target atoms fixed in a
+// relaxation (written to POSCAR as F flags), or free them again.
+void fixAtoms(const Json& p, PipelineData& data)
+{
+    const std::string axes = text(p, "fix-atoms", "axes");
+    std::uint8_t mask = 0;
+    for (char c : axes) mask = static_cast<std::uint8_t>(mask | (c == 'x' ? 1 : c == 'y' ? 2 : c == 'z' ? 4 : 0));
+    const auto indices = targets(data, text(p, "fix-atoms", "target") == "selected", "fix-atoms");
+    for (std::size_t i : indices) data.structure.atoms[i].fixed = static_cast<std::uint8_t>(data.structure.atoms[i].fixed | mask);
+    data.notes.push_back(std::to_string(indices.size()) + " atoms fixed along " + axes);
+}
+
+void freeAtoms(const Json& p, PipelineData& data)
+{
+    const auto indices = targets(data, text(p, "free-atoms", "target") == "selected", "free-atoms");
+    for (std::size_t i : indices) data.structure.atoms[i].fixed = 0;
+    data.notes.push_back(std::to_string(indices.size()) + " atoms free to move");
 }
 
 void assignElement(const Json& p, PipelineData& data)
@@ -723,6 +743,11 @@ std::vector<ModifierType>& registry()
         {"delete-selected", "Delete selected atoms", "Modification", "Removes the selected atoms.", {}, deleteSelected},
         {"assign-element", "Assign element", "Modification", "Changes the element of the selected (or all) atoms, e.g. to create substitutions.",
          {{"element", "Element", "element", "Cu", ""}, {"target", "Atoms", "choice", "selected", "selected|all"}}, assignElement},
+        {"fix-atoms", "Fix atoms", "Modification",
+         "Holds coordinates of the selected (or all) atoms fixed in a relaxation; POSCAR files keep them as selective dynamics (F).",
+         {{"axes", "Fixed coordinates", "choice", "xyz", "xyz|xy|xz|yz|x|y|z"}, {"target", "Atoms", "choice", "selected", "selected|all"}}, fixAtoms},
+        {"free-atoms", "Free atoms", "Modification", "Lets the selected (or all) atoms move along every coordinate again.",
+         {{"target", "Atoms", "choice", "selected", "selected|all"}}, freeAtoms},
         {"displace", "Displace", "Modification", "Moves atoms by a fixed vector.",
          {{"vector", "Displacement (Angstrom)", "vector", "0 0 0", ""}, {"target", "Atoms", "choice", "all", "all|selected"}}, displace},
         {"random-displacement", "Random displacement", "Modification", "Adds Gaussian displacements (standard deviation per component), reproducibly for a seed.",

@@ -33,6 +33,8 @@ const std::vector<MenuLocation>& menuLocations()
         {"delete-selected", "Edit", "Structure Operations", "Delete Atoms", false},
         {"assign-element", "Edit", "Structure Operations", "Assign Element", false},
         {"displace", "Edit", "Structure Operations", "Displace Atoms", false},
+        {"fix-atoms", "Edit", "Structure Operations", "Fix Atoms", false},
+        {"free-atoms", "Edit", "Structure Operations", "Free Atoms", false},
         {"random-displacement", "Edit", "Structure Operations", "Random Displacement", false},
         {"slice", "Edit", "Structure Operations", "Slice", false},
         {"replicate", "Edit", "Structure Operations", "Replicate", false},

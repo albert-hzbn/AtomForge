@@ -105,7 +105,7 @@ int main()
         }
         atomforge::Workspace source;
         source.title="Project with spaces, quotes \" and newline\n";
-        AtomSite atom; atom.symbol="Cu"; atom.atomicNumber=29; atom.x=.123456789012345;
+        AtomSite atom; atom.symbol="Cu"; atom.atomicNumber=29; atom.x=.123456789012345; atom.fixed=5;
         source.structure.atoms={atom}; source.structure.hasUnitCell=true;
         source.structure.cellVectors={{{2,0,0},{.2,2,0},{0,0,3}}};
         source.structure.grainColors={{{.1f,.2f,.3f}}}; source.structure.grainRegionIds={7};
@@ -121,6 +121,7 @@ int main()
         const auto restored=atomforge::loadWorkspace(path);
         check(restored.size()==2 && restored[0].title==source.title,"Project tabs or strings changed");
         check(restored[0].structure.atoms[0].x==atom.x,"Coordinates lost precision");
+        check(restored[0].structure.atoms[0].fixed==5,"Fixed coordinates (selective dynamics) lost");
         check(restored[0].structure.grainRegionIds==source.structure.grainRegionIds,"Grain metadata lost");
         check(restored[0].volume.fields[0].values==grid.values && restored[0].reference.fields[0].values==grid.values,"Density fields changed");
         check(restored[0].table==source.table && restored[0].camera==source.camera && restored[0].settings==source.settings,"Workspace settings changed");

@@ -946,7 +946,7 @@
     },
     {
       "source": "src/cli/PipelineCLI.cpp",
-      "sha256": "df8b4f93cd08d9c1e76dcf33c2d2a5b3e7f65c02e44236098143e6065ac32ce2",
+      "sha256": "1c9d5e268585c48362d71968f53f42afa9b52197a846db62bdd2f330cf059b79",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -1040,7 +1040,7 @@
     },
     {
       "source": "src/pipeline/Expression.cpp",
-      "sha256": "a5fb5171a14c4ddf6b6393f617e1c5a519d1671f73fa28b723e9036180f55afb",
+      "sha256": "a571036c4d5f4dadd7859981e3e1dba0198dcad8de0f4e3142afb2e2fd05b108",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -1049,7 +1049,7 @@
     },
     {
       "source": "src/pipeline/Expression.h",
-      "sha256": "fb694f970ecbc60a7403b7e6c06dfc44c4e782ec1216ade93340fbc26b413820",
+      "sha256": "8aad6cf7346c24b561a7bfba968bc93435d0beb4ed7826164298797d2f573dab",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -1058,7 +1058,7 @@
     },
     {
       "source": "src/pipeline/Modifiers.cpp",
-      "sha256": "1a2a460c9ccb513bd10d3268a7fd479eee2bb0ff390a0b3985905ce7dee8e07e",
+      "sha256": "4f5dc81991d919275b68440cbf0f8adc72de30e95b5c8ae32078b1144ed9f64f",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -3800,7 +3800,7 @@
     },
     {
       "source": "src/ui/MeasurementOverlay.cpp",
-      "sha256": "82b2eaad4593237a5007264003ed8e60515f0bf978279fae479b47032562d4a3",
+      "sha256": "c94bdbb99b305b20c58814f1dbe7c1108153a9b927ebd6e06a412c27580d3058",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3822,7 +3822,7 @@
     },
     {
       "source": "src/ui/MenuParity.cpp",
-      "sha256": "b7acd00c19ea7bcaadaabeabb1f76ba303b12a4e821995c6d74a0b85fa4bdb56",
+      "sha256": "332c19fa667f9c0a3954a78792623ec8e3fa0700c64582fec6f17e18c6cc7331",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <cstdint>
 #include <vector>
 #include <string>
 #include <glm/glm.hpp>
@@ -16,6 +17,10 @@ struct AtomSite
     float r = 1.0f;
     float g = 1.0f;
     float b = 1.0f;
+
+    // Coordinates held fixed in a relaxation (POSCAR selective dynamics):
+    // bit 0 x, bit 1 y, bit 2 z. It travels with the atom through edits.
+    std::uint8_t fixed = 0;
 };
 
 struct Structure

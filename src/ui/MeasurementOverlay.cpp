@@ -528,6 +528,10 @@ void processMeasurementRequests(MeasurementOverlayState& state,
                                          "Atomic number:  %d\n", atom.atomicNumber);
                     len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
                                          "Index:  #%d\n", baseIdx);
+                    if (atom.fixed)
+                        len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                                             "Fixed:  %s%s%s (selective dynamics)\n",
+                                             atom.fixed & 1 ? "x" : "", atom.fixed & 2 ? "y" : "", atom.fixed & 4 ? "z" : "");
                 }
 
                 // Positions come from the float render buffers: five decimals,

@@ -191,11 +191,17 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
     note = run("--convert", "--input", disordered, "--output", ordered, "--format", "xyz")
     assert [line.split()[0] for line in ordered.read_text().splitlines()[2:]] == ["Cu"] * 4, ordered.read_text()
     assert "partial occupancy" in note.stderr, note.stderr
-    # Selective dynamics is read past and reported as not kept.
+    # Selective dynamics: read, reported, written back; fix-atoms sets it.
     fixed = root / "fixed_POSCAR"
-    fixed.write_text("sd\n1.0\n4 0 0\n0 4 0\n0 0 4\nNa Cl\n1 1\nSelective dynamics\nDirect\n0 0 0 T T T\n0.5 0.5 0.5 F F F\n")
-    note = run("--convert", "--input", fixed, "--output", root / "fixed.xyz", "--format", "xyz")
-    assert "selective-dynamics" in note.stderr, note.stderr
+    fixed.write_text("sd\n1.0\n4 0 0\n0 4 0\n0 0 4\nNa Cl\n1 1\nSelective dynamics\nDirect\n0 0 0 T T T\n0.5 0.5 0.5 F F T\n")
+    rewritten = root / "fixed_again.vasp"
+    note = run("--convert", "--input", fixed, "--output", rewritten)
+    assert "1 atom has fixed coordinates" in note.stderr, note.stderr
+    lines = rewritten.read_text().splitlines()
+    assert lines[7] == "Selective dynamics" and lines[9].endswith("T T T") and lines[10].endswith("F F T"), lines
+    pinned = root / "pinned.vasp"
+    run("--pipe", "select-element Cl | fix-atoms axes=z", "--input", rewritten, "--output", pinned)
+    assert pinned.read_text().splitlines()[10].endswith("F F F"), pinned.read_text()
     # CIF keeps full precision: 1/6 of a 10.83 A cell stays 1.805 A.
     big = root / "big.cif"
     run("--pipe", "replicate 3 3 3", "--input", source, "--output", big)

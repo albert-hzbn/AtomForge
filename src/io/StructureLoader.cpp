@@ -1847,6 +1847,7 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
 
     bool read = false;
     bool selectiveDynamics = false;
+    std::vector<std::uint8_t> poscarFixed;  // per atom, in file order
     bool xyzLattice = false;
     std::array<std::array<double, 3>, 3> xyzCell{};
     if (extLower == ".xyz" || extLower == ".extxyz")
@@ -1874,6 +1875,19 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
                     break;
                 }
             }
+            // The flags follow the coordinate-type line: "x y z T T F" (F fixed).
+            if (selectiveDynamics && std::getline(lines, line))
+                while (std::getline(lines, line))
+                {
+                    std::istringstream fields(line);
+                    std::vector<std::string> words;
+                    for (std::string word; fields >> word;) words.push_back(word);
+                    if (words.size() < 6) break;
+                    std::uint8_t fixed = 0;
+                    for (int k = 0; k < 3; ++k)
+                        if (words[(size_t)(3 + k)][0] == 'F' || words[(size_t)(3 + k)][0] == 'f') fixed = static_cast<std::uint8_t>(fixed | (1 << k));
+                    poscarFixed.push_back(fixed);
+                }
         }
         if (normalizePoscar(text))
         {
@@ -1971,10 +1985,23 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
         structure.atoms.push_back(site);
     }
 
-    resolvePartialOccupancy(structure, occupancies);
     if (selectiveDynamics)
-        structure.loadNote += std::string(structure.loadNote.empty() ? "" : " ") +
-                              "The file's selective-dynamics flags (fixed atoms) are not kept; saving writes every atom free to move.";
+    {
+        if (poscarFixed.size() == structure.atoms.size())
+        {
+            std::size_t count = 0;
+            for (std::size_t i = 0; i < poscarFixed.size(); ++i)
+            {
+                structure.atoms[i].fixed = poscarFixed[i];
+                count += poscarFixed[i] != 0;
+            }
+            structure.loadNote = std::to_string(count) + (count == 1 ? " atom has" : " atoms have") +
+                                 " fixed coordinates (selective dynamics).";
+        }
+        else
+            structure.loadNote = "The file's selective-dynamics flags could not be matched to its atoms and are not kept.";
+    }
+    resolvePartialOccupancy(structure, occupancies);
     return finishLoadedStructure(filename, structure, errorMessage);
 }
 
@@ -2323,14 +2350,18 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
                           clean(written.cellVectors[(size_t)r][1]), clean(written.cellVectors[(size_t)r][2]));
             out << buffer;
         }
-        out << symbols << "\n" << counts << "\nDirect\n";
+        const bool selective = std::any_of(written.atoms.begin(), written.atoms.end(), [](const AtomSite& a) { return a.fixed != 0; });
+        out << symbols << "\n" << counts << "\n" << (selective ? "Selective dynamics\n" : "") << "Direct\n";
         for (int z : elements)
             for (const auto& site : written.atoms)
             {
                 if (site.atomicNumber != z) continue;
                 const glm::dvec3 f = toFractional * glm::dvec3(site.x, site.y, site.z);
-                std::snprintf(buffer, sizeof(buffer), "  %16.12f %16.12f %16.12f\n", clean(f.x), clean(f.y), clean(f.z));
+                std::snprintf(buffer, sizeof(buffer), "  %16.12f %16.12f %16.12f", clean(f.x), clean(f.y), clean(f.z));
                 out << buffer;
+                if (selective)
+                    for (int k = 0; k < 3; ++k) out << ((site.fixed >> k) & 1 ? " F" : " T");
+                out << "\n";
             }
         out.close();
         if (!out)

@@ -86,17 +86,19 @@ void writeExtxyz(std::ostream& out, const atomforge::pipeline::PipelineData& dat
 {
     const Structure& s = data.structure;
     const bool property = s.atomProperty.size() == s.atoms.size() && !s.atoms.empty();
+    // Rounding residue such as -2.5e-32 is written as 0.
+    const auto clean = [](double v) { return std::abs(v) < 5e-11 ? 0.0 : v; };
     out << std::setprecision(12) << s.atoms.size() << "\n";
     if (s.hasUnitCell) {
         out << "Lattice=\"";
         for (int r = 0; r < 3; ++r)
-            for (int k = 0; k < 3; ++k) out << (r || k ? " " : "") << s.cellVectors[r][k];
+            for (int k = 0; k < 3; ++k) out << (r || k ? " " : "") << clean(s.cellVectors[r][k]);
         out << "\" pbc=\"T T T\" ";
     }
     out << "Properties=species:S:1:pos:R:3:selection:I:1" << (property ? ":property:R:1" : "") << "\n";
     for (std::size_t i = 0; i < s.atoms.size(); ++i) {
         const auto& a = s.atoms[i];
-        out << a.symbol << ' ' << a.x << ' ' << a.y << ' ' << a.z << ' ' << static_cast<int>(data.selected[i]);
+        out << a.symbol << ' ' << clean(a.x) << ' ' << clean(a.y) << ' ' << clean(a.z) << ' ' << static_cast<int>(data.selected[i]);
         if (property) out << ' ' << (std::isfinite(s.atomProperty[i]) ? s.atomProperty[i] : 0.0);
         out << "\n";
     }
