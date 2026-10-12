@@ -727,7 +727,7 @@ std::vector<ModifierType>& registry()
          {{"element", "Element", "element", "H", ""}, {"kind", "Void kind", "choice", "any", "any|tetrahedral|octahedral|irregular"},
           {"count", "Atoms to insert (0 = every site)", "int", "1", ""}, {"order", "Choose sites", "choice", "largest", "largest|random"},
           {"seed", "Seed (random order)", "int", "1", ""}, {"resolution", "Grid resolution", "int", "14", ""},
-          {"clearance", "Minimum clearance (Angstrom)", "float", "0.6", ""}, {"separation", "Minimum separation (Angstrom)", "float", "0.8", ""}}, insertInterstitials},
+          {"clearance", "Minimum clearance (Angstrom)", "float", "0.6", ""}, {"separation", "Minimum separation (Angstrom)", "float", "0.5", ""}}, insertInterstitials},
         {"merge", "Merge a structure file", "Modification", "Appends the atoms of another structure file (POSCAR, extended XYZ, JSON or LAMMPS dump), shifted by an offset.",
          {{"file", "Structure file", "string", "", ""}, {"offset", "Offset (Angstrom)", "vector", "0 0 0", ""}, {"select", "Select the merged atoms", "bool", "true", ""},
           {"use_cell", "Take its cell when this structure has none", "bool", "true", ""}}, merge},

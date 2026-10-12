@@ -556,7 +556,7 @@
     },
     {
       "source": "src/algorithms/InterstitialVoidAnalysis.h",
-      "sha256": "c08beaba7d04e7ed859b166b876ada89b28bd33330c727c46fc72cdd18e06181",
+      "sha256": "461b73f146dd80970345bd49281c811c673d8980b1964784e4ee5e8fb83e5e73",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -809,7 +809,7 @@
     },
     {
       "source": "src/cli/AnalysisCLI.cpp",
-      "sha256": "7ea2ba8ada65050b78982a985a59493263ad1422b4356db4574235c42ed82fc1",
+      "sha256": "380f3a094fb93cf1304a32be80526628821c96a4bc5f9ebe49f356eab9c48f32",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -1058,7 +1058,7 @@
     },
     {
       "source": "src/pipeline/Modifiers.cpp",
-      "sha256": "c63d2f808797d43576d134ce5f93f869aafc6b5504a487907f41ffb5d66c945a",
+      "sha256": "517aefe3f584b7071cacb5b57adc9f22e0859fe233b77a470178e7578a6c9932",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -3702,7 +3702,7 @@
     },
     {
       "source": "src/ui/InterstitialAtomsDialog.h",
-      "sha256": "e0668413ef2d46faa368ce291463d9198be08351998f6519f0bc3536417fdac6",
+      "sha256": "e89fc91e47cff1c8c7a2bce496e690cf6939b305cfb16aca34c9066a5e113446",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",

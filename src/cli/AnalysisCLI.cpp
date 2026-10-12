@@ -32,7 +32,7 @@ int runAnalysisCLI(int argc, char* argv[])
             "rdf: --minimum 0 --cutoff 8 --bins 200 --smooth 0 --centre-z 0 --neighbor-z 0 --raw --no-pbc\n"
             "adf: --cutoff 3.5 --bins 180 --smooth 0 --centre SYMBOL --neighbor-a SYMBOL --neighbor-b SYMBOL --raw --no-pbc\n"
             "sro: --shells 3 --tolerance 0.1\n"
-            "interstitial: --resolution 14 --limit 0 --clearance 0.6 --separation 0.8\n"
+            "interstitial: --resolution 14 --limit 0 --clearance 0.6 --separation 0.5\n"
             "nye: --reference FILE --cutoff 3.0 --no-pbc  (dislocation density tensor;\n"
             "     --input is the deformed structure, --reference the perfect one, same\n"
             "     atom count/order in both; see algorithms/NyeTensor.h)\n"
@@ -255,7 +255,7 @@ int runAnalysisCLI(int argc, char* argv[])
             InterstitialVoidDetectionParams p;
             p.gridResolution=integer("--resolution",14,2,100);
             p.maxVoids=integer("--limit",0,0,100000);
-            p.minClearance=number("--clearance",.6); p.minSeparation=number("--separation",.8);
+            p.minClearance=number("--clearance",.6); p.minSeparation=number("--separation",.5);
             if (p.minClearance<0 || p.minSeparation<=0) throw std::invalid_argument("Invalid clearance/separation");
             const auto result=detectInterstitialVoidRegions(structure,p);
             if (!result.success) throw std::runtime_error(result.message);

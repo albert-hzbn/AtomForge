@@ -987,7 +987,7 @@
             }
           ],
           "steps": [
-            "Set Grid 14, Max Voids 0, Min Clearance 0.60 \\angstrom, and Min Separation 0.80 \\angstrom.",
+            "Set Grid 14, Max Voids 0, Min Clearance 0.60 \\angstrom, and Min Separation 0.50 \\angstrom.",
             "Choose \\ui{Detect Voids}. Inspect the marker cloud, type list, and selected-void information.",
             "Repeat with another grid resolution to assess whether the candidate set is stable."
           ],

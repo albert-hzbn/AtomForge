@@ -34,7 +34,7 @@ struct InterstitialVoidDetectionParams
     // 0 or negative means uncapped (detect all unique void regions).
     int maxVoids = 0;
     float minClearance = 0.6f;
-    float minSeparation = 0.8f;
+    float minSeparation = 0.5f;
     float firstNeighborShellFactor = 1.22f;
     int maxNeighborCount = 12;
 };

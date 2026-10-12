@@ -162,7 +162,7 @@ private:
     int   m_gridResolution    = 14;
     int   m_maxVoids          = 0;
     float m_minClearance      = 0.6f;
-    float m_minSeparation     = 0.8f;
+    float m_minSeparation     = 0.5f;
     bool  m_showVoidOverlay   = true;
 
     PlacementMode m_placementMode = PlacementMode::Random;
