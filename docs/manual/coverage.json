@@ -809,7 +809,7 @@
     },
     {
       "source": "src/cli/AnalysisCLI.cpp",
-      "sha256": "7b2b224e2556258f8ac79d17f262a9eef28501f24da349d3bfeac956aef28193",
+      "sha256": "1c0b7fce0b6d3f5f22e2846669268ea0ed95447548b764e38b21b6874e7d24f2",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -899,7 +899,7 @@
     },
     {
       "source": "src/cli/CLIMode.cpp",
-      "sha256": "5bab711b2eba9e9555154445f985eb3b6361a82a0cd778d219d8686e8208de75",
+      "sha256": "679df2242c33b69afbd8aa8d9815e50d39a519f1dce616c6ba3b7d3ad7d0b607",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
