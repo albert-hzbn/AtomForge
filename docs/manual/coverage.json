@@ -730,7 +730,7 @@
     },
     {
       "source": "src/app/EditorApplication.cpp",
-      "sha256": "c9341d22fa8c268707d7411d1846194abcf8edd05859c4ee96924d5d50295f2e",
+      "sha256": "172927ccfe5c433c9007031f238a09193ef4c38d8a25560d53718e89d3df18cd",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -809,7 +809,7 @@
     },
     {
       "source": "src/cli/AnalysisCLI.cpp",
-      "sha256": "567a6ebf52bf32ab2b47868a9c8ea7d848d3527f4f99f3198f49e1fc06586168",
+      "sha256": "7ea2ba8ada65050b78982a985a59493263ad1422b4356db4574235c42ed82fc1",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -937,7 +937,7 @@
     },
     {
       "source": "src/cli/OptionCheck.h",
-      "sha256": "71365debe5cb6abc126041479c55fa3df1ca3c43046b57b87bb26c5d2dfcae63",
+      "sha256": "71c92414be9be289fa8a7a098ee8acd64d0fe578258d7bae22e57b1e3c53902e",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -1076,7 +1076,7 @@
     },
     {
       "source": "src/pipeline/Pipeline.cpp",
-      "sha256": "42d4db4446604df070a8c41843d6a4e8df16c5bcc53861c9bf50a1effc4fc1e0",
+      "sha256": "07e155c21b8546706babfaa63c0901159290696a45fa547c6e4e7ba0272b263d",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -1085,7 +1085,7 @@
     },
     {
       "source": "src/pipeline/Pipeline.h",
-      "sha256": "c360844391278d8d4ab5c7d1eadb6a92d8679c3744a30505d7a7a9493336ae74",
+      "sha256": "7d24b28f4d8cbb4d125733201c29632c51943bcb8e91562ae0bf3ccade16e721",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -1094,7 +1094,7 @@
     },
     {
       "source": "src/pipeline/PipelineEditor.cpp",
-      "sha256": "573c6d2759b022dddac2e96f7ce532141be0d034692a1f950e528595c2561c24",
+      "sha256": "2327b889f5eecad2b88fa0fb075e1985b60158afa03840453cac617d8ca4513b",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -3784,7 +3784,7 @@
     },
     {
       "source": "src/ui/MainWindowChrome.cpp",
-      "sha256": "8fadde3ceeddf072c3801f34e658529442d95eab9e27fac389ea7d565f6a094b",
+      "sha256": "74ed582efd9dcbc60636e519f6b330167e7c815775324e5d65bae81d89fb4c60",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5227,7 +5227,7 @@
     },
     {
       "source": "src/ui/UiTour.cpp",
-      "sha256": "bfec02d9c25826b927b279dcbe400d6a5d264c9e33f69f7ad96d568a0f09b574",
+      "sha256": "2c3a53dbbd89c9a3ae286e983c813e4f89500bc9c966f9d0bd16bc5a0e2d6701",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
