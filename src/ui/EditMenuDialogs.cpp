@@ -638,15 +638,16 @@ void EditMenuDialogs::drawPopups(Structure& structure,
     };
 
     if (responsive::beginModal("Edit Atom Element##edit-structure", &editAtomElementOpen,
-                               ImGuiWindowFlags_NoResize))
+                               ImGuiWindowFlags_AlwaysAutoResize))
     {
-        ImGui::Text("Select replacement element from the periodic table.");
-        ImGui::Separator();
-
-        drawPeriodicTableInlineSelector(m_selectedEditElement);
-
-        ImGui::Separator();
-        if (responsive::button("Apply Element##edit-structure-window"))
+        ImGui::TextDisabled("Click an element or type its symbol; double-click or Enter applies it.");
+        bool activated = false;
+        drawPeriodicTableInlineSelector(m_selectedEditElement, &activated, true);
+        const bool enter = ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false);
+        const int pressed = dialogLayout::footer("Apply", "Cancel");
+        if (pressed == 2)
+            editAtomElementOpen = false;
+        if (pressed == 1 || activated || enter)
         {
             if (m_editStructureElementTargetAtom >= 0 &&
                 m_editStructureElementTargetAtom < (int)structure.atoms.size())

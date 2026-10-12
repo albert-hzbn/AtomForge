@@ -192,6 +192,30 @@ static ImVec4 brighter(ImVec4 c, float d)
 
 // ---------------------------------------------------------------------------
 
+// Typed letters ("c", "u") pick the element with that symbol; letters more
+// than a second apart start a new symbol. Returns the element picked, or -1.
+static int pickTypedSymbol(std::string& typed, double& typedAt)
+{
+    int picked = -1;
+    for (ImWchar c : ImGui::GetIO().InputQueueCharacters)
+    {
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))) continue;
+        if (ImGui::GetTime() - typedAt > 1.0 || typed.size() >= 2) typed.clear();
+        typedAt = ImGui::GetTime();
+        typed += static_cast<char>(c);
+        for (int i = 0; i < kElemCount; ++i)
+        {
+            const char* sym = kElements[i].sym;
+            if (std::strlen(sym) != typed.size()) continue;
+            bool same = true;
+            for (std::size_t k = 0; k < typed.size(); ++k)
+                same = same && std::tolower(static_cast<unsigned char>(sym[k])) == std::tolower(static_cast<unsigned char>(typed[k]));
+            if (same) { picked = kElements[i].z; break; }
+        }
+    }
+    return picked;
+}
+
 void openPeriodicTable()
 {
     ImGui::OpenPopup("Periodic Table##picker");
@@ -239,23 +263,8 @@ bool drawPeriodicTable(std::vector<ElementSelection>& outSelections)
     }
 
     // Typing a symbol ("cu", "o") picks that element.
-    const ImGuiIO& io = ImGui::GetIO();
-    for (ImWchar c : io.InputQueueCharacters)
-    {
-        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))) continue;
-        if (ImGui::GetTime() - typedAt > 1.0 || typed.size() >= 2) typed.clear();
-        typedAt = ImGui::GetTime();
-        typed += static_cast<char>(c);
-        for (int i = 0; i < kElemCount; ++i)
-        {
-            const char* sym = kElements[i].sym;
-            if (std::strlen(sym) != typed.size()) continue;
-            bool same = true;
-            for (std::size_t k = 0; k < typed.size(); ++k)
-                same = same && std::tolower(static_cast<unsigned char>(sym[k])) == std::tolower(static_cast<unsigned char>(typed[k]));
-            if (same) { selectedAtomicNumber = kElements[i].z; break; }
-        }
-    }
+    if (const int typedZ = pickTypedSymbol(typed, typedAt); typedZ > 0)
+        selectedAtomicNumber = typedZ;
     bool applyNow = false;
 
     const float padY  = ImGui::GetCursorPosY() + 4.0f; // start below title bar + small margin
@@ -408,9 +417,20 @@ bool drawPeriodicTable(std::vector<ElementSelection>& outSelections)
     return applied;
 }
 
-bool drawPeriodicTableInlineSelector(int& selectedAtomicNumber)
+bool drawPeriodicTableInlineSelector(int& selectedAtomicNumber, bool* activated, bool typing)
 {
     bool changed = false;
+    if (activated) *activated = false;
+    if (typing && !ImGui::GetIO().WantTextInput)
+    {
+        static std::string typed;
+        static double typedAt = 0.0;
+        if (const int typedZ = pickTypedSymbol(typed, typedAt); typedZ > 0 && typedZ != selectedAtomicNumber)
+        {
+            selectedAtomicNumber = typedZ;
+            changed = true;
+        }
+    }
 
     const float fontSize = ImGui::GetFontSize();
     const float cellW = std::max(44.0f, fontSize * 2.8f);
@@ -448,6 +468,11 @@ bool drawPeriodicTableInlineSelector(int& selectedAtomicNumber)
         {
             selectedAtomicNumber = e.z;
             changed = true;
+        }
+        if (activated && hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+        {
+            selectedAtomicNumber = e.z;
+            *activated = true;
         }
 
         ImVec2 pMin = ImGui::GetItemRectMin();

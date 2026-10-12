@@ -427,13 +427,16 @@ void BulkCrystalBuilderDialog::drawDialog(Structure& structure,
 
     responsive::windowSize(ImVec2(940.0f, 560.0f), ImGuiCond_Appearing);
     bool pickerOpen = true;
-    if (responsive::beginModal("Bulk Crystal Element Picker", &pickerOpen, ImGuiWindowFlags_NoResize))
+    if (responsive::beginModal("Bulk Crystal Element Picker", &pickerOpen, ImGuiWindowFlags_AlwaysAutoResize))
     {
-        ImGui::Text("Select replacement element from the periodic table.");
-        ImGui::Separator();
-        drawPeriodicTableInlineSelector(selectedEditElement);
-        ImGui::Separator();
-        if (responsive::button("Apply Element##bulk-builder"))
+        ImGui::TextDisabled("Click an element or type its symbol; double-click or Enter applies it.");
+        bool activated = false;
+        drawPeriodicTableInlineSelector(selectedEditElement, &activated, true);
+        const bool enter = ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false);
+        const int pressed = dialogLayout::footer("Apply", "Cancel");
+        if (pressed == 2)
+            pickerOpen = false;
+        if (pressed == 1 || activated || enter)
         {
             if (targetAtomIndex >= 0 && targetAtomIndex < (int)asymmetricAtoms.size())
             {
