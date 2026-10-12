@@ -899,7 +899,7 @@
     },
     {
       "source": "src/cli/CLIMode.cpp",
-      "sha256": "063078944927fb224b85ed31c34d92b39940efcb2c489c6d0b41940215515bfa",
+      "sha256": "7d71626a9544521326bb8949255e080c0c45a471de18224523ca88632735a549",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -2098,7 +2098,7 @@
     },
     {
       "source": "src/ui/DislocationAnalysisDialog.cpp",
-      "sha256": "c25d0419fcaaf56f6440635f79803e33c8328028024db45342f30a80a4b419ca",
+      "sha256": "b51e7ced8cd84c7335b6ce2392abf9f53c1da0cae30e0bc4bd71e764cb08de2d",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2207,15 +2207,15 @@
           "declaration_label": "Fit dislocation"
         },
         {
-          "line": 200,
+          "line": 204,
           "declaration_label": "Export full Nye tensor CSV"
         },
         {
-          "line": 207,
+          "line": 211,
           "declaration_label": "Export full Vitek map CSV"
         },
         {
-          "line": 215,
+          "line": 219,
           "declaration_label": "Export full pattern-match CSV"
         }
       ]
@@ -2953,7 +2953,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "95d37e42a62b09a6c9b712ee8430941c3536e511faa583c38dbeda681dd388fc",
+      "sha256": "ee59fabd811ab4da7d268d2364d40ee6c57051f60886adccc01141806205090b",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3258,238 +3258,238 @@
           "declaration_label": "##exportScale"
         },
         {
-          "line": 1675,
+          "line": 1678,
           "declaration_label": "OK"
         },
         {
-          "line": 1699,
+          "line": 1702,
           "declaration_label": "Close"
         },
         {
-          "line": 1705,
+          "line": 1708,
           "declaration_label": "Show lattice planes"
         },
         {
-          "line": 1711,
+          "line": 1714,
           "declaration_label": "H##plane"
         },
         {
-          "line": 1714,
+          "line": 1717,
           "declaration_label": "K##plane"
         },
         {
-          "line": 1717,
+          "line": 1720,
           "declaration_label": "L##plane"
         },
         {
-          "line": 1720,
+          "line": 1723,
           "declaration_label": "Offset n##plane"
         },
         {
-          "line": 1722,
+          "line": 1725,
           "declaration_label": "Opacity##plane"
         },
         {
-          "line": 1724,
+          "line": 1727,
           "declaration_label": "Color##plane"
         },
         {
-          "line": 1731,
+          "line": 1734,
           "declaration_label": "Add Plane"
         },
         {
-          "line": 1764,
+          "line": 1767,
           "declaration_label": "##visible"
         },
         {
-          "line": 1769,
+          "line": 1772,
           "declaration_label": "H##plane-h"
         },
         {
-          "line": 1772,
+          "line": 1775,
           "declaration_label": "K##plane-k"
         },
         {
-          "line": 1775,
+          "line": 1778,
           "declaration_label": "L##plane-l"
         },
         {
-          "line": 1778,
+          "line": 1781,
           "declaration_label": "n##plane-offset"
         },
         {
-          "line": 1781,
+          "line": 1784,
           "declaration_label": "a##plane-opacity"
         },
         {
-          "line": 1787,
+          "line": 1790,
           "declaration_label": "##plane-color"
         },
         {
-          "line": 1795,
+          "line": 1798,
           "declaration_label": "Delete"
         },
         {
-          "line": 1810,
+          "line": 1813,
           "declaration_label": "Close"
         },
         {
-          "line": 1832,
+          "line": 1835,
           "declaration_label": "Close"
         },
         {
-          "line": 1838,
+          "line": 1841,
           "declaration_label": "Show Miller directions"
         },
         {
-          "line": 1844,
+          "line": 1847,
           "declaration_label": "U##dir"
         },
         {
-          "line": 1847,
+          "line": 1850,
           "declaration_label": "V##dir"
         },
         {
-          "line": 1850,
+          "line": 1853,
           "declaration_label": "W##dir"
         },
         {
-          "line": 1853,
+          "line": 1856,
           "declaration_label": "Length (A)##dir"
         },
         {
-          "line": 1855,
+          "line": 1858,
           "declaration_label": "Color##dir"
         },
         {
-          "line": 1862,
+          "line": 1865,
           "declaration_label": "Add Direction"
         },
         {
-          "line": 1890,
+          "line": 1893,
           "declaration_label": "##vis"
         },
         {
-          "line": 1895,
+          "line": 1898,
           "declaration_label": "U##du"
         },
         {
-          "line": 1898,
+          "line": 1901,
           "declaration_label": "V##dv"
         },
         {
-          "line": 1901,
+          "line": 1904,
           "declaration_label": "W##dw"
         },
         {
-          "line": 1904,
+          "line": 1907,
           "declaration_label": "L##dl"
         },
         {
-          "line": 1911,
+          "line": 1914,
           "declaration_label": "##dc"
         },
         {
-          "line": 1918,
+          "line": 1921,
           "declaration_label": "Delete##ddel"
         },
         {
-          "line": 1932,
+          "line": 1935,
           "declaration_label": "Close##dclose"
         },
         {
-          "line": 1952,
+          "line": 1955,
           "declaration_label": "Max displayed centers"
         },
         {
-          "line": 1954,
+          "line": 1957,
           "declaration_label": "Nearest neighbors"
         },
         {
-          "line": 1958,
+          "line": 1961,
           "declaration_label": "Specify center atom indices"
         },
         {
-          "line": 1966,
+          "line": 1969,
           "declaration_label": "Center atom IDs##polyIndexFilter"
         },
         {
-          "line": 1978,
+          "line": 1981,
           "declaration_label": "Show polyhedral edges"
         },
         {
-          "line": 1980,
+          "line": 1983,
           "declaration_label": "Face opacity"
         },
         {
-          "line": 1982,
+          "line": 1985,
           "declaration_label": "Edge opacity"
         },
         {
-          "line": 1986,
+          "line": 1989,
           "declaration_label": "Filter center elements"
         },
         {
-          "line": 1995,
+          "line": 1998,
           "declaration_label": "Centers##polyFilter"
         },
         {
-          "line": 2006,
+          "line": 2009,
           "declaration_label": "Filter ligand elements"
         },
         {
-          "line": 2015,
+          "line": 2018,
           "declaration_label": "Ligands##polyFilter"
         },
         {
-          "line": 2025,
+          "line": 2028,
           "declaration_label": "Reset Defaults"
         },
         {
-          "line": 2033,
+          "line": 2036,
           "declaration_label": "Close##polySettings"
         },
         {
-          "line": 2159,
+          "line": 2162,
           "declaration_label": "Manual##about"
         },
         {
-          "line": 2162,
+          "line": 2165,
           "declaration_label": "Close##about"
         },
         {
-          "line": 2224,
+          "line": 2227,
           "declaration_label": "Color"
         },
         {
-          "line": 2273,
+          "line": 2276,
           "declaration_label": "Automatic colour range"
         },
         {
-          "line": 2276,
+          "line": 2279,
           "declaration_label": "Minimum"
         },
         {
-          "line": 2277,
+          "line": 2280,
           "declaration_label": "Maximum"
         },
         {
-          "line": 2279,
+          "line": 2282,
           "declaration_label": "Hide atoms outside the range"
         },
         {
-          "line": 2280,
+          "line": 2283,
           "declaration_label": "Hide atoms without a value"
         },
         {
-          "line": 2281,
+          "line": 2284,
           "declaration_label": "Show element colours"
         }
       ]
     },
     {
       "source": "src/ui/FileBrowser.h",
-      "sha256": "ba4eee73a55961f29335712678a028cc76dda05817ba8f57f192f3a367a930ac",
+      "sha256": "110def01ddab80bb3f268868f274a1a1fb36b1ee3dc67bc9c23caee61e340561",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3511,7 +3511,7 @@
     },
     {
       "source": "src/ui/ImGuiSetup.cpp",
-      "sha256": "6152bdbec2b89c9225038b8ae7e7610cade5187412a8c5d072e4538251f52a55",
+      "sha256": "55b1f43cb9a4897957c2ca5a0573514f32609a3216acbb2617d265e6d286608c",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3880,7 +3880,7 @@
     },
     {
       "source": "src/ui/LobsterAnalysisDialog.cpp",
-      "sha256": "635262db66a982ab1a82e7042ca6f8b90ee26f98a5488244708dd77b7f33943c",
+      "sha256": "647967096039933ceb04c155f48e4e1c2bfa84219f817de803e621c0744e13e8",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5243,7 +5243,7 @@
     },
     {
       "source": "src/ui/ThemeUtils.h",
-      "sha256": "b7d8effcfb869ddcc5a0307f5c866e81cd5ad57303f6828c0e6e1e1bd74fd122",
+      "sha256": "9830a1bb907b9461ad269736ab1d1166f61a9ab056d3b626e8ec491b17e30273",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -5432,7 +5432,7 @@
     },
     {
       "source": "src/ui/WannierAnalysisDialog.cpp",
-      "sha256": "cfdba93557b2673ca484fd1451854e3a9f33720e5ae9ecb2f03402892c3044fd",
+      "sha256": "eb00e288069e1bc14f824bfadfa07b800f9adad041b20780eea8538ed8ddefbd",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
