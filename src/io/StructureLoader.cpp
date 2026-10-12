@@ -24,6 +24,8 @@
 #include <iomanip>
 #include <map>
 #include <numeric>
+#include <set>
+#include <tuple>
 #include <queue>
 #include <sstream>
 #include <string_view>
@@ -1717,6 +1719,79 @@ static void resolvePartialOccupancy(Structure& structure, const std::vector<doub
     std::vector<std::size_t> partials;
     for (std::size_t i = 0; i < structure.atoms.size(); ++i)
         if (occupancies[i] < 1.0 - 1e-6) partials.push_back(i);
+
+    // Candidates within 0.5 A: bins of at least 0.5 A along each cell axis
+    // (or the box of the atoms), searched with their neighbouring bins.
+    glm::dvec3 low(0.0), extent(1.0);
+    glm::ivec3 bins(1);
+    const auto coordinate = [&](std::size_t i) {
+        const auto& a = structure.atoms[i];
+        const glm::dvec3 position(a.x, a.y, a.z);
+        if (periodic)
+        {
+            glm::dvec3 f = inverse * position;
+            return f - glm::floor(f);
+        }
+        return (position - low) / extent;
+    };
+    if (periodic)
+    {
+        const double volume = std::abs(glm::determinant(cell));
+        for (int k = 0; k < 3; ++k)
+        {
+            const double height = volume / glm::length(glm::cross(cell[(k + 1) % 3], cell[(k + 2) % 3]));
+            bins[k] = std::max(1, std::min(1000, static_cast<int>(height / 0.5)));
+        }
+    }
+    else if (!partials.empty())
+    {
+        const auto& first = structure.atoms[partials[0]];
+        glm::dvec3 high(first.x, first.y, first.z);
+        low = high;
+        for (std::size_t i : partials)
+        {
+            const glm::dvec3 position(structure.atoms[i].x, structure.atoms[i].y, structure.atoms[i].z);
+            low = glm::min(low, position);
+            high = glm::max(high, position);
+        }
+        extent = glm::max(high - low, glm::dvec3(1e-9));
+        for (int k = 0; k < 3; ++k) bins[k] = std::max(1, std::min(1000, static_cast<int>(extent[k] / 0.5)));
+    }
+    const auto binOf = [&](std::size_t i) {
+        const glm::dvec3 f = coordinate(i);
+        glm::ivec3 b;
+        for (int k = 0; k < 3; ++k) b[k] = std::min(bins[k] - 1, std::max(0, static_cast<int>(f[k] * bins[k])));
+        return b;
+    };
+    std::map<std::tuple<int, int, int>, std::vector<std::size_t>> binned;
+    for (std::size_t i : partials)
+    {
+        const glm::ivec3 b = binOf(i);
+        binned[{b.x, b.y, b.z}].push_back(i);
+    }
+    const auto candidates = [&](std::size_t i) {
+        const glm::ivec3 b = binOf(i);
+        std::vector<std::size_t> found;
+        std::set<std::tuple<int, int, int>> seen;
+        for (int dx = -1; dx <= 1; ++dx)
+            for (int dy = -1; dy <= 1; ++dy)
+                for (int dz = -1; dz <= 1; ++dz)
+                {
+                    glm::ivec3 c = b + glm::ivec3(dx, dy, dz);
+                    bool inside = true;
+                    for (int k = 0; k < 3; ++k)
+                    {
+                        if (periodic) c[k] = ((c[k] % bins[k]) + bins[k]) % bins[k];
+                        else if (c[k] < 0 || c[k] >= bins[k]) inside = false;
+                    }
+                    if (!inside || !seen.insert({c.x, c.y, c.z}).second) continue;
+                    const auto entry = binned.find({c.x, c.y, c.z});
+                    if (entry != binned.end()) found.insert(found.end(), entry->second.begin(), entry->second.end());
+                }
+        std::sort(found.begin(), found.end());
+        return found;
+    };
+
     std::vector<int> siteOf(structure.atoms.size(), -1);
     std::vector<std::vector<std::size_t>> sites;
     for (std::size_t i : partials)
@@ -1725,7 +1800,7 @@ static void resolvePartialOccupancy(Structure& structure, const std::vector<doub
         siteOf[i] = static_cast<int>(sites.size());
         sites.push_back({i});
         double total = occupancies[i];
-        for (std::size_t j : partials)
+        for (std::size_t j : candidates(i))
         {
             if (siteOf[j] >= 0) continue;
             const double distance = separation(i, j);
@@ -2108,6 +2183,30 @@ std::vector<CifBlock> parseCif(const std::string& text)
         {
             while (i < line.size() && std::isspace(static_cast<unsigned char>(line[i]))) ++i;
             if (i >= line.size() || line[i] == '#') break;
+            if (line.compare(i, 3, "\"\"\"") == 0 || line.compare(i, 3, "'''") == 0)
+            {
+                // CIF 2 triple-quoted string, across lines if needed.
+                const std::string delimiter = line.substr(i, 3);
+                std::string field;
+                std::size_t from = i + 3;
+                std::size_t close = line.find(delimiter, from);
+                while (close == std::string::npos)
+                {
+                    field += line.substr(from) + "\n";
+                    if (!std::getline(in, line)) break;
+                    if (!line.empty() && line.back() == '\r') line.pop_back();
+                    from = 0;
+                    close = line.find(delimiter);
+                }
+                if (close == std::string::npos)
+                {
+                    tokens.push_back({field, true});
+                    break;
+                }
+                tokens.push_back({field + line.substr(from, close - from), true});
+                i = close + 3;
+                continue;
+            }
             if (line[i] == '\'' || line[i] == '"')
             {
                 // Closed by the same quote followed by a space or the line end.
@@ -2456,7 +2555,7 @@ static int readCif(const std::string& text, Structure& structure, std::string& e
     if (fy < 0 || fz < 0) return fail("the atom sites need fract_x, fract_y and fract_z.");
     if (label < 0 && type < 0) return fail("the atom sites need a label or a type symbol.");
     std::vector<CifSite> sites;
-    std::size_t unplaced = 0;
+    std::size_t unplaced = 0, empty = 0;
     for (std::size_t row = 0; row < loop.values.size(); row += (std::size_t)columns)
     {
         const auto value = [&](int column) { return column < 0 ? std::string() : loop.values[row + (std::size_t)column]; };
@@ -2472,7 +2571,15 @@ static int readCif(const std::string& text, Structure& structure, std::string& e
         if (!site.atomicNumber) site.atomicNumber = cifElement(value(label));
         if (!site.atomicNumber) return fail("the element of atom site '" + name + "' is unknown.");
         double occupancy = 1.0;
-        if (cifNumber(value(occupancyColumn), occupancy) && occupancy > 0.0) site.occupancy = occupancy;
+        if (cifNumber(value(occupancyColumn), occupancy))
+        {
+            if (occupancy <= 0.0)
+            {
+                ++empty;
+                continue;
+            }
+            site.occupancy = occupancy;
+        }
         sites.push_back(site);
     }
 
@@ -2486,7 +2593,37 @@ static int readCif(const std::string& text, Structure& structure, std::string& e
         symopTag = "_symmetry_equiv_pos_as_xyz";
     }
     std::vector<std::string> symopTexts;
-    if (symops)
+    const auto column = [](const CifLoop* source, const std::string& tag) {
+        std::vector<std::string> values;
+        if (source)
+            for (std::size_t row = (std::size_t)source->column(tag); row < source->values.size(); row += source->tags.size())
+                values.push_back(source->values[row]);
+        return values;
+    };
+    // The spatial part of a magnetic operation "x,y,z,+1".
+    const auto spatial = [](std::string op) {
+        if (std::count(op.begin(), op.end(), ',') == 3) op = op.substr(0, op.rfind(','));
+        return op;
+    };
+    std::vector<std::string> magnetic = column(block.loopWith("_space_group_symop_magn_operation_xyz"), "_space_group_symop_magn_operation_xyz");
+    std::vector<std::string> centerings = column(block.loopWith("_space_group_symop_magn_centering_xyz"), "_space_group_symop_magn_centering_xyz");
+    if (!magnetic.empty())
+    {
+        if (centerings.empty()) centerings.push_back("x,y,z");
+        for (const auto& centering : centerings)
+        {
+            CifOperation shift;
+            if (!parseSymop(spatial(centering), shift.rotation, shift.translation)) return fail("cannot read the centering '" + centering + "'.");
+            for (const auto& op : magnetic)
+            {
+                CifOperation base;
+                if (!parseSymop(spatial(op), base.rotation, base.translation)) return fail("cannot read the symmetry operation '" + op + "'.");
+                CifOperation combined{shift.rotation * base.rotation, shift.rotation * base.translation + shift.translation};
+                operations.push_back(combined);
+            }
+        }
+    }
+    else if (symops)
         for (std::size_t row = (std::size_t)symops->column(symopTag); row < symops->values.size(); row += symops->tags.size())
             symopTexts.push_back(symops->values[row]);
     else if (const std::string single = block.items.count("_space_group_symop_operation_xyz") ? block.items.at("_space_group_symop_operation_xyz")
@@ -2496,6 +2633,7 @@ static int readCif(const std::string& text, Structure& structure, std::string& e
     for (const auto& symop : symopTexts)
     {
         CifOperation op;
+        if (!magnetic.empty()) break;
         if (!parseSymop(symop, op.rotation, op.translation)) return fail("cannot read the symmetry operation '" + symop + "'.");
         operations.push_back(op);
     }
@@ -2573,6 +2711,7 @@ static int readCif(const std::string& text, Structure& structure, std::string& e
     const auto addNote = [&](const std::string& more) { note += (note.empty() ? "" : " ") + more; };
     if (!structure.loadNote.empty()) addNote(structure.loadNote);
     if (unplaced) addNote(std::to_string(unplaced) + (unplaced == 1 ? " atom site has" : " atom sites have") + " no coordinates and " + (unplaced == 1 ? "is" : "are") + " left out.");
+    if (empty) addNote(std::to_string(empty) + (empty == 1 ? " atom site has" : " atom sites have") + " occupancy 0 and " + (empty == 1 ? "is" : "are") + " left out.");
     if (withAtoms > 1)
         addNote("The file holds " + std::to_string(withAtoms) + " structures; the first, '" + block.name + "', is opened.");
     structure.loadNote = note;

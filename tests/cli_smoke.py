@@ -240,6 +240,14 @@ with tempfile.TemporaryDirectory(prefix="atomforge_cli_") as folder:
                        "loop_\n_atom_site_label\n_atom_site_fract_x\n_atom_site_fract_y\n_atom_site_fract_z\nFe1 0 0 0\n")
     refused = run("--convert", "--input", unknown, "--output", root / "unknown.xyz", "--format", "xyz", success=False)
     assert "not recognised" in refused.stderr + refused.stdout, refused
+    symbols, note = cif("empty.cif", "", "Fe1 Fe 0 0 0 1\nFe2 Fe 0.5 0.5 0.5 0\n")
+    assert symbols == ["Fe"] and "occupancy 0" in note, (symbols, note)
+    symbols, _ = cif("triple.cif", '_publ_section_abstract\n"""text with loop_ and\n_cell_length_a 99 inside"""\n', "Cu1 Cu 0 0 0 1\n")
+    assert (root / "triple.cif.xyz").read_text().splitlines()[1].startswith('Lattice="4 0 0'), (root / "triple.cif.xyz").read_text()
+    symbols, _ = cif("magnetic.cif", "loop_\n_space_group_symop_magn_operation.id\n_space_group_symop_magn_operation.xyz\n1 x,y,z,+1\n"
+                     "loop_\n_space_group_symop_magn_centering.id\n_space_group_symop_magn_centering.xyz\n1 x,y,z,+1\n"
+                     "2 x+1/2,y+1/2,z+1/2,+1\n", "Fe1 Fe 0 0 0 1\n", "2.87 2.87 2.87 90 90 90")
+    assert symbols == ["Fe"] * 2, symbols
     two = root / "two.cif"
     two.write_text((root / "upper.cif").read_text() + "\n" + (root / "mg.cif").read_text())
     note = run("--convert", "--input", two, "--output", root / "two.xyz", "--format", "xyz")
