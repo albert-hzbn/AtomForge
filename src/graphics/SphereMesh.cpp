@@ -1,4 +1,5 @@
 #include "SphereMesh.h"
+#include "graphics/GraphicsBackend.h"
 #include <cmath>
 #include <vector>
 
@@ -60,13 +61,11 @@ SphereMesh::SphereMesh(int st, int sl)
     stacks = st;
     slices = sl;
 
-    std::vector<float> vertices;
-    std::vector<unsigned int> indices;
-
     createSphereIndexed(vertices, indices, stacks, slices);
 
     vertexCount = vertices.size() / 3;
     indexCount = indices.size();
+    if (!graphics::usingOpenGL()) return;
 
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
@@ -100,6 +99,7 @@ SphereMesh::SphereMesh(int st, int sl)
 
 SphereMesh::~SphereMesh()
 {
+    if (!vao) return;
     glDeleteBuffers(1, &ebo);
     glDeleteBuffers(1, &vbo);
     glDeleteVertexArrays(1, &vao);

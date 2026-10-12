@@ -16,6 +16,19 @@
 - `src/app/` coordinates tabs, editing, rendering, and file workflows.
 - `src/graphics/` manages graphics resources and scene rendering. Ray picking is
   a geometry operation and is also available through the core target.
+  The desktop draws with Vulkan (`src/graphics/vulkan/`) by default and OpenGL
+  as the fallback; `graphics/GraphicsBackend.*` holds the choice (made once, when
+  the main window is created) and `usingVulkan()`/`usingOpenGL()`. Vulkan
+  functions are loaded at run time through GLFW (`VulkanLoader.h`), so a build
+  with Vulkan starts where it is missing. `VulkanContext` owns the device,
+  swapchain and frame (one command buffer: off-screen passes, then the window
+  pass with the scene and the interface); `VulkanSceneRenderer` mirrors
+  `Renderer` (same shading, clip-space corrected OpenGL matrices, so picking and
+  overlays share the OpenGL math); `VulkanCanvas` is the off-screen target of
+  dialog previews and image export. `SceneBuffers`, the dialogs, the cloud and
+  electronic renderers branch on the backend and keep their OpenGL paths
+  unchanged. Shaders in `vulkan/shaders/` are compiled to SPIR-V headers at build
+  time (glslangValidator).
 - `src/cli/CLIMode.cpp` registers build modes in `kBuildModes`, pairing each mode
   with its execution and help functions. Dispatch and valid-mode diagnostics use
   that registry. The modes themselves live in family files declared by

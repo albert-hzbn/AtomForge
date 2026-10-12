@@ -3,6 +3,8 @@
 
 #include "Camera.h"
 #include "graphics/CloudRenderer.h"
+#include "graphics/FrameCapture.h"
+#include "graphics/GraphicsBackend.h"
 #include "ui/ThemeUtils.h"
 #include "ui/ResponsiveLayout.h"
 #include "ui/DialogLayout.h"
@@ -51,6 +53,13 @@ std::string count(std::uint64_t n)
 
 void screenshot(const std::string& file, int width, int height)
 {
+    if (graphics::usingVulkan()) {
+        // The frame just presented (the benchmark keeps every frame).
+        std::vector<unsigned char> rgb;
+        int w = 0, h = 0;
+        if (graphics::lastFrame(rgb, w, h)) stbi_write_png(file.c_str(), w, h, 3, rgb.data(), w * 3);
+        return;
+    }
     std::vector<unsigned char> pixels(static_cast<std::size_t>(width) * height * 3), flipped(pixels.size());
     glReadBuffer(GL_BACK);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
@@ -290,7 +299,7 @@ void CloudBenchmark::beforeFrame(Camera& camera, const CloudRenderer& cloudRende
 {
     if (m_done || !cloudRenderer.active()) return;
     const double now = glfwGetTime();
-    if (m_viewStart == 0) { glfwSwapInterval(0); m_viewStart = now; }
+    if (m_viewStart == 0) { graphics::setVsync(false); m_viewStart = now; }
     const auto& view = kViews[m_view];
     fitCameraToCloud(camera, cloudRenderer, width, height);
     const auto& info = cloudRenderer.info();
@@ -316,7 +325,7 @@ void CloudBenchmark::afterFrame(const CloudRenderer& cloudRenderer, int width, i
         }
         return;
     }
-    glFinish();
+    graphics::waitIdle();
     static double gpuSum = 0;
     static std::uint64_t drawnSum = 0;
     if (m_frames == 0) { gpuSum = 0; drawnSum = 0; }

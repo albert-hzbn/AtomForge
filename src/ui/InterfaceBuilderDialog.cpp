@@ -9,9 +9,11 @@
 #include "app/SceneView.h"
 #include "camera/Camera.h"
 #include "graphics/CylinderMesh.h"
+#include "graphics/GraphicsBackend.h"
 #include "graphics/Renderer.h"
 #include "graphics/SphereMesh.h"
 #include "graphics/StructureInstanceBuilder.h"
+#include "graphics/vulkan/VulkanPreview.h"
 #include "io/StructureLoader.h"
 #include "util/ElementData.h"
 #include "pipeline/Options.h"
@@ -77,7 +79,8 @@ void InterfaceBuilderDialog::initRenderResources(Renderer& renderer)
     m_sphere = new SphereMesh(24, 24);
     m_cylinder = new CylinderMesh(16);
     m_previewBuffers.init(m_sphere->vbo, m_sphere->ebo, m_sphere->indexCount, m_cylinder->vbo, m_cylinder->vertexCount);
-    m_shadow = createShadowMap(1, 1);
+    if (graphics::usingOpenGL())
+        m_shadow = createShadowMap(1, 1);
     m_glReady = true;
 }
 
@@ -566,6 +569,28 @@ void InterfaceBuilderDialog::drawPreview(float width, float height)
     ImGui::TextDisabled("%zu atoms; drag to turn, scroll to zoom", m_preview.atoms.size());
     const ImVec2 available = ImGui::GetContentRegionAvail();
     const int w = std::max(1, static_cast<int>(available.x)), h = std::max(1, static_cast<int>(available.y));
+    const ImVec4& background = ImGui::GetStyle().Colors[ImGuiCol_ChildBg].w > 0.0f ? ImGui::GetStyle().Colors[ImGuiCol_ChildBg] : ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        if (!m_canvas) m_canvas = std::make_shared<vkr::Canvas>();
+        if (m_previewBuffers.atomCount > 0)
+        {
+            Camera camera;
+            camera.yaw = m_yaw;
+            camera.pitch = m_pitch;
+            camera.distance = m_distance;
+            FrameView frame;
+            frame.framebufferWidth = w;
+            frame.framebufferHeight = h;
+            buildFrameView(camera, m_previewBuffers, true, frame);
+            vkr::drawStandardPreview(*m_canvas, m_renderer, m_previewBuffers, frame, background);
+        }
+        m_canvas->image(ImVec2(static_cast<float>(w), static_cast<float>(h)));
+    }
+    else
+#endif
+    {
     if (w != m_fboWidth || h != m_fboHeight || !m_fbo)
     {
         if (m_fbo) glDeleteFramebuffers(1, &m_fbo);
@@ -605,7 +630,6 @@ void InterfaceBuilderDialog::drawPreview(float width, float height)
         glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
         glViewport(0, 0, w, h);
         glEnable(GL_DEPTH_TEST);
-        const ImVec4& background = ImGui::GetStyle().Colors[ImGuiCol_ChildBg].w > 0.0f ? ImGui::GetStyle().Colors[ImGuiCol_ChildBg] : ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
         glClearColor(background.x, background.y, background.z, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         m_renderer->drawBonds(frame.projection, frame.view, frame.lightPosition, frame.cameraPosition, m_previewBuffers.tabCylinderVAO,
@@ -617,6 +641,7 @@ void InterfaceBuilderDialog::drawPreview(float width, float height)
         glViewport(previousViewport[0], previousViewport[1], previousViewport[2], previousViewport[3]);
     }
     ImGui::Image(static_cast<ImTextureID>(static_cast<intptr_t>(m_texture)), ImVec2(static_cast<float>(w), static_cast<float>(h)), ImVec2(0, 1), ImVec2(1, 0));
+    }
     if (ImGui::IsItemHovered())
     {
         if (ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f))

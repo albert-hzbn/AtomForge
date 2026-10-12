@@ -8,11 +8,13 @@
 #include "algorithms/NanoCrystalBuilder.h"
 #include "graphics/CylinderMesh.h"
 #include "graphics/CustomStructureShaders.h"
+#include "graphics/GraphicsBackend.h"
 #include "graphics/Renderer.h"
 #include "graphics/SphereMesh.h"
 #include "graphics/StructureInstanceBuilder.h"
 #include "graphics/ShadowMap.h"
 #include "graphics/Shader.h"
+#include "graphics/vulkan/VulkanPreview.h"
 #include "app/SceneView.h"
 #include "camera/Camera.h"
 #include "ui/ThemeUtils.h"
@@ -101,12 +103,15 @@ void CustomStructureDialog::initRenderResources(Renderer& renderer)
     m_previewCylinder = new CylinderMesh(16);
     m_previewBuffers.init(m_previewSphere->vbo, m_previewSphere->ebo, m_previewSphere->indexCount,
                           m_previewCylinder->vbo, m_previewCylinder->vertexCount);
-    m_previewShadow = createShadowMap(1, 1);
-    m_meshProgram = createProgram(customStructureMeshVertexShader(),
-                                  customStructureMeshFragmentShader());
-    glBindAttribLocation(m_meshProgram, 0, "position");
-    glBindAttribLocation(m_meshProgram, 1, "normal");
-    glLinkProgram(m_meshProgram);
+    if (graphics::usingOpenGL())
+    {
+        m_previewShadow = createShadowMap(1, 1);
+        m_meshProgram = createProgram(customStructureMeshVertexShader(),
+                                      customStructureMeshFragmentShader());
+        glBindAttribLocation(m_meshProgram, 0, "position");
+        glBindAttribLocation(m_meshProgram, 1, "normal");
+        glLinkProgram(m_meshProgram);
+    }
     m_glReady = true;
 }
 
@@ -230,6 +235,23 @@ void CustomStructureDialog::renderRefPreviewToFBO(int w, int h)
     if (!m_glReady || !m_renderer || m_previewBuffers.atomCount == 0)
         return;
 
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        if (!m_refCanvas) m_refCanvas = std::make_shared<vkr::Canvas>();
+        Camera cam;
+        cam.yaw      = m_refCamYaw;
+        cam.pitch    = m_refCamPitch;
+        cam.distance = m_refCamDistance;
+        FrameView frame;
+        frame.framebufferWidth  = w;
+        frame.framebufferHeight = h;
+        buildFrameView(cam, m_previewBuffers, true, frame);
+        vkr::drawStandardPreview(*m_refCanvas, m_renderer, m_previewBuffers, frame, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
+        return;
+    }
+#endif
+
     ensureRefFBO(w, h);
 
     GLint prevFbo = 0;
@@ -301,6 +323,18 @@ void CustomStructureDialog::rebuildMeshSurface()
     }
     m_meshTriCount = (int)(verts.size() / 3);
 
+    if (graphics::usingVulkan())
+    {
+        m_meshTriangles.clear();
+        m_meshTriangles.reserve(verts.size() * 2);
+        for (const Vertex& v : verts)
+        {
+            m_meshTriangles.push_back(v.pos);
+            m_meshTriangles.push_back(v.norm);
+        }
+        return;
+    }
+
     if (!m_meshVAO)
     {
         glGenVertexArrays(1, &m_meshVAO);
@@ -342,13 +376,6 @@ void CustomStructureDialog::renderModelPreviewToFBO(int w, int h)
     if (!m_glReady || !m_renderer || m_meshTriCount == 0)
         return;
 
-    ensureModelFBO(w, h);
-
-    GLint prevFbo = 0;
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
-    GLint prevVP[4];
-    glGetIntegerv(GL_VIEWPORT, prevVP);
-
     // Build view/projection manually for the model
     float aspect = (h > 0) ? (float)w / (float)h : 1.0f;
     const float verticalFov = glm::radians(45.0f);
@@ -373,6 +400,38 @@ void CustomStructureDialog::renderModelPreviewToFBO(int w, int h)
         m_modelCamDistance * std::cos(pitchRad) * std::sin(yawRad)
     );
     glm::mat4 view = glm::lookAt(eye, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        if (!m_modelCanvas) m_modelCanvas = std::make_shared<vkr::Canvas>();
+        FrameView frame;
+        frame.framebufferWidth  = w;
+        frame.framebufferHeight = h;
+        frame.projection = projection;
+        frame.view = view;
+        frame.lightPosition = eye;
+        frame.cameraPosition = eye;
+        if (vkr::beginPreview(*m_modelCanvas, m_renderer, frame, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]))
+        {
+            std::vector<vkr::MeshVertex> mesh;
+            mesh.reserve(m_meshTriangles.size() / 2);
+            for (size_t i = 0; i + 1 < m_meshTriangles.size(); i += 2)
+                mesh.push_back({m_meshTriangles[i], m_meshTriangles[i + 1]});
+            const glm::vec3 lightDir = glm::normalize(eye + glm::vec3(0.3f, 0.8f, 0.2f));
+            m_modelCanvas->drawMesh(mesh, glm::vec4(0.45f, 0.65f, 0.85f, 1.0f), vkr::MeshStyle::Lit, false, lightDir);
+            m_modelCanvas->end();
+        }
+        return;
+    }
+#endif
+
+    ensureModelFBO(w, h);
+
+    GLint prevFbo = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
+    GLint prevVP[4];
+    glGetIntegerv(GL_VIEWPORT, prevVP);
 
     glBindFramebuffer(GL_FRAMEBUFFER, m_modelFBO);
     glViewport(0, 0, w, h);
@@ -705,6 +764,14 @@ void CustomStructureDialog::drawDialog(Structure& structure,
             bool previewActive  = ImGui::IsItemActive();
 
             ImDrawList* dl = ImGui::GetWindowDrawList();
+#ifdef ATOMFORGE_VULKAN
+            if (graphics::usingVulkan())
+            {
+                if (m_refCanvas && m_refCanvas->texture())
+                    dl->AddImage(m_refCanvas->texture(), cursor, ImVec2(cursor.x + pw, cursor.y + ph));
+            }
+            else
+#endif
             dl->AddImage((ImTextureID)(intptr_t)m_refColorTex,
                          cursor, ImVec2(cursor.x + pw, cursor.y + ph),
                          ImVec2(0, 1), ImVec2(1, 0));
@@ -831,6 +898,14 @@ void CustomStructureDialog::drawDialog(Structure& structure,
             bool previewActive  = ImGui::IsItemActive();
 
             ImDrawList* dl = ImGui::GetWindowDrawList();
+#ifdef ATOMFORGE_VULKAN
+            if (graphics::usingVulkan())
+            {
+                if (m_modelCanvas && m_modelCanvas->texture())
+                    dl->AddImage(m_modelCanvas->texture(), cursor, ImVec2(cursor.x + pw, cursor.y + ph));
+            }
+            else
+#endif
             dl->AddImage((ImTextureID)(intptr_t)m_modelColorTex,
                          cursor, ImVec2(cursor.x + pw, cursor.y + ph),
                          ImVec2(0, 1), ImVec2(1, 0));

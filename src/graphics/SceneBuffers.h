@@ -6,7 +6,10 @@
 #include <glm/glm.hpp>
 
 #include <array>
+#include <memory>
 #include <vector>
+
+namespace vkr { struct SceneResources; }
 
 // Rendering mode selection based on atom count
 enum class RenderingMode
@@ -94,6 +97,9 @@ struct SceneBuffers
     GLuint dislocationLineVAO   = 0;
     GLuint dislocationLineVBO   = 0;
     size_t dislocationLoopPointCount = 0;
+
+    // The Vulkan copies of the buffers above, when Vulkan draws (else empty).
+    std::shared_ptr<vkr::SceneResources> vulkan;
 
     // Full init: creates per-tab VAOs by combining shared mesh geometry VBOs with
     // this tab's own instance VBOs.  Call once after a valid GL context is ready.

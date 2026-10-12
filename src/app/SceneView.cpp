@@ -1,4 +1,5 @@
 #include "app/SceneView.h"
+#include "graphics/GraphicsBackend.h"
 
 #include "Camera.h"
 #include "graphics/SceneBuffers.h"
@@ -102,7 +103,11 @@ bool updateViewport(GLFWwindow* window, FrameView& frame)
     glfwGetFramebufferSize(window, &frame.framebufferWidth, &frame.framebufferHeight);
     if (frame.framebufferWidth == 0 || frame.framebufferHeight == 0)
     {
-        glfwSwapBuffers(window);
+        // Minimised: nothing to draw (OpenGL still swaps to keep its pacing).
+        if (graphics::usingOpenGL())
+            glfwSwapBuffers(window);
+        else
+            glfwWaitEventsTimeout(0.05);
         return false;
     }
 

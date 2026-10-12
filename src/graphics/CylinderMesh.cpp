@@ -1,4 +1,5 @@
 #include "CylinderMesh.h"
+#include "graphics/GraphicsBackend.h"
 
 #include <cmath>
 #include <vector>
@@ -49,9 +50,9 @@ void createCylinder(std::vector<float>& vertices, int slices)
 CylinderMesh::CylinderMesh(int sliceCount)
     : slices(sliceCount)
 {
-    std::vector<float> vertices;
     createCylinder(vertices, slices);
     vertexCount = (int)(vertices.size() / 3);
+    if (!graphics::usingOpenGL()) return;
 
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);

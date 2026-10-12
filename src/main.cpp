@@ -1,6 +1,7 @@
 #include "app/EditorApplication.h"
 #include "cli/BuildModifiers.h"
 #include "cli/CLIMode.h"
+#include "graphics/GraphicsBackend.h"
 
 #include <algorithm>
 #include <cstring>
@@ -92,7 +93,21 @@ int main(int argc, char* argv[])
 
     std::vector<std::string> startupPaths;
     for (int i = 1; i < argc; ++i)
-        expandWildcard(argv[i], startupPaths);
+    {
+        // --renderer vulkan|opengl (or --renderer=...) picks the renderer for this run.
+        const std::string argument = argv[i];
+        if (argument == "--renderer" && i + 1 < argc)
+        {
+            graphics::setCommandLineRenderer(argv[++i]);
+            continue;
+        }
+        if (argument.rfind("--renderer=", 0) == 0)
+        {
+            graphics::setCommandLineRenderer(argument.substr(11));
+            continue;
+        }
+        expandWildcard(argument, startupPaths);
+    }
     return runAtomsEditor(startupPaths);
 }
 

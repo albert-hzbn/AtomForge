@@ -12,12 +12,14 @@
 
 #include <functional>
 #include <future>
+#include <memory>
 #include <string>
 #include <vector>
 
 struct Renderer;
 struct SphereMesh;
 struct CylinderMesh;
+namespace vkr { class Canvas; }
 
 struct DislocationBuilderDialog
 {
@@ -67,6 +69,8 @@ private:
         glm::vec3 dislocationLineP1 = glm::vec3(0.0f);
         size_t dislocationLoopPointCount = 0;
         bool hasDislocationLine = false;
+        std::vector<glm::vec3> dislocationLoopPoints;  // drawn with Vulkan
+        std::shared_ptr<vkr::Canvas> canvas;           // the preview with Vulkan
     };
 
     bool tryLoadFile(const std::string& path,

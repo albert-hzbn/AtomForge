@@ -2,6 +2,7 @@
 #include "FileBrowser.h"
 #include "ui/TitleCase.h"
 #include "ImGuiSetup.h"
+#include "graphics/GraphicsBackend.h"
 #include "ui/DialogLayout.h"
 #include "ui/MenuParity.h"
 #include "ui/ResponsiveLayout.h"
@@ -181,6 +182,11 @@ void FileBrowser::drawCommandPalette(Structure& structure, EditMenuDialogs& edit
     add("Settings", "Atomic Sizes", [&editMenuDialogs] { editMenuDialogs.openAtomicSizes(); });
     add("Settings", "Display Settings", [&editMenuDialogs] { editMenuDialogs.openDisplaySettings(); });
     add("Settings", "Polyhedral Settings", [this] { showPolyhedralSettingsDialog = true; });
+    for (const graphics::Backend backend : {graphics::Backend::Vulkan, graphics::Backend::OpenGL})
+        add("Settings > Renderer", std::string("Draw with ") + graphics::backendName(backend) + " (next start)", [this, backend] {
+            graphics::savePreferredBackend(backend);
+            showLoadInfo(std::string("AtomForge will draw with ") + graphics::backendName(backend) + " from its next start.");
+        }, backend == graphics::Backend::OpenGL || graphics::vulkanBuilt());
     add("Help", "Manual", [this] { showManual = true; });
     add("Help", "Keyboard Shortcuts", [this] { showShortcuts = true; });
     add("Help", "About", [this] { showAbout = true; });

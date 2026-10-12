@@ -9,6 +9,7 @@
 #include "model/Structure.h"
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -18,6 +19,7 @@
 struct Renderer;
 struct SphereMesh;
 struct CylinderMesh;
+namespace vkr { class Canvas; }
 
 // Build > Interface Builder: two crystals, each cut along a plane, matched
 // by their surface lattices (algorithms/InterfaceMatching.h); the matches are
@@ -104,6 +106,7 @@ private:
     GLuint m_fbo = 0, m_texture = 0, m_depth = 0;
     int m_fboWidth = 0, m_fboHeight = 0;
     bool m_glReady = false;
+    std::shared_ptr<vkr::Canvas> m_canvas;  // the preview with Vulkan
     float m_yaw = 30.0f, m_pitch = 15.0f, m_distance = 30.0f;
 
     bool loadFile(const std::string& path, Input& input);

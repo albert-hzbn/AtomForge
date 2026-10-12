@@ -9,6 +9,7 @@
 
 #include <array>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,7 @@ struct ImDrawList;
 struct Renderer;
 struct SphereMesh;
 struct CylinderMesh;
+namespace vkr { class Canvas; }
 
 // ---------------------------------------------------------------------------
 // ScFaceBatch – one rendered face polygon (lower or upper face of a slab).
@@ -150,6 +152,9 @@ private:
     GLuint m_planeVBO     = 0;
     GLuint m_edgeVAO      = 0;
     GLuint m_edgeVBO      = 0;
+
+    std::shared_ptr<vkr::Canvas> m_sourceCanvas;  // the previews with Vulkan
+    std::shared_ptr<vkr::Canvas> m_resultCanvas;
 
     // -----------------------------------------------------------------------
     // Preview cameras

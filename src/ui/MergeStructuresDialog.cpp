@@ -6,11 +6,13 @@
 #include "app/SceneView.h"
 #include "camera/Camera.h"
 #include "graphics/CylinderMesh.h"
+#include "graphics/GraphicsBackend.h"
 #include "graphics/Picking.h"
 #include "graphics/Renderer.h"
 #include "graphics/ShadowMap.h"
 #include "graphics/SphereMesh.h"
 #include "graphics/StructureInstanceBuilder.h"
+#include "graphics/vulkan/VulkanPreview.h"
 #include "imgui.h"
 #include "util/ElementData.h"
 
@@ -91,7 +93,8 @@ void MergeStructuresDialog::initRenderResources(Renderer& renderer)
     m_previewCylinder = new CylinderMesh(16);
     m_previewBuffers.init(m_previewSphere->vbo, m_previewSphere->ebo, m_previewSphere->indexCount,
                           m_previewCylinder->vbo, m_previewCylinder->vertexCount);
-    m_previewShadow = createShadowMap(1, 1);
+    if (graphics::usingOpenGL())
+        m_previewShadow = createShadowMap(1, 1);
     m_glReady = true;
 }
 
@@ -627,6 +630,28 @@ void MergeStructuresDialog::renderPreviewToFBO(int w, int h)
     if (!m_glReady || !m_renderer || m_previewBuffers.atomCount == 0)
         return;
 
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        if (!m_canvas) m_canvas = std::make_shared<vkr::Canvas>();
+        Camera cam;
+        cam.yaw = m_camYaw;
+        cam.pitch = m_camPitch;
+        cam.distance = m_camDistance;
+        FrameView frame;
+        frame.framebufferWidth = w;
+        frame.framebufferHeight = h;
+        buildFrameView(cam, m_previewBuffers, true, frame);
+        m_lastFrame = frame;
+        if (vkr::beginPreview(*m_canvas, m_renderer, frame, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]))
+        {
+            vkr::drawStructure(*m_canvas, m_previewBuffers, m_showPreviewBoundingBox);
+            m_canvas->end();
+        }
+        return;
+    }
+#endif
+
     ensurePreviewFBO(w, h);
 
     GLint prevFbo = 0;
@@ -873,6 +898,14 @@ void MergeStructuresDialog::drawDialog(Structure& structure,
             const bool active  = ImGui::IsItemActive();
 
             ImDrawList* dl = ImGui::GetWindowDrawList();
+#ifdef ATOMFORGE_VULKAN
+            if (graphics::usingVulkan())
+            {
+                if (m_canvas && m_canvas->texture())
+                    dl->AddImage(m_canvas->texture(), cursor, ImVec2(cursor.x + pw, cursor.y + ph));
+            }
+            else
+#endif
             dl->AddImage((ImTextureID)(intptr_t)m_previewColorTex,
                          cursor, ImVec2(cursor.x + pw, cursor.y + ph),
                          ImVec2(0, 1), ImVec2(1, 0));

@@ -9,6 +9,8 @@
 #include "io/StructureLoader.h"
 #include "pipeline/Pipeline.h"
 
+#include "graphics/FrameCapture.h"
+#include "graphics/GraphicsBackend.h"
 #include "third_party/stb_image_write.h"
 
 #include "imgui.h"
@@ -92,18 +94,10 @@ void sample(atomforge::pipeline::Modifier& m, const std::filesystem::path& folde
 // The last presented frame as a PNG (ATOMFORGE_STEP_DIALOG_SHOTS=FOLDER).
 void screenshot(const std::filesystem::path& file)
 {
-    GLint viewport[4];
-    glGetIntegerv(GL_VIEWPORT, viewport);
-    const int w = viewport[2], h = viewport[3];
-    if (w <= 0 || h <= 0) return;
-    std::vector<unsigned char> pixels(static_cast<std::size_t>(w) * h * 3), flipped(pixels.size());
-    glReadBuffer(GL_FRONT);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
-    glReadBuffer(GL_BACK);
-    for (int row = 0; row < h; ++row)
-        std::copy_n(pixels.begin() + static_cast<std::ptrdiff_t>(row) * w * 3, w * 3, flipped.begin() + static_cast<std::ptrdiff_t>(h - 1 - row) * w * 3);
-    stbi_write_png(file.u8string().c_str(), w, h, 3, flipped.data(), w * 3);
+    std::vector<unsigned char> pixels;
+    int w = 0, h = 0;
+    if (!graphics::lastFrame(pixels, w, h)) return;
+    stbi_write_png(file.u8string().c_str(), w, h, 3, pixels.data(), w * 3);
 }
 
 // Whether two step results describe the same structure.
@@ -193,7 +187,7 @@ void FileBrowser::runStepDialogCheck(EditMenuDialogs& editMenuDialogs)
         document["steps"] = c.results;
         document["failures"] = c.failures;
         std::ofstream(std::filesystem::u8path(c.report)) << document.dump(2) << "\n";
-        glfwSetWindowShouldClose(glfwGetCurrentContext(), true);
+        glfwSetWindowShouldClose(graphics::mainWindow(), true);
         stepDialogCheck.reset();
         return;
     }

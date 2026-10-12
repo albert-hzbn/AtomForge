@@ -5,9 +5,11 @@
 #include "app/SceneView.h"
 #include "camera/Camera.h"
 #include "graphics/CylinderMesh.h"
+#include "graphics/GraphicsBackend.h"
 #include "graphics/Renderer.h"
 #include "graphics/SphereMesh.h"
 #include "graphics/StructureInstanceBuilder.h"
+#include "graphics/vulkan/VulkanPreview.h"
 #include "io/StructureLoader.h"
 #include "ui/ThemeUtils.h"
 #include "pipeline/Options.h"
@@ -167,8 +169,11 @@ void StackingFaultBuilderDialog::initRenderResources(Renderer& renderer)
                                   m_sourcePreview.cylinder->vbo, m_sourcePreview.cylinder->vertexCount);
     m_outputPreview.buffers.init(m_outputPreview.sphere->vbo, m_outputPreview.sphere->ebo, m_outputPreview.sphere->indexCount,
                                   m_outputPreview.cylinder->vbo, m_outputPreview.cylinder->vertexCount);
-    m_sourcePreview.shadow = createShadowMap(1, 1);
-    m_outputPreview.shadow = createShadowMap(1, 1);
+    if (graphics::usingOpenGL())
+    {
+        m_sourcePreview.shadow = createShadowMap(1, 1);
+        m_outputPreview.shadow = createShadowMap(1, 1);
+    }
     m_glReady = true;
 }
 
@@ -494,6 +499,23 @@ void StackingFaultBuilderDialog::renderPreviewToFBO(PreviewState& preview, int w
     if (!m_glReady || !m_renderer || !preview.sphere || !preview.cylinder || preview.buffers.atomCount == 0)
         return;
 
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        if (!preview.canvas) preview.canvas = std::make_shared<vkr::Canvas>();
+        Camera camera;
+        camera.yaw = preview.yaw;
+        camera.pitch = preview.pitch;
+        camera.distance = preview.distance;
+        FrameView frame;
+        frame.framebufferWidth = width;
+        frame.framebufferHeight = height;
+        buildFrameView(camera, preview.buffers, true, frame);
+        vkr::drawStandardPreview(*preview.canvas, m_renderer, preview.buffers, frame, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
+        return;
+    }
+#endif
+
     ensurePreviewFBO(preview, width, height);
 
     GLint previousFbo = 0;
@@ -662,6 +684,14 @@ void StackingFaultBuilderDialog::drawDialog(
                 rebuildPreviewBuffers(m_sourcePreview, m_source, elementRadii, elementShininess);
 
             renderPreviewToFBO(m_sourcePreview, std::max(1, (int)previewWidth), std::max(1, (int)previewHeight));
+#ifdef ATOMFORGE_VULKAN
+            if (graphics::usingVulkan())
+            {
+                if (m_sourcePreview.canvas && m_sourcePreview.canvas->texture())
+                    drawList->AddImage(m_sourcePreview.canvas->texture(), minCorner, maxCorner);
+            }
+            else
+#endif
             drawList->AddImage((ImTextureID)(intptr_t)m_sourcePreview.colorTex,
                                minCorner, maxCorner, ImVec2(0, 1), ImVec2(1, 0));
 
@@ -870,6 +900,14 @@ void StackingFaultBuilderDialog::drawDialog(
             }
 
             renderPreviewToFBO(m_outputPreview, std::max(1, (int)previewWidth), std::max(1, (int)previewHeight));
+#ifdef ATOMFORGE_VULKAN
+            if (graphics::usingVulkan())
+            {
+                if (m_outputPreview.canvas && m_outputPreview.canvas->texture())
+                    drawList->AddImage(m_outputPreview.canvas->texture(), minCorner, maxCorner);
+            }
+            else
+#endif
             drawList->AddImage((ImTextureID)(intptr_t)m_outputPreview.colorTex,
                                minCorner, maxCorner, ImVec2(0, 1), ImVec2(1, 0));
 

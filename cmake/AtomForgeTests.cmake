@@ -238,6 +238,7 @@ if(TARGET AtomForge)
         ${PROJECT_SOURCE_DIR}/tests/ui_layout.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/ResponsiveLayout.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/ImGuiSetup.cpp
+        ${PROJECT_SOURCE_DIR}/src/graphics/GraphicsBackend.cpp
         ${PROJECT_SOURCE_DIR}/imgui/imgui_impl_glfw.cpp
         ${PROJECT_SOURCE_DIR}/imgui/imgui_impl_opengl3.cpp
         ${PROJECT_SOURCE_DIR}/imgui/imgui.cpp

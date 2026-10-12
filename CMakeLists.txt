@@ -18,6 +18,7 @@ option(BUILD_PORTABLE "Build portable package with bundled dependencies" OFF)
 
 option(ATOMFORGE_ENABLE_SSS_BUILDER "Enable Substitutional Solid Solution builder UI" ON)
 option(ATOMFORGE_ENABLE_SFE_BUILDER "Enable Stacking Fault (SFE) builder UI" ON)
+option(ATOMFORGE_ENABLE_VULKAN "Build the Vulkan renderer (used by default at run time, OpenGL as the fallback)" ON)
 
 if(UNIX AND NOT APPLE)
     if(BUILD_PORTABLE)
@@ -187,6 +188,52 @@ set(ATOMFORGE_SOURCES
 )
 
 add_executable(AtomForge ${ATOMFORGE_SOURCES})
+target_sources(AtomForge PRIVATE src/graphics/GraphicsBackend.cpp src/graphics/FrameCapture.cpp)
+
+# Vulkan renderer: needs the Vulkan headers and glslangValidator (shaders are
+# compiled to SPIR-V at build time). The Vulkan loader itself is opened at run
+# time, so the program also starts (with OpenGL) where Vulkan is missing.
+set(ATOMFORGE_HAS_VULKAN OFF)
+if(ATOMFORGE_ENABLE_VULKAN)
+    get_filename_component(ATOMFORGE_COMPILER_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
+    find_path(ATOMFORGE_VULKAN_INCLUDE_DIR vulkan/vulkan.h HINTS "$ENV{VULKAN_SDK}/include" "${ATOMFORGE_COMPILER_DIR}/../include")
+    find_program(ATOMFORGE_GLSLANG glslangValidator)
+    if(ATOMFORGE_VULKAN_INCLUDE_DIR AND ATOMFORGE_GLSLANG)
+        set(ATOMFORGE_HAS_VULKAN ON)
+    else()
+        message(STATUS "Vulkan headers or glslangValidator not found: building with OpenGL only")
+    endif()
+endif()
+if(ATOMFORGE_HAS_VULKAN)
+    file(GLOB ATOMFORGE_VK_SHADER_SOURCES CONFIGURE_DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/vulkan/shaders/*.vert
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/vulkan/shaders/*.frag
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/vulkan/shaders/*.comp)
+    set(ATOMFORGE_VK_SHADER_HEADERS "")
+    foreach(shader ${ATOMFORGE_VK_SHADER_SOURCES})
+        get_filename_component(shaderName ${shader} NAME)
+        string(REPLACE "." "_" shaderVariable ${shaderName})
+        set(shaderHeader ${CMAKE_CURRENT_BINARY_DIR}/generated/vkshaders/${shaderName}.h)
+        add_custom_command(
+            OUTPUT ${shaderHeader}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/generated/vkshaders
+            COMMAND ${ATOMFORGE_GLSLANG} -V --target-env vulkan1.1 --vn kSpv_${shaderVariable} -o ${shaderHeader} ${shader}
+            DEPENDS ${shader}
+            COMMENT "Compiling ${shaderName} to SPIR-V"
+            VERBATIM)
+        list(APPEND ATOMFORGE_VK_SHADER_HEADERS ${shaderHeader})
+    endforeach()
+    add_custom_target(atomforge_vk_shaders DEPENDS ${ATOMFORGE_VK_SHADER_HEADERS})
+    add_dependencies(AtomForge atomforge_vk_shaders)
+    file(GLOB ATOMFORGE_VK_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/vulkan/*.cpp)
+    target_sources(AtomForge PRIVATE ${ATOMFORGE_VK_SOURCES} imgui/imgui_impl_vulkan.cpp)
+    # Vulkan create-info structs are initialised as {sType}, the rest zero.
+    set_source_files_properties(${ATOMFORGE_VK_SOURCES} PROPERTIES
+        COMPILE_OPTIONS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wno-missing-field-initializers>)
+    target_include_directories(AtomForge PRIVATE ${ATOMFORGE_VULKAN_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/generated)
+    target_compile_definitions(AtomForge PRIVATE ATOMFORGE_VULKAN VK_NO_PROTOTYPES IMGUI_IMPL_VULKAN_NO_PROTOTYPES)
+    message(STATUS "Vulkan renderer enabled (OpenGL remains the fallback)")
+endif()
 
 target_compile_definitions(AtomForge PRIVATE
     ATOMFORGE_ENABLE_SSS_BUILDER=$<BOOL:${ATOMFORGE_ENABLE_SSS_BUILDER}>

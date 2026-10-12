@@ -15,6 +15,10 @@
 #include <vector>
 
 #include "Camera.h"
+#include "graphics/GraphicsBackend.h"
+#ifdef ATOMFORGE_VULKAN
+#include "graphics/vulkan/VulkanContext.h"
+#endif
 
 #define STBTT_STATIC
 #define STB_TRUETYPE_IMPLEMENTATION
@@ -1405,11 +1409,35 @@ void destroySplashScreen(SplashScreen* splash)
     delete splash;
 }
 
-GLFWwindow* createMainWindow()
+namespace {
+#ifdef ATOMFORGE_VULKAN
+// A window without an OpenGL context, drawn with Vulkan; null (with the
+// reason in `error`) when Vulkan cannot draw to it.
+GLFWwindow* createVulkanWindow(std::string& error)
 {
-    if (!ensureGlfwInitialized())
+    glfwDefaultWindowHints();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+    glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+    GLFWwindow* window = glfwCreateWindow(1280, 800, "AtomForge", nullptr, nullptr);
+    if (!window)
+    {
+        error = "the window could not be created";
         return nullptr;
+    }
+    if (!vkr::context().init(window, error))
+    {
+        vkr::context().shutdown();
+        glfwDestroyWindow(window);
+        return nullptr;
+    }
+    return window;
+}
+#endif
 
+GLFWwindow* createOpenGLWindow()
+{
     GLFWwindow* window = createInitialWindow(4, 6, GLFW_OPENGL_CORE_PROFILE);
     if (!window)
     {
@@ -1447,6 +1475,32 @@ GLFWwindow* createMainWindow()
     glEnable(GL_MULTISAMPLE);
     glEnable(GL_DEPTH_CLAMP);  // Prevents near-plane from slicing sphere geometry (flat-cutoff artifact)
     return window;
+}
+} // namespace
+
+GLFWwindow* createMainWindow()
+{
+    if (!ensureGlfwInitialized())
+        return nullptr;
+
+#ifdef ATOMFORGE_VULKAN
+    // Vulkan unless OpenGL was asked for; OpenGL when Vulkan cannot start.
+    if (graphics::requestedBackend() == graphics::Backend::Vulkan)
+    {
+        std::string error;
+        if (GLFWwindow* window = createVulkanWindow(error))
+        {
+            graphics::setBackend(graphics::Backend::Vulkan);
+            applyWindowIcon(window);
+            std::cout << "[Vulkan] Running with Vulkan on " << vkr::context().deviceName() << "." << std::endl;
+            return window;
+        }
+        graphics::setFallbackReason(error);
+        std::cerr << "[Vulkan] Vulkan is unavailable (" << error << "); using OpenGL." << std::endl;
+    }
+#endif
+    graphics::setBackend(graphics::Backend::OpenGL);
+    return createOpenGLWindow();
 }
 
 void showMainWindow(GLFWwindow* window)

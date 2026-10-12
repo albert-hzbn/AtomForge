@@ -1,11 +1,12 @@
 #include "BillboardMesh.h"
+#include "graphics/GraphicsBackend.h"
 #include <vector>
 
 BillboardMesh::BillboardMesh()
 {
     // Simple quad centered at origin: (-1,-1) to (1,1)
     // Will be expanded in the vertex shader
-    std::vector<float> vertices = {
+    vertices = {
         -1.0f, -1.0f, 0.0f,
          1.0f, -1.0f, 0.0f,
          1.0f,  1.0f, 0.0f,
@@ -13,12 +14,13 @@ BillboardMesh::BillboardMesh()
     };
 
     // Two triangles forming the quad
-    std::vector<unsigned int> indices = {
+    indices = {
         0, 1, 2,
         0, 2, 3
     };
 
     indexCount = 6;
+    if (!graphics::usingOpenGL()) return;
 
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
@@ -43,6 +45,7 @@ BillboardMesh::BillboardMesh()
 
 BillboardMesh::~BillboardMesh()
 {
+    if (!vao) return;
     glDeleteBuffers(1, &ebo);
     glDeleteBuffers(1, &vbo);
     glDeleteVertexArrays(1, &vao);

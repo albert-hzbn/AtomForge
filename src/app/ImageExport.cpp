@@ -12,6 +12,10 @@
 #include "graphics/SphereMesh.h"
 #include "graphics/LowPolyMesh.h"
 #include "graphics/BillboardMesh.h"
+#include "graphics/GraphicsBackend.h"
+#ifdef ATOMFORGE_VULKAN
+#include "graphics/vulkan/VulkanCanvas.h"
+#endif
 
 #include <GL/glew.h>
 #include <glm/glm.hpp>
@@ -19,6 +23,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -226,6 +231,89 @@ void flipImageRows(std::vector<unsigned char>& pixels, int width, int height, in
 
 CloudRenderer* g_exportCloud = nullptr;  // see setImageExportCloud
 
+#ifdef ATOMFORGE_VULKAN
+// The scene with Vulkan: the shadow map and the image drawn and copied out at
+// once, outside the frame being recorded.
+bool captureSceneVulkan(const ImageExportView& view,
+                        const glm::vec4& clearColor,
+                        bool showBonds,
+                        bool showAtoms,
+                        bool showBoundingBox,
+                        const SceneBuffers& sceneBuffers,
+                        const Renderer& renderer,
+                        std::vector<unsigned char>& outPixels,
+                        std::string& errorMessage)
+{
+    vkr::Context& ctx = vkr::context();
+    vkr::SceneRenderer& scene = vkr::sceneRenderer();
+    if (!ctx.ready() || !scene.ready())
+    {
+        errorMessage = "The Vulkan renderer is not ready for image export.";
+        return false;
+    }
+    if (g_exportCloud && g_exportCloud->active())
+    {
+        // The cloud at the export resolution: redraw while its atoms stream in (at most 30 s).
+        const bool orthographic = view.projection[3][3] == 1.0f;
+        const bool lightTheme = clearColor.r + clearColor.g + clearColor.b > 1.5f;
+        g_exportCloud->settings.showBox = showBoundingBox;
+        return g_exportCloud->captureVulkan(view.projection, view.view, view.width, view.height, orthographic, lightTheme,
+                                            glm::vec3(clearColor), outPixels, errorMessage);
+    }
+
+    vkr::SceneView sceneView;
+    sceneView.projection = view.projection;
+    sceneView.view = view.view;
+    sceneView.lightMVP = view.lightMVP;
+    sceneView.lightPosition = view.lightPosition;
+    sceneView.cameraPosition = view.cameraPosition;
+    vkr::SceneLighting lighting;
+    lighting.ambient = renderer.lightAmbient;
+    lighting.saturation = renderer.lightSaturation;
+    lighting.contrast = renderer.lightContrast;
+    lighting.shadowStrength = renderer.lightShadowStrength;
+    lighting.specularIntensity = renderer.materialSpecularIntensity;
+    lighting.shininessScale = renderer.materialShininessScale;
+    lighting.shininessFloor = renderer.materialShininessFloor;
+    vkr::SceneFlags flags;
+    flags.atoms = showAtoms;
+    flags.bonds = showBonds;
+    flags.box = showBoundingBox;
+
+    const VkDeviceSize bytes = static_cast<VkDeviceSize>(view.width) * static_cast<VkDeviceSize>(view.height) * 4;
+    vkr::Buffer readback = ctx.createBuffer(bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, true);
+    if (!readback.mapped)
+    {
+        errorMessage = "Not enough memory to export an image of this size.";
+        return false;
+    }
+    vkr::Canvas canvas;
+    bool drawn = false;
+    ctx.immediate([&](VkCommandBuffer cmd) {
+        const uint32_t offset = scene.prepare(sceneView, lighting);
+        scene.renderShadowMap(cmd, sceneBuffers, offset, flags);
+        if (!canvas.begin(view.width, view.height, glm::vec3(clearColor), cmd)) return;
+        canvas.setView(sceneView, lighting);
+        canvas.drawScene(sceneBuffers, flags, clearColor.r > 0.5f ? glm::vec3(0.25f) : glm::vec3(0.85f));
+        canvas.end();
+        canvas.copyTo(cmd, readback);
+        drawn = true;
+    });
+    if (drawn)
+    {
+        outPixels.resize(static_cast<size_t>(bytes));
+        std::memcpy(outPixels.data(), readback.mapped, outPixels.size());
+        if (canvas.colorFormat() == VK_FORMAT_B8G8R8A8_UNORM || canvas.colorFormat() == VK_FORMAT_B8G8R8A8_SRGB)
+            for (size_t i = 0; i < outPixels.size(); i += 4) std::swap(outPixels[i], outPixels[i + 2]);
+        for (size_t i = 3; i < outPixels.size(); i += 4) outPixels[i] = 255;
+    }
+    else
+        errorMessage = "Failed to create the off-screen image for export (too large?).";
+    ctx.destroyBuffer(readback);
+    return drawn;
+}
+#endif
+
 bool captureSceneToRgba(const ImageExportView& view,
                         const glm::vec4& clearColor,
                         bool showBonds,
@@ -242,6 +330,10 @@ bool captureSceneToRgba(const ImageExportView& view,
         errorMessage = "Invalid viewport size for image export.";
         return false;
     }
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+        return captureSceneVulkan(view, clearColor, showBonds, showAtoms, showBoundingBox, sceneBuffers, renderer, outPixels, errorMessage);
+#endif
 
     GLint previousFramebuffer = 0;
     GLint previousViewport[4] = {0, 0, 0, 0};

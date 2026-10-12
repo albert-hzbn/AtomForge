@@ -24,6 +24,11 @@
 #include "SphereMesh.h"
 #include "LowPolyMesh.h"
 #include "BillboardMesh.h"
+#include "graphics/FrameCapture.h"
+#include "graphics/GraphicsBackend.h"
+#ifdef ATOMFORGE_VULKAN
+#include "graphics/vulkan/VulkanSceneRenderer.h"
+#endif
 #include "ui/DialogLayout.h"
 #include "ui/ImGuiSetup.h"
 #include "ui/UiScript.h"
@@ -717,6 +722,65 @@ void drawScene(Renderer& renderer,
     }
 }
 
+#ifdef ATOMFORGE_VULKAN
+// The scene in Vulkan: the shadow map (outside the window's pass), then the
+// window's pass with the scene and the selection halos; the interface is
+// added to the same pass before it ends.
+void drawSceneVulkan(const Renderer& renderer,
+                     const FrameView& frame,
+                     const SceneBuffers& sceneBuffers,
+                     bool showBonds,
+                     bool showAtoms,
+                     bool showBoundingBox,
+                     bool showDislocationLines,
+                     bool lightTheme,
+                     const std::vector<glm::vec3>& haloPositions,
+                     const std::vector<float>& haloRadii,
+                     CloudRenderer* cloud,
+                     bool orthographic)
+{
+    vkr::Context& ctx = vkr::context();
+    vkr::SceneRenderer& scene = vkr::sceneRenderer();
+    VkCommandBuffer cmd = ctx.commandBuffer();
+    vkr::SceneView view;
+    view.projection = frame.projection;
+    view.view = frame.view;
+    view.lightMVP = frame.lightMVP;
+    view.lightPosition = frame.lightPosition;
+    view.cameraPosition = frame.cameraPosition;
+    vkr::SceneLighting lighting;
+    lighting.ambient = renderer.lightAmbient;
+    lighting.saturation = renderer.lightSaturation;
+    lighting.contrast = renderer.lightContrast;
+    lighting.shadowStrength = renderer.lightShadowStrength;
+    lighting.specularIntensity = renderer.materialSpecularIntensity;
+    lighting.shininessScale = renderer.materialShininessScale;
+    lighting.shininessFloor = renderer.materialShininessFloor;
+    vkr::SceneFlags flags;
+    flags.atoms = showAtoms;
+    flags.bonds = showBonds;
+    flags.box = showBoundingBox;
+    flags.dislocation = showDislocationLines;
+    flags.lightTheme = lightTheme;
+    const glm::vec4& bg = lightTheme ? kLightBackground : kDarkBackground;
+    const float clear[4] = {bg.r, bg.g, bg.b, bg.a};
+    if (cloud && cloud->active())
+    {
+        // A large dataset: the out-of-core renderer draws everything.
+        cloud->settings.showBox = showBoundingBox;
+        cloud->prepareVulkan(cmd, frame.projection, frame.view, frame.framebufferWidth, frame.framebufferHeight, orthographic);
+        ctx.beginMainPass(clear);
+        cloud->drawVulkan(cmd, static_cast<int>(ctx.extent().width), static_cast<int>(ctx.extent().height), lightTheme);
+        return;
+    }
+    const uint32_t offset = scene.prepare(view, lighting);
+    scene.renderShadowMap(cmd, sceneBuffers, offset, flags);
+    ctx.beginMainPass(clear);
+    scene.drawScene(cmd, sceneBuffers, offset, flags, ctx.extent(), lightTheme ? glm::vec3(0.25f) : glm::vec3(0.85f));
+    scene.drawHalos(cmd, offset, haloPositions, haloRadii, ctx.extent());
+}
+#endif
+
 void handleImageExportIfRequested(bool hasImageExportRequest,
                                   const ImageExportRequest& imageExportRequest,
                                   const FrameView& frame,
@@ -848,6 +912,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
     updateSplashScreen(splash, 0.15f, "Creating window");
 
     GLFWwindow* window = createMainWindow();
+    graphics::setMainWindow(window);
     if (!window)
     {
         destroySplashScreen(splash);
@@ -871,6 +936,12 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         for (const char* mode : {"ATOMFORGE_UI_TOUR", "ATOMFORGE_TUTORIAL_CAPTURE", "ATOMFORGE_STEP_DIALOG_CHECK", "ATOMFORGE_CLOUD_BENCHMARK"})
             if (const char* value = std::getenv(mode); value && *value) harness = true;
         if (!harness) loadAppearancePreferences();
+        // Modes taking screenshots keep every frame (the cloud benchmark only
+        // with ATOMFORGE_CLOUD_SHOTS, as copying them would skew its timings).
+        bool screenshots = false;
+        for (const char* mode : {"ATOMFORGE_UI_TOUR", "ATOMFORGE_TUTORIAL_CAPTURE", "ATOMFORGE_STEP_DIALOG_CHECK", "ATOMFORGE_CLOUD_SHOTS"})
+            if (const char* value = std::getenv(mode); value && *value) screenshots = true;
+        if (screenshots) graphics::enableFrameCapture();
     }
 
     SphereMesh sphere(40, 40);
@@ -880,7 +951,15 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
     updateSplashScreen(splash, 0.42f, "Preparing scene");
 
     Renderer renderer;
-    renderer.init();
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        if (!vkr::sceneRenderer().init(sphere, lowPolyMesh, billboardMesh, cylinder))
+            std::cerr << "[Vulkan] The scene pipelines could not be created." << std::endl;
+    }
+    else
+#endif
+        renderer.init();
     updateSplashScreen(splash, 0.52f, startupPaths.empty() ? "Preparing workspace" : "Loading structure");
 
     // Multi-tab state — unique_ptr because EditorState holds non-movable atomics/threads
@@ -899,6 +978,8 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
     initTabResources(*tabs[0], sphere, lowPolyMesh, billboardMesh, cylinder, renderer);
     loadStartupStructureIfRequested(*tabs[0], startupPaths.empty() ? std::string() : startupPaths[0]);
     restoreCameraFromTab(camera, *tabs[0]);
+    if (!graphics::fallbackReason().empty())
+        tabs[0]->state.fileBrowser.showLoadInfo("Vulkan could not start (" + graphics::fallbackReason() + "); drawing with OpenGL.");
 
     // Load any additional startup paths each into their own tab
     for (int si = 1; si < (int)startupPaths.size(); ++si)
@@ -909,7 +990,9 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         loadStartupStructureIfRequested(*tabs[newIdx], startupPaths[si]);
     }
 
-    ShadowMap shadow = createShadowMap(2048, 2048);
+    ShadowMap shadow{};
+    if (graphics::usingOpenGL())
+        shadow = createShadowMap(2048, 2048);
     updateSplashScreen(splash, 0.92f, "Finalizing");
 
     showMainWindow(window);
@@ -1163,9 +1246,19 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             handleRightClick(camera, state);
         }
 
+#ifdef ATOMFORGE_VULKAN
+        // The frame's command buffer is open from here: previews in the
+        // interface record their passes into it.
+        if (graphics::usingVulkan())
+        {
+            vkr::sceneRenderer().newFrame();
+            if (!vkr::context().beginFrame())
+                continue;
+        }
+#endif
         updateImGuiScale(window);
         updateSystemTheme();
-        ImGui_ImplOpenGL3_NewFrame();
+        newImGuiRendererFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         drawAtomHoverTooltip(state, frame.cameraPosition, frame.windowWidth, frame.windowHeight, frame.projection, frame.view);
@@ -1437,6 +1530,17 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                 restoreCameraFromTab(camera, *tabs[activeTabIdx]);
                 // activeState refers to the destroyed tab; rebind next frame.
                 ImGui::EndFrame();
+#ifdef ATOMFORGE_VULKAN
+                if (graphics::usingVulkan())
+                {
+                    // The frame was begun: present it with the background only.
+                    const glm::vec4& bg = tabs[activeTabIdx]->state.fileBrowser.isLightThemeEnabled() ? kLightBackground : kDarkBackground;
+                    const float clear[4] = {bg.r, bg.g, bg.b, bg.a};
+                    vkr::context().beginMainPass(clear);
+                    vkr::context().endMainPass();
+                    vkr::context().endFrame();
+                }
+#endif
                 continue;
             }
             else
@@ -1622,24 +1726,12 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         renderer.materialShininessScale    = activeState.editMenuDialogs.materialShininessScale;
         renderer.materialShininessFloor    = activeState.editMenuDialogs.materialShininessFloor;
 
-        // --- 3D scene rendering ---
-        tabs[activeTabIdx]->adaptiveRender.update(activeState.sceneBuffers);
-        drawScene(renderer, frame, shadow,
-                  activeState.sceneBuffers,
-                  activeState.fileBrowser.isShowBondsEnabled(),
-                  activeState.fileBrowser.isShowAtomsEnabled(),
-                  activeState.fileBrowser.isShowBoundingBoxEnabled(),
-                  activeState.fileBrowser.isShowDislocationLinesEnabled(),
-                  activeState.fileBrowser.isLightThemeEnabled(),
-                  activeState.cloud.get(),
-                  activeState.fileBrowser.isOrthographicViewEnabled());
-
         // Selection halos: drawn after atoms so nearer atoms hide them.
+        std::vector<glm::vec3> selPos;
+        std::vector<float>     selRad;
         if (!activeState.selectedInstanceIndices.empty() &&
             !activeState.sceneBuffers.cpuCachesDisabled)
         {
-            std::vector<glm::vec3> selPos;
-            std::vector<float>     selRad;
             selPos.reserve(activeState.selectedInstanceIndices.size());
             selRad.reserve(activeState.selectedInstanceIndices.size());
             for (int idx : activeState.selectedInstanceIndices)
@@ -1652,8 +1744,49 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                                          : 1.0f);
                 }
             }
-            renderer.drawSelectionHalos(frame.projection, frame.view, selPos, selRad);
         }
+
+        // --- 3D scene rendering ---
+        tabs[activeTabIdx]->adaptiveRender.update(activeState.sceneBuffers);
+#ifdef ATOMFORGE_VULKAN
+        if (graphics::usingVulkan())
+        {
+            // Off-screen work (image export, GIF frames) is recorded before the window's pass.
+            setImageExportCloud(activeState.cloud.get());
+            handleImageExportIfRequested(hasImageExportRequest, imageExportRequest,
+                                         frame, activeState, renderer, shadow);
+            captureTrajectoryGifFrame(frame, activeState, renderer, shadow);
+            drawSceneVulkan(renderer, frame, activeState.sceneBuffers,
+                            activeState.fileBrowser.isShowBondsEnabled(),
+                            activeState.fileBrowser.isShowAtomsEnabled(),
+                            activeState.fileBrowser.isShowBoundingBoxEnabled(),
+                            activeState.fileBrowser.isShowDislocationLinesEnabled(),
+                            activeState.fileBrowser.isLightThemeEnabled(),
+                            selPos, selRad, activeState.cloud.get(),
+                            activeState.fileBrowser.isOrthographicViewEnabled());
+            saveCameraToTab(camera, *tabs[activeTabIdx]);
+            renderImGuiDrawData();
+            vkr::context().endMainPass();
+            vkr::context().endFrame();
+            if (cloudBenchmark && activeState.hasCloud())
+            {
+                cloudBenchmark->afterFrame(*activeState.cloud, frame.framebufferWidth, frame.framebufferHeight);
+                if (cloudBenchmark->done()) glfwSetWindowShouldClose(window, true);
+            }
+            continue;
+        }
+#endif
+        drawScene(renderer, frame, shadow,
+                  activeState.sceneBuffers,
+                  activeState.fileBrowser.isShowBondsEnabled(),
+                  activeState.fileBrowser.isShowAtomsEnabled(),
+                  activeState.fileBrowser.isShowBoundingBoxEnabled(),
+                  activeState.fileBrowser.isShowDislocationLinesEnabled(),
+                  activeState.fileBrowser.isLightThemeEnabled(),
+                  activeState.cloud.get(),
+                  activeState.fileBrowser.isOrthographicViewEnabled());
+        if (!selPos.empty())
+            renderer.drawSelectionHalos(frame.projection, frame.view, selPos, selRad);
 
         setImageExportCloud(activeState.cloud.get());
         handleImageExportIfRequested(hasImageExportRequest, imageExportRequest,
@@ -1663,7 +1796,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         // Save active tab camera back
         saveCameraToTab(camera, *tabs[activeTabIdx]);
 
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        renderImGuiDrawData();
         if (cloudBenchmark && activeState.hasCloud())
         {
             cloudBenchmark->afterFrame(*activeState.cloud, frame.framebufferWidth, frame.framebufferHeight);
@@ -1672,6 +1805,20 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         glfwSwapBuffers(window);
     }
 
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        // Everything holding Vulkan resources goes before the device.
+        vkDeviceWaitIdle(vkr::context().device());
+        tabs.clear();
+        shutdownImGui();
+        vkr::sceneRenderer().shutdown();
+        vkr::context().shutdown();
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return 0;
+    }
+#endif
     shutdownImGui();
     glfwDestroyWindow(window);
     glfwTerminate();

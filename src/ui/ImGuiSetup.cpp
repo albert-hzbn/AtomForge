@@ -4,6 +4,11 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "graphics/GraphicsBackend.h"
+#ifdef ATOMFORGE_VULKAN
+#include "imgui_impl_vulkan.h"
+#include "graphics/vulkan/VulkanContext.h"
+#endif
 
 #include <GLFW/glfw3.h>
 
@@ -25,6 +30,9 @@
 namespace
 {
 constexpr float kBaseFontSizePixels = 18.0f;
+#ifdef ATOMFORGE_VULKAN
+VkInstance gVulkanInstance = VK_NULL_HANDLE;
+#endif
 
 ImGuiStyle gBaseStyle;
 float gUiScale = 1.0f;
@@ -145,7 +153,8 @@ void rebuildFonts()
         uiFonts::heading = io.Fonts->AddFontFromFileTTF(path, kBaseFontSizePixels, &headingConfig, textRanges);
     }
 
-    if (gImGuiBackendsReady)
+    // The Vulkan backend updates its font texture by itself (ImGui 1.92 textures).
+    if (gImGuiBackendsReady && graphics::usingOpenGL())
     {
         ImGui_ImplOpenGL3_DestroyDeviceObjects();
         io.Fonts->Build();
@@ -350,6 +359,32 @@ static const char* layoutFile()
     return path.c_str();
 }
 
+void newImGuiRendererFrame()
+{
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        ImGui_ImplVulkan_SetMinImageCount(vkr::context().minImageCount());
+        ImGui_ImplVulkan_NewFrame();
+        return;
+    }
+#endif
+    ImGui_ImplOpenGL3_NewFrame();
+}
+
+void renderImGuiDrawData()
+{
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        if (vkr::context().inFrame())
+            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), vkr::context().commandBuffer());
+        return;
+    }
+#endif
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
 void initImGui(GLFWwindow* window)
 {
     IMGUI_CHECKVERSION();
@@ -366,8 +401,35 @@ void initImGui(GLFWwindow* window)
 
     applyLightTheme();
 
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 130");
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        vkr::Context& ctx = vkr::context();
+        ImGui_ImplGlfw_InitForVulkan(window, true);
+        gVulkanInstance = ctx.instance();
+        ImGui_ImplVulkan_LoadFunctions(VK_API_VERSION_1_1, [](const char* name, void* instance) {
+            return vkload::getInstanceProcAddr()(*static_cast<VkInstance*>(instance), name);
+        }, &gVulkanInstance);
+        ImGui_ImplVulkan_InitInfo info{};
+        info.ApiVersion = VK_API_VERSION_1_1;
+        info.Instance = ctx.instance();
+        info.PhysicalDevice = ctx.physicalDevice();
+        info.Device = ctx.device();
+        info.QueueFamily = ctx.queueFamily();
+        info.Queue = ctx.queue();
+        info.DescriptorPool = ctx.descriptorPool();
+        info.MinImageCount = ctx.minImageCount();
+        info.ImageCount = ctx.imageCount();
+        info.PipelineInfoMain.RenderPass = ctx.mainRenderPass();
+        info.PipelineInfoMain.MSAASamples = ctx.samples();
+        ImGui_ImplVulkan_Init(&info);
+    }
+    else
+#endif
+    {
+        ImGui_ImplGlfw_InitForOpenGL(window, true);
+        ImGui_ImplOpenGL3_Init("#version 130");
+    }
     gImGuiBackendsReady = true;
 
     // Always build the font atlas here so font selection in
@@ -494,7 +556,15 @@ void shutdownImGui()
     gBaseStyleCaptured = false;
     gUiScale = 1.0f;
     gInterfaceScale = 1.0f;
-    ImGui_ImplOpenGL3_Shutdown();
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        vkDeviceWaitIdle(vkr::context().device());
+        ImGui_ImplVulkan_Shutdown();
+    }
+    else
+#endif
+        ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 }

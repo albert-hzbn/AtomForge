@@ -1,5 +1,8 @@
 #include "graphics/ElectronicViewport.h"
 #include "graphics/Shader.h"
+#ifdef ATOMFORGE_VULKAN
+#include "graphics/GraphicsBackend.h"
+#endif
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -110,9 +113,22 @@ glm::vec3 ElectronicViewport::color(float t, int palette)
     return glm::mix(stops[i],stops[i+1],t*4-i);
 }
 
+bool ElectronicViewport::flippedRows()
+{
+#ifdef ATOMFORGE_VULKAN
+    if(graphics::usingVulkan()) return false;
+#endif
+    return true;
+}
+
+// Vulkan resources are released (deferred) with m_vk.
 ElectronicViewport::~ElectronicViewport() { if(glfwGetCurrentContext()) release(); }
 void ElectronicViewport::release()
 {
+    m_vk.reset();
+#ifdef ATOMFORGE_VULKAN
+    if(graphics::usingVulkan()) return;
+#endif
     glDeleteFramebuffers(1,&m_fbo); glDeleteTextures(1,&m_texture); glDeleteRenderbuffers(1,&m_depth);
     glDeleteBuffers(1,&m_vbo); glDeleteBuffers(1,&m_ebo); glDeleteVertexArrays(1,&m_vao);
     if(m_program) glDeleteProgram(m_program);
@@ -154,9 +170,26 @@ void ElectronicViewport::setMesh(const atomforge::electronic::Mesh& mesh)
     std::iota(m_indices.begin(),m_indices.end(),0u);
 }
 
-GLuint ElectronicViewport::render(int width,int height,float yaw,float pitch,float zoom,glm::vec2 pan,
+bool ElectronicViewport::sortTriangles(float yaw,float pitch)
+{
+    if(!m_dirty && yaw==m_sortedYaw && pitch==m_sortedPitch) return false;
+    const auto rotation=glm::rotate(glm::rotate(glm::mat4(1),pitch,glm::vec3(1,0,0)),yaw,glm::vec3(0,1,0));
+    std::vector<unsigned int> triangles(m_vertices.size()/3);
+    std::iota(triangles.begin(),triangles.end(),0u);
+    std::vector<float> depths(triangles.size());
+    for(auto i:triangles) depths[i]=(rotation*glm::vec4((m_vertices[i*3].position+m_vertices[i*3+1].position+m_vertices[i*3+2].position)/3.0f,1)).z;
+    std::sort(triangles.begin(),triangles.end(),[&](unsigned int a,unsigned int b) { return depths[a]<depths[b]; });
+    for(std::size_t i=0;i<triangles.size();++i) for(unsigned int j=0;j<3;++j) m_indices[i*3+j]=triangles[i]*3+j;
+    m_sortedYaw=yaw; m_sortedPitch=pitch;
+    return true;
+}
+
+ElectronicViewport::Texture ElectronicViewport::render(int width,int height,float yaw,float pitch,float zoom,glm::vec2 pan,
     float opacity,float low,float high,int palette,float specular,float shininess)
 {
+#ifdef ATOMFORGE_VULKAN
+    if(graphics::usingVulkan()) return renderVulkan(std::clamp(width,1,4096),std::clamp(height,1,4096),yaw,pitch,zoom,pan,opacity,low,high,palette,specular,shininess);
+#endif
     State state;
     width=std::clamp(width,1,4096); height=std::clamp(height,1,4096);
     if(!m_program)
@@ -191,16 +224,10 @@ GLuint ElectronicViewport::render(int width,int height,float yaw,float pitch,flo
         glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,sizeof(Vertex),reinterpret_cast<void*>(offsetof(Vertex,normal)));
         glVertexAttribPointer(2,1,GL_FLOAT,GL_FALSE,sizeof(Vertex),reinterpret_cast<void*>(offsetof(Vertex,scalar)));
     }
-    if(m_dirty || yaw!=m_sortedYaw || pitch!=m_sortedPitch)
+    if(sortTriangles(yaw,pitch))
     {
-        std::vector<unsigned int> triangles(m_vertices.size()/3);
-        std::iota(triangles.begin(),triangles.end(),0u);
-        std::vector<float> depths(triangles.size());
-        for(auto i:triangles) depths[i]=(rotation*glm::vec4((m_vertices[i*3].position+m_vertices[i*3+1].position+m_vertices[i*3+2].position)/3.0f,1)).z;
-        std::sort(triangles.begin(),triangles.end(),[&](unsigned int a,unsigned int b) { return depths[a]<depths[b]; });
-        for(std::size_t i=0;i<triangles.size();++i) for(unsigned int j=0;j<3;++j) m_indices[i*3+j]=triangles[i]*3+j;
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,m_indices.size()*sizeof(unsigned int),m_indices.data(),GL_DYNAMIC_DRAW);
-        m_sortedYaw=yaw; m_sortedPitch=pitch; m_dirty=false;
+        m_dirty=false;
     }
     const float aspect=static_cast<float>(width)/height, extent=1.25f/std::max(.1f,zoom);
     const auto projection=glm::ortho(-extent*aspect,extent*aspect,-extent,extent,.1f,10.0f);
@@ -214,7 +241,7 @@ GLuint ElectronicViewport::render(int width,int height,float yaw,float pitch,flo
     glEnable(GL_BLEND); glBlendEquation(GL_FUNC_ADD); glBlendFuncSeparate(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(opacity>=.999f ? GL_TRUE : GL_FALSE);
     glDrawElements(GL_TRIANGLES,static_cast<GLsizei>(m_indices.size()),GL_UNSIGNED_INT,nullptr);
-    return m_texture;
+    return static_cast<Texture>(m_texture);
 }
 
 void ElectronicViewport::setQuality(int quality)
@@ -227,6 +254,9 @@ void ElectronicViewport::setQuality(int quality)
 
 std::vector<unsigned char> ElectronicViewport::pixels() const
 {
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan()) return pixelsVulkan();
+#endif
     if (!m_fbo || m_width<=0 || m_height<=0) throw std::runtime_error("Render a view before exporting");
     GLint previous=0, pack=0, rowLength=0, skipRows=0, skipPixels=0, buffer=0;
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING,&previous); glGetIntegerv(GL_PACK_ALIGNMENT,&pack);
@@ -249,7 +279,12 @@ std::vector<unsigned char> ElectronicViewport::pixels() const
 void ElectronicViewport::setVolume(const atomforge::electronic::Grid& grid)
 {
     grid.validate();
+#ifdef ATOMFORGE_VULKAN
+    const bool vulkan=graphics::usingVulkan();
+    std::unique_ptr<State> state(vulkan ? nullptr : new State);
+#else
     State state;
+#endif
     // Bound GPU memory and upload cost. Numerical grids and exports remain full resolution.
     for(int i=0;i<3;++i) m_volumeShape[i]=std::clamp(grid.shape[i]+(grid.periodic ? 1 : 0),2,m_volumeResolution);
     std::vector<float> values(static_cast<std::size_t>(m_volumeShape.x)*m_volumeShape.y*m_volumeShape.z);
@@ -263,6 +298,9 @@ void ElectronicViewport::setVolume(const atomforge::electronic::Grid& grid)
         radius=std::max(radius,glm::length(grid.cell*glm::dvec3(x,y,z)*.5));
     m_inverseCell=glm::mat3(glm::inverse(grid.cell/radius));
     m_volumeCenter=grid.origin+grid.cell*glm::dvec3(.5); m_volumeRadius=radius;
+#ifdef ATOMFORGE_VULKAN
+    if(vulkan) { setVolumeVulkan(values); return; }
+#endif
     if(!m_volumeTexture) glGenTextures(1,&m_volumeTexture);
     glBindTexture(GL_TEXTURE_3D,m_volumeTexture);
     glTexImage3D(GL_TEXTURE_3D,0,GL_R32F,m_volumeShape.x,m_volumeShape.y,m_volumeShape.z,0,GL_RED,GL_FLOAT,values.data());
@@ -271,9 +309,12 @@ void ElectronicViewport::setVolume(const atomforge::electronic::Grid& grid)
     for(auto axis : {GL_TEXTURE_WRAP_S,GL_TEXTURE_WRAP_T,GL_TEXTURE_WRAP_R}) glTexParameteri(GL_TEXTURE_3D,axis,GL_CLAMP_TO_EDGE);
 }
 
-GLuint ElectronicViewport::renderVolume(int width,int height,float yaw,float pitch,float zoom,glm::vec2 pan,
+ElectronicViewport::Texture ElectronicViewport::renderVolume(int width,int height,float yaw,float pitch,float zoom,glm::vec2 pan,
     float opacity,float threshold,float low,float high,int palette)
 {
+#ifdef ATOMFORGE_VULKAN
+    if(graphics::usingVulkan()) return renderVolumeVulkan(std::clamp(width,1,4096),std::clamp(height,1,4096),yaw,pitch,zoom,pan,opacity,threshold,low,high,palette);
+#endif
     // Reuse the surface framebuffer allocation and state restoration. A fully
     // transparent surface contributes nothing to the subsequent volume image.
     render(width,height,yaw,pitch,zoom,pan,0,low,high,palette,0,4);
@@ -358,7 +399,7 @@ void main() {
     glUniform1i(glGetUniformLocation(m_volumeProgram,"palette"),palette);
     glUniform1i(glGetUniformLocation(m_volumeProgram,"raySteps"),m_raySteps);
     glDrawArrays(GL_TRIANGLES,0,3);
-    return m_texture;
+    return static_cast<Texture>(m_texture);
 }
 
 glm::vec2 ElectronicViewport::project(glm::dvec3 point,bool volume,float aspect,float yaw,

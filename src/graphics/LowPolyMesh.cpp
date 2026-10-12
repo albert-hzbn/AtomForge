@@ -1,4 +1,5 @@
 #include "LowPolyMesh.h"
+#include "graphics/GraphicsBackend.h"
 #include <cmath>
 #include <map>
 #include <vector>
@@ -101,6 +102,9 @@ LowPolyMesh::LowPolyMesh()
 
     vertexCount = static_cast<int>(verts.size() / 3);
     indexCount  = static_cast<int>(tris.size());
+    vertices = verts;
+    indices.assign(tris.begin(), tris.end());
+    if (!graphics::usingOpenGL()) return;
 
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
@@ -126,6 +130,7 @@ LowPolyMesh::LowPolyMesh()
 
 LowPolyMesh::~LowPolyMesh()
 {
+    if (!vao) return;
     glDeleteBuffers(1, &ebo);
     glDeleteBuffers(1, &vbo);
     glDeleteVertexArrays(1, &vao);

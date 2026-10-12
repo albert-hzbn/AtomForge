@@ -5,7 +5,8 @@
 // and given a number of atoms from its size on screen; as chunks are stored
 // in random order, drawing a prefix draws a uniform subsample. A total point
 // budget keeps the frame rate, a memory budget bounds the GPU memory, and a
-// background thread streams the needed prefixes from the file.
+// background thread streams the needed prefixes from the file. It draws with
+// OpenGL or Vulkan (CloudRendererVulkan.cpp), whichever the desktop uses.
 #include "cloud/AtomCloud.h"
 
 #include <GL/glew.h>
@@ -16,8 +17,11 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <vector>
+
+typedef struct VkCommandBuffer_T* VkCommandBuffer;
 
 class CloudRenderer
 {
@@ -46,15 +50,25 @@ public:
     CloudRenderer(const CloudRenderer&) = delete;
     CloudRenderer& operator=(const CloudRenderer&) = delete;
 
-    // Opens a cloud for display (GL context current); throws on errors.
+    // Opens a cloud for display (GL context current, or the Vulkan device
+    // ready); throws on errors.
     void open(const std::filesystem::path& path);
     void close();
     bool active() const { return static_cast<bool>(m_file); }
     const atomforge::cloud::CloudInfo& info() const;
     const std::filesystem::path& path() const { return m_path; }
 
-    // Draws into the current framebuffer (depth test on); `height` in pixels.
+    // OpenGL: draws into the current framebuffer (depth test on); `height` in pixels.
     void draw(const glm::mat4& projection, const glm::mat4& view, int width, int height, bool orthographic, bool lightTheme);
+    // Vulkan: prepare() records the uploads before the render pass, and
+    // drawVulkan() the drawing inside it, of the same view.
+    void prepareVulkan(VkCommandBuffer cmd, const glm::mat4& projection, const glm::mat4& view, int width, int height, bool orthographic,
+                       bool immediate = false);
+    void drawVulkan(VkCommandBuffer cmd, int width, int height, bool lightTheme);
+    // Vulkan image export: draws off-screen until the atoms have streamed in
+    // (at most 30 s) and returns RGBA pixels, rows top first.
+    bool captureVulkan(const glm::mat4& projection, const glm::mat4& view, int width, int height, bool orthographic, bool lightTheme,
+                       const glm::vec3& background, std::vector<unsigned char>& rgba, std::string& error);
 
     Settings settings;
     const Stats& stats() const { return m_stats; }
@@ -75,12 +89,27 @@ private:
         float priority = 0;
     };
     struct Load { std::size_t chunk; std::uint64_t first, count; std::vector<atomforge::cloud::PackedAtom> atoms; };
+    // A chunk to draw this frame: `cover` atoms fill its screen area; `want`
+    // is what it gets (all atoms once they are about a pixel or larger on screen).
+    struct Visible { std::size_t chunk; double want; double cover; float distance; float area; };
+    struct VulkanState;
 
     void ensureProgram();
     void loaderLoop();
+    void consumeLoads();
     void upload(Load& load);
     void evict(std::uint64_t frame);
+    void releaseChunk(std::size_t chunk);
     void request(std::size_t chunk, std::uint64_t upTo);
+    // Culling, level of detail, budgets and streaming of a frame (both APIs).
+    void plan(const glm::mat4& projection, const glm::mat4& view, int width, int height, bool orthographic);
+    void finishStats(std::uint64_t drawn, std::size_t occluded);
+    // Vulkan parts (CloudRendererVulkan.cpp).
+    void openVulkan(const std::vector<glm::vec3>& outline);
+    void closeVulkan();
+    bool uploadVulkan(Load& load, std::uint64_t capacity);
+    void releaseVulkanChunk(std::size_t chunk);
+    void readVulkanQueries();
 
     std::filesystem::path m_path;
     std::unique_ptr<atomforge::cloud::CloudFile> m_file;
@@ -96,6 +125,14 @@ private:
     std::uint64_t m_frame = 0;
     std::uint64_t m_residentBytes = 0;
     Stats m_stats;
+    std::shared_ptr<VulkanState> m_vk;
+
+    // The plan of the current frame.
+    std::vector<Visible> m_visible;
+    std::vector<std::size_t> m_tested;  // in the frustum and outside the camera: occlusion-tested
+    glm::mat4 m_projection{1.0f}, m_view{1.0f};
+    float m_pixelsPerUnit = 1.0f, m_maxRadius = 0.3f;
+    bool m_orthographic = false, m_complete = false;
 
     // Background loading.
     std::thread m_loader;

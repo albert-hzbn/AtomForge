@@ -2,9 +2,15 @@
 
 struct GLFWwindow;
 
-// Initialise Dear ImGui, install GLFW/OpenGL3 backends, and apply the
-// application style.  Must be called after a valid OpenGL context exists.
+// Initialise Dear ImGui, install the GLFW and renderer (Vulkan or OpenGL 3)
+// backends, and apply the application style.  Must be called once the
+// window's renderer (OpenGL context or Vulkan device) is ready.
 void initImGui(GLFWwindow* window);
+
+// The renderer backend's share of a frame: before ImGui::NewFrame, and the
+// draw data after ImGui::Render (in Vulkan, into the window's render pass).
+void newImGuiRendererFrame();
+void renderImGuiDrawData();
 
 // Recompute UI scaling from the current window/display resolution.  Call this
 // once per frame before starting a new ImGui frame so HiDPI changes are picked

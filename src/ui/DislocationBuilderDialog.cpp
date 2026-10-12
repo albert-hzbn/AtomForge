@@ -6,9 +6,11 @@
 #include "app/SceneView.h"
 #include "camera/Camera.h"
 #include "graphics/CylinderMesh.h"
+#include "graphics/GraphicsBackend.h"
 #include "graphics/Renderer.h"
 #include "graphics/SphereMesh.h"
 #include "graphics/StructureInstanceBuilder.h"
+#include "graphics/vulkan/VulkanPreview.h"
 #include "io/StructureLoader.h"
 #include "pipeline/Options.h"
 
@@ -135,8 +137,11 @@ void DislocationBuilderDialog::initRenderResources(Renderer& renderer)
                                  m_outputPreview.cylinder->vbo,
                                  m_outputPreview.cylinder->vertexCount);
 
-    m_sourcePreview.shadow = createShadowMap(1, 1);
-    m_outputPreview.shadow = createShadowMap(1, 1);
+    if (graphics::usingOpenGL())
+    {
+        m_sourcePreview.shadow = createShadowMap(1, 1);
+        m_outputPreview.shadow = createShadowMap(1, 1);
+    }
     m_glReady = true;
 }
 
@@ -500,7 +505,11 @@ void DislocationBuilderDialog::rebuildPreviewBuffers(PreviewState& preview,
     if (dislocationOverlay != nullptr && dislocationOverlay->success && !dislocationOverlay->loopPoints.empty())
     {
         preview.hasDislocationLine = true;
-
+        preview.dislocationLoopPoints = dislocationOverlay->loopPoints;
+        preview.dislocationLoopPointCount = dislocationOverlay->loopPoints.size();
+    }
+    if (preview.hasDislocationLine && graphics::usingOpenGL())
+    {
         // Update dislocation loop VAO/VBO with the loop points
         if (preview.dislocationLineVAO == 0)
         {
@@ -558,6 +567,33 @@ void DislocationBuilderDialog::renderPreviewToFBO(PreviewState& preview, int wid
 {
     if (!m_glReady || !m_renderer || !preview.sphere || !preview.cylinder || preview.buffers.atomCount == 0)
         return;
+
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        if (!preview.canvas) preview.canvas = std::make_shared<vkr::Canvas>();
+        Camera camera;
+        camera.yaw = preview.yaw;
+        camera.pitch = preview.pitch;
+        camera.distance = preview.distance;
+        FrameView frame;
+        frame.framebufferWidth = width;
+        frame.framebufferHeight = height;
+        buildFrameView(camera, preview.buffers, true, frame);
+        if (vkr::beginPreview(*preview.canvas, m_renderer, frame, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]))
+        {
+            vkr::drawStructure(*preview.canvas, preview.buffers);
+            if (preview.hasDislocationLine && !preview.dislocationLoopPoints.empty())
+            {
+                std::vector<glm::vec3> loop = preview.dislocationLoopPoints;
+                loop.push_back(loop.front());
+                preview.canvas->drawLines(loop, glm::vec3(1.0f, 0.0f, 0.0f), vkr::LineTopology::Strip, true);
+            }
+            preview.canvas->end();
+        }
+        return;
+    }
+#endif
 
     ensurePreviewFBO(preview, width, height);
 
@@ -741,6 +777,14 @@ void DislocationBuilderDialog::drawDialog(
                     rebuildPreviewBuffers(m_sourcePreview, *activeSource, elementRadii, elementShininess);
 
                 renderPreviewToFBO(m_sourcePreview, std::max(1, (int)previewWidth), std::max(1, (int)previewHeight));
+#ifdef ATOMFORGE_VULKAN
+                if (graphics::usingVulkan())
+                {
+                    if (m_sourcePreview.canvas && m_sourcePreview.canvas->texture())
+                        drawList->AddImage(m_sourcePreview.canvas->texture(), minCorner, maxCorner);
+                }
+                else
+#endif
                 drawList->AddImage((ImTextureID)(intptr_t)m_sourcePreview.colorTex,
                                    minCorner, maxCorner, ImVec2(0, 1), ImVec2(1, 0));
 
@@ -808,6 +852,14 @@ void DislocationBuilderDialog::drawDialog(
                                           &m_result);
 
                 renderPreviewToFBO(m_outputPreview, std::max(1, (int)previewWidth), std::max(1, (int)previewHeight));
+#ifdef ATOMFORGE_VULKAN
+                if (graphics::usingVulkan())
+                {
+                    if (m_outputPreview.canvas && m_outputPreview.canvas->texture())
+                        drawList->AddImage(m_outputPreview.canvas->texture(), minCorner, maxCorner);
+                }
+                else
+#endif
                 drawList->AddImage((ImTextureID)(intptr_t)m_outputPreview.colorTex,
                                    minCorner, maxCorner, ImVec2(0, 1), ImVec2(1, 0));
 

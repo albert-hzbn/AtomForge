@@ -9,12 +9,14 @@
 #include <GL/glew.h>
 #include <glm/glm.hpp>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
 struct Renderer;
 struct SphereMesh;
 struct CylinderMesh;
+namespace vkr { class Canvas; }
 
 // ---------------------------------------------------------------------------
 // SubstitutionalSolidSolutionDialog
@@ -114,6 +116,7 @@ private:
     int    m_previewH        = 0;
 
     bool m_glReady      = false;
+    std::shared_ptr<vkr::Canvas> m_canvas;  // the preview with Vulkan
     bool m_previewDirty = true;
 
     // Preview orbit camera state.

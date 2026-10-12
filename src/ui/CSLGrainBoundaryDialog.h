@@ -10,6 +10,7 @@
 #include "model/Structure.h"
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,7 @@
 struct Renderer;
 struct SphereMesh;
 struct CylinderMesh;
+namespace vkr { class Canvas; }
 
 struct CSLGrainBoundaryDialog
 {
@@ -87,6 +89,7 @@ private:
     int    m_previewH        = 0;
 
     bool  m_glReady         = false;
+    std::shared_ptr<vkr::Canvas> m_canvas;  // the preview with Vulkan
     bool  m_previewBufDirty = true;
     bool  m_fitPending      = false;   // fit the camera once the preview is rebuilt
 

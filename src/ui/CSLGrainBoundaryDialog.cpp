@@ -6,10 +6,12 @@
 
 #include "ElementData.h"
 #include "graphics/CylinderMesh.h"
+#include "graphics/GraphicsBackend.h"
 #include "graphics/Renderer.h"
 #include "graphics/SphereMesh.h"
 #include "graphics/StructureInstanceBuilder.h"
 #include "graphics/ShadowMap.h"
+#include "graphics/vulkan/VulkanPreview.h"
 #include "io/StructureLoader.h"
 #include "app/SceneView.h"
 #include "camera/Camera.h"
@@ -122,7 +124,8 @@ void CSLGrainBoundaryDialog::initRenderResources(Renderer& renderer)
     m_previewCylinder = new CylinderMesh(16);
     m_previewBuffers.init(m_previewSphere->vbo, m_previewSphere->ebo, m_previewSphere->indexCount,
                           m_previewCylinder->vbo, m_previewCylinder->vertexCount);
-    m_previewShadow   = createShadowMap(1, 1);
+    if (graphics::usingOpenGL())
+        m_previewShadow = createShadowMap(1, 1);
     m_glReady         = true;
 }
 
@@ -179,6 +182,23 @@ void CSLGrainBoundaryDialog::renderPreviewToFBO(int w, int h)
 {
     if (!m_glReady || !m_renderer || m_previewBuffers.atomCount == 0)
         return;
+
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        if (!m_canvas) m_canvas = std::make_shared<vkr::Canvas>();
+        Camera cam;
+        cam.yaw      = m_camYaw;
+        cam.pitch    = m_camPitch;
+        cam.distance = m_camDistance;
+        FrameView frame;
+        frame.framebufferWidth  = w;
+        frame.framebufferHeight = h;
+        buildFrameView(cam, m_previewBuffers, true, frame);
+        vkr::drawStandardPreview(*m_canvas, m_renderer, m_previewBuffers, frame, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
+        return;
+    }
+#endif
 
     ensurePreviewFBO(w, h);
 
@@ -464,6 +484,14 @@ void CSLGrainBoundaryDialog::drawDialog(Structure& structure,
 
                     const ImVec2 prevMin(dropMin.x + pad, dropMin.y + pad);
                     const ImVec2 prevMax(prevMin.x + prevSize.x, prevMin.y + prevSize.y);
+#ifdef ATOMFORGE_VULKAN
+                    if (graphics::usingVulkan())
+                    {
+                        if (m_canvas && m_canvas->texture())
+                            dl->AddImage(m_canvas->texture(), prevMin, prevMax);
+                    }
+                    else
+#endif
                     dl->AddImage((ImTextureID)(intptr_t)m_previewColorTex,
                                  prevMin, prevMax,
                                  ImVec2(0, 1), ImVec2(1, 0));

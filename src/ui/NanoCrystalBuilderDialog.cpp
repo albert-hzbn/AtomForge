@@ -7,11 +7,13 @@
 
 #include "ElementData.h"
 #include "graphics/CylinderMesh.h"
+#include "graphics/GraphicsBackend.h"
 #include "graphics/Renderer.h"
 #include "graphics/Shader.h"
 #include "graphics/SphereMesh.h"
 #include "graphics/StructureInstanceBuilder.h"
 #include "graphics/ShadowMap.h"
+#include "graphics/vulkan/VulkanPreview.h"
 #include "io/StructureLoader.h"
 #include "app/SceneView.h"
 #include "camera/Camera.h"
@@ -548,6 +550,12 @@ void NanoCrystalBuilderDialog::initRenderResources(Renderer& renderer)
     m_previewBuffers.init(m_previewSphere->vbo, m_previewSphere->ebo, m_previewSphere->indexCount,
                           m_previewCylinder->vbo, m_previewCylinder->vertexCount);
 
+    if (!graphics::usingOpenGL())
+    {
+        m_glReady = true;
+        return;
+    }
+
     // A 1×1 shadow map satisfies the sampler binding without drawing shadows.
     m_previewShadow = createShadowMap(1, 1);
 
@@ -781,6 +789,24 @@ void NanoCrystalBuilderDialog::renderPreviewToFBO(int w, int h)
     if (!m_glReady || !m_renderer || m_previewBuffers.atomCount == 0)
         return;
 
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        if (!m_previewCanvas) m_previewCanvas = std::make_shared<vkr::Canvas>();
+        Camera cam;
+        cam.yaw      = m_camYaw;
+        cam.pitch    = m_camPitch;
+        cam.distance = m_camDistance;
+        FrameView frame;
+        frame.framebufferWidth  = w;
+        frame.framebufferHeight = h;
+        buildFrameView(cam, m_previewBuffers, true, frame);
+        vkr::drawStandardPreview(*m_previewCanvas, m_renderer, m_previewBuffers, frame,
+                                 ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
+        return;
+    }
+#endif
+
     ensurePreviewFBO(w, h);
 
     // Save current GL state
@@ -834,6 +860,51 @@ void NanoCrystalBuilderDialog::renderWulffPreviewToFBO(int w, int h)
 {
     if (!m_glReady || !m_renderer || !m_wulffPreviewData.success)
         return;
+
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        if (!m_wulffPreviewCanvas) m_wulffPreviewCanvas = std::make_shared<vkr::Canvas>();
+        SceneBuffers linesOnly;
+        linesOnly.orbitCenter = m_wulffPreviewData.center;
+        for (const WulffPreviewBatch& batch : m_wulffPreviewBatches)
+            linesOnly.boxLines.insert(linesOnly.boxLines.end(), batch.vertices.begin(), batch.vertices.end());
+
+        Camera cam;
+        cam.yaw = m_wulffCamYaw;
+        cam.pitch = m_wulffCamPitch;
+        cam.distance = m_wulffCamDistance;
+
+        FrameView frame;
+        frame.framebufferWidth = w;
+        frame.framebufferHeight = h;
+        buildFrameView(cam, linesOnly, true, frame);
+
+        vkr::Canvas& canvas = *m_wulffPreviewCanvas;
+        if (vkr::beginPreview(canvas, m_renderer, frame, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]))
+        {
+            std::vector<vkr::MeshVertex> vertices;
+            for (const WulffPreviewBatch& batch : m_wulffPreviewBatches)
+            {
+                if (batch.triangleVertices.empty())
+                    continue;
+                vertices.clear();
+                vertices.reserve(batch.triangleVertices.size());
+                for (const glm::vec3& position : batch.triangleVertices)
+                    vertices.push_back(vkr::MeshVertex{position, batch.normal});
+                canvas.drawMesh(vertices, glm::vec4(batch.color, 1.0f), vkr::MeshStyle::WulffPlane, false);
+            }
+            for (const WulffPreviewBatch& batch : m_wulffPreviewBatches)
+            {
+                if (batch.vertices.empty())
+                    continue;
+                canvas.drawLines(batch.vertices, glm::vec3(0.0f), vkr::LineTopology::List, true);
+            }
+            canvas.end();
+        }
+        return;
+    }
+#endif
 
     ensureWulffPreviewFBO(w, h);
 
@@ -1236,10 +1307,18 @@ void NanoCrystalBuilderDialog::drawDialog(
             const ImVec2 previewMin(dropMin.x + previewPadding, dropMin.y + previewPadding);
             const ImVec2 previewMax(previewMin.x + previewSize.x, previewMin.y + previewSize.y);
 
+#ifdef ATOMFORGE_VULKAN
+            if (graphics::usingVulkan()) {
+                if (m_previewCanvas && m_previewCanvas->texture())
+                    dl->AddImage(m_previewCanvas->texture(), previewMin, previewMax, ImVec2(0, 0), ImVec2(1, 1));
+            } else
+#endif
+            {
             dl->AddImage((ImTextureID)(intptr_t)m_previewColorTex,
                          previewMin,
                          previewMax,
                          ImVec2(0, 1), ImVec2(1, 0));
+            }
 
             if (ImGui::BeginDragDropTarget()) {
                 if (const ImGuiPayload* payload =
@@ -1323,10 +1402,23 @@ void NanoCrystalBuilderDialog::drawDialog(
         const int previewH = std::max(1, (int)previewSize.y);
         renderWulffPreviewToFBO(previewW, previewH);
 
+#ifdef ATOMFORGE_VULKAN
+        if (graphics::usingVulkan())
+        {
+            if (m_wulffPreviewCanvas && m_wulffPreviewCanvas->texture())
+                wulffDl->AddImage(m_wulffPreviewCanvas->texture(),
+                          ImVec2(previewMin.x + 5.0f, previewMin.y + 5.0f),
+                          ImVec2(previewMin.x + 5.0f + previewSize.x, previewMin.y + 5.0f + previewSize.y),
+                          ImVec2(0, 0), ImVec2(1, 1));
+        }
+        else
+#endif
+        {
         wulffDl->AddImage((ImTextureID)(intptr_t)m_wulffPreviewColorTex,
                   ImVec2(previewMin.x + 5.0f, previewMin.y + 5.0f),
                   ImVec2(previewMin.x + 5.0f + previewSize.x, previewMin.y + 5.0f + previewSize.y),
                   ImVec2(0, 1), ImVec2(1, 0));
+        }
 
         if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f))
         {

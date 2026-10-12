@@ -919,7 +919,7 @@ void ElectronicPostProcessingDialog::draw3DPreview()
             if (!std::isfinite(m_colorLow) || !std::isfinite(m_colorHigh) || m_colorHigh<m_colorLow)
                 throw std::invalid_argument("Color range must be finite with maximum >= minimum.");
             const auto scale=ImGui::GetIO().DisplayFramebufferScale;
-            GLuint texture;
+            ElectronicViewport::Texture texture;
             if (m_renderMode==0)
             {
                 if (m_volumeDirty) { m_viewport.setVolume(m_volume.fields[m_selected]); m_volumeDirty=false; }
@@ -927,7 +927,9 @@ void ElectronicPostProcessingDialog::draw3DPreview()
                 texture=m_viewport.renderVolume(static_cast<int>(size.x*scale.x),static_cast<int>(size.y*scale.y),m_yaw,m_pitch,m_zoom,m_pan,m_opacity,threshold,m_sliceLow,m_sliceHigh,m_palette);
             }
             else texture=m_viewport.render(static_cast<int>(size.x*scale.x),static_cast<int>(size.y*scale.y),m_yaw,m_pitch,m_zoom,m_pan,m_opacity,m_colorLow,m_colorHigh,m_palette,m_specular,m_shininess);
-            draw->AddImage((ImTextureID)(intptr_t)texture,pos,ImVec2(pos.x+size.x,pos.y+size.y),ImVec2(0,1),ImVec2(1,0));
+            const bool flipped=ElectronicViewport::flippedRows();
+            if (texture) draw->AddImage(static_cast<ImTextureID>(texture),pos,ImVec2(pos.x+size.x,pos.y+size.y),
+                                        ImVec2(0,flipped ? 1.0f : 0.0f),ImVec2(1,flipped ? 0.0f : 1.0f));
             if (m_showSlicePlane)
             {
                 // A translucent overlay keeps the entire guide readable through

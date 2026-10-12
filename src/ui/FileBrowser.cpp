@@ -4,6 +4,7 @@
 #include "io/StructureLoader.h"
 #include "ElementData.h"
 #include "ImGuiSetup.h"
+#include "graphics/GraphicsBackend.h"
 #include "util/PathUtils.h"
 #include "util/ApplicationPaths.h"
 #include "app/StructureFileService.h"
@@ -913,6 +914,25 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
             if (ImGui::MenuItem("Light", nullptr, themeMode() == ThemeMode::Light)) setThemeMode(ThemeMode::Light);
             if (ImGui::MenuItem("Dark", nullptr, themeMode() == ThemeMode::Dark)) setThemeMode(ThemeMode::Dark);
             if (ImGui::MenuItem("Match the system", nullptr, themeMode() == ThemeMode::System)) setThemeMode(ThemeMode::System);
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Renderer"))
+        {
+            // The choice applies at the next start; the one in use is shown below it.
+            static graphics::Backend saved = graphics::preferredBackend();
+            const auto choose = [this](graphics::Backend backend) {
+                saved = backend;
+                graphics::savePreferredBackend(backend);
+                showLoadInfo(std::string("AtomForge will draw with ") + graphics::backendName(backend) + " from its next start.");
+            };
+            if (ImGui::MenuItem("Vulkan (default)", nullptr, saved == graphics::Backend::Vulkan, graphics::vulkanBuilt()))
+                choose(graphics::Backend::Vulkan);
+            if (ImGui::MenuItem("OpenGL", nullptr, saved == graphics::Backend::OpenGL))
+                choose(graphics::Backend::OpenGL);
+            ImGui::Separator();
+            ImGui::TextDisabled("In use: %s", graphics::backendName(graphics::backend()));
+            if (!graphics::fallbackReason().empty())
+                ImGui::TextDisabled("Vulkan could not start: %s", graphics::fallbackReason().c_str());
             ImGui::EndMenu();
         }
         ImGui::EndMenu();

@@ -7,6 +7,7 @@
 #include "ui/StepEditing.h"
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 #include <array>
@@ -19,6 +20,7 @@ struct ImVec2;
 struct Renderer;
 struct SphereMesh;
 struct CylinderMesh;
+namespace vkr { class Canvas; }
 
 struct InterstitialAtomsDialog
 {
@@ -183,6 +185,7 @@ private:
     GLuint    m_meshVAO           = 0;
     GLuint    m_meshVBO           = 0;
     int       m_meshTriCount      = 0;
+    std::vector<glm::vec3> m_meshTriangles;  // position, normal per vertex (drawn with Vulkan)
 
     MeshGizmoDragState m_meshGizmoDrag;
     MeshGizmoMode      m_meshGizmoMode = MeshGizmoMode::Translate;
@@ -202,6 +205,7 @@ private:
     GLuint m_previewDepthRbo = 0;
     int    m_previewFboW     = 0;
     int    m_previewFboH     = 0;
+    std::shared_ptr<vkr::Canvas> m_canvas;  // the preview with Vulkan
 
     bool m_glReady         = false;
     bool m_previewBufDirty = false;

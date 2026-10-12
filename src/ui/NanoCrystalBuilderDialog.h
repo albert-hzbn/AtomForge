@@ -9,6 +9,7 @@
 #include "model/Structure.h"
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -19,6 +20,7 @@
 struct Renderer;
 struct SphereMesh;
 struct CylinderMesh;
+namespace vkr { class Canvas; }
 
 struct WulffPreviewBatch
 {
@@ -117,6 +119,9 @@ private:
     GLuint m_wulffPlaneProgram = 0;
     GLuint m_wulffPlaneVAO = 0;
     GLuint m_wulffPlaneVBO = 0;
+
+    std::shared_ptr<vkr::Canvas> m_previewCanvas;       // the previews with Vulkan
+    std::shared_ptr<vkr::Canvas> m_wulffPreviewCanvas;
 
     bool m_glReady           = false;
     bool m_previewBufDirty   = true; // rebuild SceneBuffers from m_reference

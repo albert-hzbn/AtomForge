@@ -9,6 +9,7 @@
 #include "model/Structure.h"
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -18,6 +19,7 @@
 struct Renderer;
 struct SphereMesh;
 struct CylinderMesh;
+namespace vkr { class Canvas; }
 
 struct CustomStructureDialog
 {
@@ -91,6 +93,7 @@ private:
     float  m_refCamYaw      = 45.0f;
     float  m_refCamPitch    = 35.0f;
     float  m_refCamDistance  = 10.0f;
+    std::shared_ptr<vkr::Canvas> m_refCanvas;  // the structure preview with Vulkan
 
     // Model preview FBO
     GLuint m_modelFBO      = 0;
@@ -101,6 +104,7 @@ private:
     float  m_modelCamYaw      = 45.0f;
     float  m_modelCamPitch    = 35.0f;
     float  m_modelCamDistance  = 50.0f;
+    std::shared_ptr<vkr::Canvas> m_modelCanvas;  // the model preview with Vulkan
 
     // Model surface mesh GL objects
     GLuint m_meshProgram = 0;
@@ -108,6 +112,7 @@ private:
     GLuint m_meshVBO = 0;
     GLuint m_meshIBO = 0;
     int    m_meshTriCount = 0;
+    std::vector<glm::vec3> m_meshTriangles;  // position, normal per vertex (drawn with Vulkan)
 
     bool loadReferenceStructure(const std::string& path);
     bool loadModelMesh(const std::string& path);

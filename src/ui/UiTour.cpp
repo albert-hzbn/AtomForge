@@ -8,6 +8,8 @@
 #include "ui/MenuParity.h"
 #include "science/ScienceCatalog.h"
 
+#include "graphics/FrameCapture.h"
+#include "graphics/GraphicsBackend.h"
 #include "third_party/stb_image_write.h"
 
 #include "imgui.h"
@@ -38,18 +40,10 @@ namespace
 {
 void screenshotFrontBuffer(const std::filesystem::path& file)
 {
-    GLint viewport[4];
-    glGetIntegerv(GL_VIEWPORT, viewport);
-    const int w = viewport[2], h = viewport[3];
-    if (w <= 0 || h <= 0) return;
-    std::vector<unsigned char> pixels(static_cast<std::size_t>(w) * h * 3), flipped(pixels.size());
-    glReadBuffer(GL_FRONT);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
-    glReadBuffer(GL_BACK);
-    for (int row = 0; row < h; ++row)
-        std::copy_n(pixels.begin() + static_cast<std::ptrdiff_t>(row) * w * 3, w * 3, flipped.begin() + static_cast<std::ptrdiff_t>(h - 1 - row) * w * 3);
-    stbi_write_png(file.u8string().c_str(), w, h, 3, flipped.data(), w * 3);
+    std::vector<unsigned char> pixels;
+    int w = 0, h = 0;
+    if (!graphics::lastFrame(pixels, w, h)) return;
+    stbi_write_png(file.u8string().c_str(), w, h, 3, pixels.data(), w * 3);
 }
 
 Structure tourCrystal()
@@ -259,7 +253,7 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
     auto& t = *uiTour;
     if (t.index >= t.steps.size()) {
         applyLightTheme();
-        glfwSetWindowShouldClose(glfwGetCurrentContext(), true);
+        glfwSetWindowShouldClose(graphics::mainWindow(), true);
         uiTour.reset();
         return;
     }

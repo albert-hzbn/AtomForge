@@ -7,11 +7,13 @@
 #include "camera/Camera.h"
 #include "graphics/CellSculptorShaders.h"
 #include "graphics/CylinderMesh.h"
+#include "graphics/GraphicsBackend.h"
 #include "graphics/Renderer.h"
 #include "graphics/Shader.h"
 #include "graphics/ShadowMap.h"
 #include "graphics/SphereMesh.h"
 #include "graphics/StructureInstanceBuilder.h"
+#include "graphics/vulkan/VulkanPreview.h"
 #include "io/StructureLoader.h"
 #include "ui/ThemeUtils.h"
 #include "util/ElementData.h"
@@ -25,6 +27,7 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <sstream>
 
 // ---------------------------------------------------------------------------
@@ -46,6 +49,17 @@ static const float kSlabColors[5][3] = {
     {1.00f, 0.90f, 0.30f},
     {0.90f, 0.40f, 1.00f},
 };
+
+#ifdef ATOMFORGE_VULKAN
+// Patches the atom scales of the buffers' Vulkan copy (host-visible).
+void scSetVulkanScales(SceneBuffers& buffers, const float* scales, size_t count)
+{
+    vkr::SceneResources* scene = buffers.vulkan.get();
+    if (!scene || !scene->scales.mapped) return;
+    count = std::min(count, (size_t)scene->atomCount);
+    std::memcpy(scene->scales.mapped, scales, count * sizeof(float));
+}
+#endif
 } // namespace
 
 // ===========================================================================
@@ -93,6 +107,12 @@ void CellSculptorDialog::initRenderResources(Renderer& renderer)
     m_resultBuffers.init(m_previewSphere->vbo, m_previewSphere->ebo,
                          m_previewSphere->indexCount,
                          m_previewCylinder->vbo, m_previewCylinder->vertexCount);
+
+    if (!graphics::usingOpenGL())
+    {
+        m_glReady = true;
+        return;
+    }
 
     m_previewShadow = createShadowMap(1, 1);
     // Clear the shadow map depth to 1.0 (far plane = no shadow).
@@ -581,6 +601,17 @@ void CellSculptorDialog::applySlabDimming()
     const auto&  fullScales = m_sourceBuffers.atomRadii;
     if (fullScales.size() != n) return;
 
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        const std::vector<float> zeros(n, 0.0f);
+        scSetVulkanScales(m_sourceBuffers, m_slabs.empty() ? fullScales.data() : zeros.data(), n);
+        if (m_ghostBuffers.atomCount == n)
+            scSetVulkanScales(m_ghostBuffers, m_slabs.empty() ? zeros.data() : fullScales.data(), n);
+        return;
+    }
+#endif
+
     // No slabs: show all atoms opaque, ghost layer empty.
     if (m_slabs.empty())
     {
@@ -676,6 +707,62 @@ void CellSculptorDialog::renderToFBO(int w, int h, GLuint fbo,
                                      FrameView& lastFrame, bool drawPlanes)
 {
     if (!m_glReady || !m_renderer) return;
+
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        std::shared_ptr<vkr::Canvas>& target = drawPlanes ? m_sourceCanvas : m_resultCanvas;
+        if (!target) target = std::make_shared<vkr::Canvas>();
+
+        Camera cam;
+        cam.yaw = yaw; cam.pitch = pitch; cam.distance = dist;
+
+        FrameView frame;
+        frame.framebufferWidth  = w;
+        frame.framebufferHeight = h;
+        if (buffers.atomCount > 0)
+            buildFrameView(cam, buffers, true, frame);
+        else
+        {
+            frame.projection     = glm::perspective(glm::radians(45.0f), (float)w/(float)h, 0.1f, 500.0f);
+            frame.view           = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, -dist));
+            frame.lightMVP       = glm::mat4(1.0f);
+            frame.lightPosition  = glm::vec3(10, 10, 10);
+            frame.cameraPosition = glm::vec3(0, 0, dist);
+        }
+        lastFrame = frame;
+
+        vkr::Canvas& canvas = *target;
+        if (!vkr::beginPreview(canvas, m_renderer, frame, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]))
+            return;
+        if (buffers.atomCount > 0)
+        {
+            vkr::drawStructure(canvas, buffers);
+            if (drawPlanes && m_ghostBuffers.atomCount > 0)
+                canvas.drawGhostAtoms(m_ghostBuffers, m_ghostAlpha);
+        }
+        if (drawPlanes && !m_faceBatches.empty())
+        {
+            std::vector<vkr::MeshVertex> vertices;
+            for (const ScFaceBatch& batch : m_faceBatches)
+            {
+                if (batch.triangleVerts.empty()) continue;
+                vertices.clear();
+                vertices.reserve(batch.triangleVerts.size());
+                for (const glm::vec3& position : batch.triangleVerts)
+                    vertices.push_back(vkr::MeshVertex{position, batch.normal});
+                canvas.drawMesh(vertices, glm::vec4(batch.color, 0.52f), vkr::MeshStyle::CuttingPlane, true);
+            }
+            for (const ScFaceBatch& batch : m_faceBatches)
+            {
+                if (batch.edgeVerts.empty()) continue;
+                canvas.drawLines(batch.edgeVerts, glm::vec3(batch.color) * 0.9f, vkr::LineTopology::List, false);
+            }
+        }
+        canvas.end();
+        return;
+    }
+#endif
 
     GLint prevFbo = 0; glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
     GLint prevVP[4]; glGetIntegerv(GL_VIEWPORT, prevVP);
@@ -808,14 +895,16 @@ void CellSculptorDialog::renderToFBO(int w, int h, GLuint fbo,
 
 void CellSculptorDialog::renderSourceToFBO(int w, int h)
 {
-    ensureFBO(m_sourceFBO, m_sourceColorTex, m_sourceDepthRbo, m_sourceW, m_sourceH, w, h);
+    if (graphics::usingOpenGL())
+        ensureFBO(m_sourceFBO, m_sourceColorTex, m_sourceDepthRbo, m_sourceW, m_sourceH, w, h);
     renderToFBO(w, h, m_sourceFBO, m_sourceBuffers,
                 m_srcYaw, m_srcPitch, m_srcDist, m_srcLastFrame, true);
 }
 
 void CellSculptorDialog::renderResultToFBO(int w, int h)
 {
-    ensureFBO(m_resultFBO, m_resultColorTex, m_resultDepthRbo, m_resultW, m_resultH, w, h);
+    if (graphics::usingOpenGL())
+        ensureFBO(m_resultFBO, m_resultColorTex, m_resultDepthRbo, m_resultW, m_resultH, w, h);
     renderToFBO(w, h, m_resultFBO, m_resultBuffers,
                 m_resYaw, m_resPitch, m_resDist, m_resLastFrame, false);
 }
@@ -940,9 +1029,21 @@ void CellSculptorDialog::drawDialog(
         const int pw = std::max(1, (int)(vMax.x - vMin.x - kViewPad*2));
         const int ph = std::max(1, (int)(vMax.y - vMin.y - kViewPad*2));
         renderSourceToFBO(pw, ph);
+#ifdef ATOMFORGE_VULKAN
+        if (graphics::usingVulkan())
+        {
+            if (m_sourceCanvas && m_sourceCanvas->texture())
+                dl->AddImage(m_sourceCanvas->texture(),
+                             ImVec2(vMin.x+kViewPad, vMin.y+kViewPad),
+                             ImVec2(vMin.x+kViewPad+pw, vMin.y+kViewPad+ph), ImVec2(0,0), ImVec2(1,1));
+        }
+        else
+#endif
+        {
         dl->AddImage((ImTextureID)(intptr_t)m_sourceColorTex,
                      ImVec2(vMin.x+kViewPad, vMin.y+kViewPad),
                      ImVec2(vMin.x+kViewPad+pw, vMin.y+kViewPad+ph), ImVec2(0,1), ImVec2(1,0));
+        }
         if (srcAct && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.f))
         { const ImVec2 d = ImGui::GetIO().MouseDelta; m_srcYaw -= d.x*0.5f; m_srcPitch += d.y*0.5f; }
         if (srcHov)
@@ -980,9 +1081,21 @@ void CellSculptorDialog::drawDialog(
         const int pw = std::max(1, (int)(rMax.x - rMin.x - kViewPad*2));
         const int ph = std::max(1, (int)(rMax.y - rMin.y - kViewPad*2));
         renderResultToFBO(pw, ph);
+#ifdef ATOMFORGE_VULKAN
+        if (graphics::usingVulkan())
+        {
+            if (m_resultCanvas && m_resultCanvas->texture())
+                rdl->AddImage(m_resultCanvas->texture(),
+                              ImVec2(rMin.x+kViewPad, rMin.y+kViewPad),
+                              ImVec2(rMin.x+kViewPad+pw, rMin.y+kViewPad+ph), ImVec2(0,0), ImVec2(1,1));
+        }
+        else
+#endif
+        {
         rdl->AddImage((ImTextureID)(intptr_t)m_resultColorTex,
                       ImVec2(rMin.x+kViewPad, rMin.y+kViewPad),
                       ImVec2(rMin.x+kViewPad+pw, rMin.y+kViewPad+ph), ImVec2(0,1), ImVec2(1,0));
+        }
         if (resAct && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.f))
         { const ImVec2 d = ImGui::GetIO().MouseDelta; m_resYaw -= d.x*0.5f; m_resPitch += d.y*0.5f; }
         if (resHov)

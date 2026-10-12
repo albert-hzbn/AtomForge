@@ -10,6 +10,8 @@
 #include "ui/UiScript.h"
 
 #include "io/StructureLoader.h"
+#include "graphics/FrameCapture.h"
+#include "graphics/GraphicsBackend.h"
 #include "third_party/stb_image_write.h"
 
 #include "imgui.h"
@@ -60,19 +62,12 @@ ImRect viewportRect()
 
 void saveJpeg(const std::filesystem::path& file)
 {
-    GLint viewport[4];
-    glGetIntegerv(GL_VIEWPORT, viewport);
-    const int w = viewport[2], h = viewport[3];
-    std::vector<unsigned char> pixels(static_cast<std::size_t>(w) * h * 3), flipped(pixels.size());
-    glReadBuffer(GL_FRONT);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
-    glReadBuffer(GL_BACK);
-    for (int row = 0; row < h; ++row)
-        std::copy_n(pixels.begin() + static_cast<std::ptrdiff_t>(row) * w * 3, w * 3, flipped.begin() + static_cast<std::ptrdiff_t>(h - 1 - row) * w * 3);
+    std::vector<unsigned char> pixels;
+    int w = 0, h = 0;
+    if (!graphics::lastFrame(pixels, w, h)) return;
     std::filesystem::create_directories(file.parent_path());
-    if (file.extension() == ".png") stbi_write_png(file.u8string().c_str(), w, h, 3, flipped.data(), w * 3);
-    else stbi_write_jpg(file.u8string().c_str(), w, h, 3, flipped.data(), 92);
+    if (file.extension() == ".png") stbi_write_png(file.u8string().c_str(), w, h, 3, pixels.data(), w * 3);
+    else stbi_write_jpg(file.u8string().c_str(), w, h, 3, pixels.data(), 92);
 }
 }
 
@@ -265,7 +260,7 @@ void FileBrowser::runTutorialCapture(Structure& current, EditMenuDialogs& dialog
     if (c.index >= c.shots.size() || (c.frame == 0 && until && *until && c.shots[c.index].file.find(until) != std::string::npos)) {
         c.bounds += "\n}\n";
         std::ofstream(c.folder / ("bounds-" + c.first + ".json")) << c.bounds;
-        glfwSetWindowShouldClose(glfwGetCurrentContext(), true);
+        glfwSetWindowShouldClose(graphics::mainWindow(), true);
         tutorialCapture.reset();
         return;
     }

@@ -10,10 +10,12 @@
 #include "camera/Camera.h"
 #include "graphics/CustomStructureShaders.h"
 #include "graphics/CylinderMesh.h"
+#include "graphics/GraphicsBackend.h"
 #include "graphics/Renderer.h"
 #include "graphics/Shader.h"
 #include "graphics/SphereMesh.h"
 #include "graphics/StructureInstanceBuilder.h"
+#include "graphics/vulkan/VulkanPreview.h"
 #include "math/StructureMath.h"
 #include "ui/PeriodicTableDialog.h"
 #include "ui/ThemeUtils.h"
@@ -155,12 +157,15 @@ void InterstitialAtomsDialog::initRenderResources(Renderer& renderer)
     m_previewCylinder = new CylinderMesh(16);
     m_previewBuffers.init(m_previewSphere->vbo, m_previewSphere->ebo, m_previewSphere->indexCount,
                           m_previewCylinder->vbo, m_previewCylinder->vertexCount);
-    m_previewShadow = createShadowMap(1, 1);
-    m_meshProgram = createProgram(customStructureMeshVertexShader(),
-                                  customStructureMeshFragmentShader());
-    glBindAttribLocation(m_meshProgram, 0, "position");
-    glBindAttribLocation(m_meshProgram, 1, "normal");
-    glLinkProgram(m_meshProgram);
+    if (graphics::usingOpenGL())
+    {
+        m_previewShadow = createShadowMap(1, 1);
+        m_meshProgram = createProgram(customStructureMeshVertexShader(),
+                                      customStructureMeshFragmentShader());
+        glBindAttribLocation(m_meshProgram, 0, "position");
+        glBindAttribLocation(m_meshProgram, 1, "normal");
+        glLinkProgram(m_meshProgram);
+    }
     m_glReady = true;
 }
 
@@ -205,6 +210,18 @@ void InterstitialAtomsDialog::rebuildMeshSurface()
     m_meshTriCount = (int)(verts.size() / 3);
     if (m_meshTriCount <= 0)
         return;
+
+    if (graphics::usingVulkan())
+    {
+        m_meshTriangles.clear();
+        m_meshTriangles.reserve(verts.size() * 2);
+        for (const Vertex& v : verts)
+        {
+            m_meshTriangles.push_back(v.pos);
+            m_meshTriangles.push_back(v.norm);
+        }
+        return;
+    }
 
     if (!m_meshVAO)
     {
@@ -295,6 +312,39 @@ void InterstitialAtomsDialog::renderPreviewToFBO(int w, int h)
 {
     if (!m_glReady || !m_renderer || m_previewBuffers.atomCount == 0)
         return;
+
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        if (!m_canvas) m_canvas = std::make_shared<vkr::Canvas>();
+        Camera cam;
+        cam.yaw      = m_camYaw;
+        cam.pitch    = m_camPitch;
+        cam.distance = m_camDistance;
+        m_lastPreviewFrame.framebufferWidth  = w;
+        m_lastPreviewFrame.framebufferHeight = h;
+        buildFrameView(cam, m_previewBuffers, true, m_lastPreviewFrame);
+        if (vkr::beginPreview(*m_canvas, m_renderer, m_lastPreviewFrame, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]))
+        {
+            vkr::drawStructure(*m_canvas, m_previewBuffers);
+            if (m_meshLoaded)
+            {
+                rebuildMeshSurface();
+                if (m_meshTriCount > 0)
+                {
+                    std::vector<vkr::MeshVertex> mesh;
+                    mesh.reserve(m_meshTriangles.size() / 2);
+                    for (size_t i = 0; i + 1 < m_meshTriangles.size(); i += 2)
+                        mesh.push_back({m_meshTriangles[i], m_meshTriangles[i + 1]});
+                    const glm::vec3 lightDir = glm::normalize(m_lastPreviewFrame.cameraPosition + glm::vec3(0.3f, 0.8f, 0.2f));
+                    m_canvas->drawMesh(mesh, glm::vec4(0.45f, 0.65f, 0.85f, 1.0f), vkr::MeshStyle::Lit, false, lightDir);
+                }
+            }
+            m_canvas->end();
+        }
+        return;
+    }
+#endif
 
     ensurePreviewFBO(w, h);
 
@@ -1278,12 +1328,24 @@ void InterstitialAtomsDialog::drawDialog(Structure& structure,
 
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
-        if (m_glReady && m_previewFBO != 0 && m_previewColorTex != 0
+        bool previewImage = m_previewFBO != 0 && m_previewColorTex != 0;
+        ImTextureID previewTexture = (ImTextureID)(intptr_t)m_previewColorTex;
+        ImVec2 previewUv0(0.0f, 1.0f), previewUv1(1.0f, 0.0f);
+#ifdef ATOMFORGE_VULKAN
+        if (graphics::usingVulkan())
+        {
+            previewImage = m_canvas && m_canvas->texture();
+            previewTexture = previewImage ? m_canvas->texture() : ImTextureID{};
+            previewUv0 = ImVec2(0.0f, 0.0f);
+            previewUv1 = ImVec2(1.0f, 1.0f);
+        }
+#endif
+        if (m_glReady && previewImage
             && m_sourceLoaded && m_previewBuffers.atomCount > 0)
         {
-            dl->AddImage((ImTextureID)(intptr_t)m_previewColorTex,
+            dl->AddImage(previewTexture,
                          canvasMin, canvasMax,
-                         ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
+                         previewUv0, previewUv1);
             drawPreviewOverlays(dl, canvasMin, canvasSize);
         }
         else

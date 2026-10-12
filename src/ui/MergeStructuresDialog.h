@@ -9,6 +9,7 @@
 #include "model/Structure.h"
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,7 @@ struct ImDrawList;
 struct Renderer;
 struct SphereMesh;
 struct CylinderMesh;
+namespace vkr { class Canvas; }
 
 struct MergeStructuresDialog
 {
@@ -106,6 +108,7 @@ private:
     SceneBuffers  m_previewBuffers;
     ShadowMap     m_previewShadow   = {};
     bool m_glReady      = false;
+    std::shared_ptr<vkr::Canvas> m_canvas;  // the preview with Vulkan
     bool m_previewDirty = true;
     bool m_autoFitOnRebuild = true;
     bool m_showPreviewBoundingBox = false;

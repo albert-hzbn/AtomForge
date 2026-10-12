@@ -6,7 +6,8 @@
 | --- | --- | --- |
 | CMake | ≥ 3.16 | Build system |
 | C++ compiler | C++17 | GCC / Clang / MinGW-w64 |
-| OpenGL | 3.x | GPU rendering |
+| Vulkan headers + glslangValidator | Vulkan 1.1 | **Optional at build time** – the default renderer; without them the build draws with OpenGL only |
+| OpenGL | 3.x | Fallback renderer (and the headless `--render` CLI) |
 | GLFW3 | any current | Window and input |
 | GLEW | any current | OpenGL extension loader |
 | GLM | any current | Math library |
@@ -35,6 +36,9 @@ sudo apt update
 sudo apt install build-essential cmake pkg-config \
                  libglfw3-dev libglew-dev libglm-dev libeigen3-dev \
                  libopenbabel-dev
+
+# Vulkan renderer (the default; OpenGL remains the fallback)
+sudo apt install libvulkan-dev glslang-tools
 
 # optional: symmetry support
 sudo apt install libsymspg-dev
@@ -65,6 +69,7 @@ cmake --build build --parallel 1
 | `ATOMFORGE_ENABLE_SPGLIB` | auto-detected | Enable spglib symmetry features |
 | `ATOMFORGE_ENABLE_SSS_BUILDER` | `ON` | Enable Substitutional Solid Solution builder UI |
 | `ATOMFORGE_ENABLE_SFE_BUILDER` | `ON` | Enable Stacking Fault (SFE) builder UI |
+| `ATOMFORGE_ENABLE_VULKAN` | `ON` | Build the Vulkan renderer (needs the Vulkan headers and glslangValidator; skipped with a message when they are missing) |
 | `ATOMFORGE_LINUX_STATIC_LINK` | `OFF` (Linux) | Statically link Linux build dependencies (opt-in) |
 | `BUILD_PORTABLE` | `OFF` | Bundle runtime libraries for redistribution |
 
@@ -94,7 +99,9 @@ pacman -S --needed \
     mingw-w64-ucrt-x86_64-glm \
     mingw-w64-ucrt-x86_64-eigen3 \
     mingw-w64-ucrt-x86_64-openbabel \
-    mingw-w64-ucrt-x86_64-pkgconf
+    mingw-w64-ucrt-x86_64-pkgconf \
+    mingw-w64-ucrt-x86_64-vulkan-headers \
+    mingw-w64-ucrt-x86_64-glslang
 
 # optional: symmetry support
 pacman -S --needed mingw-w64-ucrt-x86_64-spglib
@@ -221,6 +228,16 @@ Verify the path:
 echo $BABEL_LIBDIR
 ls "$BABEL_LIBDIR"
 ```
+
+### Choosing the renderer
+
+The desktop draws with Vulkan by default and falls back to OpenGL when Vulkan cannot start (no Vulkan driver, or a remote session without one); a notification then says why. The Vulkan loader is opened at run time, so no Vulkan library has to be shipped. To choose explicitly, in order of precedence:
+
+- `--renderer vulkan` or `--renderer opengl` on the command line,
+- the environment variable `ATOMFORGE_RENDERER=vulkan|opengl`,
+- **Settings > Renderer** (saved as `renderer=` in `~/.atomforge_preferences.txt`, applied at the next start).
+
+`ATOMFORGE_VULKAN_VALIDATION=1` enables the Khronos validation layer when it is installed (for development).
 
 ### Missing DLLs at startup (Windows)
 

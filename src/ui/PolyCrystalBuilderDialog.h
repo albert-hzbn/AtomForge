@@ -9,6 +9,7 @@
 #include "model/Structure.h"
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -19,6 +20,7 @@
 struct Renderer;
 struct SphereMesh;
 struct CylinderMesh;
+namespace vkr { class Canvas; }
 
 struct PolyCrystalBuilderDialog
 {
@@ -84,6 +86,7 @@ private:
     int    m_previewH        = 0;
 
     bool  m_glReady         = false;
+    std::shared_ptr<vkr::Canvas> m_canvas;  // the preview with Vulkan
     bool  m_previewBufDirty = true;
 
     float m_camYaw      = 45.0f;

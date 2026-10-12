@@ -11,12 +11,14 @@
 #include <glm/glm.hpp>
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
 struct Renderer;
 struct SphereMesh;
 struct CylinderMesh;
+namespace vkr { class Canvas; }
 
 struct StackingFaultBuilderDialog
 {
@@ -60,6 +62,7 @@ private:
         bool dirty = true;
             SphereMesh*   sphere   = nullptr;
             CylinderMesh* cylinder = nullptr;
+        std::shared_ptr<vkr::Canvas> canvas;  // the preview with Vulkan
     };
 
     bool tryLoadFile(const std::string& path,

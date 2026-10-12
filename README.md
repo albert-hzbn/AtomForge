@@ -22,7 +22,9 @@ Download the package for your platform from the [releases page](https://github.c
 | Platform | What you need |
 | --- | --- |
 | **Windows x64** | Open AtomForge.exe in the extracted AtomForge folder. Runtime libraries are included; no compiler or MSYS2 installation is needed. |
-| **Linux x86_64** | Open AtomForge in the extracted AtomForge/bin folder. The current build targets Ubuntu 24.04 or compatible systems with glibc 2.39 or later, X11/XWayland and working OpenGL drivers. |
+| **Linux x86_64** | Open AtomForge in the extracted AtomForge/bin folder. The current build targets Ubuntu 24.04 or compatible systems with glibc 2.39 or later, X11/XWayland and working Vulkan or OpenGL drivers. |
+
+AtomForge draws with Vulkan by default and switches to OpenGL automatically where Vulkan is unavailable; **Settings > Renderer** chooses one explicitly.
 
 Each package includes the illustrated manual. Open it through **Help > Manual** or **Help > About > Manual**, using your default PDF viewer. You can also [read it here](docs/manual/AtomForge-manual.pdf).
 

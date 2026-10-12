@@ -1,4 +1,5 @@
 #include "graphics/CloudRenderer.h"
+#include "graphics/GraphicsBackend.h"
 #include "graphics/Shader.h"
 
 #include <glm/gtc/type_ptr.hpp>
@@ -158,13 +159,12 @@ void CloudRenderer::ensureProgram()
 void CloudRenderer::open(const std::filesystem::path& path)
 {
     close();
-    ensureProgram();
+    const bool gl = graphics::usingOpenGL();
+    if (gl) ensureProgram();
     m_file = std::make_unique<atomforge::cloud::CloudFile>(path);
     m_path = path;
     const auto& info = m_file->info();
     m_chunks.assign(info.chunks.size(), ChunkState{});
-    m_queries.assign(info.chunks.size(), 0);
-    glGenQueries(static_cast<GLsizei>(m_queries.size()), m_queries.data());
     m_queryPending.assign(info.chunks.size(), 0);
     m_occluded.assign(info.chunks.size(), 0);
     m_frame = 0;
@@ -172,22 +172,6 @@ void CloudRenderer::open(const std::filesystem::path& path)
     m_stats = {};
     m_stats.totalAtoms = info.atoms;
     m_stats.chunks = info.chunks.size();
-
-    // Species colours and radii.
-    const std::size_t rows = std::max<std::size_t>(1, (info.species.size() + 255) / 256);
-    std::vector<float> texels(256 * rows * 4, 0.7f);
-    for (std::size_t i = 0; i < info.species.size(); ++i) {
-        texels[i * 4 + 0] = info.species[i].color[0];
-        texels[i * 4 + 1] = info.species[i].color[1];
-        texels[i * 4 + 2] = info.species[i].color[2];
-        texels[i * 4 + 3] = info.species[i].radius;
-    }
-    glGenTextures(1, &m_speciesTexture);
-    glBindTexture(GL_TEXTURE_2D, m_speciesTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 256, static_cast<GLsizei>(rows), 0, GL_RGBA, GL_FLOAT, texels.data());
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glBindTexture(GL_TEXTURE_2D, 0);
 
     // Outline: the cell when known, else the bounding box.
     glm::vec3 o, a, b, c;
@@ -206,12 +190,37 @@ void CloudRenderer::open(const std::filesystem::path& path)
     const int edges[12][2] = {{0, 1}, {2, 3}, {4, 5}, {6, 7}, {0, 2}, {1, 3}, {4, 6}, {5, 7}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
     std::vector<glm::vec3> lines;
     for (const auto& e : edges) { lines.push_back(corner[e[0]]); lines.push_back(corner[e[1]]); }
-    glBindVertexArray(m_lineVao);
-    glBindBuffer(GL_ARRAY_BUFFER, m_lineBuffer);
-    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(lines.size() * sizeof(glm::vec3)), lines.data(), GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
-    glBindVertexArray(0);
+
+    if (gl) {
+        m_queries.assign(info.chunks.size(), 0);
+        glGenQueries(static_cast<GLsizei>(m_queries.size()), m_queries.data());
+
+        // Species colours and radii.
+        const std::size_t rows = std::max<std::size_t>(1, (info.species.size() + 255) / 256);
+        std::vector<float> texels(256 * rows * 4, 0.7f);
+        for (std::size_t i = 0; i < info.species.size(); ++i) {
+            texels[i * 4 + 0] = info.species[i].color[0];
+            texels[i * 4 + 1] = info.species[i].color[1];
+            texels[i * 4 + 2] = info.species[i].color[2];
+            texels[i * 4 + 3] = info.species[i].radius;
+        }
+        glGenTextures(1, &m_speciesTexture);
+        glBindTexture(GL_TEXTURE_2D, m_speciesTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 256, static_cast<GLsizei>(rows), 0, GL_RGBA, GL_FLOAT, texels.data());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        glBindVertexArray(m_lineVao);
+        glBindBuffer(GL_ARRAY_BUFFER, m_lineBuffer);
+        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(lines.size() * sizeof(glm::vec3)), lines.data(), GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
+        glBindVertexArray(0);
+    }
+#ifdef ATOMFORGE_VULKAN
+    else openVulkan(lines);
+#endif
 
     m_stop = false;
     m_loader = std::thread([this] { loaderLoop(); });
@@ -230,17 +239,31 @@ void CloudRenderer::close()
     m_queue.clear();
     m_done.clear();
     m_inFlight = 0;
-    for (auto& c : m_chunks)
-        if (c.buffer) glDeleteBuffers(1, &c.buffer);
+    for (std::size_t i = 0; i < m_chunks.size(); ++i) releaseChunk(i);
     m_chunks.clear();
     if (!m_queries.empty()) glDeleteQueries(static_cast<GLsizei>(m_queries.size()), m_queries.data());
     m_queries.clear();
     m_queryPending.clear();
     m_occluded.clear();
     if (m_speciesTexture) { glDeleteTextures(1, &m_speciesTexture); m_speciesTexture = 0; }
+#ifdef ATOMFORGE_VULKAN
+    closeVulkan();
+#endif
     m_file.reset();
     m_residentBytes = 0;
     m_stats = {};
+    m_visible.clear();
+    m_tested.clear();
+}
+
+void CloudRenderer::releaseChunk(std::size_t chunk)
+{
+    ChunkState& c = m_chunks[chunk];
+    if (c.buffer) glDeleteBuffers(1, &c.buffer);
+#ifdef ATOMFORGE_VULKAN
+    releaseVulkanChunk(chunk);
+#endif
+    c = ChunkState{};
 }
 
 void CloudRenderer::loaderLoop()
@@ -283,6 +306,24 @@ void CloudRenderer::request(std::size_t chunk, std::uint64_t upTo)
     m_wake.notify_one();
 }
 
+void CloudRenderer::consumeLoads()
+{
+    // Finished loads, up to a per-frame upload volume.
+    double bytes = 0;
+    for (;;) {
+        Load load;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            if (m_done.empty() || bytes > kUploadBytesPerFrame) break;
+            load = std::move(m_done.front());
+            m_done.pop_front();
+        }
+        --m_inFlight;
+        bytes += static_cast<double>(load.count * sizeof(PackedAtom));
+        upload(load);
+    }
+}
+
 void CloudRenderer::upload(Load& load)
 {
     ChunkState& c = m_chunks[load.chunk];
@@ -292,26 +333,40 @@ void CloudRenderer::upload(Load& load)
         return;
     }
     const std::uint64_t end = load.first + load.count;
+    std::uint64_t capacity = c.capacity;
     if (end > c.capacity) {
         const std::uint64_t total = m_file->info().chunks[load.chunk].count;
-        const std::uint64_t capacity = std::min(total, std::max(end, c.capacity * 2));
-        GLuint buffer = 0;
-        glGenBuffers(1, &buffer);
-        glBindBuffer(GL_COPY_WRITE_BUFFER, buffer);
-        glBufferData(GL_COPY_WRITE_BUFFER, static_cast<GLsizeiptr>(capacity * sizeof(PackedAtom)), nullptr, GL_STATIC_DRAW);
-        if (c.buffer && c.resident) {
-            glBindBuffer(GL_COPY_READ_BUFFER, c.buffer);
-            glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, static_cast<GLsizeiptr>(c.resident * sizeof(PackedAtom)));
-        }
-        if (c.buffer) glDeleteBuffers(1, &c.buffer);
+        capacity = std::min(total, std::max(end, c.capacity * 2));
         m_residentBytes += (capacity - c.capacity) * sizeof(PackedAtom);
-        c.buffer = buffer;
-        c.capacity = capacity;
     }
-    glBindBuffer(GL_COPY_WRITE_BUFFER, c.buffer);
-    glBufferSubData(GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(load.first * sizeof(PackedAtom)),
-                    static_cast<GLsizeiptr>(load.count * sizeof(PackedAtom)), load.atoms.data());
-    glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan()) {
+        if (!uploadVulkan(load, capacity)) {
+            m_residentBytes -= (capacity - c.capacity) * sizeof(PackedAtom);
+            c.requested = c.resident;
+            return;
+        }
+    } else
+#endif
+    {
+        if (capacity != c.capacity) {
+            GLuint buffer = 0;
+            glGenBuffers(1, &buffer);
+            glBindBuffer(GL_COPY_WRITE_BUFFER, buffer);
+            glBufferData(GL_COPY_WRITE_BUFFER, static_cast<GLsizeiptr>(capacity * sizeof(PackedAtom)), nullptr, GL_STATIC_DRAW);
+            if (c.buffer && c.resident) {
+                glBindBuffer(GL_COPY_READ_BUFFER, c.buffer);
+                glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, static_cast<GLsizeiptr>(c.resident * sizeof(PackedAtom)));
+            }
+            if (c.buffer) glDeleteBuffers(1, &c.buffer);
+            c.buffer = buffer;
+        }
+        glBindBuffer(GL_COPY_WRITE_BUFFER, c.buffer);
+        glBufferSubData(GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(load.first * sizeof(PackedAtom)),
+                        static_cast<GLsizeiptr>(load.count * sizeof(PackedAtom)), load.atoms.data());
+        glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
+    }
+    c.capacity = capacity;
     c.resident = end;
     m_stats.uploadedMBThisFrame += static_cast<double>(load.count * sizeof(PackedAtom)) / (1024.0 * 1024.0);
 }
@@ -323,52 +378,21 @@ void CloudRenderer::evict(std::uint64_t frame)
     // Least recently drawn chunks first; never one with loads in flight.
     std::vector<std::size_t> candidates;
     for (std::size_t i = 0; i < m_chunks.size(); ++i)
-        if (m_chunks[i].buffer && m_chunks[i].lastUsed < frame && m_chunks[i].requested == m_chunks[i].resident) candidates.push_back(i);
+        if (m_chunks[i].capacity && m_chunks[i].lastUsed < frame && m_chunks[i].requested == m_chunks[i].resident) candidates.push_back(i);
     std::sort(candidates.begin(), candidates.end(), [&](std::size_t a, std::size_t b) { return m_chunks[a].lastUsed < m_chunks[b].lastUsed; });
     for (std::size_t i : candidates) {
         if (static_cast<double>(m_residentBytes) <= budget * 0.9) break;
-        ChunkState& c = m_chunks[i];
-        glDeleteBuffers(1, &c.buffer);
-        m_residentBytes -= c.capacity * sizeof(PackedAtom);
-        c = ChunkState{};
+        m_residentBytes -= m_chunks[i].capacity * sizeof(PackedAtom);
+        releaseChunk(i);
     }
 }
 
-void CloudRenderer::draw(const glm::mat4& projection, const glm::mat4& view, int width, int height, bool orthographic, bool lightTheme)
+void CloudRenderer::plan(const glm::mat4& projection, const glm::mat4& view, int width, int height, bool orthographic)
 {
-    if (!m_file || width <= 0 || height <= 0) return;
-    ++m_frame;
-    m_stats.uploadedMBThisFrame = 0;
     const auto& info = m_file->info();
-
-    // Finished loads, up to a per-frame upload volume.
-    {
-        double bytes = 0;
-        for (;;) {
-            Load load;
-            {
-                std::lock_guard<std::mutex> lock(m_mutex);
-                if (m_done.empty() || bytes > kUploadBytesPerFrame) break;
-                load = std::move(m_done.front());
-                m_done.pop_front();
-            }
-            --m_inFlight;
-            bytes += static_cast<double>(load.count * sizeof(PackedAtom));
-            upload(load);
-        }
-    }
-
-    // Occlusion results of earlier frames (only those already available: no stall).
-    for (std::size_t i = 0; i < m_queries.size(); ++i) {
-        if (!m_queryPending[i]) continue;
-        GLuint available = 0;
-        glGetQueryObjectuiv(m_queries[i], GL_QUERY_RESULT_AVAILABLE, &available);
-        if (!available) continue;
-        GLuint samples = 0;
-        glGetQueryObjectuiv(m_queries[i], GL_QUERY_RESULT, &samples);
-        m_occluded[i] = samples < 16;
-        m_queryPending[i] = 0;
-    }
+    m_projection = projection;
+    m_view = view;
+    m_orthographic = orthographic;
 
     // Visibility and level of detail per chunk.
     const glm::mat4 viewProjection = projection * view;
@@ -376,13 +400,14 @@ void CloudRenderer::draw(const glm::mat4& projection, const glm::mat4& view, int
     float maxRadius = 0.3f;
     for (const auto& s : info.species) maxRadius = std::max(maxRadius, s.radius);
     maxRadius *= settings.radiusScale;
+    m_pixelsPerUnit = pixelsPerUnit;
+    m_maxRadius = maxRadius;
     const double screenArea = static_cast<double>(width) * height;
-    // Per visible chunk: `cover` atoms fill its screen area; `want` is what it
-    // should get (all atoms once they are about a pixel or larger on screen).
-    struct Visible { std::size_t chunk; double want; double cover; float distance; float area; };
-    std::vector<Visible> visible;
+    std::vector<Visible>& visible = m_visible;
+    visible.clear();
     visible.reserve(m_chunks.size());
-    std::vector<std::size_t> tested;  // in the frustum and outside the camera: occlusion-tested
+    std::vector<std::size_t>& tested = m_tested;
+    tested.clear();
     tested.reserve(m_chunks.size());
     double totalWanted = 0;
     for (std::size_t i = 0; i < info.chunks.size(); ++i) {
@@ -481,6 +506,49 @@ void CloudRenderer::draw(const glm::mat4& projection, const glm::mat4& view, int
         request(chunk, target);
     }
     evict(m_frame);
+    m_complete = complete;
+
+    // Draw front to back (cheap depth rejection of hidden atoms).
+    std::sort(visible.begin(), visible.end(), [](const Visible& x, const Visible& y) { return x.distance < y.distance; });
+}
+
+void CloudRenderer::finishStats(std::uint64_t drawn, std::size_t occluded)
+{
+    std::uint64_t resident = 0;
+    for (const auto& c : m_chunks) resident += c.resident;
+    m_stats.drawnAtoms = drawn;
+    m_stats.residentAtoms = resident;
+    m_stats.visibleChunks = m_visible.size();
+    m_stats.occludedChunks = occluded;
+    m_stats.loadingChunks = m_inFlight;
+    m_stats.residentMB = static_cast<double>(m_residentBytes) / (1024.0 * 1024.0);
+    m_stats.complete = m_complete && m_inFlight == 0;
+}
+
+void CloudRenderer::draw(const glm::mat4& projection, const glm::mat4& view, int width, int height, bool orthographic, bool lightTheme)
+{
+    if (!m_file || width <= 0 || height <= 0) return;
+    ++m_frame;
+    m_stats.uploadedMBThisFrame = 0;
+    const auto& info = m_file->info();
+    consumeLoads();
+
+    // Occlusion results of earlier frames (only those already available: no stall).
+    for (std::size_t i = 0; i < m_queries.size(); ++i) {
+        if (!m_queryPending[i]) continue;
+        GLuint available = 0;
+        glGetQueryObjectuiv(m_queries[i], GL_QUERY_RESULT_AVAILABLE, &available);
+        if (!available) continue;
+        GLuint samples = 0;
+        glGetQueryObjectuiv(m_queries[i], GL_QUERY_RESULT, &samples);
+        m_occluded[i] = samples < 16;
+        m_queryPending[i] = 0;
+    }
+
+    plan(projection, view, width, height, orthographic);
+    const glm::mat4 viewProjection = projection * view;
+    const float pixelsPerUnit = m_pixelsPerUnit;
+    const float maxRadius = m_maxRadius;
 
     // GPU time of the draw, read a frame later so that it never stalls.
     const int timer = static_cast<int>(m_frame & 1);
@@ -492,8 +560,6 @@ void CloudRenderer::draw(const glm::mat4& projection, const glm::mat4& view, int
     glBeginQuery(GL_TIME_ELAPSED, m_timers[timer]);
     m_timerUsed[timer] = true;
 
-    // Draw front to back (cheap depth rejection of hidden atoms).
-    std::sort(visible.begin(), visible.end(), [](const Visible& x, const Visible& y) { return x.distance < y.distance; });
     glEnable(GL_PROGRAM_POINT_SIZE);
     glEnable(GL_DEPTH_TEST);
     glUseProgram(m_program);
@@ -519,8 +585,8 @@ void CloudRenderer::draw(const glm::mat4& projection, const glm::mat4& view, int
     const GLint fillLocation = glGetUniformLocation(m_program, "uFill");
     glBindVertexArray(m_vao);
     glEnableVertexAttribArray(0);
-    std::uint64_t drawn = 0, resident = 0;
-    for (const auto& v : visible) {
+    std::uint64_t drawn = 0;
+    for (const auto& v : m_visible) {
         const ChunkState& c = m_chunks[v.chunk];
         const std::uint64_t n = std::min<std::uint64_t>(c.resident, static_cast<std::uint64_t>(std::ceil(v.want)));
         if (!n) continue;
@@ -536,7 +602,6 @@ void CloudRenderer::draw(const glm::mat4& projection, const glm::mat4& view, int
         glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(n));
         drawn += n;
     }
-    for (const auto& c : m_chunks) resident += c.resident;
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -548,7 +613,7 @@ void CloudRenderer::draw(const glm::mat4& projection, const glm::mat4& view, int
         glDepthMask(GL_FALSE);
         glBindVertexArray(m_boxVao);
         const GLint mvpLocation = glGetUniformLocation(m_lineProgram, "uMVP");
-        for (std::size_t i : tested) {
+        for (std::size_t i : m_tested) {
             if (m_occluded[i]) ++occluded;
             if (m_queryPending[i]) continue;
             const auto& chunk = info.chunks[i];
@@ -581,12 +646,5 @@ void CloudRenderer::draw(const glm::mat4& projection, const glm::mat4& view, int
     }
     glUseProgram(0);
     glEndQuery(GL_TIME_ELAPSED);
-
-    m_stats.drawnAtoms = drawn;
-    m_stats.residentAtoms = resident;
-    m_stats.visibleChunks = visible.size();
-    m_stats.occludedChunks = occluded;
-    m_stats.loadingChunks = m_inFlight;
-    m_stats.residentMB = static_cast<double>(m_residentBytes) / (1024.0 * 1024.0);
-    m_stats.complete = complete && m_inFlight == 0;
+    finishStats(drawn, occluded);
 }

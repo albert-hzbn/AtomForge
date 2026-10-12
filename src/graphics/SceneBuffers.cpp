@@ -1,6 +1,10 @@
 #include "SceneBuffers.h"
 #include "math/StructureMath.h"
 #include "graphics/Shader.h"
+#include "graphics/GraphicsBackend.h"
+#ifdef ATOMFORGE_VULKAN
+#include "graphics/vulkan/VulkanSceneRenderer.h"
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -214,6 +218,8 @@ void SceneBuffers::init(GLuint sphereVbo,    GLuint sphereEbo,    int sphereIdxC
     tabLowPolyIndexCount   = lowPolyIdxCount;
     tabBillboardIndexCount = billboardIdxCount;
     tabCylinderVertexCount = cylVertCount;
+    if (!graphics::usingOpenGL())
+        return;  // Vulkan makes its buffers on upload
 
     // Per-tab instance VBOs (unique to this tab; never shared with other tabs).
     glGenBuffers(1, &instanceVBO);
@@ -368,6 +374,10 @@ void SceneBuffers::init(GLuint sphereVbo, GLuint sphereEbo, int sphereIdxCount,
 
 void SceneBuffers::destroy()
 {
+    vulkan.reset();
+    dislocationLoopPointCount = 0;
+    if (!graphics::usingOpenGL())
+        return;
     if (tabSphereVAO)       { glDeleteVertexArrays(1, &tabSphereVAO);       tabSphereVAO = 0; }
     if (tabLowPolyVAO)      { glDeleteVertexArrays(1, &tabLowPolyVAO);      tabLowPolyVAO = 0; }
     if (tabBillboardVAO)    { glDeleteVertexArrays(1, &tabBillboardVAO);    tabBillboardVAO = 0; }
@@ -395,6 +405,13 @@ void SceneBuffers::destroy()
 void SceneBuffers::uploadDislocationLoop(const std::vector<glm::vec3>& points)
 {
     dislocationLoopPointCount = points.size();
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        vkr::sceneRenderer().uploadLoop(*this, points);
+        return;
+    }
+#endif
     if (points.empty())
         return;
 
@@ -475,7 +492,8 @@ void SceneBuffers::upload(const StructureInstanceData& data,
         bondRadiiCpu.shrink_to_fit();
     }
 
-    const bool uploadedWithCompute = uploadInstancesWithCompute(
+    const bool gl = graphics::usingOpenGL();
+    const bool uploadedWithCompute = !gl || uploadInstancesWithCompute(
         instanceVBO,
         colorVBO,
         scaleVBO,
@@ -518,7 +536,7 @@ void SceneBuffers::upload(const StructureInstanceData& data,
 
     // Allocate GPU-driven culling buffers when GL 4.3 is available.
     // instanceVBO and scaleVBO are reused as SSBOs (no data copy needed).
-    if (GLEW_VERSION_4_3 && atomCount > 0)
+    if (gl && GLEW_VERSION_4_3 && atomCount > 0)
     {
         if (!visibleIndexSSBO)
             glGenBuffers(1, &visibleIndexSSBO);
@@ -693,6 +711,24 @@ void SceneBuffers::upload(const StructureInstanceData& data,
     this->bondColorsB = bondColorB;
     this->bondRadiiCpu = bondRadii;
 
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        std::vector<glm::vec4> pos4(data.positions.size());
+        std::vector<glm::vec4> col4(data.colors.size());
+        for (size_t i = 0; i < data.positions.size(); ++i)
+            pos4[i] = glm::vec4(data.positions[i], 1.0f);
+        for (size_t i = 0; i < data.colors.size(); ++i)
+            col4[i] = glm::vec4(data.colors[i], 1.0f);
+        vkr::sceneRenderer().upload(*this, pos4, col4, data.scales, data.shininess,
+                                    bondStartPositions, bondEndPositions, bondColorA, bondColorB,
+                                    bondRadii, bondShininessA, bondShininessB, data.boxLines);
+        return;
+    }
+#endif
+    if (!gl)
+        return;
+
     glBindBuffer(GL_ARRAY_BUFFER, bondStartVBO);
     glBufferData(GL_ARRAY_BUFFER,
                  bondStartPositions.size() * sizeof(glm::vec3),
@@ -746,6 +782,13 @@ void SceneBuffers::highlightAtom(int idx, glm::vec3 color)
 {
     if (idx < 0 || (size_t)idx >= atomCount)
         return;
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        vkr::sceneRenderer().setInstanceColor(*this, idx, color);
+        return;
+    }
+#endif
     glm::vec4 packed(color, 1.0f);
     glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
     glBufferSubData(GL_ARRAY_BUFFER,
@@ -759,6 +802,13 @@ void SceneBuffers::restoreAtomColor(int idx)
     if (idx < 0 || (size_t)idx >= atomColors.size())
         return;
     glm::vec3 orig = atomColors[idx];
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+    {
+        vkr::sceneRenderer().setInstanceColor(*this, idx, orig);
+        return;
+    }
+#endif
     glm::vec4 packed(orig, 1.0f);
     glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
     glBufferSubData(GL_ARRAY_BUFFER,
@@ -771,12 +821,19 @@ void SceneBuffers::updateAtomPosition(int idx, const glm::vec3& position)
 {
     if (idx < 0 || (size_t)idx >= atomCount)
         return;
-    glm::vec4 packed(position, 1.0f);
-    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glBufferSubData(GL_ARRAY_BUFFER,
-                    (GLintptr)(idx * (GLintptr)sizeof(glm::vec4)),
-                    sizeof(glm::vec4),
-                    &packed);
+#ifdef ATOMFORGE_VULKAN
+    if (graphics::usingVulkan())
+        vkr::sceneRenderer().setInstancePosition(*this, idx, position);
+    else
+#endif
+    {
+        glm::vec4 packed(position, 1.0f);
+        glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+        glBufferSubData(GL_ARRAY_BUFFER,
+                        (GLintptr)(idx * (GLintptr)sizeof(glm::vec4)),
+                        sizeof(glm::vec4),
+                        &packed);
+    }
     if ((size_t)idx < atomPositions.size())
         atomPositions[idx] = position;
 }
