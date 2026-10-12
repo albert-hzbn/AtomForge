@@ -183,33 +183,8 @@ CnaResult runCna(const Structure& structure, float cutoffScale, bool usePbcReque
     else
     {
         // Candidate pairs from a cell list over the periodic images; each is
-        // then judged by its minimum-image distance and own cutoff, exactly
-        // as the all-pairs loop below (kept for cells too small to search).
-        bool searched = false;
-        try
-        {
-            const auto pairs = neighbours::within(structure, static_cast<double>(maximumCutoff) * 1.001 + 1e-3, usePbc);
-            std::vector<int> partners;
-            for (std::size_t k = 0; k < pairs.size();)
-            {
-                const int i = pairs[k].i;
-                partners.clear();
-                for (; k < pairs.size() && pairs[k].i == i; ++k)
-                    if (pairs[k].j > i) partners.push_back(pairs[k].j);
-                std::sort(partners.begin(), partners.end());
-                partners.erase(std::unique(partners.begin(), partners.end()), partners.end());
-                for (int j : partners)
-                    tryAddBond(i, j);
-            }
-            searched = true;
-        }
-        catch (const std::runtime_error&)
-        {
-        }
-        if (!searched)
-            for (int i = 0; i < (int)structure.atoms.size(); ++i)
-                for (int j = i + 1; j < (int)structure.atoms.size(); ++j)
-                    tryAddBond(i, j);
+        // then judged by its minimum-image distance and own cutoff.
+        neighbours::forEachCandidatePair(structure, maximumCutoff, usePbc, tryAddBond);
     }
 
     for (int i = 0; i < (int)neighbors.size(); ++i)

@@ -1,4 +1,5 @@
 #include "algorithms/StackingFaultBuilder.h"
+#include "math/NeighbourSearch.h"
 
 #include "graphics/StructureInstanceBuilder.h"
 #include "math/StructureMath.h"
@@ -208,9 +209,14 @@ DetectionSummary detectFamily(const Structure& structure, bool usePbcRequest)
     }
     else
     {
-        for (int i = 0; i < (int)structure.atoms.size(); ++i)
-            for (int j = i + 1; j < (int)structure.atoms.size(); ++j)
-                tryAddBond(i, j);
+        // Candidate pairs from a cell list over the periodic images, each then
+        // judged by its minimum-image distance.
+        float largestRadius = 0.0f;
+        for (const auto& atom : structure.atoms)
+            if (atom.atomicNumber >= 0 && atom.atomicNumber < (int)radii.size())
+                largestRadius = std::max(largestRadius, radii[atom.atomicNumber]);
+        largestRadius = std::max(largestRadius, 1.0f);
+        neighbours::forEachCandidatePair(structure, 2.0 * largestRadius * kBondToleranceFactor, true, tryAddBond);
     }
 
     for (std::vector<int>& nbrs : neighbors)
