@@ -453,8 +453,6 @@ void SceneBuffers::upload(const StructureInstanceData& data,
     {
         // Large structure: disable CPU caches to save memory (~80% reduction)
         // GPU buffers are still uploaded (used for rendering)
-        std::cerr << "Large structure (" << atomCount << " atoms): CPU caches disabled. "
-                  << "Atom picking and per-atom color editing disabled." << std::endl;
         atomPositions.clear();
         atomColors.clear();
         atomRadii.clear();
