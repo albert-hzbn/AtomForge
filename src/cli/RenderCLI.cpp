@@ -44,6 +44,23 @@ using namespace cli;
 namespace
 {
 
+// The values of every --flag that takes `words` words: one quoted argument
+// ("Cu 0.9 0.5 0.2") or the separate words the help shows (Cu 0.9 0.5 0.2).
+std::vector<std::string> multiWordArgs(int argc, char* argv[], const char* flag, int words)
+{
+    std::vector<std::string> values;
+    for (int i = 1; i < argc; ++i)
+    {
+        if (std::strcmp(argv[i], flag) != 0 || i + 1 >= argc) continue;
+        std::string value = argv[i + 1];
+        if (value.find_first_of(" \t") == std::string::npos)
+            for (int k = 2; k <= words && i + k < argc && std::strncmp(argv[i + k], "--", 2) != 0; ++k)
+                value += std::string(" ") + argv[i + k];
+        values.push_back(value);
+    }
+    return values;
+}
+
 // Apply "SYMBOL r g b" overrides (0..1 components) onto a size-119 element
 // color table. Pulled out as a free function so flag semantics are testable
 // without an OpenGL context.
@@ -176,6 +193,7 @@ void printHelp()
 "  --frames N             Turntable: render N frames (writes output-000.png, ...)\n"
 "  --yaw-step D           Turntable: yaw increment per frame, degrees\n"
 "  --fps N                Animated GIF frame rate          (default: 12)\n"
+"  --every N              Animated GIF: use every Nth trajectory frame (default: 1)\n"
 "\n"
 "Animated GIF: with --output FILE.gif a trajectory input (XYZ/extXYZ, XDATCAR,\n"
 "LAMMPS dump) becomes one frame per trajectory frame, using every Nth frame with\n"
@@ -184,7 +202,7 @@ void printHelp()
 "\n"
 "Example:\n"
 "  AtomForge --render --input cu_fcc.cif --output cu.png ^\n"
-"            --yaw 30 --pitch 20 --color Cu 0.9 0.5 0.2 --output cu_view.png\n"
+"            --yaw 30 --pitch 20 --color Cu 0.9 0.5 0.2\n"
 << std::endl;
 }
 
@@ -252,7 +270,8 @@ int runRenderCLI(int argc, char* argv[])
             throw std::invalid_argument("--dpi must be positive");
 
         glm::vec4 background(1.0f, 1.0f, 1.0f, 1.0f);
-        if (const char* bg = findArg(argc, argv, "--background"))
+        const auto backgrounds = multiWordArgs(argc, argv, "--background", 3);
+        if (const char* bg = backgrounds.empty() ? nullptr : backgrounds.back().c_str())
         {
             std::istringstream iss(bg);
             float r = 1.0f, g = 1.0f, b = 1.0f;
@@ -313,8 +332,8 @@ int runRenderCLI(int argc, char* argv[])
 
         std::vector<glm::vec3> elementColors = makeDefaultElementColors();
         std::vector<float> elementRadii = makeLiteratureCovalentRadii();
-        applyColorOverrides(findAllArgs(argc, argv, "--color"), elementColors);
-        applyRadiusOverrides(findAllArgs(argc, argv, "--radius"), elementRadii);
+        applyColorOverrides(multiWordArgs(argc, argv, "--color", 4), elementColors);
+        applyRadiusOverrides(multiWordArgs(argc, argv, "--radius", 2), elementRadii);
         for (float& radius : elementRadii)
             radius *= radiusScale;
 

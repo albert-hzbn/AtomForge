@@ -964,7 +964,7 @@
     },
     {
       "source": "src/cli/RenderCLI.cpp",
-      "sha256": "981214e7dad6d71c12b6f9071c6888bd7c8cdf6230871406bd6d567df667b04f",
+      "sha256": "9daf63e559f953cf9168a2a4c9e517a2cefdb2c226ca53f58c291ec10e9e437e",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"

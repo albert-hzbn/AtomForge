@@ -38,6 +38,15 @@ with tempfile.TemporaryDirectory(prefix="atomforge_render_") as folder:
     if len(data) < 100:
         raise AssertionError("Rendered PNG is suspiciously small")
 
+    # The help's form: --color SYMBOL R G B and --background R G B as separate words.
+    words = root / "words.png"
+    result = subprocess.run(
+        [exe, "--render", "--input", str(source), "--output", str(words), "--width", "64", "--height", "64",
+         "--color", "cu", "0.2", "0.5", "0.9", "--background", "0", "0", "0", "--radius", "Cu", "1.0"],
+        capture_output=True, text=True, timeout=60)
+    if result.returncode != 0 or not words.exists():
+        raise AssertionError(f"--render rejected separate-word values:\n{result.stdout}\n{result.stderr}")
+
     # Turntable mode writes numbered frames instead of a single file.
     turntable_base = root / "turn.png"
     result = subprocess.run(
