@@ -6,7 +6,23 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <cctype>
 #include <stdexcept>
+
+namespace
+{
+// An element symbol in standard case ("CU", "cu" -> "Cu"); labels that are
+// not purely letters stay as written.
+std::string standardSymbol(std::string symbol)
+{
+    bool letters = !symbol.empty();
+    for (char c : symbol) letters = letters && std::isalpha(static_cast<unsigned char>(c));
+    if (!letters) return symbol;
+    symbol[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(symbol[0])));
+    for (std::size_t k = 1; k < symbol.size(); ++k) symbol[k] = static_cast<char>(std::tolower(static_cast<unsigned char>(symbol[k])));
+    return symbol;
+}
+}
 
 std::vector<Structure> loadXyzTrajectory(const std::string& path)
 {
@@ -61,7 +77,7 @@ std::vector<Structure> loadXyzTrajectory(const std::string& path)
             std::vector<std::string> tokens;
             for (std::string token; row>>token;) tokens.push_back(token);
             if (tokens.size()<columnCount) throw std::runtime_error("Invalid XYZ atom row");
-            atom.symbol=tokens[speciesColumn];
+            atom.symbol=standardSymbol(tokens[speciesColumn]);
             try {
                 atom.x=std::stod(tokens[positionColumn]);
                 atom.y=std::stod(tokens[positionColumn+1]);
@@ -150,7 +166,7 @@ std::vector<Structure> loadLammpsFrames(std::istream& input, std::size_t maxFram
             for (std::string token; row>>token;) values.push_back(token);
             if (static_cast<int>(values.size())<=maxColumn) throw std::runtime_error("LAMMPS atom row has too few columns");
             AtomSite atom;
-            atom.symbol=values[static_cast<std::size_t>(elementCol)];
+            atom.symbol=standardSymbol(values[static_cast<std::size_t>(elementCol)]);
             if (!(std::istringstream(values[static_cast<std::size_t>(xCol)])>>atom.x) || !std::isfinite(atom.x))
                 throw std::runtime_error("Invalid LAMMPS x coordinate");
             if (!(std::istringstream(values[static_cast<std::size_t>(yCol)])>>atom.y) || !std::isfinite(atom.y))

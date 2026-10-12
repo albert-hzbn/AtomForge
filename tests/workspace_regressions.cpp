@@ -22,6 +22,10 @@ int main()
         const auto frames=loadXyzTrajectory(xyz.string());
         check(frames.size()==2 && frames[0].atoms[0].atomicNumber==29,"Trajectory elements or frame count changed");
         check(frames[0].hasUnitCell && frames[0].cellVectors[2][2]==3,"Trajectory cell lost");
+        const auto cased=root/"cased.xyz";
+        { std::ofstream file(cased); file << "2\nupper and lower case\nCU 0 0 0\nni 1 1 1\n"; }
+        const auto casedFrames=loadXyzTrajectory(cased.string());
+        check(casedFrames[0].atoms[0].symbol=="Cu" && casedFrames[0].atoms[1].atomicNumber==28,"Trajectory symbols in any case");
         { std::ofstream file(xyz,std::ios::app); file << "2\ntruncated\nH 0 0 0\n"; }
         bool rejected=false;
         try { loadXyzTrajectory(xyz.string()); } catch (const std::exception&) { rejected=true; }
