@@ -163,7 +163,7 @@ void FileBrowser::runTutorialCapture(Structure& current, EditMenuDialogs& dialog
         s.push_back(Shot{"tutorials/theme-options.jpg", {{0, menu("View", nullptr)}, {6, menu("View", "Theme")}}, 14, menus});
         s.push_back(Shot{"tutorials/edit-menu.jpg", {{0, menu("Edit", nullptr)}}, 14, menus});
         s.push_back(Shot{"tutorials/build-menu.jpg", {{0, menu("Build", nullptr)}}, 14, menus});
-        s.push_back(Shot{"tutorials/interface-size.jpg", {{0, menu("Settings", nullptr)}, {6, menu("Settings", "Interface size")}}, 14, menus});
+        s.push_back(Shot{"tutorials/interface-size.jpg", {{0, menu("Settings", nullptr)}, {6, menu("Settings", "Interface Size")}}, 14, menus});
         // Builders.
         s.push_back(Shot{"tutorials/bulk-controls.jpg", {{0, [this](Context&) { bulkCrystalDialog.open(); }}}, 14, popups});
         s.push_back(Shot{"bulk-dialog.png", {{0, [this](Context&) { bulkCrystalDialog.open(); }}}, 14, popups});

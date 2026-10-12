@@ -174,8 +174,8 @@ void FileBrowser::drawCommandPalette(Structure& structure, EditMenuDialogs& edit
     add("View > Theme", "Dark theme", [] { setThemeMode(ThemeMode::Dark); });
     add("View > Theme", "Match the system theme", [] { setThemeMode(ThemeMode::System); });
     for (const auto& [label, scale] : std::vector<std::pair<const char*, float>>{
-             {"Interface size: Automatic", 1.0f}, {"Interface size: Compact (85%)", .85f}, {"Interface size: Larger (125%)", 1.25f},
-             {"Interface size: Large (150%)", 1.5f}, {"Interface size: Extra large (200%)", 2.0f}})
+             {"Interface Size: Automatic", 1.0f}, {"Interface Size: Compact (85%)", .85f}, {"Interface Size: Larger (125%)", 1.25f},
+             {"Interface Size: Large (150%)", 1.5f}, {"Interface Size: Extra Large (200%)", 2.0f}})
         add("Settings", label, [scale = scale] { setInterfaceScale(scale); });
     add("Settings", "Atomic Sizes", [&editMenuDialogs] { editMenuDialogs.openAtomicSizes(); });
     add("Settings", "Display Settings", [&editMenuDialogs] { editMenuDialogs.openDisplaySettings(); });

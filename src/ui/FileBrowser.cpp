@@ -873,14 +873,14 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
     forceTourMenu("Settings");
     if (ImGui::BeginMenu("Settings"))
     {
-        forceTourSubmenu("Interface size");
-        if (ImGui::BeginMenu("Interface size"))
+        forceTourSubmenu("Interface Size");
+        if (ImGui::BeginMenu("Interface Size"))
         {
             if (ImGui::MenuItem("Automatic (display scaling)", nullptr, interfaceScale() == 1.0f)) setInterfaceScale(1.0f);
             if (ImGui::MenuItem("Compact (85%)", nullptr, interfaceScale() == .85f)) setInterfaceScale(.85f);
             if (ImGui::MenuItem("Larger (125%)", nullptr, interfaceScale() == 1.25f)) setInterfaceScale(1.25f);
             if (ImGui::MenuItem("Large (150%)", nullptr, interfaceScale() == 1.5f)) setInterfaceScale(1.5f);
-            if (ImGui::MenuItem("Extra large (200%)", nullptr, interfaceScale() == 2.0f)) setInterfaceScale(2.0f);
+            if (ImGui::MenuItem("Extra Large (200%)", nullptr, interfaceScale() == 2.0f)) setInterfaceScale(2.0f);
             ImGui::EndMenu();
         }
         ImGui::Separator();

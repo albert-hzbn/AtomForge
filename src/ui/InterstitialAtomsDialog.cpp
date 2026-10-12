@@ -996,7 +996,7 @@ void InterstitialAtomsDialog::rebuildVoidTypeOptions()
         std::ostringstream label;
         label.setf(std::ios::fixed, std::ios::floatfield);
         label.precision(3);
-        label << "Void " << voidIndex << " (" << count << ") [V " << avgVolume << " A^3]";
+        label << "Void " << voidIndex << " (" << count << ") [V " << avgVolume << " \xc3\x85\xc2\xb3]";
         m_voidTypeOptions.push_back({label.str(), 1000 + bin, count});
         const auto it = previousSelections.find(1000 + bin);
         m_voidTypeSelections.push_back((it == previousSelections.end() || it->second) ? 1 : 0);
