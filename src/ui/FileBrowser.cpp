@@ -1489,9 +1489,13 @@ void FileBrowser::drawExportImageDialog(Structure& structure)
 
         dialogLayout::fieldLabel("Resolution", labelColumn);
         ImGui::SetNextItemWidth(-FLT_MIN);
-        ImGui::SliderInt("##exportScale", &exportResolutionScale, 1, 8, "%dx");
-        if (exportResolutionScale > 1)
-            ImGui::TextDisabled("Output will be %dx the current window size.", exportResolutionScale);
+        // The image is the view's framebuffer times the scale.
+        const ImGuiIO& exportIo = ImGui::GetIO();
+        const int exportWidth = static_cast<int>(exportIo.DisplaySize.x * exportIo.DisplayFramebufferScale.x) * exportResolutionScale;
+        const int exportHeight = static_cast<int>(exportIo.DisplaySize.y * exportIo.DisplayFramebufferScale.y) * exportResolutionScale;
+        char scaleFormat[64];
+        std::snprintf(scaleFormat, sizeof(scaleFormat), "%%dx   (%d \xc3\x97 %d px)", exportWidth, exportHeight);
+        ImGui::SliderInt("##exportScale", &exportResolutionScale, 1, 8, scaleFormat);
 
         if (exportStatusMsg[0] != '\0')
             dialogLayout::note(dialogLayout::Note::Error, exportStatusMsg);
