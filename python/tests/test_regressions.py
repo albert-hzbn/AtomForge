@@ -32,6 +32,13 @@ class FileIntegrityTests(unittest.TestCase):
         self.assertEqual([a.symbol for a in af.load(self.root / "POSCAR-001").atoms], ["Fe", "O"])
         (self.root / "upper.xyz").write_text("3\n\nCU 0 0 0\nni 1.8 0 0\nO 0 1.8 0\n")
         self.assertEqual([a.symbol for a in af.load(self.root / "upper.xyz").atoms], ["Cu", "Ni", "O"])
+        # Selective dynamics survives a load and save.
+        (self.root / "sd_POSCAR").write_text("sd\n1.0\n4 0 0\n0 4 0\n0 0 4\nNa Cl\n1 1\nSelective dynamics\nDirect\n"
+                                              "0 0 0 T T T\n0.5 0.5 0.5 F F T\n")
+        sd = af.load(self.root / "sd_POSCAR")
+        self.assertEqual([a.fixed for a in sd.atoms], [(False, False, False), (True, True, False)])
+        sd.save(self.root / "sd_again.vasp")
+        self.assertEqual([a.fixed for a in af.load(self.root / "sd_again.vasp").atoms], [(False, False, False), (True, True, False)])
         # LAMMPS data: atoms by id, the style from the column count, and an
         # unknown element refused rather than guessed.
         (self.root / "charge.data").write_text("x\n\n2 atoms\n2 atom types\n0 4 xlo xhi\n0 4 ylo yhi\n0 4 zlo zhi\n\n"

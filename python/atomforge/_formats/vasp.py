@@ -70,7 +70,8 @@ def _load_vasp(path: str) -> "Structure":
         raise ValueError("invalid POSCAR: species and non-negative counts must match")
     if coord_line >= len(lines):
         raise ValueError("invalid POSCAR: missing coordinate mode")
-    if lines[coord_line].strip().lower().startswith("s"):
+    selective = lines[coord_line].strip().lower().startswith("s")
+    if selective:
         coord_line += 1
     if coord_line >= len(lines):
         raise ValueError("invalid POSCAR: missing coordinate mode")
@@ -98,7 +99,10 @@ def _load_vasp(path: str) -> "Structure":
             else:
                 x, y, z = fx * scale, fy * scale, fz * scale
             cr, cg, cb = _default_color(sym)
-            s.atoms.append(Atom(sym, x, y, z, cr, cg, cb))
+            atom = Atom(sym, x, y, z, cr, cg, cb)
+            if selective and len(row) >= 6:
+                atom.fixed = tuple(flag[:1].upper() == "F" for flag in row[3:6])
+            s.atoms.append(atom)
     return s
 
 
@@ -114,11 +118,15 @@ def _save_vasp(s: "Structure", path: str) -> None:
         groups[a.symbol].append(a)
 
     cell = s.cell or [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-    lines = ["AtomForge structure\n", "1.0\n"]
+    # The species as the title too: VASP 4 readers take them from there.
+    lines = [" ".join(seen) + "\n", "1.0\n"]
     for row in cell:
         lines.append(f"  {row[0]:16.10f}  {row[1]:16.10f}  {row[2]:16.10f}\n")
     lines.append("  " + "  ".join(seen) + "\n")
     lines.append("  " + "  ".join(str(len(groups[sym])) for sym in seen) + "\n")
+    selective = any(any(getattr(a, "fixed", ())) for a in s.atoms)
+    if selective:
+        lines.append("Selective dynamics\n")
     lines.append("Direct\n")
     for sym in seen:
         for a in groups[sym]:
@@ -126,6 +134,7 @@ def _save_vasp(s: "Structure", path: str) -> None:
                 fx, fy, fz = _cart_to_frac(a.x, a.y, a.z, cell)
             else:
                 fx, fy, fz = a.x, a.y, a.z
-            lines.append(f"  {fx:16.12f}  {fy:16.12f}  {fz:16.12f}\n")
+            flags = ("  " + " ".join("F" if f else "T" for f in a.fixed)) if selective else ""
+            lines.append(f"  {fx:16.12f}  {fy:16.12f}  {fz:16.12f}{flags}\n")
     with open(path, "w", encoding="utf-8") as fh:
         fh.writelines(lines)

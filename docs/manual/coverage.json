@@ -86,7 +86,7 @@
     },
     {
       "source": "python/atomforge/_formats/vasp.py",
-      "sha256": "17aaa0f22b773792b7c820783886a0bf0f637a76c036fd135a6fc17c3e51ce1c",
+      "sha256": "372a0103c192014f0b8e3c9473fad912de9d8aca4cc7bd0bded9113f18afcb10",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -131,7 +131,7 @@
     },
     {
       "source": "python/atomforge/_structure.py",
-      "sha256": "938328b664813ec1c26e4cf54c29498a738386b96418691a0efd6023af417654",
+      "sha256": "7ea05ebeea6c1eb06a2cc2a0aed809928305ac41a764835d6e395337782e6c43",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
