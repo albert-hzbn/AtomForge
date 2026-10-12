@@ -101,18 +101,14 @@ void TransformAtomsDialog::drawDialog(const std::function<void()>& onApply)
             ImGui::PopID();
         }
 
-        ImGui::Spacing();
-        ImGui::Separator();
-        if (m_step.active())
+        const int pressed = dialogLayout::footer(m_step.active() ? "Update Step" : "Apply", "Cancel");
+        if (pressed == 1 && m_step.active())
         {
-            if (dialogLayout::primaryButton("Update Step", dialogLayout::actionSize()))
-            {
-                m_step.commitParameters(stepParameters());
-                ImGui::CloseCurrentPopup();
-                m_step.finish();
-            }
+            m_step.commitParameters(stepParameters());
+            ImGui::CloseCurrentPopup();
+            m_step.finish();
         }
-        else if (dialogLayout::primaryButton("Apply",dialogLayout::actionSize()))
+        else if (pressed == 1)
         {
             copyMatrix(pendingMatrix, transformMatrix);
 
@@ -120,8 +116,7 @@ void TransformAtomsDialog::drawDialog(const std::function<void()>& onApply)
             ImGui::CloseCurrentPopup();
             onApply();
         }
-        ImGui::SameLine();
-        if (responsive::button("Cancel",dialogLayout::actionSize()))
+        else if (pressed == 2)
         {
             ImGui::CloseCurrentPopup();
             m_step.finish();

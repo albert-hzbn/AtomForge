@@ -558,6 +558,8 @@ void EditMenuDialogs::drawPopups(Structure& structure,
                             const glm::vec3 cart((float)atom.x, (float)atom.y, (float)atom.z);
                             tryCartesianToFractional(structure, cart, frac);
                             float editPos[3] = { frac.x, frac.y, frac.z };
+                            for (float& value : editPos)
+                                if (std::abs(value) < 5e-6f) value = 0.0f;  // no "-0.00000"
                             if (ImGui::DragFloat3("##DirectPos", editPos, 0.001f, -1000.0f, 1000.0f, "%.5f"))
                             {
                                 glm::vec3 newCart(0.0f);

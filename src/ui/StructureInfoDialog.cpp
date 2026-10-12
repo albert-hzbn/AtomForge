@@ -350,6 +350,8 @@ StructureInfoComputedData computeStructureInfo(const Structure& structure)
 
 void drawAtomicPositionsTable(const Structure& structure, bool hasValidLattice)
 {
+    // Rounding noise ("-0.00000") shows as zero.
+    const auto shown = [](double value) { return std::abs(value) < 5e-6 ? 0.0 : value; };
     if (!ImGui::BeginTable("##position-table", 8,
                            ImGuiTableFlags_BordersInnerH |
                            ImGuiTableFlags_BordersOuter |
@@ -385,17 +387,17 @@ void drawAtomicPositionsTable(const Structure& structure, bool hasValidLattice)
         ImGui::TableSetColumnIndex(1);
         ImGui::Text("%s", atom.symbol.c_str());
         ImGui::TableSetColumnIndex(2);
-        ImGui::Text("%.5f", atom.x);
+        ImGui::Text("%.5f", shown(atom.x));
         ImGui::TableSetColumnIndex(3);
-        ImGui::Text("%.5f", atom.y);
+        ImGui::Text("%.5f", shown(atom.y));
         ImGui::TableSetColumnIndex(4);
-        ImGui::Text("%.5f", atom.z);
+        ImGui::Text("%.5f", shown(atom.z));
         ImGui::TableSetColumnIndex(5);
-        ImGui::Text("%.5f", frac.x);
+        ImGui::Text("%.5f", shown(frac.x));
         ImGui::TableSetColumnIndex(6);
-        ImGui::Text("%.5f", frac.y);
+        ImGui::Text("%.5f", shown(frac.y));
         ImGui::TableSetColumnIndex(7);
-        ImGui::Text("%.5f", frac.z);
+        ImGui::Text("%.5f", shown(frac.z));
     }
 
     ImGui::EndTable();
