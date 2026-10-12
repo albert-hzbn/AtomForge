@@ -573,7 +573,13 @@ private:
     char saveStatusMsg[256];
     char exportFilename[1024];
     char exportStatusMsg[256];
-    std::vector<ToastNotification> notifications;
+    // Shared by every tab: a message raised just before switching tabs (e.g.
+    // a builder opening its result in a new tab) is still shown.
+    static std::vector<ToastNotification>& notifications()
+    {
+        static std::vector<ToastNotification> shared;
+        return shared;
+    }
 
     int selectedAtomicNumber;
 

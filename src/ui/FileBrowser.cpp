@@ -2557,20 +2557,20 @@ void FileBrowser::showNotification(const std::string& message, bool isError)
     notification.message = message;
     notification.expiresAt = ImGui::GetTime() + kNotificationLifetimeSeconds;
     notification.isError = isError;
-    notifications.push_back(notification);
+    notifications().push_back(notification);
 }
 
 void FileBrowser::drawNotifications()
 {
     const double now = ImGui::GetTime();
-    notifications.erase(
-        std::remove_if(notifications.begin(), notifications.end(),
+    notifications().erase(
+        std::remove_if(notifications().begin(), notifications().end(),
             [&](const ToastNotification& notification) {
                 return notification.expiresAt <= now;
             }),
-        notifications.end());
+        notifications().end());
 
-    if (notifications.empty())
+    if (notifications().empty())
         return;
 
     // Cards in the theme's popup colours, stacked upwards from above the
@@ -2583,7 +2583,7 @@ void FileBrowser::drawNotifications()
     const float wrapWidth = responsive::dp(380.0f);
     const float rounding = responsive::dp(8.0f);
     float bottom = io.DisplaySize.y - ImGui::GetFrameHeight() - margin;
-    for (auto it = notifications.rbegin(); it != notifications.rend(); ++it)
+    for (auto it = notifications().rbegin(); it != notifications().rend(); ++it)
     {
         const ToastNotification& notification = *it;
         const double age = kNotificationLifetimeSeconds - (notification.expiresAt - now);
