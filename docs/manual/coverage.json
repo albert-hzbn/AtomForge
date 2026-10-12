@@ -59,7 +59,7 @@
     },
     {
       "source": "python/atomforge/_formats/lammps.py",
-      "sha256": "dd22b1aa53c6dd8a95f48c39af07c0d6aeb261f4ead5fd23dcbb74f808d96756",
+      "sha256": "dc28e74cffcc24798d22658afb25b138917d90b2fcdbb2514320d59ebf2e6d1a",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -809,7 +809,7 @@
     },
     {
       "source": "src/cli/AnalysisCLI.cpp",
-      "sha256": "1c0b7fce0b6d3f5f22e2846669268ea0ed95447548b764e38b21b6874e7d24f2",
+      "sha256": "16977f6c3aef84ae6fcc72e0f789c181514c227dd83fa6ebb4dd9aaf1499de50",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -881,7 +881,7 @@
     },
     {
       "source": "src/cli/CliArgs.cpp",
-      "sha256": "c659846938cf34972a8e5c3e79c20d27fbc9d423f54a78fc8c4db4f64ec86826",
+      "sha256": "25afab0f2971a35d8b1dea5ddf73484e527cd44efe80ccf46d1f5d3ce97bfcb0",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -937,7 +937,7 @@
     },
     {
       "source": "src/cli/OptionCheck.h",
-      "sha256": "71c92414be9be289fa8a7a098ee8acd64d0fe578258d7bae22e57b1e3c53902e",
+      "sha256": "81dd11b852b9fb802a3a3bc93cec7f1e1a655ca1b0a8f1d524dd680c906df5da",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -1076,7 +1076,7 @@
     },
     {
       "source": "src/pipeline/Pipeline.cpp",
-      "sha256": "07e155c21b8546706babfaa63c0901159290696a45fa547c6e4e7ba0272b263d",
+      "sha256": "3ac2edf8e610acba4c9d3c7e1c51853fd4cee9b6fd65d75e2bb545e476483f17",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -2882,7 +2882,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "c6b0ea3a00d0af6ed70a3fc0dbe580c5376f8afaf8686b7542a6f8451a3fb9e1",
+      "sha256": "471fe4f724c01886a7b5cadd75412a85eb446a8ed6ca138f6414f4251286a1b1",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

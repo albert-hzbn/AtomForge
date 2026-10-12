@@ -1328,106 +1328,6 @@ static bool readExtendedXyzLattice(const std::string& text, std::array<std::arra
     return true;
 }
 
-// POSCAR details Open Babel misreads: a negative scale factor is the cell
-// volume, and a VASP 4 file has no element line (the species are named on
-// the title line, as other tools write them). Returns false when the text
-// is left unchanged.
-static bool normalizePoscar(std::string& text)
-{
-    std::vector<std::string> lines;
-    for (std::size_t pos = 0; pos < text.size();)
-    {
-        const std::size_t end = text.find('\n', pos);
-        lines.push_back(text.substr(pos, end == std::string::npos ? std::string::npos : end - pos + 1));
-        pos = end == std::string::npos ? text.size() : end + 1;
-    }
-    if (lines.size() < 7) return false;
-    const auto tokens = [](const std::string& line) {
-        std::istringstream in(line);
-        std::vector<std::string> out;
-        for (std::string token; in >> token;) out.push_back(token);
-        return out;
-    };
-    bool changed = false;
-
-    // Scale line: one negative value is the volume of the cell.
-    const auto scale = tokens(lines[1]);
-    if (scale.size() == 1)
-    {
-        char* end = nullptr;
-        const double value = std::strtod(scale[0].c_str(), &end);
-        if (end != scale[0].c_str() && value < 0.0)
-        {
-            double m[3][3];
-            for (int r = 0; r < 3; ++r)
-            {
-                const auto row = tokens(lines[static_cast<std::size_t>(2 + r)]);
-                if (row.size() < 3) return false;
-                for (int c = 0; c < 3; ++c) m[r][c] = std::atof(row[static_cast<std::size_t>(c)].c_str());
-            }
-            const double det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
-                             - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
-                             + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-            if (std::abs(det) < 1e-12) return false;
-            char buffer[64];
-            std::snprintf(buffer, sizeof(buffer), "%.12g\n", std::cbrt(-value / std::abs(det)));
-            lines[1] = buffer;
-            changed = true;
-        }
-    }
-
-    // VASP 4: the line after the cell holds the counts; take the species from
-    // the title ("Na Cl", "Fe_pv O") when it names one per count.
-    const auto counts = tokens(lines[5]);
-    bool allCounts = !counts.empty();
-    for (const auto& count : counts)
-        allCounts = allCounts && count.find_first_not_of("0123456789") == std::string::npos;
-    if (!allCounts && !counts.empty())
-    {
-        // Element line with POTCAR labels ("Fe_pv", "O_s", "Ti/abc"): the element.
-        std::string line;
-        bool relabelled = false;
-        for (const auto& word : counts)
-        {
-            std::size_t letters = 0;
-            while (letters < word.size() && std::isalpha(static_cast<unsigned char>(word[letters]))) ++letters;
-            const std::string symbol = letters >= 1 && letters <= 2 && letters < word.size() ? word.substr(0, letters) : word;
-            relabelled = relabelled || symbol != word;
-            line += (line.empty() ? "" : " ") + symbol;
-        }
-        if (relabelled)
-        {
-            lines[5] = line + "\n";
-            changed = true;
-        }
-    }
-    if (allCounts)
-    {
-        std::vector<std::string> species;
-        for (const auto& word : tokens(lines[0]))
-        {
-            std::size_t letters = 0;
-            while (letters < word.size() && std::isalpha(static_cast<unsigned char>(word[letters]))) ++letters;
-            if (letters == 0 || letters > 2) { species.clear(); break; }
-            std::string symbol = word.substr(0, letters);
-            symbol[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(symbol[0])));
-            if (symbol.size() == 2) symbol[1] = static_cast<char>(std::tolower(static_cast<unsigned char>(symbol[1])));
-            species.push_back(symbol);
-        }
-        if (species.size() == counts.size())
-        {
-            std::string line;
-            for (const auto& symbol : species) line += (line.empty() ? "" : " ") + symbol;
-            lines.insert(lines.begin() + 5, line + "\n");
-            changed = true;
-        }
-    }
-    if (!changed) return false;
-    text.clear();
-    for (const auto& line : lines) text += line;
-    return true;
-}
-
 // The columns of the species and the positions in an extended XYZ frame,
 // from Properties=name:type:count:... on its comment line (for example
 // id:I:1:species:S:1:pos:R:3). False without a usable Properties key.
@@ -1470,6 +1370,175 @@ bool isLargeDataFile(const std::string& filename)
 }
 
 static bool finishLoadedStructure(const std::string& filename, Structure& structure, std::string& errorMessage);
+
+// A VASP POSCAR/CONTCAR, read directly: the scale (a negative one is the
+// cell volume, three are per-axis factors), the lattice, the element line
+// (VASP 5, POTCAR labels such as Fe_pv reduced to Fe) or, for VASP 4, the
+// species named on the title line, the counts, optional selective dynamics
+// (T/F flags kept on each atom) and Direct or Cartesian coordinates.
+static bool readPoscar(const std::string& text, Structure& structure, std::string& errorMessage)
+{
+    std::vector<std::string> lines;
+    {
+        std::istringstream in(text);
+        for (std::string line; std::getline(in, line);)
+        {
+            if (!line.empty() && line.back() == '\r') line.pop_back();
+            lines.push_back(line);
+        }
+    }
+    const auto words = [](const std::string& line) {
+        std::istringstream in(line);
+        std::vector<std::string> out;
+        for (std::string word; in >> word;) out.push_back(word);
+        return out;
+    };
+    const auto number = [](const std::string& word, double& value) {
+        char* end = nullptr;
+        value = std::strtod(word.c_str(), &end);
+        return end != word.c_str() && *end == '\0' && std::isfinite(value);
+    };
+    const auto fail = [&](const std::string& message) { errorMessage = "Invalid POSCAR: " + message; return false; };
+    if (lines.size() < 7) return fail("the file is incomplete.");
+
+    // Scale.
+    const auto scaleWords = words(lines[1]);
+    double scale[3] = {1, 1, 1};
+    double volume = 0.0;
+    if (scaleWords.size() == 1 || (scaleWords.size() > 1 && scaleWords.size() != 3))
+    {
+        if (!number(scaleWords[0], scale[0]) || scale[0] == 0.0) return fail("the scale factor on line 2 is not a nonzero number.");
+        if (scale[0] < 0.0) { volume = -scale[0]; scale[0] = 1.0; }
+        scale[1] = scale[2] = scale[0];
+    }
+    else if (scaleWords.size() == 3)
+    {
+        for (int k = 0; k < 3; ++k)
+            if (!number(scaleWords[(size_t)k], scale[k]) || scale[k] <= 0.0) return fail("the scale factors on line 2 must be positive.");
+    }
+    else
+        return fail("line 2 needs the scale factor.");
+
+    // Lattice (rows), scaled.
+    glm::dmat3 cell(1.0);  // columns a, b, c
+    for (int r = 0; r < 3; ++r)
+    {
+        const auto row = words(lines[(size_t)(2 + r)]);
+        double v[3];
+        if (row.size() < 3 || !number(row[0], v[0]) || !number(row[1], v[1]) || !number(row[2], v[2]))
+            return fail("lattice vector " + std::to_string(r + 1) + " needs three numbers.");
+        for (int c = 0; c < 3; ++c) cell[r][c] = v[c] * scale[c];
+    }
+    const double determinant = glm::determinant(cell);
+    if (std::abs(determinant) < 1e-12) return fail("the lattice vectors have no volume.");
+    if (volume > 0.0)
+        cell *= std::cbrt(volume / std::abs(determinant));
+
+    // Species and counts.
+    std::size_t line = 5;
+    const auto symbolOf = [](const std::string& word) {
+        std::size_t letters = 0;
+        while (letters < word.size() && std::isalpha(static_cast<unsigned char>(word[letters]))) ++letters;
+        if (letters == 0) return 0;
+        std::string symbol = word.substr(0, std::min<std::size_t>(letters, 2));
+        symbol[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(symbol[0])));
+        if (symbol.size() == 2) symbol[1] = static_cast<char>(std::tolower(static_cast<unsigned char>(symbol[1])));
+        for (int z = 1; z <= 118; ++z)
+            if (symbol == elementSymbol(z)) return z;
+        return 0;
+    };
+    std::vector<std::string> speciesWords = words(lines[line]);
+    std::vector<int> elements;
+    bool hasElementLine = !speciesWords.empty() && !std::isdigit(static_cast<unsigned char>(speciesWords[0][0]));
+    if (hasElementLine)
+    {
+        for (const auto& word : speciesWords)
+        {
+            const int z = symbolOf(word);
+            if (!z) return fail("unknown element '" + word + "' on line 6.");
+            elements.push_back(z);
+        }
+        ++line;
+    }
+    if (line >= lines.size()) return fail("the atom counts are missing.");
+    std::vector<long long> counts;
+    for (const auto& word : words(lines[line]))
+    {
+        double value = 0;
+        if (!number(word, value) || value < 0 || value != std::floor(value)) return fail("the atom counts on line " + std::to_string(line + 1) + " must be whole numbers.");
+        counts.push_back(static_cast<long long>(value));
+    }
+    ++line;
+    if (!hasElementLine)
+    {
+        // VASP 4: the title names the species ("Na Cl").
+        for (const auto& word : words(lines[0]))
+        {
+            const int z = symbolOf(word);
+            if (!z) { elements.clear(); break; }
+            elements.push_back(z);
+        }
+        if (elements.size() != counts.size())
+            return fail("it names no elements (VASP 4): put them on the title line, e.g. \"Na Cl\", or add an element line.");
+    }
+    if (elements.size() != counts.size()) return fail("the element line and the counts do not match.");
+    long long total = 0;
+    for (long long count : counts) total += count;
+    if (total <= 0) return fail("it has no atoms.");
+    if (total > 5000000) return fail("it has more than 5000000 atoms.");
+
+    // Selective dynamics, then the coordinate type.
+    bool selective = false;
+    if (line < lines.size())
+    {
+        const auto w = words(lines[line]);
+        if (!w.empty() && (w[0][0] == 'S' || w[0][0] == 's')) { selective = true; ++line; }
+    }
+    if (line >= lines.size()) return fail("the coordinate type (Direct or Cartesian) is missing.");
+    const auto mode = words(lines[line]);
+    if (mode.empty()) return fail("the coordinate type (Direct or Cartesian) is missing.");
+    const char kind = static_cast<char>(std::tolower(static_cast<unsigned char>(mode[0][0])));
+    const bool cartesian = kind == 'c' || kind == 'k';
+    ++line;
+    const double cartesianScale = volume > 0.0 ? std::cbrt(volume / std::abs(determinant)) : 1.0;
+
+    std::size_t fixedCount = 0;
+    structure.atoms.reserve(static_cast<std::size_t>(total));
+    for (std::size_t species = 0; species < elements.size(); ++species)
+        for (long long n = 0; n < counts[species]; ++n, ++line)
+        {
+            if (line >= lines.size())
+                return fail("it declares " + std::to_string(total) + " atoms but lists only " + std::to_string(structure.atoms.size()) + ".");
+            const auto w = words(lines[line]);
+            double v[3];
+            if (w.size() < 3 || !number(w[0], v[0]) || !number(w[1], v[1]) || !number(w[2], v[2]))
+                return fail("atom " + std::to_string(structure.atoms.size() + 1) + " needs three coordinates.");
+            AtomSite site;
+            site.atomicNumber = elements[species];
+            site.symbol = elementSymbol(site.atomicNumber);
+            glm::dvec3 position;
+            if (cartesian)
+                position = glm::dvec3(v[0] * scale[0], v[1] * scale[1], v[2] * scale[2]) * cartesianScale;
+            else
+                position = cell * glm::dvec3(v[0], v[1], v[2]);
+            site.x = position.x;
+            site.y = position.y;
+            site.z = position.z;
+            if (selective && w.size() >= 6)
+                for (int k = 0; k < 3; ++k)
+                    if (w[(size_t)(3 + k)][0] == 'F' || w[(size_t)(3 + k)][0] == 'f') site.fixed = static_cast<std::uint8_t>(site.fixed | (1 << k));
+            fixedCount += site.fixed != 0;
+            getDefaultElementColor(site.atomicNumber, site.r, site.g, site.b);
+            structure.atoms.push_back(std::move(site));
+        }
+    structure.hasUnitCell = true;
+    for (int r = 0; r < 3; ++r)
+        structure.cellVectors[(size_t)r] = {cell[r][0], cell[r][1], cell[r][2]};
+    if (selective)
+        structure.loadNote = std::to_string(fixedCount) + (fixedCount == 1 ? " atom has" : " atoms have") +
+                             " fixed coordinates (selective dynamics).";
+    return true;
+}
 
 // The first frame of an XYZ or extended XYZ file, read directly: the count,
 // the comment (Lattice and Properties keys) and one line per atom, whose
@@ -1926,6 +1995,14 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
         return finishLoadedStructure(filename, structure, errorMessage);
     }
 
+    if (extLower == ".vasp" || extLower == ".poscar" || detectedPoscar)
+    {
+        std::ifstream in(filename, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        if (!readPoscar(text, structure, errorMessage)) return false;
+        return finishLoadedStructure(filename, structure, errorMessage);
+    }
+
     if (extLower == ".data" || extLower == ".lmp")
     {
         std::ifstream in(filename, std::ios::binary);
@@ -1973,59 +2050,7 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
     // application so there is no value in the O(n²) work.
     conv.AddOption("b", OpenBabel::OBConversion::INOPTIONS);
 
-    bool read = false;
-    bool selectiveDynamics = false;
-    std::vector<std::uint8_t> poscarFixed;  // per atom, in file order
-    if (extLower == ".vasp" || extLower == ".poscar" || detectedPoscar)
-    {
-        std::ifstream in(filename, std::ios::binary);
-        std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-        // Selective dynamics: the line after the counts starts with S, and
-        // each coordinate line carries T/F flags.
-        {
-            std::istringstream lines(text);
-            std::string line;
-            for (int n = 0; n < 9 && std::getline(lines, line); ++n)
-            {
-                const std::size_t first = line.find_first_not_of(" \t");
-                if (n >= 6 && first != std::string::npos && (line[first] == 'S' || line[first] == 's'))
-                {
-                    selectiveDynamics = true;
-                    break;
-                }
-            }
-            // The flags follow the coordinate-type line: "x y z T T F" (F fixed).
-            if (selectiveDynamics && std::getline(lines, line))
-                while (std::getline(lines, line))
-                {
-                    std::istringstream fields(line);
-                    std::vector<std::string> words;
-                    for (std::string word; fields >> word;) words.push_back(word);
-                    if (words.size() < 6) break;
-                    std::uint8_t fixed = 0;
-                    for (int k = 0; k < 3; ++k)
-                        if (words[(size_t)(3 + k)][0] == 'F' || words[(size_t)(3 + k)][0] == 'f') fixed = static_cast<std::uint8_t>(fixed | (1 << k));
-                    poscarFixed.push_back(fixed);
-                }
-        }
-        if (normalizePoscar(text))
-        {
-            // Open Babel's VASP reader needs a file, not a string.
-            std::error_code error;
-            const auto temporary = std::filesystem::temp_directory_path(error) /
-                                   ("atomforge-" + std::to_string(std::hash<std::string>{}(filename)) + "-POSCAR");
-            {
-                std::ofstream out(temporary, std::ios::binary);
-                out << text;
-            }
-            read = conv.ReadFile(&mol, temporary.string());
-            std::filesystem::remove(temporary, error);
-        }
-        else
-            read = conv.ReadFile(&mol, filename);
-    }
-    else
-        read = conv.ReadFile(&mol, filename);
+    const bool read = conv.ReadFile(&mol, filename);
     if (!read)
     {
         errorMessage = "Failed to load file. The file may be corrupted or unreadable.";
@@ -2098,22 +2123,6 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
         structure.atoms.push_back(site);
     }
 
-    if (selectiveDynamics)
-    {
-        if (poscarFixed.size() == structure.atoms.size())
-        {
-            std::size_t count = 0;
-            for (std::size_t i = 0; i < poscarFixed.size(); ++i)
-            {
-                structure.atoms[i].fixed = poscarFixed[i];
-                count += poscarFixed[i] != 0;
-            }
-            structure.loadNote = std::to_string(count) + (count == 1 ? " atom has" : " atoms have") +
-                                 " fixed coordinates (selective dynamics).";
-        }
-        else
-            structure.loadNote = "The file's selective-dynamics flags could not be matched to its atoms and are not kept.";
-    }
     resolvePartialOccupancy(structure, occupancies);
     return finishLoadedStructure(filename, structure, errorMessage);
 }
