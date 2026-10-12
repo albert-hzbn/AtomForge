@@ -1,4 +1,5 @@
 #include "cli/PipelineCLI.h"
+#include "cli/OptionCheck.h"
 #include "cli/CliArgs.h"
 #include "ui/MenuParity.h"
 
@@ -105,6 +106,10 @@ void writeExtxyz(std::ostream& out, const atomforge::pipeline::PipelineData& dat
 int runPipelineCLI(int argc, char* argv[])
 {
     if (hasFlag(argc, argv, "--help") || hasFlag(argc, argv, "-h")) { printHelp(); return 0; }
+    if (const std::string problem = cliOptions::unknownOption(std::vector<std::string>(argv + 1, argv + argc), printHelp, "--pipe", "AtomForge --pipe --help"); !problem.empty()) {
+        std::cerr << "Error: " << problem << "\n";
+        return 1;
+    }
     if (hasFlag(argc, argv, "--list")) { listModifiers(); return 0; }
     if (hasFlag(argc, argv, "--list-json")) {
         // Modifier descriptions for tools (the Python package uses this).

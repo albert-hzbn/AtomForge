@@ -1,4 +1,5 @@
 #include "cli/RenderCLI.h"
+#include "cli/OptionCheck.h"
 #include "cli/CliArgs.h"
 
 #include "app/EditorOps.h"
@@ -214,6 +215,11 @@ int runRenderCLI(int argc, char* argv[])
     {
         printHelp();
         return 0;
+    }
+    if (const std::string problem = cliOptions::unknownOption(std::vector<std::string>(argv + 1, argv + argc), printHelp, "--render", "AtomForge --render --help"); !problem.empty())
+    {
+        std::cerr << "Error: " << problem << "\n";
+        return 1;
     }
 
     try
