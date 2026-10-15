@@ -752,10 +752,29 @@ void drawElementLabelsOverlay(ImDrawList* drawList,
                               int viewportWidth,
                               int viewportHeight,
                               const SceneBuffers& sceneBuffers,
-                              const Structure& structure)
+                              const Structure& structure,
+                              AtomLabelContent content)
 {
     if (!drawList || structure.atoms.empty() || sceneBuffers.atomPositions.empty())
         return;
+    const bool hasProperty = structure.atomProperty.size() == structure.atoms.size();
+    // The text shown for an atom.
+    const auto labelOf = [&](int index) {
+        const auto value = [&]() -> std::string {
+            if (!hasProperty) return "";
+            const double v = structure.atomProperty[static_cast<std::size_t>(index)];
+            if (!std::isfinite(v)) return "-";
+            char text[32];
+            std::snprintf(text, sizeof text, "%.4g", v);
+            return text;
+        };
+        switch (content) {
+        case AtomLabelContent::Property: return value();
+        case AtomLabelContent::ElementAndProperty: { const std::string v = value(); return v.empty() ? structure.atoms[static_cast<std::size_t>(index)].symbol : structure.atoms[static_cast<std::size_t>(index)].symbol + " " + v; }
+        case AtomLabelContent::Index: return std::to_string(index);
+        default: return structure.atoms[static_cast<std::size_t>(index)].symbol;
+        }
+    };
 
     struct LabelCandidate
     {
@@ -782,8 +801,7 @@ void drawElementLabelsOverlay(ImDrawList* drawList,
         if (baseIdx < 0 || baseIdx >= (int)structure.atoms.size())
             continue;
 
-        const std::string& label = structure.atoms[baseIdx].symbol;
-        if (label.empty())
+        if (labelOf(baseIdx).empty())
             continue;
 
         const glm::vec4 viewPos = view * glm::vec4(sceneBuffers.atomPositions[i], 1.0f);
@@ -813,7 +831,7 @@ void drawElementLabelsOverlay(ImDrawList* drawList,
     size_t labelsPlaced = 0;
     for (const LabelCandidate& c : candidates)
     {
-        const std::string& label = structure.atoms[c.baseIdx].symbol;
+        const std::string label = labelOf(c.baseIdx);
         const ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
 
         ImVec4 rect(

@@ -136,6 +136,7 @@ set(ATOMFORGE_SOURCES
     src/ui/MillerDirectionOverlay.cpp
     src/ui/PolyhedralOverlay.cpp
     src/ui/SurfaceMeshOverlay.cpp
+    src/ui/TrajectoryLinesOverlay.cpp
     src/ui/VoronoiOverlay.cpp
     src/ui/MeasurementOverlay.cpp
     src/ui/PeriodicTableDialog.cpp

@@ -36,6 +36,7 @@ struct TrajectoryDialog
     static atomforge::science::AtomProperty analyseFrame(const Structure& frame, const std::string& tool, double cutoff);
 private:
     void finishGif(const std::string& message);
+    void traceLines();
     std::size_t frameCount() const { return stream ? stream->size() : 0; }
     // Loads frame `index` into `structure` (with the per-frame analysis, when enabled).
     void show(int index, Structure& structure, const std::function<void(Structure&)>& update, const std::function<void()>& showAtomProperty);
@@ -63,5 +64,7 @@ private:
     int analysis=0;
     float analysisCutoff=3.0f;
     std::string analysisMessage;
-    char lammpsTypes[128] = "";  // elements of LAMMPS types 1, 2, ... ("Cu Ni")
+    char lammpsTypes[128] = "";
+    int lineStride=1;
+    std::string lineMessage;  // elements of LAMMPS types 1, 2, ... ("Cu Ni")
 };

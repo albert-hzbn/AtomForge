@@ -8,6 +8,7 @@
 #include "FileBrowser.h"
 #include "ImGuiSetup.h"
 #include "ui/UiScript.h"
+#include "ui/TrajectoryLinesOverlay.h"
 
 #include "io/StructureLoader.h"
 #include "graphics/FrameCapture.h"
@@ -243,6 +244,10 @@ void FileBrowser::runTutorialCapture(Structure& current, EditMenuDialogs& dialog
         s.push_back(Shot{"analysis/ptm.jpg", {{0, main(polycrystal)}, {4, tool("ptm")}, {10, script("science.run")}}, 240, {}});
         s.push_back(Shot{"analysis/grain-segmentation.jpg", {{0, tool("grain-segmentation")}, {6, script("science.run")}}, 300, {}});
         s.push_back(Shot{"analysis/voronoi.jpg", {{0, tool("voronoi")}, {6, script("science.run")}}, 300, {}});
+        const std::string md = (c.examples / "cu_md.extxyz").u8string();
+        s.push_back(Shot{"analysis/trajectory-lines.jpg", {{0, main(cu4)}, {2, [this, md](Context&) { trajectoryDialog.show(); trajectoryDialog.load(md); }},
+                                                           {60, script("trajectory.lines")},
+                                                           {80, [this](Context&) { trajectoryLinesOverlay().wholePath = true; trajectoryDialog.hide(); }}}, 30, {}});
         s.push_back(Shot{"analysis/surface-mesh.jpg", {{0, main(sphere)}, {4, tool("surface-mesh")}, {10, script("science.run")}, {200, script("science.surface")}}, 60, {}});
         // Electronic structure (needs the demonstration CHGCAR).
         if (std::filesystem::exists(c.chgcar)) {

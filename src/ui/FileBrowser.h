@@ -156,6 +156,7 @@ struct FileBrowser
     const int (&getTransformMatrix() const)[3][3] { return transformDialog.getMatrix(); }
     void clearTransformMatrix() { transformDialog.clearTransform(); }
     bool isShowElementEnabled() const { return showElementLabels; }
+    int getAtomLabelContent() const { return atomLabelContent; }
     bool isShowElementLegendEnabled() const { return showElementLegend; }
     bool isShowBondsEnabled() const
     {
@@ -511,6 +512,7 @@ private:
     bool showManual;
     bool showEditColors;
     bool showElementLabels;
+    int atomLabelContent = 0;  // AtomLabelContent: element, property, both, index
     bool showElementLegend = true;
     bool showBonds;
     bool showAtoms;

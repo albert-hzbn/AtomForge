@@ -37,6 +37,7 @@
 #include "ui/MillerDirectionOverlay.h"
 #include "ui/PolyhedralOverlay.h"
 #include "ui/SurfaceMeshOverlay.h"
+#include "ui/TrajectoryLinesOverlay.h"
 #include "ui/VoronoiOverlay.h"
 
 #include <glm/glm.hpp>
@@ -1701,6 +1702,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                               activeState.fileBrowser.isShowPolyhedralViewerEnabled());
 
         drawSurfaceMeshOverlay(drawList, frame.projection, frame.view, frame.framebufferWidth, frame.framebufferHeight);
+        drawTrajectoryLinesOverlay(drawList, frame.projection, frame.view, frame.framebufferWidth, frame.framebufferHeight);
 
         activeState.fileBrowser.drawInterstitialVoidOverlay(drawList,
                                                             frame.projection,
@@ -1712,7 +1714,8 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         if (activeState.fileBrowser.isShowElementEnabled())
             drawElementLabelsOverlay(drawList, frame.projection, frame.view,
                                      frame.framebufferWidth, frame.framebufferHeight,
-                                     activeState.sceneBuffers, activeState.structure);
+                                     activeState.sceneBuffers, activeState.structure,
+                                     static_cast<AtomLabelContent>(activeState.fileBrowser.getAtomLabelContent()));
 
         if (!activeState.structure.atoms.empty())
             drawOrientationAxesOverlay(drawList, frame.view,

@@ -788,7 +788,17 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         if (ImGui::BeginMenu("Show"))
         {
             ImGui::MenuItem("Atoms", nullptr, &showAtoms, hasAtoms);
-            ImGui::MenuItem("Element Labels", nullptr, &showElementLabels);
+            ImGui::MenuItem("Atom Labels", nullptr, &showElementLabels);
+            if (ImGui::BeginMenu("Label Atoms With")) {
+                const char* contents[] = {"Element", "Per-Atom Property Value", "Element and Property Value", "Atom Index"};
+                const bool hasProperty = structure.atomProperty.size() == structure.atoms.size() && !structure.atoms.empty();
+                for (int k = 0; k < 4; ++k)
+                    if (ImGui::MenuItem(contents[k], nullptr, atomLabelContent == k, k == 0 || k == 3 || hasProperty)) {
+                        atomLabelContent = k;
+                        showElementLabels = true;
+                    }
+                ImGui::EndMenu();
+            }
             ImGui::MenuItem("Element Legend", nullptr, &showElementLegend);
             ImGui::MenuItem("Bounding Box", nullptr, &showBoundingBox, structure.hasUnitCell);
             ImGui::Separator();
@@ -2740,6 +2750,7 @@ atomforge::Workspace FileBrowser::workspace(const Structure& structure) const
     auto saved=electronicDialog.snapshot(); saved.structure=structure;
     saved.settings["desktop.useLightTheme"]=isLightThemeEnabled();
     saved.settings["desktop.showElementLabels"]=showElementLabels;
+    saved.settings["desktop.atomLabelContent"]=atomLabelContent;
     saved.settings["desktop.showBonds"]=showBonds;
     saved.settings["desktop.showAtoms"]=showAtoms;
     saved.settings["desktop.showBoundingBox"]=showBoundingBox;
@@ -2773,6 +2784,7 @@ void FileBrowser::restoreWorkspace(const atomforge::Workspace& saved, Structure&
         const auto found=saved.settings.find(key); return found==saved.settings.end() ? fallback : found->second;
     };
     showElementLabels=read("desktop.showElementLabels",showElementLabels)!=0;
+    atomLabelContent=std::clamp(static_cast<int>(read("desktop.atomLabelContent",atomLabelContent)),0,3);
     showBonds=read("desktop.showBonds",showBonds)!=0;
     showAtoms=read("desktop.showAtoms",showAtoms)!=0;
     showBoundingBox=read("desktop.showBoundingBox",showBoundingBox)!=0;

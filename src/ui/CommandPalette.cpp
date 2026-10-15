@@ -133,7 +133,7 @@ void FileBrowser::drawCommandPalette(Structure& structure, EditMenuDialogs& edit
         add("View > Show", label, [&flag] { flag = !flag; }, enabled);
     };
     toggle("Atoms", showAtoms, atoms);
-    toggle("Element Labels", showElementLabels, true);
+    toggle("Atom Labels", showElementLabels, true);
     toggle("Element Legend", showElementLegend, true);
     toggle("Bounding Box", showBoundingBox, structure.hasUnitCell);
     toggle("Lattice Planes", showLatticePlanes, structure.hasUnitCell);

@@ -56,13 +56,18 @@ void drawMeasurementOverlays(const MeasurementOverlayState& state,
                              int viewportHeight,
                              const SceneBuffers& sceneBuffers);
 
+// What atom labels show (OVITO's text labels): the element, the per-atom
+// property value, both, or the atom index.
+enum class AtomLabelContent { Element, Property, ElementAndProperty, Index };
+
 void drawElementLabelsOverlay(ImDrawList* drawList,
                               const glm::mat4& projection,
                               const glm::mat4& view,
                               int viewportWidth,
                               int viewportHeight,
                               const SceneBuffers& sceneBuffers,
-                              const Structure& structure);
+                              const Structure& structure,
+                              AtomLabelContent content = AtomLabelContent::Element);
 
 void drawOrientationAxesOverlay(ImDrawList* drawList,
                                 const glm::mat4& view,

@@ -1,4 +1,6 @@
 #include "ui/TrajectoryDialog.h"
+#include "ui/TrajectoryLinesOverlay.h"
+#include "ui/UiScript.h"
 #include "ui/DialogLayout.h"
 #include "ui/Fonts.h"
 #include "io/Trajectory.h"
@@ -103,7 +105,10 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
     bool changed=false;
     if (task.poll()) {
         error=task.error();
-        if (task.result()) { stream=*task.result(); playback.frame=0; playback.playing=false; changed=true; loaded=pending; justLoaded=true; }
+        if (task.result()) {
+            stream=*task.result(); playback.frame=0; playback.playing=false; changed=true; loaded=pending; justLoaded=true;
+            if (trajectoryLinesOverlay().visible) traceLines();
+        }
         task.clearResult();
     }
     const int count=static_cast<int>(frameCount());
@@ -197,6 +202,19 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
                 if (ImGui::InputFloat("Neighbour cutoff (\xc3\x85)",&analysisCutoff,0.1f,0.5f,"%.2f")) { analysisCutoff=std::max(0.5f,analysisCutoff); changed=analyse; }
             }
             if (!analysisMessage.empty()) ImGui::TextDisabled("%s",analysisMessage.c_str());
+            // Trajectory lines: unwrapped atom paths drawn over the view.
+            ImGui::SeparatorText("Trajectory lines");
+            TrajectoryLinesOverlay& lines=trajectoryLinesOverlay();
+            ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x,responsive::dp(200)));
+            ImGui::InputInt("Trace every Nth atom",&lineStride);
+            lineStride=std::max(1,lineStride);
+            const bool scripted=!lines.visible && uiScript::take("trajectory.lines");
+            if (scripted) lines.visible=true;
+            if ((ImGui::Checkbox("Show trajectory lines",&lines.visible) || scripted) && lines.visible) traceLines();
+            ImGui::SameLine();
+            ImGui::Checkbox("Whole path",&lines.wholePath);
+            if (!lineMessage.empty()) ImGui::TextDisabled("%s",lineMessage.c_str());
+            lines.currentFrame=playback.frame;
             ImGui::SeparatorText("Animation");
             ImGui::TextUnformatted("GIF: use every Nth frame"); ImGui::SetNextItemWidth(-FLT_MIN);
             ImGui::SliderInt("##gifstride",&gifStride,1,std::max(1,count/2));
@@ -224,6 +242,55 @@ void TrajectoryDialog::draw(Structure& structure,const std::function<void(Struct
         if (changed && count>0) show(playback.frame,structure,update,showAtomProperty);
     }
     ImGui::End();
+}
+
+// Unwrapped paths of every lineStride-th atom (at most 400 atoms and 4000 frames).
+void TrajectoryDialog::traceLines()
+{
+    TrajectoryLinesOverlay& lines=trajectoryLinesOverlay();
+    lines.paths.clear();
+    lines.frames.clear();
+    lineMessage.clear();
+    if (!stream || stream->size()==0) return;
+    try {
+        const std::size_t count=stream->size();
+        const std::size_t frameStride=std::max<std::size_t>(1,(count+3999)/4000);
+        std::vector<std::size_t> atoms;
+        std::vector<atomforge::science::Vec3> previous;
+        for (std::size_t f=0;f<count;f+=frameStride) {
+            const auto frame=stream->frame(f);
+            const Structure& s=frame.structure;
+            if (f==0) {
+                for (std::size_t i=0;i<s.atoms.size() && atoms.size()<400;i+=static_cast<std::size_t>(lineStride)) atoms.push_back(i);
+                lines.paths.assign(atoms.size(),{});
+                previous.assign(atoms.size(),{});
+            }
+            const bool periodic=s.hasUnitCell && (frame.pbc[0]||frame.pbc[1]||frame.pbc[2]);
+            atomforge::science::Mat3 cell{};
+            for (std::size_t r=0;r<3;++r) cell[r]=s.cellVectors[r];
+            const atomforge::science::MinimumImage mic=periodic ? atomforge::science::MinimumImage(cell,frame.pbc) : atomforge::science::MinimumImage();
+            for (std::size_t k=0;k<atoms.size();++k) {
+                if (atoms[k]>=s.atoms.size()) throw std::runtime_error("the number of atoms changes between frames");
+                const atomforge::science::Vec3 x={s.atoms[atoms[k]].x,s.atoms[atoms[k]].y,s.atoms[atoms[k]].z};
+                glm::vec3 point(static_cast<float>(x[0]),static_cast<float>(x[1]),static_cast<float>(x[2]));
+                if (f>0) {
+                    // Continue the path by the minimum-image step.
+                    atomforge::science::Vec3 step=atomforge::science::sub(x,previous[k]);
+                    if (periodic) step=mic(step);
+                    point=lines.paths[k].back()+glm::vec3(static_cast<float>(step[0]),static_cast<float>(step[1]),static_cast<float>(step[2]));
+                }
+                previous[k]=x;
+                lines.paths[k].push_back(point);
+            }
+            lines.frames.push_back(static_cast<int>(f));
+        }
+        lineMessage=std::to_string(atoms.size())+" atoms traced over "+std::to_string(lines.frames.size())+" frames";
+    } catch (const std::exception& e) {
+        lines.paths.clear();
+        lines.frames.clear();
+        lines.visible=false;
+        lineMessage=std::string("Cannot trace: ")+e.what();
+    }
 }
 
 void TrajectoryDialog::load(const std::string& path)

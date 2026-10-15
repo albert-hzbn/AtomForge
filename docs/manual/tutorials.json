@@ -1141,7 +1141,7 @@
             "Set the toolbar rotation increment to 5 degrees and click an axis rotation button. Compare the Perspective and Orthographic projections (View > Projection), then Reset View."
           ],
           "check": "Coordinates and atom count must remain unchanged. These controls move the camera, even where internal code calls them Rotate Crystal.",
-          "options": "View > Show > Element Labels toggles labels; View > Show > Atoms and Bounding Box independently toggle geometry visibility. Hidden atoms remain in the structure and numerical analyses. Turn off Box/Lasso selection to restore right-drag panning."
+          "options": "View > Show > Atom Labels toggles labels (Label Atoms With shows elements, property values or indices); View > Show > Atoms and Bounding Box independently toggle geometry visibility. Hidden atoms remain in the structure and numerical analyses. Turn off Box/Lasso selection to restore right-drag panning."
         },
         {
           "id": "colouring",
