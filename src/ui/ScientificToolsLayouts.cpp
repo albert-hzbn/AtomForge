@@ -3,6 +3,7 @@
 // one layout per tool view (see ScienceToolView). State, persistence and
 // running live in ScientificToolsDialog.cpp.
 #include "ui/ScientificToolsDialog.h"
+#include "ui/SurfaceMeshOverlay.h"
 #include "science/ScienceData.h"
 #include "ui/DialogLayout.h"
 #include "ui/UiScript.h"
@@ -454,9 +455,37 @@ void ScientificToolsDialog::drawAtomLayout(const Structure& structure, const std
             drawPropertyControls(structure, colourAtoms);
             ImGui::Checkbox("Colour automatically after each analysis", &m_autoColour);
         }
+        drawSurfaceControls();
         if (!m_result.plots.empty() && ImGui::CollapsingHeader("Plots", ImGuiTreeNodeFlags_DefaultOpen)) drawPlots(responsive::dp(260));
         drawSaveButtons(loadResult);
         drawDetails();
+    }
+}
+
+// The surface mesh of a result, shown translucent over the structure.
+void ScientificToolsDialog::drawSurfaceControls()
+{
+    const auto found = std::find_if(m_result.files.begin(), m_result.files.end(), [](const auto& file) { return file.first == "surface.obj"; });
+    SurfaceMeshOverlay& overlay = surfaceMeshOverlay();
+    if (found == m_result.files.end()) return;
+    ImGui::SeparatorText("Surface");
+    bool show = overlay.visible && m_surfaceFrom == m_result.output;
+    const bool scripted = !show && uiScript::take("science.surface");
+    if (scripted) show = true;
+    if (ImGui::Checkbox("Show the surface in the view", &show) || scripted) {
+        if (show && m_surfaceFrom != m_result.output) {
+            try {
+                overlay.vertices = trianglesFromObj(found->second);
+                m_surfaceFrom = m_result.output;
+            } catch (const std::exception& error) { m_error = error.what(); show = false; }
+        }
+        overlay.visible = show;
+    }
+    if (show) {
+        ImGui::SetNextItemWidth(std::min(ImGui::GetContentRegionAvail().x, responsive::dp(240)));
+        ImGui::SliderFloat("Opacity", &overlay.opacity, 0.05f, 1.0f, "%.2f");
+        ImGui::ColorEdit3("Colour", &overlay.colour.x, ImGuiColorEditFlags_NoInputs);
+        ImGui::TextDisabled("%zu triangles", overlay.vertices.size() / 3);
     }
 }
 

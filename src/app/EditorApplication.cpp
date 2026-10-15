@@ -36,6 +36,7 @@
 #include "ui/LatticePlaneOverlay.h"
 #include "ui/MillerDirectionOverlay.h"
 #include "ui/PolyhedralOverlay.h"
+#include "ui/SurfaceMeshOverlay.h"
 #include "ui/VoronoiOverlay.h"
 
 #include <glm/glm.hpp>
@@ -1698,6 +1699,8 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                               activeState.fileBrowser.getPolyhedralOverlaySettings(),
                               activeState.editMenuDialogs.elementColors,
                               activeState.fileBrowser.isShowPolyhedralViewerEnabled());
+
+        drawSurfaceMeshOverlay(drawList, frame.projection, frame.view, frame.framebufferWidth, frame.framebufferHeight);
 
         activeState.fileBrowser.drawInterstitialVoidOverlay(drawList,
                                                             frame.projection,

@@ -18,7 +18,7 @@ std::vector<double> numbers(const Json* value)
     std::vector<double> result;
     if (!value || !value->isArray()) return result;
     for (const auto& item : value->items())
-        result.push_back(item.isNumber() ? item.number() : kNaN);
+        result.push_back(item.isNumber() ? item.number() : item.isBool() ? (item.boolean() ? 1.0 : 0.0) : kNaN);
     return result;
 }
 

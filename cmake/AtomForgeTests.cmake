@@ -204,6 +204,7 @@ if(TARGET AtomForge)
         ${PROJECT_SOURCE_DIR}/tests/science_dialog.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/ScientificToolsDialog.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/ScientificToolsLayouts.cpp
+        ${PROJECT_SOURCE_DIR}/src/ui/SurfaceMeshOverlay.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/TrajectoryDialog.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/PipelineDialog.cpp
         ${PROJECT_SOURCE_DIR}/src/ui/ModifierEditor.cpp

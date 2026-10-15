@@ -93,6 +93,8 @@ private:
     int activeInput() const;
     bool hasFields(int group, int skip) const;
     // Fills a per-atom value input with the view's per-atom property.
+    void drawSurfaceControls();
+    std::filesystem::path m_surfaceFrom;  // result whose surface the view shows
     void useActiveProperty(std::size_t index, const Structure& structure);
     void useActiveStructure(std::size_t index, const Structure& structure);
     void drawField(std::size_t index, const Structure& structure);

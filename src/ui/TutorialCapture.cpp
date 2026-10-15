@@ -237,6 +237,13 @@ void FileBrowser::runTutorialCapture(Structure& current, EditMenuDialogs& dialog
         s.push_back(Shot{"tutorials/rdf-analysis.jpg", {{0, main(alloy)}, {2, [this](Context&) { rdfDialog.open(); }}, {6, script("rdf.run")}}, 180, popups});
         s.push_back(Shot{"tutorials/sro-warren.jpg", {{0, [this](Context&) { shortRangeOrderDialog.openRequested = true; }}, {6, script("sro.run")}}, 240, popups});
         s.push_back(Shot{"tutorials/sro-rao.jpg", {{0, [this](Context&) { shortRangeOrderDialog.openRequested = true; }}, {6, script("sro.rao")}}, 20, popups});
+        // OVITO-style analyses: run in the scientific tool window, atoms coloured by the result.
+        const std::string polycrystal = (c.examples / "cu_polycrystal.cif").u8string(), sphere = (c.examples / "cu_sphere.xyz").u8string();
+        const auto tool = [this](const char* id) -> Action { return [this, id](Context&) { scientificToolsDialog.open(id); }; };
+        s.push_back(Shot{"analysis/ptm.jpg", {{0, main(polycrystal)}, {4, tool("ptm")}, {10, script("science.run")}}, 240, {}});
+        s.push_back(Shot{"analysis/grain-segmentation.jpg", {{0, tool("grain-segmentation")}, {6, script("science.run")}}, 300, {}});
+        s.push_back(Shot{"analysis/voronoi.jpg", {{0, tool("voronoi")}, {6, script("science.run")}}, 300, {}});
+        s.push_back(Shot{"analysis/surface-mesh.jpg", {{0, main(sphere)}, {4, tool("surface-mesh")}, {10, script("science.run")}, {200, script("science.surface")}}, 60, {}});
         // Electronic structure (needs the demonstration CHGCAR).
         if (std::filesystem::exists(c.chgcar)) {
             const std::string chgcar = c.chgcar.u8string();
