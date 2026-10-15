@@ -279,4 +279,110 @@ Json spatialCorrelation(const Parameters& p)
     result["r_max_A"] = rMax;
     return result;
 }
+
+Json scatterPlot(const Parameters& p)
+{
+    const NdArray xs = p.array("values_x"), ys = p.array("values_y");
+    if (xs.ndim() != 1 || ys.ndim() != 1 || xs.values.size() != ys.values.size())
+        throw std::runtime_error("values_x and values_y must be lists of the same length");
+    std::vector<double> x, y;
+    for (std::size_t i = 0; i < xs.values.size(); ++i)
+        if (std::isfinite(xs.values[i]) && std::isfinite(ys.values[i])) { x.push_back(xs.values[i]); y.push_back(ys.values[i]); }
+    if (x.size() < 2) throw std::runtime_error("At least two atoms need both values");
+    const double n = static_cast<double>(x.size());
+    const double mx = std::accumulate(x.begin(), x.end(), 0.0) / n, my = std::accumulate(y.begin(), y.end(), 0.0) / n;
+    double sxx = 0, syy = 0, sxy = 0;
+    for (std::size_t i = 0; i < x.size(); ++i) {
+        sxx += (x[i] - mx) * (x[i] - mx);
+        syy += (y[i] - my) * (y[i] - my);
+        sxy += (x[i] - mx) * (y[i] - my);
+    }
+    Json result = Json::object();
+    result["x"] = toJson(x);
+    result["y"] = toJson(y);
+    result["points"] = n;
+    result["pearson_r"] = sxx > 0 && syy > 0 ? sxy / std::sqrt(sxx * syy) : kNaN;
+    result["slope"] = sxx > 0 ? sxy / sxx : kNaN;
+    result["intercept"] = sxx > 0 ? my - sxy / sxx * mx : kNaN;
+    return result;
+}
+
+Json ambientOcclusion(const Parameters& p)
+{
+    const auto positions = points(p.array("positions"), "positions");
+    const std::size_t n = positions.size();
+    if (n == 0) throw std::runtime_error("No atoms");
+    std::vector<double> radius(n, 0.0);
+    if (p.has("radii")) {
+        const NdArray radii = p.array("radii");
+        if (radii.values.size() != n) throw std::runtime_error("radii needs one value per atom");
+        radius = radii.values;
+    } else {
+        // Half the typical nearest-neighbour spacing.
+        Vec3 low = positions[0], high = positions[0];
+        for (const auto& x : positions)
+            for (std::size_t d = 0; d < 3; ++d) { low[d] = std::min(low[d], x[d]); high[d] = std::max(high[d], x[d]); }
+        double volume = 1;
+        for (std::size_t d = 0; d < 3; ++d) volume *= std::max(high[d] - low[d], 1.0);
+        std::fill(radius.begin(), radius.end(), 0.55 * std::cbrt(volume / static_cast<double>(n)));
+    }
+    for (double r : radius)
+        if (!(r > 0)) throw std::runtime_error("radii must be positive");
+    const long long directions = integer(p.number("directions", 40), "directions");
+    const long long resolution = integer(p.number("resolution", 256), "resolution", 16);
+    // Directions spread evenly over the sphere (Fibonacci lattice).
+    const double golden = std::acos(-1.0) * (3 - std::sqrt(5.0));
+    std::vector<double> light(n, 0.0);
+    double maxRadius = *std::max_element(radius.begin(), radius.end());
+    for (long long k = 0; k < directions; ++k) {
+        taskProgress(static_cast<double>(k) / static_cast<double>(directions));
+        const double z = 1 - 2 * (static_cast<double>(k) + 0.5) / static_cast<double>(directions);
+        const double ring = std::sqrt(std::max(0.0, 1 - z * z));
+        const Vec3 dir = {ring * std::cos(golden * static_cast<double>(k)), ring * std::sin(golden * static_cast<double>(k)), z};
+        const Vec3 helper = std::abs(dir[0]) < 0.9 ? Vec3{1, 0, 0} : Vec3{0, 1, 0};
+        const Vec3 u = scale(cross(dir, helper), 1 / norm(cross(dir, helper)));
+        const Vec3 v = cross(dir, u);
+        // Orthographic projection along -dir: the front-most atom at each pixel receives light.
+        double lowU = std::numeric_limits<double>::infinity(), lowV = lowU, highU = -lowU, highV = -lowU;
+        for (const auto& x : positions) {
+            lowU = std::min(lowU, dot(x, u)); highU = std::max(highU, dot(x, u));
+            lowV = std::min(lowV, dot(x, v)); highV = std::max(highV, dot(x, v));
+        }
+        const double extent = std::max(highU - lowU, highV - lowV) + 2 * maxRadius;
+        const double pixel = extent / static_cast<double>(resolution);
+        const std::size_t side = static_cast<std::size_t>(resolution);
+        std::vector<double> depth(side * side, -std::numeric_limits<double>::infinity());
+        std::vector<int> owner(side * side, -1);
+        for (std::size_t i = 0; i < n; ++i) {
+            const double cu = (dot(positions[i], u) - lowU + maxRadius) / pixel, cv = (dot(positions[i], v) - lowV + maxRadius) / pixel;
+            const double r = radius[i] / pixel, h = dot(positions[i], dir);
+            const long long u0 = std::max(0LL, static_cast<long long>(std::floor(cu - r))), u1 = std::min(static_cast<long long>(side) - 1, static_cast<long long>(std::ceil(cu + r)));
+            const long long v0 = std::max(0LL, static_cast<long long>(std::floor(cv - r))), v1 = std::min(static_cast<long long>(side) - 1, static_cast<long long>(std::ceil(cv + r)));
+            for (long long a = u0; a <= u1; ++a)
+                for (long long b = v0; b <= v1; ++b) {
+                    const double du = static_cast<double>(a) + 0.5 - cu, dv = static_cast<double>(b) + 0.5 - cv;
+                    const double inside = r * r - du * du - dv * dv;
+                    if (inside < 0) continue;
+                    // Height of the sphere's front surface at this pixel.
+                    const double front = h + std::sqrt(inside) * pixel;
+                    const std::size_t k2 = static_cast<std::size_t>(a) * side + static_cast<std::size_t>(b);
+                    if (front > depth[k2]) { depth[k2] = front; owner[k2] = static_cast<int>(i); }
+                }
+        }
+        for (int o : owner)
+            if (o >= 0) light[static_cast<std::size_t>(o)] += pixel * pixel;
+    }
+    // Brightness relative to the best-lit atom per unit of its cross-section.
+    std::vector<double> brightness(n);
+    double best = 0;
+    for (std::size_t i = 0; i < n; ++i) {
+        brightness[i] = light[i] / (radius[i] * radius[i]);
+        best = std::max(best, brightness[i]);
+    }
+    for (double& b : brightness) b = best > 0 ? b / best : 0;
+    Json result = Json::object();
+    result["brightness"] = toJson(brightness);
+    result["directions"] = static_cast<double>(directions);
+    return result;
+}
 }

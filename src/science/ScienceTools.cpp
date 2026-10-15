@@ -13,6 +13,7 @@
 #include "science/TemplateMatching.h"
 #include "science/VoronoiAnalysis.h"
 #include "science/TrajectoryTools.h"
+#include "science/SurfaceMesh.h"
 #include "science/DislocationLines.h"
 #include "science/Phonons.h"
 #include "science/ReciprocalPath.h"
@@ -253,6 +254,7 @@ const std::map<std::string, ToolRunner>& toolRunners()
         {"trajectory-average", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return trajectoryAverage(p); }},
         {"unwrap-trajectory", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return unwrapTrajectory(p); }},
         {"time-series", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(timeSeries(p)); }},
+        {"surface-mesh", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(surfaceMesh(p)); }},
         {"voronoi", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(voronoiAnalysis(p)); }},
         {"cna", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(adaptiveCna(p)); }},
         {"ptm", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(polyhedralTemplateMatching(p)); }},
@@ -265,6 +267,8 @@ const std::map<std::string, ToolRunner>& toolRunners()
         {"displacements", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(displacementVectors(p)); }},
         {"spatial-binning", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(spatialBinning(p)); }},
         {"property-histogram", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(propertyHistogram(p)); }},
+        {"scatter-plot", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(scatterPlot(p)); }},
+        {"ambient-occlusion", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(ambientOcclusion(p)); }},
         {"spatial-correlation", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(spatialCorrelation(p)); }},
         {"structure-factor", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(staticStructureFactor(p)); }},
         {"band-gap", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(bandGap(p)); }},
@@ -323,7 +327,7 @@ AtomProperty analysePerAtom(const Structure& structure, const std::string& tool,
         request["pbc"] = Json::array({true, true, true});
     }
     // Structure types pick their own cutoff in periodic cells.
-    const bool ownRange = tool == "ptm" || tool == "cna" || tool == "voronoi" || tool == "fcc-planar-faults" || tool == "chill-plus" || tool == "local-entropy" || tool == "elastic-strain";
+    const bool ownRange = tool == "ptm" || tool == "cna" || tool == "surface-mesh" || tool == "voronoi" || tool == "fcc-planar-faults" || tool == "chill-plus" || tool == "local-entropy" || tool == "elastic-strain";
     if (!ownRange && ((tool != "structure-type" && tool != "diamond-structure") || !structure.hasUnitCell)) request["cutoff_A"] = cutoffA;
     if (tool == "local-entropy" && !structure.hasUnitCell) request["local_density"] = true;
     if (tool == "bond-order") request["degrees"] = Json::array({6});

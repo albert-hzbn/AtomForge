@@ -146,7 +146,7 @@ void ScientificToolsDialog::drawField(std::size_t i, const Structure& structure)
                 try { useActiveStructure(i, structure); }
                 catch (const std::exception& error) { m_error = error.what(); }
             }
-            const bool valuesInput = name == "values" || name == "values_a" || name == "values_b";
+            const bool valuesInput = name == "values" || name == "values_a" || name == "values_b" || name == "values_x" || name == "values_y";
             if (kind == "data" && valuesInput && !structure.atoms.empty() && structure.atomProperty.size() == structure.atoms.size() &&
                 responsive::button("Use Active Property")) {
                 try { useActiveProperty(i, structure); }

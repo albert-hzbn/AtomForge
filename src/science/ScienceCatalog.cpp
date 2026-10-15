@@ -126,6 +126,15 @@ const std::vector<ScienceToolDef>& scienceToolCatalog()
             {"current_cell", "Current cell vectors (Angstrom)", "", "data", false},
             {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
         }, ScienceToolView::Atoms},
+        {"surface-mesh", "Surface mesh, area and solid volume", "Surface of a solid or particle by the probe-sphere method, as OVITO's Construct Surface Mesh.\n\nSpace that a probe sphere of probe_radius_A can reach without enclosing an\natom centre is empty; the rest is solid (a larger probe fills more pores and\nsurface roughness). Distances are computed exactly on a grid of\ngrid_spacing_A; the surface is the isosurface between solid and empty.\nReports the surface area, solid volume and fraction, separate solid regions\nand empty pores, the surface atoms (touched by the probe) and the mesh as\nan OBJ file. An optional mask restricts the solid to selected atoms.", "Structure and defects", {
+            {"positions", "Atomic positions (Angstrom)", "", "data", true},
+            {"probe_radius_A", "Probe sphere radius (Angstrom)", "4.0", "float", false},
+            {"grid_spacing_A", "Grid spacing (Angstrom)", "0.5", "float", false},
+            {"mask", "Selected atoms (nonzero = solid)", "", "data", false},
+            {"export_mesh", "Write the mesh (surface.obj)", "true", "bool", false},
+            {"cell", "Cell vectors (Angstrom)", "", "data", false},
+            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
+        }, ScienceToolView::Atoms},
         {"voronoi", "Voronoi analysis", "Atomic volume, coordination and Voronoi index of each atom.\n\nEach atom's Voronoi cell is cut by the bisecting planes of its neighbours\n(periodic images included) until no farther atom can cut it. Faces with an\narea below face_area_threshold_A2 or below relative_face_area_threshold\ntimes the cell's surface are ignored; edges shorter than\nedge_length_threshold_A do not count. The index lists faces with 3, 4, ...,\n12 edges (<0,0,12,0> is icosahedral); the most common indices are reported.\nCells of surface atoms in open boundaries are unbounded: no volume.", "Structure and defects", {
             {"positions", "Atomic positions (Angstrom)", "", "data", true},
             {"face_area_threshold_A2", "Face area threshold (Angstrom squared)", "0.0", "float", false},
@@ -222,6 +231,18 @@ const std::vector<ScienceToolDef>& scienceToolCatalog()
             {"range", "Range [low, high]", "", "data", false},
             {"mask", "Selected atoms (nonzero = include)", "", "data", false},
         }, ScienceToolView::Plot},
+        {"scatter-plot", "Scatter plot", "Plot one per-atom value against another, with their correlation.\n\nAtoms without both values (NaN) are left out. Reports the Pearson\ncorrelation coefficient and the least-squares line y = slope x + intercept.", "Property data", {
+            {"values_x", "Per-atom values (x axis)", "", "data", true},
+            {"values_y", "Per-atom values (y axis)", "", "data", true},
+        }, ScienceToolView::Plot},
+        {"ambient-occlusion", "Ambient occlusion", "Brightness of each atom from how much of it is visible from all directions.\n\nAs OVITO's Ambient Occlusion: the atoms (spheres of the given radii, or half\nthe typical spacing) are projected along directions spread evenly over the\nsphere; every pixel lights the front-most atom. Brightness is the lit area\nper cross-section relative to the best-lit atom: buried atoms are dark,\nwhich shades pores and grooves when colours are multiplied by it.", "Property data", {
+            {"positions", "Atomic positions (Angstrom)", "", "data", true},
+            {"radii", "Atomic radii (Angstrom)", "", "data", false},
+            {"directions", "Directions", "40", "int", false},
+            {"resolution", "Pixels per side", "256", "int", false},
+            {"cell", "Cell vectors (accepted; periodic images are not drawn)", "", "data", false},
+            {"pbc", "Periodic boundaries (accepted; as OVITO, images are not drawn)", "[false, false, false]", "axes", false},
+        }, ScienceToolView::Atoms},
         {"spatial-correlation", "Spatial correlation function", "Correlation <a_i b_j> of two per-atom values versus distance |r_i - r_j|.\n\nValues are deposited on a periodic grid (spacing grid_spacing_A); FFT\ncross-correlations of the value grids divided by that of the atom counts\ngive the mean product over atom pairs at each distance (self pairs at r =\n0). normalized_correlation is (C(r) - <a><b>)/cov(a, b): 1 for perfectly\ncorrelated, 0 for uncorrelated values. Without values_b, a is correlated\nwith itself.", "Property data", {
             {"positions", "Atomic positions (Angstrom)", "", "data", true},
             {"cell", "Cell vectors (Angstrom)", "", "data", true},

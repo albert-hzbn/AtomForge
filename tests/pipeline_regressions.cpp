@@ -418,6 +418,16 @@ int main()
         const auto grains = run("segment-grains min_size=10", copper(3));
         check(grains.structure.grainColors.size() == grains.structure.atoms.size(), "atoms coloured by grain");
         for (double g : grains.structure.atomProperty) check(g == 1, "one grain");
+        // Ambient occlusion darkens the inside; clear-property removes the property.
+        const auto shaded = run("ambient-occlusion | clear-property", copper(3));
+        check(shaded.structure.atomProperty.empty(), "property removed");
+        float darkest = 1;
+        for (const auto& a : shaded.structure.atoms) darkest = std::min(darkest, a.r / copper(3).atoms[0].r);
+        check(darkest < 0.5f, "buried atoms darkened");
+        // Expanding to the 4 nearest neighbours adds exactly 4 atoms around one atom.
+        check(run("select-sphere 0 0 0 0.1 | expand-selection cutoff=3 nearest=4", copper(3)).selectedCount() == 5, "four nearest neighbours");
+        const auto surface = run("select-surface 4", copper(3));
+        check(surface.selectedCount() == 0, "a periodic bulk crystal has no surface");
     });
 
     test("pipeline editor: replace keeps state and shared parameters", [] {

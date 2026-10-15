@@ -446,6 +446,31 @@ void timeSeriesPlots(const Json& result, std::vector<PlotSpec>& plots)
     plots.push_back(plot("Cell volume", "Frame", "Volume (A^3)", {line("volume", frame, numbers(result.find("volume_A3")))}));
 }
 
+void surfaceMeshPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    const auto pores = numbers(result.find("empty_region_volumes_A3"));
+    if (pores.size() > 1) plots.push_back(plot("Empty regions (largest first)", "Region", "Volume (A^3)", {line("volume", indices(pores.size()), pores, true)}));
+    const auto solids = numbers(result.find("solid_region_volumes_A3"));
+    if (!solids.empty()) plots.push_back(plot("Solid regions (largest first)", "Region", "Volume (A^3)", {line("volume", indices(solids.size()), solids, true)}));
+}
+
+void scatterPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    const auto x = numbers(result.find("x"));
+    std::vector<PlotSeries> series = {line("atoms", x, numbers(result.find("y")), true)};
+    const double slope = number(result, "slope"), intercept = number(result, "intercept");
+    if (std::isfinite(slope) && !x.empty()) {
+        const auto [low, high] = std::minmax_element(x.begin(), x.end());
+        series.push_back(line("linear fit", {*low, *high}, {intercept + slope * *low, intercept + slope * *high}));
+    }
+    plots.push_back(plot("Scatter plot", "x", "y", series));
+}
+
+void ambientOcclusionPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    addHistogram(plots, "Ambient brightness", "Brightness", numbers(result.find("brightness")));
+}
+
 void voronoiPlots(const Json& result, std::vector<PlotSpec>& plots)
 {
     addHistogram(plots, "Atomic volume", "Volume (A^3)", numbers(result.find("atomic_volume_A3")));
@@ -567,6 +592,9 @@ const std::map<std::string, PlotBuilder>& plotBuilders()
         {"wigner-seitz", wignerSeitzPlots},
         {"ptm", ptmPlots},
         {"voronoi", voronoiPlots},
+        {"scatter-plot", scatterPlots},
+        {"ambient-occlusion", ambientOcclusionPlots},
+        {"surface-mesh", surfaceMeshPlots},
         {"trajectory-average", trajectoryAveragePlots},
         {"unwrap-trajectory", unwrapTrajectoryPlots},
         {"time-series", timeSeriesPlots},

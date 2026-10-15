@@ -105,6 +105,16 @@ void symmetryProperties(const Json& result, std::vector<AtomProperty>& propertie
     add(properties, "Wyckoff position (0 = a, 1 = b, ...)", numbers(result.find("wyckoff_index")));
 }
 
+void surfaceMeshProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Surface atom (1 yes)", numbers(result.find("surface_atom")));
+}
+
+void ambientOcclusionProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Ambient brightness", numbers(result.find("brightness")));
+}
+
 void voronoiProperties(const Json& result, std::vector<AtomProperty>& properties)
 {
     add(properties, "Atomic volume (A^3)", numbers(result.find("atomic_volume_A3")));
@@ -185,6 +195,8 @@ const std::map<std::string, PropertyBuilder>& propertyBuilders()
         {"wigner-seitz", wignerSeitzProperties},
         {"ptm", ptmProperties},
         {"voronoi", voronoiProperties},
+        {"ambient-occlusion", ambientOcclusionProperties},
+        {"surface-mesh", surfaceMeshProperties},
         {"cna", cnaProperties},
         {"grain-segmentation", grainSegmentationProperties},
         {"elastic-strain", elasticStrainProperties},

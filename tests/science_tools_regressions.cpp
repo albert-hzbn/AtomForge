@@ -776,6 +776,48 @@ int main()
         std::filesystem::remove_all(directory);
     });
 
+    test("surface mesh of a slab and a pore", [=] {
+        Crystal slab = lattice(scaled(cubic, 3.6), fccBasis, {6, 6, 5});
+        slab.cell[2] = {0, 0, 5 * 3.6 + 20};
+        Json result = run("surface-mesh", periodicRequest(slab));
+        const double area = 36 * 3.6 * 3.6;
+        close(number(result.at("surface_area_A2")), 2 * area, 0.02 * area, "two flat surfaces");
+        close(number(result.at("solid_volume_A3")), area * 4.5 * 3.6, 0.04 * area * 4.5 * 3.6, "slab volume");
+        check(number(result.at("surface_atoms")) == 144, "top and bottom layers are the surface atoms");
+        check(number(result.at("solid_regions")) == 1 && number(result.at("empty_regions")) == 1, "one solid, one vacuum");
+        check(result.at("files").at("surface.obj").string().rfind("# AtomForge surface mesh", 0) == 0, "OBJ mesh");
+        // A closed spherical pore is a second empty region.
+        const Crystal block = lattice(scaled(cubic, 3.6), fccBasis, {8, 8, 8});
+        Crystal holed = block;
+        holed.positions.clear();
+        for (const auto& x : block.positions)
+            if (norm(sub(x, {14.4, 14.4, 14.4})) > 8) holed.positions.push_back(x);
+        Json pore = periodicRequest(holed);
+        pore["probe_radius_A"] = 3.0;
+        pore["export_mesh"] = false;
+        result = run("surface-mesh", pore);
+        check(number(result.at("empty_regions")) == 1 && number(result.at("solid_regions")) == 1, "the pore is the only empty region");
+        const double poreVolume = values(result.at("empty_region_volumes_A3"))[0];
+        check(poreVolume > 4.0 / 3 * kPi * 512 && poreVolume < 4.0 / 3 * kPi * 1000, "pore volume between the removed and touching spheres");
+    });
+
+    test("ambient occlusion and scatter plots", [=] {
+        // A cube of atoms: corners are the brightest, the core is dark.
+        const Crystal cube = lattice(scaled(cubic, 3.6), fccBasis, {4, 4, 4});
+        const auto brightness = values(run("ambient-occlusion", object({{"positions", rows(cube.positions)}, {"radii", toJson(std::vector<double>(cube.positions.size(), 1.3))}})).at("brightness"));
+        double corner = 0, core = 1;
+        for (std::size_t i = 0; i < cube.positions.size(); ++i) {
+            const Vec3& x = cube.positions[i];
+            if (x[0] == 0 && x[1] == 0 && x[2] == 0) corner = brightness[i];
+            if (norm(sub(x, {7.2, 7.2, 7.2})) < 3) core = std::min(core, brightness[i]);
+        }
+        check(corner > 0.8 && core < 0.01, "corners lit, core occluded");
+        const Json scatter = run("scatter-plot", object({{"values_x", toJson(std::vector<double>{1, 2, 3, std::nan("")})}, {"values_y", toJson(std::vector<double>{3, 5, 7, 1})}}));
+        close(number(scatter.at("pearson_r")), 1, 1e-12, "perfect correlation");
+        close(number(scatter.at("slope")), 2, 1e-12, "slope");
+        close(number(scatter.at("points")), 3, 0, "NaN pairs left out");
+    });
+
     test("Wigner-Seitz Frenkel pair and box mapping", [] {
         const std::vector<Vec3> sites = {{0, 0, 0}, {2, 0, 0}, {4, 0, 0}};
         auto moved = sites;
