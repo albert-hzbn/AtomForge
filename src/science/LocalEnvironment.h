@@ -21,4 +21,8 @@ Json findRings(const Parameters& p);
 // Displacement of each atom from a reference configuration (minimum image in
 // periodic cells; optionally after mapping a deformed cell onto the reference).
 Json displacementVectors(const Parameters& p);
+
+// Distributions of bond lengths (per pair of species) and bond angles (per
+// triplet, centre in the middle) for bonds shorter than the cutoff.
+Json bondDistributions(const Parameters& p);
 }

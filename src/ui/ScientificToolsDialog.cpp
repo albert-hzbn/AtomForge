@@ -629,6 +629,21 @@ void ScientificToolsDialog::useActiveStructure(std::size_t index, const Structur
     field.enabled = true;
     field.field[0] = '\0';
     field.selectColumn = false;
+    // Species inputs take the atomic numbers of the same atoms.
+    for (std::size_t j = 0; j < tool.parameters.size(); ++j)
+        if (std::string(tool.parameters[j].name) == "types") {
+            Json species = Json::array();
+            for (const auto& atom : structure.atoms) species.push(static_cast<double>(atom.atomicNumber));
+            const auto root = std::filesystem::temp_directory_path() / "AtomForge-science";
+            std::filesystem::create_directories(root);
+            const auto file = root / ("species-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".json");
+            std::ofstream(file) << species.dump();
+            auto& other = m_fields[j];
+            other.path = file.u8string();
+            other.activeLabel = "Atomic numbers of the active structure";
+            other.useFile = true;
+            other.enabled = true;
+        }
     // Periodic local analyses also need the matching cell and axes.
     const char* companion = std::string(tool.parameters[index].kind) == "data" ? companionCell(tool.parameters[index].name) : nullptr;
     for (std::size_t j = 0; companion && structure.hasUnitCell && j < tool.parameters.size(); ++j) {

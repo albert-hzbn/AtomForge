@@ -264,6 +264,7 @@ const std::map<std::string, ToolRunner>& toolRunners()
         {"fcc-planar-faults", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(fccPlanarFaults(p)); }},
         {"chill-plus", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(chillPlus(p)); }},
         {"local-entropy", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(localEntropy(p)); }},
+        {"bond-distributions", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(bondDistributions(p)); }},
         {"find-rings", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(findRings(p)); }},
         {"displacements", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(displacementVectors(p)); }},
         {"spatial-binning", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(spatialBinning(p)); }},

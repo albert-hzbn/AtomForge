@@ -1213,7 +1213,7 @@
     },
     {
       "source": "src/science/LocalEnvironment.h",
-      "sha256": "ac0dc0f839cd2056048e4b8befecd1980aba83d31d1b2f04ff57c6d8061476ce",
+      "sha256": "b9fc1fa4c1866556c8fd4abc35a35c624dbb7a989684d096d1b23a1e84a9e5a0",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -4668,14 +4668,14 @@
     },
     {
       "source": "src/ui/ScientificToolsDialog.cpp",
-      "sha256": "78618418317b2ebe96342a2739220acfa812ca24a34ad6b89459df165b860136",
+      "sha256": "52830f622578245c0c3a13d561e90a87c57c423ff7313528e8e5a16db2bc68f7",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": [
         {
-          "line": 788,
+          "line": 803,
           "declaration_label": "Cell to keep"
         }
       ]

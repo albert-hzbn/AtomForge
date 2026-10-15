@@ -212,6 +212,14 @@ const std::vector<ScienceToolDef>& scienceToolCatalog()
             {"cell", "Cell vectors (Angstrom)", "", "data", false},
             {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
         }, ScienceToolView::Atoms},
+        {"bond-distributions", "Bond length and angle distributions", "Histograms of bond lengths and bond angles, by species.\n\nBonds join atoms closer than the cutoff (periodic images included). Bond\nlengths are counted per pair of species and angles between two bonds of\nthe same atom per triplet (neighbour-centre-neighbour), with types giving\nthe species (e.g. atomic numbers; the desktop and pipeline supply them).", "Structure and defects", {
+            {"positions", "Atomic positions (Angstrom)", "", "data", true},
+            {"cutoff_A", "Bond cutoff (Angstrom)", "3.0", "float", true},
+            {"types", "Species per atom (e.g. atomic numbers)", "", "data", false},
+            {"bins", "Bins", "100", "int", false},
+            {"cell", "Cell vectors (Angstrom)", "", "data", false},
+            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
+        }, ScienceToolView::Plot},
         {"find-rings", "Ring statistics", "Shortest-path rings of the bond network and their size distribution.\n\nBonds join atoms closer than the cutoff, across periodic boundaries. For\nevery bond, the shortest closed paths through it (the bond removed, all\npaths of equal length) are rings, provided they wind around no periodic\ndirection. Distinct rings up to max_size atoms are counted by size and per\natom. Typical for silica, amorphous carbon or silicon and networks.", "Structure and defects", {
             {"positions", "Atomic positions (Angstrom)", "", "data", true},
             {"cutoff_A", "Bond cutoff (Angstrom)", "2.0", "float", true},

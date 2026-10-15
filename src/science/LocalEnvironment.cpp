@@ -2,6 +2,7 @@
 #include "util/TaskControl.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <complex>
 #include <limits>
@@ -370,6 +371,87 @@ Json displacementVectors(const Parameters& p)
     result["mean_magnitude_A"] = n ? sum / static_cast<double>(n) : kNaN;
     result["rms_displacement_A"] = n ? std::sqrt(sumSquares / static_cast<double>(n)) : kNaN;
     result["max_magnitude_A"] = largest;
+    return result;
+}
+
+Json bondDistributions(const Parameters& p)
+{
+    const Atoms a = atomsOf(p);
+    const std::size_t n = a.positions.size();
+    const double cutoff = positive(p.number("cutoff_A"), "cutoff_A");
+    const long long bins = integer(p.number("bins", 100), "bins", 4);
+    std::vector<double> species(n, 0.0);
+    if (p.has("types")) {
+        species = finiteArray(p.array("types"), "types", 1).values;
+        if (species.size() != n) throw std::runtime_error("types needs one value per atom");
+    }
+    const auto neighbors = neighborList(a.positions, a.cell, a.pbc, cutoff);
+    const auto groups = byCenter(neighbors, n);
+    const auto name = [](double t) {
+        const long long z = std::llround(t);
+        return std::to_string(z);
+    };
+    const double lengthWidth = cutoff / static_cast<double>(bins), angleWidth = 180.0 / static_cast<double>(bins);
+    std::map<std::string, std::vector<double>> lengths, angles;
+    std::vector<double> allLengths(static_cast<std::size_t>(bins), 0.0), allAngles(static_cast<std::size_t>(bins), 0.0);
+    std::vector<double> bondLengths;
+    long long bondCount = 0, angleCount = 0;
+    for (const auto& link : neighbors) {
+        // Each bond once (an atom bonded to its own periodic image: one of the two shifts).
+        if (link.j < link.i || (link.j == link.i && link.shift < std::array<int, 3>{0, 0, 0})) continue;
+        const double r = norm(link.vector);
+        if (r <= 0) continue;
+        const std::size_t b = std::min(static_cast<std::size_t>(bins - 1), static_cast<std::size_t>(r / lengthWidth));
+        const double ti = species[static_cast<std::size_t>(link.i)], tj = species[static_cast<std::size_t>(link.j)];
+        const std::string key = name(std::min(ti, tj)) + "-" + name(std::max(ti, tj));
+        auto& histogram = lengths[key];
+        if (histogram.empty()) histogram.assign(static_cast<std::size_t>(bins), 0.0);
+        histogram[b] += 1;
+        allLengths[b] += 1;
+        bondLengths.push_back(r);
+        ++bondCount;
+    }
+    for (std::size_t i = 0; i < n; ++i) {
+        if (i % 256 == 0) taskCheckpoint();
+        const auto& group = groups[i];
+        for (std::size_t x = 0; x < group.size(); ++x)
+            for (std::size_t y = x + 1; y < group.size(); ++y) {
+                const Neighbor& u = neighbors[group[x]];
+                const Neighbor& v = neighbors[group[y]];
+                const double c = std::clamp(dot(u.vector, v.vector) / (norm(u.vector) * norm(v.vector)), -1.0, 1.0);
+                const double angle = std::acos(c) * 180 / kPi;
+                const std::size_t b = std::min(static_cast<std::size_t>(bins - 1), static_cast<std::size_t>(angle / angleWidth));
+                const double tu = species[static_cast<std::size_t>(u.j)], tv = species[static_cast<std::size_t>(v.j)];
+                const std::string key = name(std::min(tu, tv)) + "-" + name(species[i]) + "-" + name(std::max(tu, tv));
+                auto& histogram = angles[key];
+                if (histogram.empty()) histogram.assign(static_cast<std::size_t>(bins), 0.0);
+                histogram[b] += 1;
+                allAngles[b] += 1;
+                ++angleCount;
+            }
+    }
+    std::vector<double> lengthCenters(static_cast<std::size_t>(bins)), angleCenters(static_cast<std::size_t>(bins));
+    for (long long b = 0; b < bins; ++b) {
+        lengthCenters[static_cast<std::size_t>(b)] = (static_cast<double>(b) + 0.5) * lengthWidth;
+        angleCenters[static_cast<std::size_t>(b)] = (static_cast<double>(b) + 0.5) * angleWidth;
+    }
+    Json result = Json::object();
+    result["length_A"] = toJson(lengthCenters);
+    result["angle_deg"] = toJson(angleCenters);
+    result["bond_length_counts"] = toJson(allLengths);
+    result["bond_angle_counts"] = toJson(allAngles);
+    Json byPair = Json::object(), byTriplet = Json::object();
+    for (const auto& [key, histogram] : lengths) byPair[key] = toJson(histogram);
+    for (const auto& [key, histogram] : angles) byTriplet[key] = toJson(histogram);
+    result["bond_length_counts_by_pair"] = byPair;
+    result["bond_angle_counts_by_triplet"] = byTriplet;
+    result["bonds"] = static_cast<double>(bondCount);
+    result["angles"] = static_cast<double>(angleCount);
+    if (!bondLengths.empty()) {
+        double sum = 0;
+        for (double r : bondLengths) sum += r;
+        result["mean_bond_length_A"] = sum / static_cast<double>(bondLengths.size());
+    }
     return result;
 }
 }

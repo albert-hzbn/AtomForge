@@ -535,6 +535,19 @@ void localEntropyPlots(const Json& result, std::vector<PlotSpec>& plots)
     addHistogram(plots, "Local entropy", "s (kB)", numbers(result.find("entropy_kB")));
 }
 
+void bondDistributionPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    const auto lengths = numbers(result.find("length_A")), angles = numbers(result.find("angle_deg"));
+    std::vector<PlotSeries> lengthSeries = {line("all", lengths, numbers(result.find("bond_length_counts")))};
+    if (const Json* pairs = result.find("bond_length_counts_by_pair"); pairs && pairs->isObject() && pairs->size() > 1)
+        for (const auto& [name, values] : pairs->members()) lengthSeries.push_back(line(name, lengths, numbers(&values)));
+    plots.push_back(plot("Bond lengths", "Length (A)", "Bonds", lengthSeries));
+    std::vector<PlotSeries> angleSeries = {line("all", angles, numbers(result.find("bond_angle_counts")))};
+    if (const Json* triplets = result.find("bond_angle_counts_by_triplet"); triplets && triplets->isObject() && triplets->size() > 1 && triplets->size() <= 8)
+        for (const auto& [name, values] : triplets->members()) angleSeries.push_back(line(name, angles, numbers(&values)));
+    plots.push_back(plot("Bond angles", "Angle (degrees)", "Angles", angleSeries));
+}
+
 void findRingsPlots(const Json& result, std::vector<PlotSpec>& plots)
 {
     plots.push_back(plot("Ring-size distribution", "Ring size (atoms)", "Rings",
@@ -611,6 +624,7 @@ const std::map<std::string, PlotBuilder>& plotBuilders()
         {"chill-plus", chillPlusPlots},
         {"local-entropy", localEntropyPlots},
         {"find-rings", findRingsPlots},
+        {"bond-distributions", bondDistributionPlots},
         {"displacements", displacementPlots},
         {"spatial-binning", spatialBinningPlots},
         {"property-histogram", propertyHistogramPlots},

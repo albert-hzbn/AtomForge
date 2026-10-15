@@ -867,6 +867,25 @@ int main()
         check(number(run("ptm", request).at("ordering_counts").at("zincblende or wurtzite")) == 64, "zincblende");
     });
 
+    test("bond length and angle distributions", [=] {
+        // Rock salt: six Na-Cl bonds per atom, angles of 90 and 180 degrees.
+        const Crystal nacl = lattice(scaled(cubic, 5.64), {{0, 0, 0}, {0, .5, .5}, {.5, 0, .5}, {.5, .5, 0}, {.5, .5, .5}, {0, 0, .5}, {0, .5, 0}, {.5, 0, 0}}, {2, 2, 2});
+        std::vector<double> species;
+        for (std::size_t i = 0; i < nacl.positions.size(); ++i) species.push_back(i % 8 < 4 ? 11 : 17);
+        Json request = periodicRequest(nacl);
+        request["cutoff_A"] = 3.0;
+        request["types"] = toJson(species);
+        request["bins"] = 18;
+        const Json result = run("bond-distributions", request);
+        close(number(result.at("bonds")), 192, 0, "bonds");
+        close(number(result.at("angles")), 64 * 15, 0, "angles");
+        close(number(result.at("mean_bond_length_A")), 2.82, 1e-9, "bond length");
+        check(result.at("bond_length_counts_by_pair").size() == 1 && result.at("bond_length_counts_by_pair").contains("11-17"), "only Na-Cl bonds");
+        const auto angles = values(result.at("bond_angle_counts"));
+        close(angles[9], 64 * 12, 0, "90 degree angles");
+        close(angles[17], 64 * 3, 0, "180 degree angles");
+    });
+
     test("Wigner-Seitz Frenkel pair and box mapping", [] {
         const std::vector<Vec3> sites = {{0, 0, 0}, {2, 0, 0}, {4, 0, 0}};
         auto moved = sites;
