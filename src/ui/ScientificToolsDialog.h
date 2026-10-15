@@ -92,6 +92,8 @@ private:
     bool isSource(std::size_t index) const;
     int activeInput() const;
     bool hasFields(int group, int skip) const;
+    // Fills a per-atom value input with the view's per-atom property.
+    void useActiveProperty(std::size_t index, const Structure& structure);
     void useActiveStructure(std::size_t index, const Structure& structure);
     void drawField(std::size_t index, const Structure& structure);
     void drawFields(const Structure& structure, int group, int skip);

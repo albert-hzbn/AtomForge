@@ -133,12 +133,12 @@ void selectElement(const Json& p, PipelineData& data)
     select(data, mask, text(p, "select-element", "mode"));
 }
 
-void selectExpression(const Json& p, PipelineData& data)
+// The value of an expression for every atom.
+std::vector<double> evaluateForAtoms(const Expression& expression, const PipelineData& data)
 {
-    const Expression expression(text(p, "select-expression", "expression"));
     const Structure& s = data.structure;
     const Mat3 inv = s.hasUnitCell ? science::inverse(cellOf(s)) : Mat3{};
-    std::vector<char> mask(s.atoms.size(), 0);
+    std::vector<double> values(s.atoms.size());
     AtomVariables v;
     v.count = static_cast<double>(s.atoms.size());
     for (std::size_t i = 0; i < s.atoms.size(); ++i) {
@@ -154,9 +154,41 @@ void selectExpression(const Json& p, PipelineData& data)
         v.atomicNumber = a.atomicNumber;
         v.fixed = static_cast<double>((a.fixed & 1) + ((a.fixed >> 1) & 1) + ((a.fixed >> 2) & 1));
         v.element = a.symbol;
-        mask[i] = expression.evaluate(v) != 0;
+        values[i] = expression.evaluate(v);
     }
+    return values;
+}
+
+void selectExpression(const Json& p, PipelineData& data)
+{
+    const Expression expression(text(p, "select-expression", "expression"));
+    const auto values = evaluateForAtoms(expression, data);
+    std::vector<char> mask(values.size(), 0);
+    for (std::size_t i = 0; i < values.size(); ++i) mask[i] = values[i] != 0;
     select(data, mask, text(p, "select-expression", "mode"));
+}
+
+// Pairs of atoms closer than a distance: both atoms, or only the later one
+// of each pair (so deleting the selection keeps one atom per overlap).
+void selectOverlapping(const Json& p, PipelineData& data)
+{
+    const double distance = number(p, "select-overlapping", "distance");
+    if (!(distance > 0)) throw std::runtime_error("select-overlapping needs a positive distance");
+    const bool both = text(p, "select-overlapping", "atoms") == "both";
+    const Structure& s = data.structure;
+    std::vector<Vec3> positions;
+    for (const auto& a : s.atoms) positions.push_back(positionOf(a));
+    const science::Pbc pbc{s.hasUnitCell, s.hasUnitCell, s.hasUnitCell};
+    std::vector<char> mask(s.atoms.size(), 0);
+    std::size_t pairs = 0;
+    for (const auto& n : science::neighborList(positions, s.hasUnitCell ? cellOf(s) : science::identity(), pbc, distance)) {
+        if (n.i >= n.j) continue;  // each pair once; skips an atom's own periodic images
+        ++pairs;
+        mask[static_cast<std::size_t>(n.j)] = 1;
+        if (both) mask[static_cast<std::size_t>(n.i)] = 1;
+    }
+    data.notes.push_back(std::to_string(pairs) + " overlapping pairs");
+    select(data, mask, text(p, "select-overlapping", "mode"));
 }
 
 void selectSlab(const Json& p, PipelineData& data)
@@ -699,7 +731,214 @@ void addVacuum(const Json& p, PipelineData& data)
         for (auto& a : data.structure.atoms) place(a, science::add(positionOf(a), science::scale(direction, 0.5 * thickness)));
 }
 
+// Positions, cell and periodicity of the structure as a tool request.
+Json atomsRequest(const Structure& s)
+{
+    Json positions = Json::array();
+    for (const auto& a : s.atoms) positions.push(Json::array({a.x, a.y, a.z}));
+    Json request = Json::object();
+    request["positions"] = positions;
+    if (s.hasUnitCell) {
+        Json cell = Json::array();
+        for (const auto& row : s.cellVectors) cell.push(Json::array({row[0], row[1], row[2]}));
+        request["cell"] = cell;
+        request["pbc"] = Json::array({true, true, true});
+    }
+    return request;
+}
+
+void setProperty(PipelineData& data, std::vector<double> values, const std::string& name)
+{
+    data.structure.atomProperty = std::move(values);
+    data.structure.atomPropertyName = name;
+    std::size_t valid = 0;
+    for (double v : data.structure.atomProperty) valid += std::isfinite(v);
+    data.notes.push_back(name + " computed for " + std::to_string(valid) + " of " + std::to_string(data.structure.atomProperty.size()) + " atoms");
+}
+
+std::vector<double> numbersOf(const Json& list)
+{
+    std::vector<double> out;
+    for (const auto& item : list.items()) out.push_back(item.isNumber() ? item.number() : std::numeric_limits<double>::quiet_NaN());
+    return out;
+}
+
+// Elastic strain relative to an ideal lattice (polyhedral template matching).
+void elasticStrainStep(const Json& p, PipelineData& data)
+{
+    Json request = atomsRequest(data.structure);
+    request["lattice"] = text(p, "elastic-strain", "lattice");
+    request["lattice_constant_A"] = number(p, "elastic-strain", "a");
+    request["c_over_a"] = number(p, "elastic-strain", "c_over_a");
+    const Json result = science::runTool("elastic-strain", request).result;
+    const std::string component = text(p, "elastic-strain", "component");
+    if (component == "volumetric") { setProperty(data, numbersOf(result.at("volumetric_strain")), "Volumetric elastic strain"); return; }
+    if (component == "shear") { setProperty(data, numbersOf(result.at("shear_strain")), "Von Mises elastic shear strain"); return; }
+    static const char* names[] = {"xx", "yy", "zz", "yz", "xz", "xy"};
+    const std::size_t c = static_cast<std::size_t>(std::find(names, names + 6, component) - names);
+    std::vector<double> values;
+    for (const auto& row : result.at("strain_voigt").items()) values.push_back(row.items()[c].isNumber() ? row.items()[c].number() : std::numeric_limits<double>::quiet_NaN());
+    setProperty(data, values, "Elastic strain " + component);
+}
+
+// Displacements from a reference structure file (same atoms, same order).
+void displacementStep(const Json& p, PipelineData& data)
+{
+    const std::string file = text(p, "displacements", "reference");
+    if (file.empty()) throw std::runtime_error("Choose the reference structure file");
+    const Structure reference = science::readFrames(std::filesystem::u8path(file)).front().structure;
+    const Structure& s = data.structure;
+    if (reference.atoms.size() != s.atoms.size())
+        throw std::runtime_error("The reference has " + std::to_string(reference.atoms.size()) + " atoms, the structure " + std::to_string(s.atoms.size()));
+    Json request = Json::object();
+    Json current = atomsRequest(s).at("positions");
+    request["reference"] = atomsRequest(reference).at("positions");
+    request["current"] = current;
+    const std::string mapping = text(p, "displacements", "affine_mapping");
+    if (reference.hasUnitCell) {
+        request["reference_cell"] = atomsRequest(reference).at("cell");
+        request["pbc"] = Json::array({true, true, true});
+        if (s.hasUnitCell) request["current_cell"] = atomsRequest(s).at("cell");
+    }
+    if (mapping != "off") request["affine_mapping"] = mapping;
+    const Json result = science::runTool("displacements", request).result;
+    const std::string component = text(p, "displacements", "component");
+    if (component == "magnitude") { setProperty(data, numbersOf(result.at("magnitude_A")), "Displacement magnitude (A)"); return; }
+    const std::size_t c = component == "x" ? 0 : component == "y" ? 1 : 2;
+    std::vector<double> values;
+    for (const auto& row : result.at("displacement_A").items()) values.push_back(row.items()[c].number());
+    setProperty(data, values, "Displacement " + component + " (A)");
+}
+
+// Statistics of the per-atom property (OVITO's Reduce property), as notes.
+void reduceProperty(const Json& p, PipelineData& data)
+{
+    const Structure& s = data.structure;
+    if (s.atomProperty.size() != s.atoms.size() || s.atoms.empty()) throw std::runtime_error("reduce-property needs a per-atom property; add compute-property above");
+    const bool selectedOnly = text(p, "reduce-property", "target") == "selected";
+    std::vector<double> values;
+    for (std::size_t i = 0; i < s.atoms.size(); ++i)
+        if ((!selectedOnly || data.selected[i]) && std::isfinite(s.atomProperty[i])) values.push_back(s.atomProperty[i]);
+    if (values.empty()) throw std::runtime_error("No atom has a value");
+    Json request = Json::object();
+    request["values"] = science::toJson(values);
+    request["bins"] = number(p, "reduce-property", "bins");
+    const Json r = science::runTool("property-histogram", request).result;
+    char line[256];
+    std::snprintf(line, sizeof line, "%s: n=%.0f sum=%.6g mean=%.6g std=%.6g min=%.6g median=%.6g max=%.6g",
+                  s.atomPropertyName.empty() ? "property" : s.atomPropertyName.c_str(), r.at("count").number(), r.at("sum").number(),
+                  r.at("mean").number(), r.at("std").number(), r.at("min").number(), r.at("median").number(), r.at("max").number());
+    data.notes.push_back(line);
+    std::string histogram = "histogram:";
+    const auto centers = numbersOf(r.at("centers")), counts = numbersOf(r.at("counts"));
+    for (std::size_t b = 0; b < centers.size(); ++b) {
+        std::snprintf(line, sizeof line, " %.4g:%.0f", centers[b], counts[b]);
+        histogram += line;
+    }
+    data.notes.push_back(histogram);
+}
+
+// Spatial binning of the per-atom property (or atom counts); each atom takes
+// the value of its bin, so the profile or map can colour the structure.
+void binProperty(const Json& p, PipelineData& data)
+{
+    const Structure& s = data.structure;
+    requireCell(data, "bin-property");
+    Json request = atomsRequest(s);
+    const bool hasProperty = s.atomProperty.size() == s.atoms.size() && !s.atoms.empty();
+    if (hasProperty) request["values"] = science::toJson(s.atomProperty);
+    const Vec3 bins = vector(p, "bin-property", "bins");
+    request["bins"] = Json::array({bins[0], bins[1], bins[2]});
+    request["operation"] = text(p, "bin-property", "operation");
+    const Json result = science::runTool("spatial-binning", request).result;
+    const auto grid = numbersOf(result.at("values"));
+    const Mat3 cell = cellOf(s);
+    std::vector<double> perAtom(s.atoms.size());
+    const long long n[3] = {std::llround(bins[0]), std::llround(bins[1]), std::llround(bins[2])};
+    for (std::size_t i = 0; i < s.atoms.size(); ++i) {
+        Vec3 f = science::fractional(positionOf(s.atoms[i]), cell);
+        long long index[3];
+        for (int d = 0; d < 3; ++d) {
+            f[static_cast<std::size_t>(d)] -= std::floor(f[static_cast<std::size_t>(d)]);
+            index[d] = std::min(n[d] - 1, static_cast<long long>(f[static_cast<std::size_t>(d)] * static_cast<double>(n[d])));
+        }
+        perAtom[i] = grid[static_cast<std::size_t>((index[0] * n[1] + index[1]) * n[2] + index[2])];
+    }
+    const std::string operation = text(p, "bin-property", "operation");
+    setProperty(data, perAtom, "Binned " + operation + (hasProperty ? " of " + s.atomPropertyName : std::string(" (atoms)")));
+}
+
+// An orthogonal cell just enclosing the atoms (plus padding), with the atoms
+// shifted to start at the padding.
+void shrinkWrap(const Json& p, PipelineData& data)
+{
+    Structure& s = data.structure;
+    if (s.atoms.empty()) throw std::runtime_error("shrink-wrap needs atoms");
+    const double padding = number(p, "shrink-wrap", "padding");
+    if (padding < 0) throw std::runtime_error("padding must be nonnegative");
+    Vec3 low = positionOf(s.atoms[0]), high = low;
+    for (const auto& a : s.atoms)
+        for (int d = 0; d < 3; ++d) {
+            const double x = positionOf(a)[static_cast<std::size_t>(d)];
+            low[static_cast<std::size_t>(d)] = std::min(low[static_cast<std::size_t>(d)], x);
+            high[static_cast<std::size_t>(d)] = std::max(high[static_cast<std::size_t>(d)], x);
+        }
+    for (auto& a : s.atoms) place(a, {a.x - low[0] + padding, a.y - low[1] + padding, a.z - low[2] + padding});
+    s.hasUnitCell = true;
+    for (int r = 0; r < 3; ++r)
+        for (int c = 0; c < 3; ++c)
+            s.cellVectors[r][c] = r == c ? std::max(high[static_cast<std::size_t>(r)] - low[static_cast<std::size_t>(r)] + 2 * padding, 1e-3) : 0.0;
+    s.cellOffset = {0.0, 0.0, 0.0};
+    data.notes.push_back("Cell " + std::to_string(s.cellVectors[0][0]) + " x " + std::to_string(s.cellVectors[1][1]) + " x " +
+                         std::to_string(s.cellVectors[2][2]) + " Angstrom");
+}
+
 // ---------------------------------------------------------------- analysis
+void computeExpression(const Json& p, PipelineData& data)
+{
+    const std::string formula = text(p, "compute-expression", "expression");
+    const auto values = evaluateForAtoms(Expression(formula), data);
+    const bool selectedOnly = text(p, "compute-expression", "target") == "selected";
+    Structure& s = data.structure;
+    std::vector<double> property = s.atomProperty.size() == s.atoms.size() ? s.atomProperty
+                                   : std::vector<double>(s.atoms.size(), std::numeric_limits<double>::quiet_NaN());
+    for (std::size_t i = 0; i < values.size(); ++i)
+        if (!selectedOnly || data.selected[i]) property[i] = values[i];
+    s.atomProperty = std::move(property);
+    const std::string name = text(p, "compute-expression", "name");
+    s.atomPropertyName = name.empty() ? formula : name;
+    data.notes.push_back(s.atomPropertyName + " computed for " + std::to_string(selectedOnly ? data.selectedCount() : values.size()) + " atoms");
+}
+
+// Grains from local lattice orientations; atoms are coloured by grain and the
+// grain id becomes the per-atom property.
+void segmentGrains(const Json& p, PipelineData& data)
+{
+    Structure& s = data.structure;
+    Json request = atomsRequest(s);
+    request["merge_threshold_deg"] = number(p, "segment-grains", "threshold");
+    request["min_grain_size"] = number(p, "segment-grains", "min_size");
+    request["adopt_orphans"] = flag(p, "segment-grains", "adopt");
+    const Json result = science::runTool("grain-segmentation", request).result;
+    const Json& ids = result.at("grain_id");
+    s.atomProperty.clear();
+    s.grainColors.clear();
+    for (const auto& id : ids.items()) {
+        const double g = id.number();
+        s.atomProperty.push_back(g);
+        // Golden-ratio hues give neighbouring grain ids distinct colours; grey for none.
+        if (g <= 0) { s.grainColors.push_back({0.6f, 0.6f, 0.6f}); continue; }
+        const double hue = std::fmod(g * 0.6180339887, 1.0) * 6;
+        const int sector = static_cast<int>(hue);
+        const float f = static_cast<float>(hue - sector), v = 0.9f, lo = 0.25f;
+        const float rise = lo + (v - lo) * f, fall = v - (v - lo) * f;
+        const std::array<std::array<float, 3>, 6> colours = {{{v, rise, lo}, {fall, v, lo}, {lo, v, rise}, {lo, fall, v}, {rise, lo, v}, {v, lo, fall}}};
+        s.grainColors.push_back(colours[static_cast<std::size_t>(sector % 6)]);
+    }
+    s.atomPropertyName = "Grain id (0 none)";
+    data.notes.push_back(std::to_string(static_cast<long long>(result.at("grain_count").number())) + " grains");
+}
+
 void computeProperty(const Json& p, PipelineData& data)
 {
     const std::string analysis = text(p, "compute-property", "analysis");
@@ -709,6 +948,25 @@ void computeProperty(const Json& p, PipelineData& data)
     else if (analysis == "diamond") property = science::analysePerAtom(data.structure, "diamond-structure", cutoff);
     else if (analysis == "centrosymmetry") property = science::analysePerAtom(data.structure, "centrosymmetry", cutoff);
     else if (analysis == "coordination") property = science::analysePerAtom(data.structure, "bond-order", cutoff, "Coordination");
+    else if (analysis == "ptm") property = science::analysePerAtom(data.structure, "ptm", cutoff);
+    else if (analysis == "orientation") property = science::analysePerAtom(data.structure, "ptm", cutoff, "Orientation angle (degrees)");
+    else if (analysis == "planar-faults") property = science::analysePerAtom(data.structure, "fcc-planar-faults", cutoff);
+    else if (analysis == "chill-plus") {
+        Structure oxygens = data.structure;
+        std::vector<std::size_t> index;
+        oxygens.atoms.clear();
+        for (std::size_t i = 0; i < data.structure.atoms.size(); ++i)
+            if (data.structure.atoms[i].symbol == "O") { oxygens.atoms.push_back(data.structure.atoms[i]); index.push_back(i); }
+        if (oxygens.atoms.empty() || oxygens.atoms.size() == data.structure.atoms.size()) property = science::analysePerAtom(data.structure, "chill-plus", cutoff);
+        else {
+            const auto onOxygens = science::analysePerAtom(oxygens, "chill-plus", cutoff);
+            property.name = onOxygens.name;
+            property.values.assign(data.structure.atoms.size(), std::numeric_limits<double>::quiet_NaN());
+            for (std::size_t k = 0; k < index.size(); ++k) property.values[index[k]] = onOxygens.values[k];
+        }
+    }
+    else if (analysis == "local-entropy") property = science::analysePerAtom(data.structure, "local-entropy", cutoff);
+    else if (analysis == "rings") property = science::analysePerAtom(data.structure, "find-rings", cutoff);
     else property = science::analysePerAtom(data.structure, "bond-order", cutoff);
     data.structure.atomProperty = property.values;
     data.structure.atomPropertyName = property.name;
@@ -738,6 +996,9 @@ std::vector<ModifierType>& registry()
          {{"fraction", "Fraction", "float", "0.1", ""}, {"seed", "Seed", "int", "1", ""}, MODE}, selectRandom},
         {"expand-selection", "Expand selection to neighbours", "Selection", "Adds the neighbours (within the cutoff) of selected atoms, repeated for the number of steps.",
          {{"cutoff", "Neighbour cutoff (Angstrom)", "float", "3", ""}, {"steps", "Steps", "int", "1", ""}}, expandSelection},
+        {"select-overlapping", "Select overlapping atoms", "Selection",
+         "Selects atoms closer than a distance to another atom (minimum image in periodic cells): the later atom of each pair, or both.",
+         {{"distance", "Distance (Angstrom)", "float", "1", ""}, {"atoms", "Atoms to select", "choice", "one", "one|both"}, MODE}, selectOverlapping},
         {"invert-selection", "Invert selection", "Selection", "Selects the unselected atoms and deselects the rest.", {}, invertSelection},
         {"clear-selection", "Clear selection", "Selection", "Deselects all atoms.", {}, clearSelection},
         // Modification
@@ -781,12 +1042,38 @@ std::vector<ModifierType>& registry()
          {{"a", "Vector a (Angstrom)", "vector", "1 0 0", ""}, {"b", "Vector b", "vector", "0 1 0", ""}, {"c", "Vector c", "vector", "0 0 1", ""},
           {"scale_atoms", "Scale atoms with the cell", "bool", "true", ""}}, setCell},
         {"wrap", "Wrap into cell", "Cell", "Maps atoms outside the cell back into it.", {}, wrap},
+        {"shrink-wrap", "Shrink-wrap cell", "Cell", "Replaces the cell by the orthogonal box that just encloses the atoms, plus padding on every side.",
+         {{"padding", "Padding (Angstrom)", "float", "0", ""}}, shrinkWrap},
         {"center", "Center in cell", "Cell", "Shifts the atoms so their extent (in fractional coordinates) is centred in the cell.", {}, center},
         {"add-vacuum", "Add vacuum", "Cell", "Lengthens one cell vector by a thickness, e.g. to turn a bulk cell into a slab; optionally centres the atoms.",
          {{"axis", "Cell vector", "choice", "c", "a|b|c"}, {"thickness", "Vacuum (Angstrom)", "float", "10", ""}, {"center", "Centre the atoms", "bool", "true", ""}}, addVacuum},
         // Analysis
-        {"compute-property", "Compute per-atom property", "Analysis", "Computes a per-atom property for colouring and select-property: Ackland-Jones structure type, centrosymmetry, coordination or Steinhardt q6.",
-         {{"analysis", "Property", "choice", "structure-type", "structure-type|diamond|centrosymmetry|coordination|q6"}, {"cutoff", "Neighbour cutoff (Angstrom)", "float", "3", ""}}, computeProperty},
+        {"compute-property", "Compute per-atom property", "Analysis", "Computes a per-atom property for colouring and select-property: Ackland-Jones structure type, diamond structure, centrosymmetry, coordination,\nSteinhardt q6, polyhedral template matching (structure or orientation angle), fcc planar faults, Chill+ ice types, local entropy or rings\nthrough each atom (bond cutoff). PTM, planar faults, Chill+ and entropy choose their own neighbour range.",
+         {{"analysis", "Property", "choice", "structure-type", "structure-type|diamond|centrosymmetry|coordination|q6|ptm|orientation|planar-faults|chill-plus|local-entropy|rings"},
+          {"cutoff", "Neighbour cutoff (Angstrom)", "float", "3", ""}}, computeProperty},
+        {"compute-expression", "Compute property from a formula", "Analysis",
+         "Sets the per-atom property to a formula of the atom variables, e.g. sqrt(x^2 + y^2) or property * 2 (see select-expression for the variables);\nwith target selected, only selected atoms change.",
+         {{"expression", "Formula", "expression", "z", ""}, {"name", "Property name (empty: the formula)", "string", "", ""},
+          {"target", "Atoms", "choice", "all", "all|selected"}}, computeExpression},
+        {"elastic-strain", "Elastic strain", "Analysis",
+         "Sets the per-atom property to the elastic strain relative to the ideal lattice (polyhedral template matching): volumetric (trace/3), von Mises\nshear or one Green-Lagrange component. Atoms of other structures get no value.",
+         {{"lattice", "Lattice", "choice", "fcc", "fcc|hcp|bcc|sc|cubic-diamond|hex-diamond"}, {"a", "Unstrained lattice constant (Angstrom)", "float", "3.615", ""},
+          {"c_over_a", "Unstrained c/a (hexagonal)", "float", "1.633", ""},
+          {"component", "Property", "choice", "volumetric", "volumetric|shear|xx|yy|zz|yz|xz|xy"}}, elasticStrainStep},
+        {"displacements", "Displacement vectors", "Analysis",
+         "Sets the per-atom property to the displacement from a reference structure file (same atoms in the same order; minimum image in periodic\ncells; optionally after mapping the cell deformation).",
+         {{"reference", "Reference structure file", "string", "", ""}, {"component", "Property", "choice", "magnitude", "magnitude|x|y|z"},
+          {"affine_mapping", "Affine mapping", "choice", "off", "off|to_reference|to_current"}}, displacementStep},
+        {"bin-property", "Spatial binning", "Analysis",
+         "Averages (or sums, counts, ...) the per-atom property over bins along a, b and c (1 = not binned) and gives each atom its bin's value;\nwithout a property the atoms are counted. bins 1 1 20 gives a profile along c.",
+         {{"bins", "Bins along a, b, c", "ivec3", "1 1 20", ""}, {"operation", "Operation", "choice", "mean", "mean|sum|density|min|max|count"}}, binProperty},
+        {"reduce-property", "Property statistics", "Analysis",
+         "Reports the count, sum, mean, standard deviation, minimum, median and maximum and a histogram of the per-atom property (all or selected atoms).",
+         {{"target", "Atoms", "choice", "all", "all|selected"}, {"bins", "Histogram bins", "int", "10", ""}}, reduceProperty},
+        {"segment-grains", "Segment grains", "Analysis",
+         "Finds the grains of a polycrystal from local lattice orientations (polyhedral template matching), colours atoms by grain and sets the\nper-atom property to the grain id (0 for none).",
+         {{"threshold", "Misorientation threshold (degrees)", "float", "4", ""}, {"min_size", "Minimum grain size (atoms)", "int", "100", ""},
+          {"adopt", "Assign boundary atoms to grains", "bool", "true", ""}}, segmentGrains},
         };
         for (auto& type : scienceStepTypes()) builtIn.push_back(std::move(type));
         builtIn.reserve(256);  // registered types keep their addresses

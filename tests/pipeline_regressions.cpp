@@ -388,6 +388,38 @@ int main()
         check(*std::min_element(coordination.structure.atomProperty.begin(), coordination.structure.atomProperty.end()) == 11, "coordination 11 next to the vacancy");
     });
 
+    test("OVITO-style steps: overlaps, formulas, shrink-wrap, PTM and grains", [] {
+        Structure fcc = copper(3);
+        // An atom 0.3 A from atom 0: the later atom of the pair is selected and removed.
+        AtomSite extra = fcc.atoms[0];
+        extra.x += 0.3;
+        fcc.atoms.push_back(extra);
+        const auto overlap = run("select-overlapping 1.0", fcc);
+        check(overlap.selectedCount() == 1 && overlap.selected.back() == 1, "the later atom of the overlapping pair");
+        check(run("select-overlapping 1.0 atoms=both", fcc).selectedCount() == 2, "both atoms of the pair");
+        check(run("select-overlapping 1.0 | delete-selected", fcc).structure.atoms.size() == copper(3).atoms.size(), "overlap removed");
+        // A formula sets the property; select-property uses it.
+        const auto height = run("compute-expression z name=height | select-property 5 100", copper(3));
+        check(height.structure.atomPropertyName == "height", "property name");
+        for (std::size_t i = 0; i < height.structure.atoms.size(); ++i)
+            check(height.structure.atomProperty[i] == height.structure.atoms[i].z, "property equals z");
+        std::size_t above = 0;
+        for (const auto& a : height.structure.atoms) above += a.z >= 5;
+        check(height.selectedCount() == above, "selected by the computed property");
+        // Shrink-wrap: an orthogonal box around the atoms plus padding.
+        const auto wrapped = run("shrink-wrap 1.5", copper(2));
+        double low = 1e9, high = -1e9;
+        for (const auto& a : wrapped.structure.atoms) { low = std::min(low, a.x); high = std::max(high, a.x); }
+        check(std::abs(low - 1.5) < 1e-12, "atoms start at the padding");
+        check(std::abs(wrapped.structure.cellVectors[0][0] - (high + 1.5)) < 1e-12 && wrapped.structure.cellVectors[0][1] == 0, "box spans atoms and padding");
+        // Polyhedral template matching and grains of a single crystal.
+        const auto ptm = run("compute-property ptm", copper(3));
+        for (double t : ptm.structure.atomProperty) check(t == 1, "PTM fcc");
+        const auto grains = run("segment-grains min_size=10", copper(3));
+        check(grains.structure.grainColors.size() == grains.structure.atoms.size(), "atoms coloured by grain");
+        for (double g : grains.structure.atomProperty) check(g == 1, "one grain");
+    });
+
     test("pipeline editor: replace keeps state and shared parameters", [] {
         PipelineEditor editor;
         editor.setInput(copper(2));

@@ -146,6 +146,12 @@ void ScientificToolsDialog::drawField(std::size_t i, const Structure& structure)
                 try { useActiveStructure(i, structure); }
                 catch (const std::exception& error) { m_error = error.what(); }
             }
+            const bool valuesInput = name == "values" || name == "values_a" || name == "values_b";
+            if (kind == "data" && valuesInput && !structure.atoms.empty() && structure.atomProperty.size() == structure.atoms.size() &&
+                responsive::button("Use Active Property")) {
+                try { useActiveProperty(i, structure); }
+                catch (const std::exception& error) { m_error = error.what(); }
+            }
             if ((kind == "data" || kind == "file") && !m_trajectory.empty() && acceptsTrajectory(tool.id, name)) {
                 if (responsive::button("Use Loaded Trajectory")) {
                     field.path = m_trajectory;

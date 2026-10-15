@@ -198,6 +198,7 @@ int runPipelineCLI(int argc, char* argv[])
             std::cerr << "  " << i + 1 << ' ' << std::left << std::setw(20) << pipeline.modifiers[i].type;
             if (stage.skipped) std::cerr << "skipped (disabled)\n";
             else std::cerr << stage.atoms << " atoms, " << stage.selected << " selected (" << std::fixed << std::setprecision(1) << stage.milliseconds << " ms)\n";
+            for (const auto& note : stage.notes) std::cerr << "      " << note << "\n";
         }
         if (std::strcmp(output, "-") == 0) {
             writeExtxyz(std::cout, data);

@@ -408,6 +408,103 @@ void trajectoryStructurePlots(const Json& result, std::vector<PlotSpec>& plots)
         {line("angles", numbers(result.find("angle_deg")), numbers(result.find("angle_density_per_deg")))}));
 }
 
+// Bar-like plot of the "counts" object of a classification (index order).
+void countPlot(const Json& result, std::vector<PlotSpec>& plots, const std::string& title)
+{
+    if (const Json* counts = result.find("counts"); counts && counts->isObject()) {
+        std::vector<double> x, y;
+        for (std::size_t t = 0; t < counts->size(); ++t) {
+            x.push_back(static_cast<double>(t));
+            y.push_back(counts->members()[t].second.number());
+        }
+        plots.push_back(plot(title, "Type", "Atoms", {line("atoms", x, y, true)}));
+    }
+}
+
+void ptmPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    countPlot(result, plots, "PTM structures (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico, 5 sc, 6 cubic dia., 7 hex dia.)");
+    addHistogram(plots, "PTM RMSD", "RMSD", numbers(result.find("rmsd")));
+    addHistogram(plots, "Orientation angle", "Rotation angle (degrees)", numbers(result.find("orientation_angle_deg")));
+}
+
+void grainSegmentationPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    if (const Json* grains = result.find("grains"); grains && grains->isArray() && grains->size()) {
+        std::vector<double> id, size;
+        for (const auto& g : grains->items()) { id.push_back(g.at("id").number()); size.push_back(g.at("atoms").number()); }
+        plots.push_back(plot("Grain sizes", "Grain", "Atoms", {line("atoms", id, size, true)}));
+    }
+    if (const Json* boundaries = result.find("boundaries"); boundaries && boundaries->isArray()) {
+        std::vector<double> angles;
+        for (const auto& b : boundaries->items())
+            if (b.at("misorientation_deg").isNumber()) angles.push_back(b.at("misorientation_deg").number());
+        addHistogram(plots, "Grain-boundary misorientation", "Misorientation (degrees)", angles);
+    }
+}
+
+void elasticStrainPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    addHistogram(plots, "Volumetric elastic strain", "trace(E)/3", numbers(result.find("volumetric_strain")));
+    addHistogram(plots, "Elastic shear strain", "Von Mises shear strain", numbers(result.find("shear_strain")));
+}
+
+void fccPlanarFaultPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    countPlot(result, plots, "Planar faults (0 non-hcp, 1 stacking fault, 2 twin, 3 multilayer, 4 other)");
+}
+
+void chillPlusPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    countPlot(result, plots, "Chill+ (0 other, 1 hex ice, 2 cubic ice, 3 interf. ice, 4 hydrate, 5 interf. hydrate)");
+}
+
+void localEntropyPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    addHistogram(plots, "Local entropy", "s (kB)", numbers(result.find("entropy_kB")));
+}
+
+void findRingsPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    plots.push_back(plot("Ring-size distribution", "Ring size (atoms)", "Rings",
+        {line("rings", numbers(result.find("ring_sizes")), numbers(result.find("ring_counts")), true)}));
+}
+
+void displacementPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    addHistogram(plots, "Displacement magnitudes", "|u| (A)", numbers(result.find("magnitude_A")));
+}
+
+void spatialBinningPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    const auto bins = numbers(result.find("bins"));
+    const Json* centers = result.find("centers");
+    if (bins.size() != 3 || !centers || !centers->isObject()) return;
+    int binned = 0;
+    std::size_t axis = 0;
+    for (std::size_t d = 0; d < 3; ++d)
+        if (bins[d] > 1) { ++binned; axis = d; }
+    if (binned != 1) return;
+    const char* names[] = {"a", "b", "c"};
+    const Json* along = centers->find(names[axis]);
+    if (!along) return;
+    plots.push_back(plot(std::string("Profile along ") + names[axis], "Distance (A)", "Value",
+        {line("value", numbers(along->find("distance_A")), numbers(result.find("values")))}));
+}
+
+void propertyHistogramPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    plots.push_back(plot("Histogram", "Value", "Count", {line("count", numbers(result.find("centers")), numbers(result.find("counts")))}));
+}
+
+void spatialCorrelationPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    auto spec = plot("Spatial correlation", "Distance (A)", "Normalized correlation",
+        {line("C(r)", numbers(result.find("r_A")), numbers(result.find("normalized_correlation")))});
+    spec.horizontal = {0.0};
+    plots.push_back(spec);
+}
+
 const std::map<std::string, PlotBuilder>& plotBuilders()
 {
     static const std::map<std::string, PlotBuilder> builders = {
@@ -427,6 +524,17 @@ const std::map<std::string, PlotBuilder>& plotBuilders()
         {"centrosymmetry", centrosymmetryPlots},
         {"bond-order", bondOrderPlots},
         {"wigner-seitz", wignerSeitzPlots},
+        {"ptm", ptmPlots},
+        {"grain-segmentation", grainSegmentationPlots},
+        {"elastic-strain", elasticStrainPlots},
+        {"fcc-planar-faults", fccPlanarFaultPlots},
+        {"chill-plus", chillPlusPlots},
+        {"local-entropy", localEntropyPlots},
+        {"find-rings", findRingsPlots},
+        {"displacements", displacementPlots},
+        {"spatial-binning", spatialBinningPlots},
+        {"property-histogram", propertyHistogramPlots},
+        {"spatial-correlation", spatialCorrelationPlots},
         {"work-function", workFunctionPlots},
         {"equation-of-state", equationOfStatePlots},
         {"eos-scan", equationOfStatePlots},

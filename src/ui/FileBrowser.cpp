@@ -862,6 +862,10 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
             scientificToolsDialog.drawMenuItems("Structure and defects");
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("Property Data")) {
+            scientificToolsDialog.drawMenuItems("Property data");
+            ImGui::EndMenu();
+        }
         if (ImGui::BeginMenu("Trajectories and Transport")) {
             trajectoryDialog.drawMenuItem();
             ImGui::Separator();

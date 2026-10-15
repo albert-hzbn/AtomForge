@@ -68,6 +68,25 @@ std::string saveActiveStructure(const Structure& structure)
     return file.u8string();
 }
 
+// The view's per-atom property as a JSON list (NaN for atoms without a value).
+std::string saveActiveProperty(const Structure& structure)
+{
+    const auto root = std::filesystem::temp_directory_path() / "AtomForge-science";
+    std::filesystem::create_directories(root);
+    const auto file = root / ("property-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".json");
+    std::ofstream output(file);
+    output << std::setprecision(17) << '[';
+    for (std::size_t i = 0; i < structure.atomProperty.size(); ++i) {
+        if (i) output << ',';
+        const double value = structure.atomProperty[i];
+        if (std::isfinite(value)) output << value;
+        else output << "NaN";
+    }
+    output << "]\n";
+    if (!output) throw std::runtime_error("Cannot save the per-atom property for analysis");
+    return file.u8string();
+}
+
 // Index order of the desktop's interatomic-potential selector.
 enum PotentialChoice { kEmt, kLennardJones, kEam, kTersoff, kStillingerWeber, kBuckingham };
 
@@ -295,6 +314,7 @@ const char* ScientificToolsDialog::companionCell(const std::string& parameter)
 {
     if (parameter == "positions" || parameter == "reference_sites") return "cell";
     if (parameter == "reference") return "reference_cell";
+    if (parameter == "current") return "current_cell";
     if (parameter == "current") return "current_cell";
     return nullptr;
 }
@@ -621,6 +641,20 @@ void ScientificToolsDialog::useActiveStructure(std::size_t index, const Structur
             other.enabled = true;
         }
     }
+}
+
+void ScientificToolsDialog::useActiveProperty(std::size_t index, const Structure& structure)
+{
+    if (structure.atomProperty.size() != structure.atoms.size() || structure.atoms.empty())
+        throw std::runtime_error("The view has no per-atom property; compute one first (Edit > Structure Operations > Compute Per-Atom Property)");
+    auto& field = m_fields[index];
+    field.path = saveActiveProperty(structure);
+    field.activeLabel = "Active property: " + (structure.atomPropertyName.empty() ? std::string("values") : structure.atomPropertyName) +
+                        " (" + std::to_string(structure.atoms.size()) + " atoms)";
+    field.useFile = true;
+    field.enabled = true;
+    field.field[0] = '\0';
+    field.selectColumn = false;
 }
 
 bool ScientificToolsDialog::hasFields(int group, int skip) const

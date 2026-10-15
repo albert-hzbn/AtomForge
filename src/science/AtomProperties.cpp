@@ -105,6 +105,59 @@ void symmetryProperties(const Json& result, std::vector<AtomProperty>& propertie
     add(properties, "Wyckoff position (0 = a, 1 = b, ...)", numbers(result.find("wyckoff_index")));
 }
 
+void ptmProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "PTM structure (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico, 5 sc, 6 cubic diamond, 7 hex diamond)", numbers(result.find("structure_type")));
+    add(properties, "PTM RMSD", numbers(result.find("rmsd")));
+    add(properties, "Orientation angle (degrees)", numbers(result.find("orientation_angle_deg")));
+    add(properties, "Local lattice constant (A)", numbers(result.find("lattice_constant_A")));
+}
+
+void grainSegmentationProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Grain id (0 none)", numbers(result.find("grain_id")));
+    add(properties, "PTM structure (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico, 5 sc, 6 cubic diamond, 7 hex diamond)", numbers(result.find("structure_type")));
+}
+
+void elasticStrainProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Volumetric elastic strain", numbers(result.find("volumetric_strain")));
+    add(properties, "Von Mises elastic shear strain", numbers(result.find("shear_strain")));
+    const char* names[] = {"Elastic strain xx", "Elastic strain yy", "Elastic strain zz", "Elastic strain yz", "Elastic strain xz", "Elastic strain xy"};
+    if (const Json* strain = result.find("strain_voigt"); strain && strain->isArray())
+        for (std::size_t c = 0; c < 6; ++c) {
+            std::vector<double> values;
+            for (const auto& row : strain->items())
+                values.push_back(row.isArray() && row.size() == 6 && row.items()[c].isNumber() ? row.items()[c].number() : kNaN);
+            add(properties, names[c], values);
+        }
+}
+
+void fccPlanarFaultProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Planar fault (0 non-hcp, 1 stacking fault, 2 twin, 3 multilayer, 4 other hcp)", numbers(result.find("fault_type")));
+}
+
+void chillPlusProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Chill+ type (0 other, 1 hex ice, 2 cubic ice, 3 interfacial ice, 4 hydrate, 5 interfacial hydrate)", numbers(result.find("chill_type")));
+}
+
+void localEntropyProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Local entropy (kB)", numbers(result.find("entropy_kB")));
+}
+
+void findRingsProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Rings through atom", numbers(result.find("rings_per_atom")));
+}
+
+void displacementProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Displacement magnitude (A)", numbers(result.find("magnitude_A")));
+}
+
 const std::map<std::string, PropertyBuilder>& propertyBuilders()
 {
     static const std::map<std::string, PropertyBuilder> builders = {
@@ -118,6 +171,14 @@ const std::map<std::string, PropertyBuilder>& propertyBuilders()
         {"local-strain", localStrainProperties},
         {"bond-order", bondOrderProperties},
         {"wigner-seitz", wignerSeitzProperties},
+        {"ptm", ptmProperties},
+        {"grain-segmentation", grainSegmentationProperties},
+        {"elastic-strain", elasticStrainProperties},
+        {"fcc-planar-faults", fccPlanarFaultProperties},
+        {"chill-plus", chillPlusProperties},
+        {"local-entropy", localEntropyProperties},
+        {"find-rings", findRingsProperties},
+        {"displacements", displacementProperties},
     };
     return builders;
 }

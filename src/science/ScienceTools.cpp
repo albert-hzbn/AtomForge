@@ -8,6 +8,9 @@
 #include "science/VaspElectronic.h"
 #include "science/Diffraction.h"
 #include "science/Clusters.h"
+#include "science/LocalEnvironment.h"
+#include "science/PropertyAnalysis.h"
+#include "science/TemplateMatching.h"
 #include "science/DislocationLines.h"
 #include "science/Phonons.h"
 #include "science/ReciprocalPath.h"
@@ -245,6 +248,17 @@ const std::map<std::string, ToolRunner>& toolRunners()
         {"dislocation-lines", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return dislocationLines(p.structure("reference"), p.structure("structure"), p); }},
         {"bond-order", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(bondOrder(p)); }},
         {"wigner-seitz", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(wignerSeitz(p)); }},
+        {"ptm", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(polyhedralTemplateMatching(p)); }},
+        {"grain-segmentation", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(grainSegmentation(p)); }},
+        {"elastic-strain", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(elasticStrain(p)); }},
+        {"fcc-planar-faults", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(fccPlanarFaults(p)); }},
+        {"chill-plus", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(chillPlus(p)); }},
+        {"local-entropy", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(localEntropy(p)); }},
+        {"find-rings", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(findRings(p)); }},
+        {"displacements", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(displacementVectors(p)); }},
+        {"spatial-binning", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(spatialBinning(p)); }},
+        {"property-histogram", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(propertyHistogram(p)); }},
+        {"spatial-correlation", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(spatialCorrelation(p)); }},
         {"structure-factor", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(staticStructureFactor(p)); }},
         {"band-gap", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(bandGap(p)); }},
         {"effective-mass", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(effectiveMass(p)); }},
@@ -302,7 +316,9 @@ AtomProperty analysePerAtom(const Structure& structure, const std::string& tool,
         request["pbc"] = Json::array({true, true, true});
     }
     // Structure types pick their own cutoff in periodic cells.
-    if ((tool != "structure-type" && tool != "diamond-structure") || !structure.hasUnitCell) request["cutoff_A"] = cutoffA;
+    const bool ownRange = tool == "ptm" || tool == "fcc-planar-faults" || tool == "chill-plus" || tool == "local-entropy" || tool == "elastic-strain";
+    if (!ownRange && ((tool != "structure-type" && tool != "diamond-structure") || !structure.hasUnitCell)) request["cutoff_A"] = cutoffA;
+    if (tool == "local-entropy" && !structure.hasUnitCell) request["local_density"] = true;
     if (tool == "bond-order") request["degrees"] = Json::array({6});
     const auto properties = perAtomProperties(tool, runTool(tool, request).result);
     for (const auto& candidate : properties)

@@ -66,6 +66,18 @@ class PipelineTests(unittest.TestCase):
         with self.assertRaises(PipelineError):
             Pipeline().add("replicate", bogus=1)
 
+    def test_ovito_style_steps(self):
+        result = (Pipeline().replicate(3, 3, 3).compute_property("ptm").reduce_property()
+                  .compute_expression("z", name="height").bin_property(bins=[1, 1, 3])
+                  .segment_grains(min_size=10).elastic_strain(a=3.615).shrink_wrap(1.0)).run(copper())
+        notes = {stage["type"]: stage["notes"] for stage in result.stages}
+        self.assertEqual(len(result.structure.atoms), 108)
+        self.assertEqual(result.stages[-1]["atoms"], 108)
+        self.assertIn("mean=1 ", notes["reduce-property"][0])
+        self.assertEqual(notes["segment-grains"], ["1 grains"])
+        overlap = Pipeline.parse("replicate 2 2 2 | add-atom Cu 0.2 0 0 | select-overlapping 1.0 | delete-selected").run(copper())
+        self.assertEqual(len(overlap.structure.atoms), 32)
+
     def test_errors_and_property(self):
         s = copper(2)
         with self.assertRaises(PipelineError) as failure:

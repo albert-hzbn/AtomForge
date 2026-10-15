@@ -16,6 +16,8 @@
 #include <Eigen/Dense>
 
 #include <algorithm>
+#include <random>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -411,6 +413,253 @@ int main()
         for (auto& row : cell) row = transformVector(r, row);
         const Json rotated = run("bond-order", object({{"positions", rows({{0, 0, 0}})}, {"cutoff_A", 2.8}, {"cell", matrixJson(cell)}, {"pbc", periodic}}));
         close(values(rotated.at("order").at("q6"))[0], .5745242597140697, 1e-12, "rotated q6");
+    });
+
+    // A crystal from cell rows and fractional basis, repeated along a, b, c.
+    const auto lattice = [](const Mat3& unit, const std::vector<Vec3>& basis, std::array<int, 3> repeat) {
+        Crystal crystal;
+        for (int i = 0; i < repeat[0]; ++i)
+            for (int j = 0; j < repeat[1]; ++j)
+                for (int k = 0; k < repeat[2]; ++k)
+                    for (const auto& b : basis) {
+                        crystal.symbols.push_back("X");
+                        crystal.positions.push_back(rowTimes({b[0] + i, b[1] + j, b[2] + k}, unit));
+                    }
+        for (int r = 0; r < 3; ++r) crystal.cell[static_cast<std::size_t>(r)] = scale(unit[static_cast<std::size_t>(r)], repeat[static_cast<std::size_t>(r)]);
+        return crystal;
+    };
+    const auto hexagonal = [](double a, double ca) { return Mat3{{{a, 0, 0}, {-a / 2, a * std::sqrt(3.0) / 2, 0}, {0, 0, a * ca}}}; };
+    const Mat3 cubic = {{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}};
+    const auto scaled = [](Mat3 m, double a) { for (auto& row : m) row = scale(row, a); return m; };
+    const std::vector<Vec3> fccBasis = {{0, 0, 0}, {0, .5, .5}, {.5, 0, .5}, {.5, .5, 0}};
+    std::vector<Vec3> diamondBasis = fccBasis;
+    for (const auto& b : fccBasis) diamondBasis.push_back(add(b, {.25, .25, .25}));
+    const double z = 1.0 / 16;
+    const std::vector<Vec3> lonsdaleiteBasis = {{1.0 / 3, 2.0 / 3, z}, {2.0 / 3, 1.0 / 3, .5 + z}, {2.0 / 3, 1.0 / 3, 1 - z}, {1.0 / 3, 2.0 / 3, .5 - z}};
+    const double idealCa = std::sqrt(8.0 / 3.0);
+    const auto periodicRequest = [](const Crystal& c) {
+        return object({{"positions", rows(c.positions)}, {"cell", matrixJson(c.cell)}, {"pbc", Json::array({true, true, true})}});
+    };
+    const auto rotated = [](Crystal c, const Mat3& r) {
+        for (auto& x : c.positions) x = transformVector(r, x);
+        for (auto& row : c.cell) row = transformVector(r, row);
+        return c;
+    };
+
+    test("polyhedral template matching identifies lattices, orientation and scale", [=] {
+        struct Case { const char* name; int type; Crystal crystal; double lattice; };
+        const std::vector<Case> cases = {
+            {"fcc", 1, lattice(scaled(cubic, 3.6), fccBasis, {3, 3, 3}), 3.6},
+            {"hcp", 2, lattice(hexagonal(2.95, idealCa), {{0, 0, 0}, {1.0 / 3, 2.0 / 3, .5}}, {4, 4, 3}), 2.95},
+            {"bcc", 3, lattice(scaled(cubic, 2.87), {{0, 0, 0}, {.5, .5, .5}}, {4, 4, 4}), 2.87},
+            {"sc", 5, lattice(scaled(cubic, 2.5), {{0, 0, 0}}, {4, 4, 4}), 2.5},
+            {"cubic-diamond", 6, lattice(scaled(cubic, 5.43), diamondBasis, {2, 2, 2}), 5.43},
+            {"hex-diamond", 7, lattice(hexagonal(3.8, idealCa), lonsdaleiteBasis, {3, 3, 2}), 3.8},
+        };
+        const Mat3 r = rotation({1, 2, 3}, 0.4);
+        for (const auto& c : cases) {
+            Json request = periodicRequest(rotated(c.crystal, r));
+            request["structures"] = Json::array({"fcc", "hcp", "bcc", "ico", "sc", "cubic-diamond", "hex-diamond"});
+            const Json result = run("ptm", request);
+            for (double t : values(result.at("structure_type"))) check(t == c.type, std::string("PTM type of ") + c.name);
+            for (double a : values(result.at("lattice_constant_A"))) close(a, c.lattice, 1e-9, std::string("PTM lattice constant of ") + c.name);
+            // Both sublattices of hcp and diamond share the lattice orientation.
+            for (double angle : values(result.at("orientation_angle_deg"))) close(angle, 0.4 * 180 / kPi, 1e-6, std::string("PTM orientation of ") + c.name);
+        }
+        // An icosahedral cluster: the centre is icosahedral, its open shell is not.
+        const double phi = (1 + std::sqrt(5.0)) / 2;
+        std::vector<Vec3> cluster = {{0, 0, 0}};
+        for (double s : {-1.0, 1.0})
+            for (double t : {-phi, phi}) {
+                cluster.push_back(scale({0, s, t}, 2.6 / std::sqrt(1 + phi * phi)));
+                cluster.push_back(scale({s, t, 0}, 2.6 / std::sqrt(1 + phi * phi)));
+                cluster.push_back(scale({t, 0, s}, 2.6 / std::sqrt(1 + phi * phi)));
+            }
+        const Json ico = run("ptm", object({{"positions", rows(cluster)}, {"cutoff_A", 6.0}}));
+        check(values(ico.at("structure_type"))[0] == 4, "icosahedral centre");
+        // Thermal noise stays within the RMSD cutoff; a strong distortion does not.
+        Crystal noisy = lattice(scaled(cubic, 3.6), fccBasis, {3, 3, 3});
+        std::mt19937 random(5);
+        std::normal_distribution<double> gauss(0, 0.05);
+        for (auto& x : noisy.positions) for (double& v : x) v += gauss(random);
+        double fcc = 0;
+        for (double t : values(run("ptm", periodicRequest(noisy)).at("structure_type"))) fcc += t == 1;
+        check(fcc / static_cast<double>(noisy.positions.size()) > 0.99, "noisy fcc stays fcc");
+        Crystal liquid = noisy;
+        std::uniform_real_distribution<double> uniform(0, 10.8);
+        for (auto& x : liquid.positions) x = {uniform(random), uniform(random), uniform(random)};
+        double other = 0;
+        for (double t : values(run("ptm", periodicRequest(liquid)).at("structure_type"))) other += t == 0;
+        check(other / static_cast<double>(liquid.positions.size()) > 0.95, "random positions are other");
+    });
+
+    test("grain segmentation of a bicrystal", [=] {
+        const Crystal grain = lattice(scaled(cubic, 3.6), fccBasis, {12, 12, 4});
+        Vec3 centre{};
+        for (const auto& x : grain.positions) centre = add(centre, scale(x, 1.0 / static_cast<double>(grain.positions.size())));
+        std::vector<Vec3> atoms;
+        for (int side : {-1, 1}) {
+            const Mat3 r = rotation({0, 0, 1}, side > 0 ? 30 * kPi / 180 : 0.0);
+            for (const auto& x : grain.positions) {
+                const Vec3 p = transformVector(r, sub(x, centre));
+                if ((p[0] < 0 ? -1 : 1) == side && std::abs(p[0]) < 16 && std::abs(p[1]) < 16 && std::abs(p[2]) < 6) atoms.push_back(p);
+            }
+        }
+        const Json result = run("grain-segmentation", object({{"positions", rows(atoms)}, {"min_grain_size", 50}}));
+        check(number(result.at("grain_count")) == 2, "two grains");
+        check(number(result.at("unassigned_atoms")) == 0, "every atom adopted");
+        check(result.at("boundaries").size() == 1, "one boundary");
+        close(number(result.at("boundaries").items()[0].at("misorientation_deg")), 30, 0.1, "boundary misorientation");
+        const auto ids = values(result.at("grain_id"));
+        for (std::size_t i = 0; i < atoms.size(); ++i)
+            if (std::abs(atoms[i][0]) > 5 && std::abs(atoms[i][1]) < 10 && std::abs(atoms[i][2]) < 3)
+                check(ids[i] == ids[atoms[i][0] < 0 ? 0 : atoms.size() - 1], "grain interiors are one grain each");
+    });
+
+    test("elastic strain of a stretched crystal", [=] {
+        Crystal c = lattice(scaled(cubic, 3.6), fccBasis, {3, 3, 3});
+        const Mat3 f = {{{1.01, 0, 0}, {0, 0.995, 0.002}, {0, 0.002, 1}}};
+        c = rotated(c, f);
+        Json request = periodicRequest(c);
+        request["lattice_constant_A"] = 3.6;
+        const Json result = run("elastic-strain", request);
+        // (F F^T - I)/2 for the symmetric F above.
+        const double exx = (1.01 * 1.01 - 1) / 2, eyy = (0.995 * 0.995 + 0.002 * 0.002 - 1) / 2, eyz = (0.995 * 0.002 + 0.002 * 1.0) / 2;
+        for (const auto& row : result.at("strain_voigt").items()) {
+            close(row.items()[0].number(), exx, 1e-12, "strain xx");
+            close(row.items()[1].number(), eyy, 1e-12, "strain yy");
+            close(row.items()[3].number(), eyz, 1e-12, "strain yz");
+        }
+        // hcp with a non-ideal c/a is unstrained relative to that c/a.
+        Json hcp = periodicRequest(lattice(hexagonal(3.2, 1.62), {{0, 0, 0}, {1.0 / 3, 2.0 / 3, .5}}, {4, 4, 3}));
+        hcp["lattice_constant_A"] = 3.2;
+        hcp["c_over_a"] = 1.62;
+        hcp["lattice"] = "hcp";
+        for (double v : values(run("elastic-strain", hcp).at("volumetric_strain"))) close(v, 0, 1e-12, "unstrained hcp");
+    });
+
+    test("stacking faults and twins in fcc", [=] {
+        // Close-packed layers (A, B, C) stacked along z.
+        const auto stack = [](const std::string& sequence) {
+            const double a = 2.55, s3 = std::sqrt(3.0), d = a * std::sqrt(2.0 / 3);
+            const int n = 6;
+            std::vector<Vec3> atoms;
+            for (std::size_t l = 0; l < sequence.size(); ++l) {
+                const double shift = sequence[l] == 'A' ? 0 : sequence[l] == 'B' ? 1 : 2;
+                for (int i = 0; i < n; ++i)
+                    for (int j = 0; j < n; ++j)
+                        atoms.push_back({i * a + j * a / 2 + shift * a / 2, j * a * s3 / 2 + shift * a / (2 * s3), static_cast<double>(l) * d});
+            }
+            const Mat3 cell = {{{n * a, 0, 0}, {n * a / 2, n * a * s3 / 2, 0}, {0, 0, static_cast<double>(sequence.size()) * d}}};
+            return object({{"positions", rows(atoms)}, {"cell", matrixJson(cell)}, {"pbc", Json::array({true, true, true})}});
+        };
+        // Perfect fcc: no hcp atoms.
+        check(number(run("fcc-planar-faults", stack("ABCABCABCABC")).at("counts").at("non-hcp")) == 432, "perfect fcc");
+        // ...ABCAB|ABCABC: one intrinsic stacking fault (two hcp planes of 36 atoms).
+        const Json fault = run("fcc-planar-faults", stack("ABCABCABABCABCABC"));
+        check(number(fault.at("counts").at("intrinsic stacking fault")) == 72, "intrinsic fault planes");
+        check(number(fault.at("counts").at("coherent twin boundary")) == 0, "no twin");
+        close(number(fault.at("stacking_fault_area_A2")), 36 * std::sqrt(3.0) / 2 * 2.55 * 2.55, 1e-6, "fault area");
+        // ABCABC|BACBA: two twin boundaries in the periodic cell, one plane each.
+        const Json twin = run("fcc-planar-faults", stack("ABCABCACBACB"));
+        check(number(twin.at("counts").at("coherent twin boundary")) == 72, "twin planes");
+        check(number(twin.at("counts").at("intrinsic stacking fault")) == 0, "no stacking fault");
+    });
+
+    test("Chill+ ice polymorphs", [=] {
+        const double oo = 2.76;
+        const Crystal ic = lattice(scaled(cubic, oo * 4 / std::sqrt(3.0)), diamondBasis, {3, 3, 3});
+        check(number(run("chill-plus", periodicRequest(ic)).at("counts").at("cubic ice")) == static_cast<double>(ic.positions.size()), "ice Ic");
+        const Crystal ih = lattice(hexagonal(oo / (3.0 / 8 * idealCa), idealCa), lonsdaleiteBasis, {4, 4, 3});
+        check(number(run("chill-plus", periodicRequest(ih)).at("counts").at("hexagonal ice")) == static_cast<double>(ih.positions.size()), "ice Ih");
+        // A water molecule alone has no ice neighbours.
+        check(values(run("chill-plus", object({{"positions", rows({{0, 0, 0}})}})).at("chill_type"))[0] == 0, "isolated oxygen");
+    });
+
+    test("local entropy orders crystal, hot crystal and gas", [=] {
+        const Crystal crystal = lattice(scaled(cubic, 3.6), fccBasis, {4, 4, 4});
+        Crystal hot = crystal, gas = crystal;
+        std::mt19937 random(3);
+        std::normal_distribution<double> gauss(0, 0.15);
+        std::uniform_real_distribution<double> uniform(0, 14.4);
+        for (auto& x : hot.positions) for (double& v : x) v += gauss(random);
+        for (auto& x : gas.positions) x = {uniform(random), uniform(random), uniform(random)};
+        const double s0 = number(run("local-entropy", periodicRequest(crystal)).at("mean_entropy_kB"));
+        const double s1 = number(run("local-entropy", periodicRequest(hot)).at("mean_entropy_kB"));
+        const double s2 = number(run("local-entropy", periodicRequest(gas)).at("mean_entropy_kB"));
+        check(s0 < s1 && s1 < s2, "entropy rises with disorder");
+        expectError([] { run("local-entropy", object({{"positions", rows({{0, 0, 0}, {2, 0, 0}})}})); }, "global density without a cell");
+    });
+
+    test("ring statistics of diamond and a square lattice", [=] {
+        const Crystal diamond = lattice(scaled(cubic, 5.43), diamondBasis, {3, 3, 3});
+        Json request = periodicRequest(diamond);
+        request["cutoff_A"] = 2.6;
+        request["max_size"] = 8;
+        const Json result = run("find-rings", request);
+        check(values(result.at("ring_sizes")) == std::vector<double>{6}, "only six-rings in diamond");
+        close(number(result.at("total_rings")), 2.0 * static_cast<double>(diamond.positions.size()), 0, "two rings per atom");
+        for (double v : values(result.at("rings_per_atom"))) check(v == 12, "twelve rings through each atom");
+        // A periodic square net: four-rings only (the 3-atom periodic loops are not rings).
+        Crystal square = lattice(scaled(cubic, 2.0), {{0, 0, 0}}, {5, 5, 1});
+        square.cell[2] = {0, 0, 20};
+        Json squareRequest = periodicRequest(square);
+        squareRequest["cutoff_A"] = 2.1;
+        const Json squares = run("find-rings", squareRequest);
+        check(values(squares.at("ring_sizes")) == std::vector<double>{4}, "square net has four-rings");
+        close(number(squares.at("total_rings")), 25, 0, "one ring per square");
+    });
+
+    test("displacement vectors with periodic images and affine mapping", [] {
+        const Mat3 cell = {{{10, 0, 0}, {0, 10, 0}, {0, 0, 10}}};
+        Json result = run("displacements", object({{"reference", rows({{0.1, 0, 0}, {5, 5, 5}})}, {"current", rows({{9.9, 0, 0}, {5.5, 5, 5}})},
+                                                   {"reference_cell", matrixJson(cell)}, {"pbc", Json::array({true, true, true})}}));
+        close(values(result.at("displacement_A"))[0], -0.2, 1e-12, "minimum image");
+        close(number(result.at("max_magnitude_A")), 0.5, 1e-12, "largest displacement");
+        // Homogeneous 10 % stretch along x removed by mapping to the reference cell.
+        const Mat3 stretched = {{{11, 0, 0}, {0, 10, 0}, {0, 0, 10}}};
+        result = run("displacements", object({{"reference", rows({{2, 1, 1}})}, {"current", rows({{2.2, 1, 1}})}, {"reference_cell", matrixJson(cell)},
+                                               {"current_cell", matrixJson(stretched)}, {"affine_mapping", "to_reference"}, {"pbc", Json::array({true, true, true})}}));
+        close(number(result.at("max_magnitude_A")), 0, 1e-12, "affine displacement removed");
+    });
+
+    test("spatial binning, histogram and spatial correlation", [=] {
+        Crystal crystal = lattice(scaled(cubic, 3.6), fccBasis, {4, 4, 4});
+        for (auto& x : crystal.positions) x[2] += 0.3;
+        Json binning = periodicRequest(crystal);
+        binning["bins"] = Json::array({1, 1, 4});
+        binning["operation"] = "density";
+        for (double v : values(run("spatial-binning", binning).at("values"))) close(v, 4 / std::pow(3.6, 3), 1e-12, "number density per bin");
+        std::vector<double> height;
+        for (const auto& x : crystal.positions) height.push_back(x[2]);
+        binning["values"] = toJson(height);
+        binning["operation"] = "mean";
+        binning["bins"] = Json::array({1, 1, 8});
+        const auto profile = values(run("spatial-binning", binning).at("values"));
+        for (std::size_t b = 0; b < profile.size(); ++b) close(profile[b], 0.3 + 1.8 * static_cast<double>(b), 1e-9, "mean height per layer");
+        std::vector<double> numbers;
+        for (int i = 0; i <= 100; ++i) numbers.push_back(i);
+        numbers.push_back(std::nan(""));  // atoms without a value are skipped
+        const Json histogram = run("property-histogram", object({{"values", toJson(numbers)}, {"bins", 10}}));
+        close(number(histogram.at("mean")), 50, 1e-12, "mean");
+        close(number(histogram.at("median")), 50, 1e-12, "median");
+        close(number(histogram.at("count")), 101, 0, "count without NaN");
+        // A field that changes sign at the cell centre correlates at short range; random values do not.
+        const Crystal big = lattice(scaled(cubic, 3.6), fccBasis, {8, 8, 8});
+        Json correlation = object({{"positions", rows(big.positions)}, {"cell", matrixJson(big.cell)}});
+        std::vector<double> sign, noise;
+        std::mt19937 random(9);
+        for (const auto& row : correlation.at("positions").items()) {
+            sign.push_back(row.items()[0].number() < 14.4 ? 1.0 : -1.0);
+            noise.push_back(random() % 2 ? 1.0 : -1.0);
+        }
+        correlation["values_a"] = toJson(sign);
+        correlation["bins"] = 10;
+        const auto ordered = values(run("spatial-correlation", correlation).at("normalized_correlation"));
+        check(ordered[1] > 0.7 && ordered[9] < ordered[1], "correlated field decays with distance");
+        correlation["values_a"] = toJson(noise);
+        const auto random_ = values(run("spatial-correlation", correlation).at("normalized_correlation"));
+        for (std::size_t b = 1; b < random_.size(); ++b) check(std::abs(random_[b]) < 0.03, "random values are uncorrelated");
     });
 
     test("Wigner-Seitz Frenkel pair and box mapping", [] {
@@ -2264,9 +2513,10 @@ int main()
         check(runnableTools() == catalogIds, "every catalog tool has exactly one runner");
         for (const auto& id : plottedTools()) check(findScienceTool(id) != nullptr, "plot table names catalog tool " + id);
         for (const auto& id : toolsWithAtomProperties()) check(findScienceTool(id) != nullptr, "property table names catalog tool " + id);
-        // Per-atom analyses are presented beside the viewport.
+        // Per-atom analyses are presented beside the viewport (those comparing
+        // two configurations with the trajectory analyses).
         for (const auto& id : toolsWithAtomProperties())
-            if (id != "local-strain" && id != "dislocation-lines") check(findScienceTool(id)->view == ScienceToolView::Atoms, id + " uses the atom view");
+            if (id != "local-strain" && id != "dislocation-lines" && id != "displacements") check(findScienceTool(id)->view == ScienceToolView::Atoms, id + " uses the atom view");
     });
 
     test("catalog defaults are valid requests", [] {

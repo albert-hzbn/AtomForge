@@ -48,6 +48,30 @@ class NativeTests(unittest.TestCase):
         self.assertEqual(len(xrd["peaks"]), 5)
         self.assertAlmostEqual(xrd["peaks"][0]["intensity"], 100)
 
+    def test_ovito_style_structure_analyses(self):
+        s = copper(3)
+        ptm = native.ptm(structure=s)
+        self.assertEqual(ptm["counts"]["fcc"], 108)
+        self.assertAlmostEqual(ptm["lattice_constant_A"][0], 3.615)
+        self.assertEqual(native.grain_segmentation(structure=s, min_grain_size=10)["grain_count"], 1)
+        self.assertAlmostEqual(native.elastic_strain(structure=s, lattice_constant_A=3.615)["mean_volumetric_strain"], 0, places=12)
+        self.assertEqual(native.fcc_planar_faults(structure=s)["counts"]["non-hcp"], 108)
+        self.assertLess(native.local_entropy(structure=s)["mean_entropy_kB"], -5)
+        self.assertEqual(native.find_rings(structure=s, cutoff_A=2.6, max_size=3)["ring_sizes"], [3])
+        self.assertEqual(native.chill_plus(structure=s)["counts"]["other"], 108)
+        moved = native.displacements(reference=[[0, 0, 0]], current=[[0.5, 0, 0]])
+        self.assertAlmostEqual(moved["max_magnitude_A"], 0.5)
+
+    def test_property_data_tools(self):
+        s = copper(2)
+        counts = native.spatial_binning(structure=s, bins=[1, 1, 2], operation="count")["values"]
+        self.assertEqual(counts, [16, 16])
+        stats = native.property_histogram(values=[1, 2, 3, 4, float("nan")], bins=4)
+        self.assertEqual((stats["count"], stats["mean"], stats["median"]), (4, 2.5, 2.5))
+        heights = [atom.z for atom in s.atoms]
+        correlation = native.spatial_correlation(structure=s, values_a=heights, bins=5)
+        self.assertEqual(len(correlation["r_A"]), 5)
+
     def test_symmetry_returns_structures(self):
         try:
             sym = native.symmetry(structure=rocksalt(), output_cell="primitive")
