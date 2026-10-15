@@ -105,6 +105,18 @@ void symmetryProperties(const Json& result, std::vector<AtomProperty>& propertie
     add(properties, "Wyckoff position (0 = a, 1 = b, ...)", numbers(result.find("wyckoff_index")));
 }
 
+void voronoiProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Atomic volume (A^3)", numbers(result.find("atomic_volume_A3")));
+    add(properties, "Voronoi coordination", numbers(result.find("coordination")));
+    add(properties, "Max face order", numbers(result.find("max_face_order")));
+}
+
+void cnaProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "CNA structure (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)", numbers(result.find("structure_type")));
+}
+
 void ptmProperties(const Json& result, std::vector<AtomProperty>& properties)
 {
     add(properties, "PTM structure (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico, 5 sc, 6 cubic diamond, 7 hex diamond)", numbers(result.find("structure_type")));
@@ -172,6 +184,8 @@ const std::map<std::string, PropertyBuilder>& propertyBuilders()
         {"bond-order", bondOrderProperties},
         {"wigner-seitz", wignerSeitzProperties},
         {"ptm", ptmProperties},
+        {"voronoi", voronoiProperties},
+        {"cna", cnaProperties},
         {"grain-segmentation", grainSegmentationProperties},
         {"elastic-strain", elasticStrainProperties},
         {"fcc-planar-faults", fccPlanarFaultProperties},

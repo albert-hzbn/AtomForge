@@ -27,6 +27,26 @@ const std::vector<ScienceToolDef>& scienceToolCatalog()
             {"first_frame", "First frame (skip equilibration)", "0", "int", false},
             {"every", "Use every Nth frame", "1", "int", false},
         }, ScienceToolView::Trajectory},
+        {"trajectory-average", "Time-averaged structure", "Average atomic positions over a trajectory, with each atom's RMS fluctuation.\n\nPositions are unwrapped across periodic boundaries (minimum-image steps\nbetween frames, which must resolve the motion) before averaging, so atoms\ncrossing the cell are not averaged to its middle. The cell is averaged\ntoo. The averaged structure can be opened or saved.", "Trajectories and transport", {
+            {"trajectory_file", "Trajectory (extXYZ, XDATCAR or LAMMPS dump)", "", "file", true},
+            {"first_frame", "First frame (skip equilibration)", "0", "int", false},
+            {"every", "Use every Nth frame", "1", "int", false},
+            {"unwrap", "Unwrap periodic positions", "true", "bool", false},
+        }, ScienceToolView::Trajectory},
+        {"unwrap-trajectory", "Unwrap and smooth trajectory", "Continuous (unwrapped) atom paths, optionally smoothed by a moving average.\n\nEach frame continues the previous one by the minimum-image step of every\natom, so atoms leaving the cell keep going instead of jumping back. With\nsmooth_window > 1, positions are averaged over a centred window of frames\n(thermal vibrations removed). The frames can be saved as extXYZ.", "Trajectories and transport", {
+            {"trajectory_file", "Trajectory (extXYZ, XDATCAR or LAMMPS dump)", "", "file", true},
+            {"first_frame", "First frame", "0", "int", false},
+            {"every", "Use every Nth frame", "1", "int", false},
+            {"smooth_window", "Smoothing window (frames, 1 = none)", "1", "int", false},
+        }, ScienceToolView::Trajectory},
+        {"time-series", "Time series of an analysis", "Run a per-atom analysis on every frame and follow it in time.\n\nanalysis is a per-atom tool id (cna, ptm, structure-type, diamond-structure,\ncentrosymmetry, bond-order, voronoi, local-entropy, chill-plus, ...) or\nnone. Classifications give their type counts per frame; other tools the\nmean of a per-atom property (property: its name, default the first). The\ncell volume and number density are always reported.", "Trajectories and transport", {
+            {"trajectory_file", "Trajectory (extXYZ, XDATCAR or LAMMPS dump)", "", "file", true},
+            {"analysis", "Per-atom analysis (tool id or none)", "\"cna\"", "string", false},
+            {"property", "Per-atom property to average (default: the first)", "", "string", false},
+            {"cutoff_A", "Cutoff for tools that need one (Angstrom)", "3.0", "float", false},
+            {"first_frame", "First frame", "0", "int", false},
+            {"every", "Use every Nth frame", "1", "int", false},
+        }, ScienceToolView::Trajectory},
         {"vacf", "Velocity autocorrelation", "Unbiased time-origin average of v(t) dot v(t+lag), per atom.\n\nremove_drift removes each frame's geometric mean velocity, not its\nmass-weighted centre-of-mass velocity. Units before normalization: A^2/fs^2.", "Trajectories and transport", {
             {"velocities", "Velocities (Angstrom/fs)", "", "data", true},
             {"timestep_fs", "Sampling interval (fs)", "1.0", "float", true},
@@ -104,6 +124,21 @@ const std::vector<ScienceToolDef>& scienceToolCatalog()
             {"positions", "Atomic positions (Angstrom)", "", "data", true},
             {"cell", "Cell vectors (Angstrom)", "", "data", false},
             {"current_cell", "Current cell vectors (Angstrom)", "", "data", false},
+            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
+        }, ScienceToolView::Atoms},
+        {"voronoi", "Voronoi analysis", "Atomic volume, coordination and Voronoi index of each atom.\n\nEach atom's Voronoi cell is cut by the bisecting planes of its neighbours\n(periodic images included) until no farther atom can cut it. Faces with an\narea below face_area_threshold_A2 or below relative_face_area_threshold\ntimes the cell's surface are ignored; edges shorter than\nedge_length_threshold_A do not count. The index lists faces with 3, 4, ...,\n12 edges (<0,0,12,0> is icosahedral); the most common indices are reported.\nCells of surface atoms in open boundaries are unbounded: no volume.", "Structure and defects", {
+            {"positions", "Atomic positions (Angstrom)", "", "data", true},
+            {"face_area_threshold_A2", "Face area threshold (Angstrom squared)", "0.0", "float", false},
+            {"relative_face_area_threshold", "Relative face area threshold", "0.0", "float", false},
+            {"edge_length_threshold_A", "Edge length threshold (Angstrom)", "0.0", "float", false},
+            {"cutoff_A", "Initial search radius (Angstrom, 0 = automatic)", "0.0", "float", false},
+            {"cell", "Cell vectors (Angstrom)", "", "data", false},
+            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
+        }, ScienceToolView::Atoms},
+        {"cna", "Common neighbour analysis (adaptive)", "Per-atom fcc, hcp, bcc and icosahedral order from common-neighbour signatures.\n\nAdaptive CNA (Stukowski 2012), OVITO's default: the cutoff of each atom is\n(1+sqrt 2)/2 times the mean distance of its 12 nearest neighbours (fcc, hcp,\nicosahedral: 12 x 421; 6 x 421 + 6 x 422; 12 x 555) or, for bcc, of its 8\nand 6 nearest (8 x 666 + 6 x 444). With cutoff_A, conventional CNA with that\nfixed cutoff.", "Structure and defects", {
+            {"positions", "Atomic positions (Angstrom)", "", "data", true},
+            {"cutoff_A", "Fixed cutoff (Angstrom, 0 = adaptive)", "0.0", "float", false},
+            {"cell", "Cell vectors (Angstrom)", "", "data", false},
             {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
         }, ScienceToolView::Atoms},
         {"ptm", "Polyhedral template matching", "Structure type, lattice orientation and local lattice constant of each atom.\n\nLarsen, Schmidt and Schiotz (2016), as OVITO's Polyhedral Template\nMatching: the nearest neighbours (12 fcc/hcp/icosahedral, 14 bcc, 6 simple\ncubic; diamond: 4 nearest and their 12 further neighbours) are fitted by\nthe best rotation and scale to each ideal shell. The structure with the\nlowest RMSD (neighbour lengths scaled to a mean of 1) wins when it is below\nrmsd_cutoff (0 = no cutoff). Orientations are quaternions (w, x, y, z)\nreduced to the symmetry-equivalent rotation closest to the identity.\nstructures: any of fcc, hcp, bcc, ico, sc, cubic-diamond, hex-diamond.", "Structure and defects", {

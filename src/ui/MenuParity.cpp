@@ -32,6 +32,7 @@ const std::vector<MenuLocation>& menuLocations()
         // Edit > Structure Operations (operation dialog).
         {"delete-selected", "Edit", "Structure Operations", "Delete Atoms", false},
         {"assign-element", "Edit", "Structure Operations", "Assign Element", false},
+        {"assign-color", "Edit", "Structure Operations", "Assign Colour", false},
         {"displace", "Edit", "Structure Operations", "Displace Atoms", false},
         {"fix-atoms", "Edit", "Structure Operations", "Fix Atoms", false},
         {"free-atoms", "Edit", "Structure Operations", "Free Atoms", false},

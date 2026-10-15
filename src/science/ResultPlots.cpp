@@ -421,6 +421,47 @@ void countPlot(const Json& result, std::vector<PlotSpec>& plots, const std::stri
     }
 }
 
+void trajectoryAveragePlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    addHistogram(plots, "RMS fluctuation", "RMS fluctuation (A)", numbers(result.find("rms_fluctuation_A")));
+}
+
+void unwrapTrajectoryPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    addHistogram(plots, "Net displacement", "|r(end) - r(start)| (A)", numbers(result.find("net_displacement_A")));
+}
+
+void timeSeriesPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    const auto frame = numbers(result.find("frame"));
+    if (const Json* counts = result.find("counts"); counts && counts->isObject() && counts->size()) {
+        std::vector<PlotSeries> series;
+        for (const auto& [name, values] : counts->members()) series.push_back(line(name, frame, numbers(&values)));
+        plots.push_back(plot("Structure types versus frame", "Frame", "Atoms", series));
+    }
+    if (const Json* mean = result.find("mean_property")) {
+        const Json* name = result.find("property");
+        plots.push_back(plot(name && name->isString() ? "Mean " + name->string() : "Mean property", "Frame", "Mean", {line("mean", frame, numbers(mean))}));
+    }
+    plots.push_back(plot("Cell volume", "Frame", "Volume (A^3)", {line("volume", frame, numbers(result.find("volume_A3")))}));
+}
+
+void voronoiPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    addHistogram(plots, "Atomic volume", "Volume (A^3)", numbers(result.find("atomic_volume_A3")));
+    addHistogram(plots, "Voronoi coordination", "Faces", numbers(result.find("coordination")));
+    if (const Json* common = result.find("most_common_indices"); common && common->isArray() && common->size()) {
+        std::vector<double> rank, atoms;
+        for (const auto& item : common->items()) { rank.push_back(static_cast<double>(rank.size() + 1)); atoms.push_back(item.at("atoms").number()); }
+        plots.push_back(plot("Most common Voronoi indices (rank; see the report)", "Rank", "Atoms", {line("atoms", rank, atoms, true)}));
+    }
+}
+
+void cnaPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    countPlot(result, plots, "CNA structures (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)");
+}
+
 void ptmPlots(const Json& result, std::vector<PlotSpec>& plots)
 {
     countPlot(result, plots, "PTM structures (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico, 5 sc, 6 cubic dia., 7 hex dia.)");
@@ -525,6 +566,11 @@ const std::map<std::string, PlotBuilder>& plotBuilders()
         {"bond-order", bondOrderPlots},
         {"wigner-seitz", wignerSeitzPlots},
         {"ptm", ptmPlots},
+        {"voronoi", voronoiPlots},
+        {"trajectory-average", trajectoryAveragePlots},
+        {"unwrap-trajectory", unwrapTrajectoryPlots},
+        {"time-series", timeSeriesPlots},
+        {"cna", cnaPlots},
         {"grain-segmentation", grainSegmentationPlots},
         {"elastic-strain", elasticStrainPlots},
         {"fcc-planar-faults", fccPlanarFaultPlots},

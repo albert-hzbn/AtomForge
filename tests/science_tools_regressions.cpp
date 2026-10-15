@@ -662,6 +662,120 @@ int main()
         for (std::size_t b = 1; b < random_.size(); ++b) check(std::abs(random_[b]) < 0.03, "random values are uncorrelated");
     });
 
+    test("Voronoi volumes, coordination and indices", [=] {
+        const Crystal fcc = lattice(scaled(cubic, 3.6), fccBasis, {3, 3, 3});
+        Json result = run("voronoi", periodicRequest(fcc));
+        for (double v : values(result.at("atomic_volume_A3"))) close(v, std::pow(3.6, 3) / 4, 1e-9, "fcc volume");
+        for (double c : values(result.at("coordination"))) check(c == 12, "fcc coordination");
+        check(result.at("most_common_indices").items()[0].at("index").string() == "<0,12,0,0>", "rhombic dodecahedron");
+        const Crystal bcc = lattice(scaled(cubic, 2.87), {{0, 0, 0}, {.5, .5, .5}}, {3, 3, 3});
+        result = run("voronoi", periodicRequest(bcc));
+        for (double v : values(result.at("atomic_volume_A3"))) close(v, std::pow(2.87, 3) / 2, 1e-9, "bcc volume");
+        check(result.at("most_common_indices").items()[0].at("index").string() == "<0,6,0,8>", "truncated octahedron");
+        // Random atoms: the cells fill the periodic cell exactly.
+        Crystal gas = fcc;
+        std::mt19937 random(4);
+        std::uniform_real_distribution<double> uniform(0, 10.8);
+        for (auto& x : gas.positions) x = {uniform(random), uniform(random), uniform(random)};
+        result = run("voronoi", periodicRequest(gas));
+        close(number(result.at("total_volume_A3")), std::pow(10.8, 3), 1e-6, "cells tile the box");
+        // An icosahedral cluster: the centre's cell is a dodecahedron <0,0,12,0>; surface cells are open.
+        const double phi = (1 + std::sqrt(5.0)) / 2;
+        std::vector<Vec3> cluster = {{0, 0, 0}};
+        for (double s : {-1.0, 1.0})
+            for (double t : {-phi, phi}) {
+                cluster.push_back(scale({0, s, t}, 2.6 / std::sqrt(1 + phi * phi)));
+                cluster.push_back(scale({s, t, 0}, 2.6 / std::sqrt(1 + phi * phi)));
+                cluster.push_back(scale({t, 0, s}, 2.6 / std::sqrt(1 + phi * phi)));
+            }
+        result = run("voronoi", object({{"positions", rows(cluster)}}));
+        const auto index = values(result.at("voronoi_index"));
+        check(index[2] == 12 && index[0] + index[1] + index[3] == 0, "icosahedral centre");
+        check(result.at("open_cell").items()[1].boolean() && !result.at("open_cell").items()[0].boolean(), "open surface cells");
+    });
+
+    test("adaptive common neighbour analysis", [=] {
+        struct Case { Crystal crystal; int type; };
+        std::vector<Case> cases = {
+            {lattice(scaled(cubic, 3.6), fccBasis, {3, 3, 3}), 1},
+            {lattice(hexagonal(2.95, 1.62), {{0, 0, 0}, {1.0 / 3, 2.0 / 3, .5}}, {4, 4, 3}), 2},
+            {lattice(scaled(cubic, 2.87), {{0, 0, 0}, {.5, .5, .5}}, {4, 4, 4}), 3},
+        };
+        std::mt19937 random(7);
+        std::normal_distribution<double> gauss(0, 0.04);
+        for (auto& c : cases) {
+            for (auto& x : c.crystal.positions) for (double& v : x) v += gauss(random);
+            double hits = 0;
+            for (double t : values(run("cna", periodicRequest(c.crystal)).at("structure_type"))) hits += t == c.type;
+            check(hits / static_cast<double>(c.crystal.positions.size()) > 0.97, "adaptive CNA type " + std::to_string(c.type));
+        }
+        Json fixed = periodicRequest(lattice(scaled(cubic, 3.6), fccBasis, {3, 3, 3}));
+        fixed["cutoff_A"] = 3.0;
+        for (double t : values(run("cna", fixed).at("structure_type"))) check(t == 1, "fixed-cutoff CNA");
+    });
+
+    test("trajectory averaging, unwrapping and time series", [=] {
+        const auto directory = std::filesystem::temp_directory_path() / "atomforge-trajectory-tools";
+        std::filesystem::create_directories(directory);
+        // Atom 0 drifts +0.6 A per frame through a 5 A periodic box; atom 1 vibrates.
+        std::vector<Structure> frames;
+        for (int f = 0; f < 20; ++f) {
+            Structure s;
+            s.hasUnitCell = true;
+            s.cellVectors = {{{5, 0, 0}, {0, 5, 0}, {0, 0, 5}}};
+            AtomSite a;
+            a.symbol = "Cu";
+            a.atomicNumber = 29;
+            a.x = std::fmod(0.6 * f, 5.0); a.y = 1; a.z = 1;
+            s.atoms.push_back(a);
+            a.x = 3 + (f % 2 ? 0.1 : -0.1); a.y = 3; a.z = 3;
+            s.atoms.push_back(a);
+            frames.push_back(s);
+        }
+        const auto path = directory / "drift.extxyz";
+        writeExtxyz(path, frames, {}, {});
+        Json request = object({{"trajectory_file", path.u8string()}});
+        const ToolOutput unwrapped = runTool("unwrap-trajectory", request);
+        check(unwrapped.frames.size() == 20, "every frame");
+        close(unwrapped.frames.back().atoms[0].x, 0.6 * 19, 1e-9, "continuous path");
+        close(values(unwrapped.result.at("net_displacement_A"))[0], 0.6 * 19, 1e-9, "net displacement");
+        request["smooth_window"] = 3;
+        close(runTool("unwrap-trajectory", request).frames[5].atoms[1].x, 3 - 0.1 / 3, 1e-9, "smoothed vibration (frames 4-6: -, +, -)");
+        Json average = object({{"trajectory_file", path.u8string()}});
+        const ToolOutput averaged = runTool("trajectory-average", average);
+        close(averaged.frames[0].atoms[0].x, 0.6 * 9.5, 1e-9, "average of the unwrapped path");
+        close(averaged.frames[0].atoms[1].x, 3, 1e-9, "average of the vibration");
+        close(values(averaged.result.at("rms_fluctuation_A"))[1], 0.1, 1e-9, "vibration amplitude");
+        // Time series: an fcc crystal that melts after five frames.
+        std::vector<Structure> melting;
+        const Crystal fcc = lattice(scaled(cubic, 3.6), fccBasis, {3, 3, 3});
+        std::mt19937 random(2);
+        std::uniform_real_distribution<double> uniform(0, 10.8);
+        for (int f = 0; f < 8; ++f) {
+            Structure s;
+            s.hasUnitCell = true;
+            for (std::size_t r = 0; r < 3; ++r) s.cellVectors[r] = fcc.cell[r];
+            for (const auto& x : fcc.positions) {
+                AtomSite a;
+                a.symbol = "Cu";
+                a.atomicNumber = 29;
+                const Vec3 y = f < 5 ? x : Vec3{uniform(random), uniform(random), uniform(random)};
+                a.x = y[0]; a.y = y[1]; a.z = y[2];
+                s.atoms.push_back(a);
+            }
+            melting.push_back(s);
+        }
+        const auto meltPath = directory / "melt.extxyz";
+        writeExtxyz(meltPath, melting, {}, {});
+        const Json series = run("time-series", object({{"trajectory_file", meltPath.u8string()}, {"analysis", "cna"}}));
+        const auto fccCounts = values(series.at("counts").at("fcc"));
+        check(fccCounts.size() == 8 && fccCounts[0] == 108 && fccCounts[4] == 108 && fccCounts[7] < 10, "fcc atoms disappear on melting");
+        close(values(series.at("volume_A3"))[3], std::pow(10.8, 3), 1e-9, "cell volume per frame");
+        const Json entropy = run("time-series", object({{"trajectory_file", meltPath.u8string()}, {"analysis", "centrosymmetry"}, {"cutoff_A", 3.0}}));
+        check(values(entropy.at("mean_property"))[0] < 1e-12 && values(entropy.at("mean_property"))[7] > 1, "mean centrosymmetry rises");
+        std::filesystem::remove_all(directory);
+    });
+
     test("Wigner-Seitz Frenkel pair and box mapping", [] {
         const std::vector<Vec3> sites = {{0, 0, 0}, {2, 0, 0}, {4, 0, 0}};
         auto moved = sites;

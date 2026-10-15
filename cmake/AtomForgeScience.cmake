@@ -27,6 +27,8 @@ add_library(atomforge_science STATIC
     ${PROJECT_SOURCE_DIR}/src/science/TemplateMatching.cpp
     ${PROJECT_SOURCE_DIR}/src/science/LocalEnvironment.cpp
     ${PROJECT_SOURCE_DIR}/src/science/PropertyAnalysis.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/VoronoiAnalysis.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/TrajectoryTools.cpp
     # Non-destructive structure-editing pipeline (modifiers, expressions, text syntax).
     ${PROJECT_SOURCE_DIR}/src/pipeline/Pipeline.cpp
     ${PROJECT_SOURCE_DIR}/src/pipeline/Modifiers.cpp

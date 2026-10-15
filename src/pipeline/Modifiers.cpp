@@ -893,6 +893,24 @@ void shrinkWrap(const Json& p, PipelineData& data)
                          std::to_string(s.cellVectors[2][2]) + " Angstrom");
 }
 
+// Colours the selected (or all) atoms; the colour stays with the atoms.
+void assignColor(const Json& p, PipelineData& data)
+{
+    const Vec3 colour = vector(p, "assign-color", "color");
+    for (double c : colour)
+        if (!(c >= 0 && c <= 1)) throw std::runtime_error("Colour components are between 0 and 1 (red green blue)");
+    const auto indices = targets(data, text(p, "assign-color", "target") == "selected", "assign-color");
+    Structure& s = data.structure;
+    for (std::size_t i : indices) {
+        s.atoms[i].r = static_cast<float>(colour[0]);
+        s.atoms[i].g = static_cast<float>(colour[1]);
+        s.atoms[i].b = static_cast<float>(colour[2]);
+    }
+    if (s.grainColors.size() == s.atoms.size())
+        for (std::size_t i : indices) s.grainColors[i] = {static_cast<float>(colour[0]), static_cast<float>(colour[1]), static_cast<float>(colour[2])};
+    data.notes.push_back(std::to_string(indices.size()) + " atoms coloured");
+}
+
 // ---------------------------------------------------------------- analysis
 void computeExpression(const Json& p, PipelineData& data)
 {
@@ -949,6 +967,9 @@ void computeProperty(const Json& p, PipelineData& data)
     else if (analysis == "centrosymmetry") property = science::analysePerAtom(data.structure, "centrosymmetry", cutoff);
     else if (analysis == "coordination") property = science::analysePerAtom(data.structure, "bond-order", cutoff, "Coordination");
     else if (analysis == "ptm") property = science::analysePerAtom(data.structure, "ptm", cutoff);
+    else if (analysis == "cna") property = science::analysePerAtom(data.structure, "cna", cutoff);
+    else if (analysis == "voronoi-volume") property = science::analysePerAtom(data.structure, "voronoi", cutoff);
+    else if (analysis == "voronoi-coordination") property = science::analysePerAtom(data.structure, "voronoi", cutoff, "Voronoi coordination");
     else if (analysis == "orientation") property = science::analysePerAtom(data.structure, "ptm", cutoff, "Orientation angle (degrees)");
     else if (analysis == "planar-faults") property = science::analysePerAtom(data.structure, "fcc-planar-faults", cutoff);
     else if (analysis == "chill-plus") {
@@ -1042,14 +1063,16 @@ std::vector<ModifierType>& registry()
          {{"a", "Vector a (Angstrom)", "vector", "1 0 0", ""}, {"b", "Vector b", "vector", "0 1 0", ""}, {"c", "Vector c", "vector", "0 0 1", ""},
           {"scale_atoms", "Scale atoms with the cell", "bool", "true", ""}}, setCell},
         {"wrap", "Wrap into cell", "Cell", "Maps atoms outside the cell back into it.", {}, wrap},
+        {"assign-color", "Assign colour", "Modification", "Colours the selected (or all) atoms with a red green blue colour (components 0 to 1).",
+         {{"color", "Colour (red green blue, 0-1)", "vector", "1 0 0", ""}, {"target", "Atoms", "choice", "selected", "selected|all"}}, assignColor},
         {"shrink-wrap", "Shrink-wrap cell", "Cell", "Replaces the cell by the orthogonal box that just encloses the atoms, plus padding on every side.",
          {{"padding", "Padding (Angstrom)", "float", "0", ""}}, shrinkWrap},
         {"center", "Center in cell", "Cell", "Shifts the atoms so their extent (in fractional coordinates) is centred in the cell.", {}, center},
         {"add-vacuum", "Add vacuum", "Cell", "Lengthens one cell vector by a thickness, e.g. to turn a bulk cell into a slab; optionally centres the atoms.",
          {{"axis", "Cell vector", "choice", "c", "a|b|c"}, {"thickness", "Vacuum (Angstrom)", "float", "10", ""}, {"center", "Centre the atoms", "bool", "true", ""}}, addVacuum},
         // Analysis
-        {"compute-property", "Compute per-atom property", "Analysis", "Computes a per-atom property for colouring and select-property: Ackland-Jones structure type, diamond structure, centrosymmetry, coordination,\nSteinhardt q6, polyhedral template matching (structure or orientation angle), fcc planar faults, Chill+ ice types, local entropy or rings\nthrough each atom (bond cutoff). PTM, planar faults, Chill+ and entropy choose their own neighbour range.",
-         {{"analysis", "Property", "choice", "structure-type", "structure-type|diamond|centrosymmetry|coordination|q6|ptm|orientation|planar-faults|chill-plus|local-entropy|rings"},
+        {"compute-property", "Compute per-atom property", "Analysis", "Computes a per-atom property for colouring and select-property: Ackland-Jones structure type, adaptive CNA, diamond structure, Voronoi volume or coordination, centrosymmetry, coordination,\nSteinhardt q6, polyhedral template matching (structure or orientation angle), fcc planar faults, Chill+ ice types, local entropy or rings\nthrough each atom (bond cutoff). PTM, planar faults, Chill+ and entropy choose their own neighbour range.",
+         {{"analysis", "Property", "choice", "structure-type", "structure-type|cna|diamond|centrosymmetry|coordination|q6|ptm|orientation|voronoi-volume|voronoi-coordination|planar-faults|chill-plus|local-entropy|rings"},
           {"cutoff", "Neighbour cutoff (Angstrom)", "float", "3", ""}}, computeProperty},
         {"compute-expression", "Compute property from a formula", "Analysis",
          "Sets the per-atom property to a formula of the atom variables, e.g. sqrt(x^2 + y^2) or property * 2 (see select-expression for the variables);\nwith target selected, only selected atoms change.",

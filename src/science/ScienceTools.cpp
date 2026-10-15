@@ -11,6 +11,8 @@
 #include "science/LocalEnvironment.h"
 #include "science/PropertyAnalysis.h"
 #include "science/TemplateMatching.h"
+#include "science/VoronoiAnalysis.h"
+#include "science/TrajectoryTools.h"
 #include "science/DislocationLines.h"
 #include "science/Phonons.h"
 #include "science/ReciprocalPath.h"
@@ -248,6 +250,11 @@ const std::map<std::string, ToolRunner>& toolRunners()
         {"dislocation-lines", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return dislocationLines(p.structure("reference"), p.structure("structure"), p); }},
         {"bond-order", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(bondOrder(p)); }},
         {"wigner-seitz", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(wignerSeitz(p)); }},
+        {"trajectory-average", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return trajectoryAverage(p); }},
+        {"unwrap-trajectory", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return unwrapTrajectory(p); }},
+        {"time-series", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(timeSeries(p)); }},
+        {"voronoi", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(voronoiAnalysis(p)); }},
+        {"cna", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(adaptiveCna(p)); }},
         {"ptm", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(polyhedralTemplateMatching(p)); }},
         {"grain-segmentation", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(grainSegmentation(p)); }},
         {"elastic-strain", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(elasticStrain(p)); }},
@@ -316,7 +323,7 @@ AtomProperty analysePerAtom(const Structure& structure, const std::string& tool,
         request["pbc"] = Json::array({true, true, true});
     }
     // Structure types pick their own cutoff in periodic cells.
-    const bool ownRange = tool == "ptm" || tool == "fcc-planar-faults" || tool == "chill-plus" || tool == "local-entropy" || tool == "elastic-strain";
+    const bool ownRange = tool == "ptm" || tool == "cna" || tool == "voronoi" || tool == "fcc-planar-faults" || tool == "chill-plus" || tool == "local-entropy" || tool == "elastic-strain";
     if (!ownRange && ((tool != "structure-type" && tool != "diamond-structure") || !structure.hasUnitCell)) request["cutoff_A"] = cutoffA;
     if (tool == "local-entropy" && !structure.hasUnitCell) request["local_density"] = true;
     if (tool == "bond-order") request["degrees"] = Json::array({6});

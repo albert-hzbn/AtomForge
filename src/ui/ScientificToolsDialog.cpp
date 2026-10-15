@@ -323,7 +323,8 @@ bool ScientificToolsDialog::acceptsTrajectory(const std::string& tool, const std
 {
     if (tool == "msd" || tool == "structure-factor") return parameter == "positions";
     if (tool == "vacf" || tool == "vibrational-spectrum") return parameter == "velocities";
-    if (tool == "trajectory-structure") return parameter == "trajectory_file";
+    if (tool == "trajectory-structure" || tool == "trajectory-average" || tool == "unwrap-trajectory" || tool == "time-series")
+        return parameter == "trajectory_file";
     return false;
 }
 
