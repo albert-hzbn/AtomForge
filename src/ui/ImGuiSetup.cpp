@@ -1,4 +1,5 @@
 #include "ImGuiSetup.h"
+#include "third_party/icons/AtomForgeIcons.h"
 #include "ui/Fonts.h"
 
 #include "imgui.h"
@@ -110,7 +111,6 @@ void rebuildFonts()
 #ifdef _WIN32
     static const char* kTextFonts[] = {"C:/Windows/Fonts/segoeui.ttf", "C:/Windows/Fonts/arial.ttf", nullptr};
     static const char* kHeadingFonts[] = {"C:/Windows/Fonts/seguisb.ttf", "C:/Windows/Fonts/segoeuib.ttf", "C:/Windows/Fonts/arialbd.ttf", nullptr};
-    static const char* kIconFonts[] = {"C:/Windows/Fonts/SegoeIcons.ttf", "C:/Windows/Fonts/segmdl2.ttf", nullptr};
 #else
     static const char* kTextFonts[] = {"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
                                        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
@@ -118,7 +118,6 @@ void rebuildFonts()
     static const char* kHeadingFonts[] = {"/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
                                           "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
                                           "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf", nullptr};
-    static const char* kIconFonts[] = {nullptr};
 #endif
     const auto firstExisting = [](const char* const* candidates) -> const char* {
         for (int i = 0; candidates[i]; ++i) {
@@ -129,7 +128,8 @@ void rebuildFonts()
     };
     static const ImWchar textRanges[] = {0x20, 0xFF, 0x2190, 0x2192, 0x2022, 0x2022, 0x2026, 0x2026, 0x00B0, 0x00B0, 0x212B, 0x212B, 0x0391, 0x03C9,
                                          0x2013, 0x2014, 0x2070, 0x209F, 0x1D62, 0x1D62, 0x2C7C, 0x2C7C, 0x2212, 0x2212, 0x2248, 0x2248, 0x2260, 0x2265, 0};
-    static const ImWchar iconRanges[] = {0xE700, 0xF8FF, 0};
+    // The icons of src/ui/Fonts.h, from the font compiled into the application.
+    static const ImWchar iconRanges[] = {0x2016, 0x2016, 0x2139, 0x2139, 0x21B6, 0x21B6, 0x21B7, 0x21B7, 0x21C9, 0x21C9, 0x21E4, 0x21E4, 0x21E5, 0x21E5, 0x2302, 0x2302, 0x25A1, 0x25A1, 0x25A4, 0x25A4, 0x25B6, 0x25B6, 0x25C9, 0x25C9, 0x2699, 0x2699, 0x26A0, 0x26A0, 0x26B2, 0x26B2, 0x270E, 0x270E, 0x2714, 0x2714, 0x2716, 0x2716, 0x2718, 0x2718, 0x271A, 0x271A, 0x2750, 0x2750, 0x27F3, 0x27F3, 0x27F7, 0x27F7, 0x2B07, 0x2B07, 0x2B21, 0x2B21, 0};
     ImFontConfig text;
     text.OversampleH = 2;
     text.OversampleV = 1;
@@ -139,13 +139,17 @@ void rebuildFonts()
         ImFontConfig fallback;
         fallback.SizePixels = kBaseFontSizePixels;
         io.Fonts->AddFontDefault(&fallback);
-    } else if (const char* path = firstExisting(kIconFonts)) {
-        // Icons share the text font, centred on its line.
+    }
+    {
+        // Icons share the text font, centred on its line; the font data is
+        // static, so the atlas must not free it.
         ImFontConfig icon;
         icon.MergeMode = true;
-        icon.GlyphOffset = ImVec2(0.0f, 2.0f);
+        icon.FontDataOwnedByAtlas = false;
+        icon.GlyphOffset = ImVec2(0.0f, 1.0f);
         icon.GlyphMinAdvanceX = kBaseFontSizePixels;
-        uiFonts::icons = io.Fonts->AddFontFromFileTTF(path, kBaseFontSizePixels - 2.0f, &icon, iconRanges) != nullptr;
+        uiFonts::icons = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(atomforgeIcons::kFontData), static_cast<int>(atomforgeIcons::kFontSize),
+                                                        kBaseFontSizePixels, &icon, iconRanges) != nullptr;
     }
     if (const char* path = firstExisting(kHeadingFonts)) {
         ImFontConfig headingConfig;
