@@ -1683,6 +1683,7 @@ static bool readXyz(const std::string& text, Structure& structure, std::string& 
         // pbc="F F F" (a molecule in a box, as ASE writes it): no periodic
         // cell, so the atoms are not wrapped into it.
         bool periodic = true;
+        std::array<bool, 3> axes = {true, true, true};
         for (std::size_t at = commentText.find("pbc="); at != std::string::npos; at = commentText.find("pbc=", at + 1))
         {
             if (at > 0 && !std::isspace(static_cast<unsigned char>(commentText[at - 1]))) continue;
@@ -1697,12 +1698,18 @@ static bool readXyz(const std::string& text, Structure& structure, std::string& 
             else
                 value = commentText.substr(start, commentText.find_first_of(" \t", start) - start);
             periodic = value.find_first_of("TtYy1") != std::string::npos;
+            // One flag per cell vector ("T T F" is a slab).
+            std::istringstream flags(value);
+            std::string flag;
+            for (std::size_t axis = 0; axis < 3 && flags >> flag; ++axis)
+                axes[axis] = flag.find_first_of("TtYy1") != std::string::npos;
             break;
         }
         if (periodic)
         {
             structure.hasUnitCell = true;
             structure.cellVectors = cell;
+            structure.pbc = axes;
         }
         else
             structure.loadNote = "The file's cell is not periodic (pbc=\"F F F\"), so the structure opens without a cell.";
@@ -3174,7 +3181,8 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
                     std::snprintf(buffer, sizeof(buffer), "%s%.10g", r || c ? " " : "", clean(structure.cellVectors[r][c]));
                     out << buffer;
                 }
-            out << "\" Properties=species:S:1:pos:R:3 pbc=\"T T T\"\n";
+            out << "\" Properties=species:S:1:pos:R:3 pbc=\"" << (structure.pbc[0] ? 'T' : 'F') << ' ' << (structure.pbc[1] ? 'T' : 'F') << ' '
+                << (structure.pbc[2] ? 'T' : 'F') << "\"\n";
         }
         else
             out << "AtomForge structure\n";

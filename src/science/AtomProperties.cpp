@@ -115,6 +115,19 @@ void ambientOcclusionProperties(const Json& result, std::vector<AtomProperty>& p
     add(properties, "Ambient brightness", numbers(result.find("brightness")));
 }
 
+void bondOrderAssignmentProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Bond-valence sum", numbers(result.find("valence_sum")));
+    add(properties, "Bonded neighbours", numbers(result.find("coordination")));
+}
+
+void lammpsRegionProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "Inside a region (1 yes)", numbers(result.find("inside_any")));
+    if (const Json* inside = result.find("inside"); inside && inside->isObject())
+        for (const auto& [name, values] : inside->members()) add(properties, "Inside region " + name + " (1 yes)", numbers(&values));
+}
+
 void voronoiProperties(const Json& result, std::vector<AtomProperty>& properties)
 {
     add(properties, "Atomic volume (A^3)", numbers(result.find("atomic_volume_A3")));
@@ -202,6 +215,8 @@ const std::map<std::string, PropertyBuilder>& propertyBuilders()
         {"wigner-seitz", wignerSeitzProperties},
         {"ptm", ptmProperties},
         {"voronoi", voronoiProperties},
+        {"bond-orders", bondOrderAssignmentProperties},
+        {"lammps-regions", lammpsRegionProperties},
         {"ambient-occlusion", ambientOcclusionProperties},
         {"surface-mesh", surfaceMeshProperties},
         {"cna", cnaProperties},

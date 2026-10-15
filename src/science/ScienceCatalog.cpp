@@ -228,6 +228,22 @@ const std::vector<ScienceToolDef>& scienceToolCatalog()
             {"cell", "Cell vectors (Angstrom)", "", "data", false},
             {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
         }, ScienceToolView::Plot},
+        {"bond-orders", "Bond orders", "Bond orders from bond lengths, and each atom's bond-valence sum.\n\nAtoms closer than tolerance times the sum of their covalent radii are\nbonded. Pauling's relation n = 10^((r1 - r)/0.6 A), with r1 the single-bond\nlength (the sum of the covalent radii), gives the order; it is also\nrounded to 1, 1.5, 2 or 3. types gives the atomic numbers (supplied by the\ndesktop and pipeline). Reports each bond, the rounded-order counts and the\nsum of bond orders at every atom (its valence).", "Structure and defects", {
+            {"positions", "Atomic positions (Angstrom)", "", "data", true},
+            {"types", "Atomic numbers", "", "data", true},
+            {"tolerance", "Bond tolerance (x sum of covalent radii)", "1.25", "float", false},
+            {"cell", "Cell vectors (Angstrom)", "", "data", false},
+            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
+        }, ScienceToolView::Atoms},
+        {"lammps-regions", "LAMMPS regions", "Show LAMMPS region commands and find the atoms inside them.\n\nregions holds region commands, one per line or separated by ';' (block,\nsphere, cylinder, cone, plane, prism; INF, -INF and EDGE bounds; side in or\nout; units box or lattice). As in LAMMPS, units default to lattice:\ncoordinates are multiplied by lattice_scale, so give the lattice spacing\nor write units box. Reports which atoms each region holds and the regions\nas a surface mesh within the cell (regions.obj; shown in the view).", "Structure and defects", {
+            {"positions", "Atomic positions (Angstrom)", "", "data", true},
+            {"regions", "Region commands", "\"region top block INF INF INF INF 10 INF units box\"", "string", true},
+            {"lattice_scale", "Lattice spacing for units lattice (Angstrom)", "1.0", "float", false},
+            {"resolution", "Mesh grid points along the longest side", "64", "int", false},
+            {"export_mesh", "Write the region mesh (regions.obj)", "true", "bool", false},
+            {"cell", "Cell vectors (Angstrom)", "", "data", false},
+            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
+        }, ScienceToolView::Atoms},
         {"find-rings", "Ring statistics", "Shortest-path rings of the bond network and their size distribution.\n\nBonds join atoms closer than the cutoff, across periodic boundaries. For\nevery bond, the shortest closed paths through it (the bond removed, all\npaths of equal length) are rings, provided they wind around no periodic\ndirection. Distinct rings up to max_size atoms are counted by size and per\natom. Typical for silica, amorphous carbon or silicon and networks.", "Structure and defects", {
             {"positions", "Atomic positions (Angstrom)", "", "data", true},
             {"cutoff_A", "Bond cutoff (Angstrom)", "2.0", "float", true},

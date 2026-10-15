@@ -41,7 +41,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
 from ._structure import Atom, Structure
 from . import native
 
-__all__ = ["Pipeline", "PipelineResult", "PipelineError", "Step", "modifiers"]
+__all__ = ["Pipeline", "PipelineResult", "PipelineError", "Step", "modifiers", "script_step"]
 
 
 class PipelineError(ValueError):
@@ -443,3 +443,51 @@ def _parse_extxyz(text: str):
         if has_property and len(parts) > 5:
             values.append(float(parts[5]))
     return structure, selected, values
+
+
+def script_step(function) -> None:
+    """Run ``function`` as the body of a ``python-script`` pipeline step.
+
+    The step calls ``python SCRIPT INPUT.json OUTPUT.json``; this reads the
+    input, calls ``function(structure, selected, prop)`` with an
+    :class:`atomforge.Structure`, a list of 0/1 selection flags and the
+    per-atom property (``None`` when absent), and writes what it returns: a
+    structure, or a tuple ``(structure, selected, prop)`` or
+    ``(structure, selected, prop, prop_name)``. Printed text becomes the
+    step's notes. ``arguments`` holds the step's argument text::
+
+        from atomforge.pipeline import script_step
+
+        def double_z(structure, selected, prop):
+            for atom in structure.atoms:
+                atom.z *= 2
+            return structure
+
+        script_step(double_z)
+    """
+    import sys
+    if len(sys.argv) < 3:
+        raise SystemExit("usage: python SCRIPT INPUT.json OUTPUT.json (run by the python-script pipeline step)")
+    with open(sys.argv[1], encoding="utf-8") as stream:
+        data = json.load(stream)
+    structure = native._from_json(data["structure"])
+    structure.arguments = data.get("arguments", "")
+    selected = [int(v) for v in data.get("selected", [])]
+    prop = data.get("property")
+    returned = function(structure, selected, prop)
+    name = data.get("property_name", "")
+    if isinstance(returned, tuple):
+        structure, selected, prop = returned[0], returned[1], returned[2]
+        if len(returned) > 3:
+            name = returned[3]
+    elif returned is not None:
+        structure = returned
+    out = {"structure": native._structure_json(structure), "pbc": data.get("pbc", [True, True, True])}
+    if len(selected) == len(structure.atoms):
+        out["selected"] = [1 if v else 0 for v in selected]
+    if prop is not None and len(prop) == len(structure.atoms):
+        out["property"] = [None if v is None or v != v else float(v) for v in prop]
+        out["property_name"] = name
+    with open(sys.argv[2], "w", encoding="utf-8") as stream:
+        json.dump(out, stream)
+

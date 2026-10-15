@@ -32,6 +32,9 @@ struct Structure
     // in the full unit cell.
     bool hasUnitCell = false;
     std::array<std::array<double, 3>, 3> cellVectors{};
+    // Periodic along a, b and c (with a cell); a slab or wire is periodic
+    // along some cell vectors only.
+    std::array<bool, 3> pbc = {true, true, true};
     std::array<double, 3> cellOffset = {0.0, 0.0, 0.0};
 
     // When > 0, appendPbcBoundaryImages uses this instead of the

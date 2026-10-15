@@ -2582,6 +2582,35 @@ Indices of the selected atoms in the output.
 
 
 
+\begin{samepage}
+
+\begin{lstlisting}[language=Python]
+script_step(function)
+\end{lstlisting}
+
+Run function as the body of a python-script pipeline step.
+
+The step calls python SCRIPT INPUT.json OUTPUT.json; this reads the
+input, calls function(structure, selected, prop) with an
+:class:atomforge.Structure, a list of 0/\allowbreak{}1 selection flags and the
+per-atom property (None when absent), and writes what it returns: a
+structure, or a tuple (structure, selected, prop) or
+(structure, selected, prop, prop\_\allowbreak{}name). Printed text becomes the
+step's notes. arguments holds the step's argument text::
+
+    from atomforge.pipeline import script\_\allowbreak{}step
+
+    def double\_\allowbreak{}z(structure, selected, prop):
+        for atom in structure.atoms:
+            atom.z *= 2
+        return structure
+
+    script\_\allowbreak{}step(double\_\allowbreak{}z)
+
+\end{samepage}
+
+
+
 \section{Atom clouds (billions of atoms)}
 
 \subsection{CloudInfo}

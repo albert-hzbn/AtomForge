@@ -14,6 +14,7 @@
 #include "science/VoronoiAnalysis.h"
 #include "science/TrajectoryTools.h"
 #include "science/SurfaceMesh.h"
+#include "science/BondsAndRegions.h"
 #include "science/DislocationLines.h"
 #include "science/Phonons.h"
 #include "science/ReciprocalPath.h"
@@ -266,6 +267,8 @@ const std::map<std::string, ToolRunner>& toolRunners()
         {"chill-plus", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(chillPlus(p)); }},
         {"local-entropy", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(localEntropy(p)); }},
         {"bond-distributions", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(bondDistributions(p)); }},
+        {"bond-orders", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(bondOrders(p)); }},
+        {"lammps-regions", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(lammpsRegions(p)); }},
         {"find-rings", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(findRings(p)); }},
         {"displacements", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(displacementVectors(p)); }},
         {"spatial-binning", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(spatialBinning(p)); }},
@@ -327,14 +330,16 @@ AtomProperty analysePerAtom(const Structure& structure, const std::string& tool,
         Json cell = Json::array();
         for (const auto& row : structure.cellVectors) cell.push(Json::array({row[0], row[1], row[2]}));
         request["cell"] = cell;
-        request["pbc"] = Json::array({true, true, true});
+        request["pbc"] = Json::array({structure.pbc[0], structure.pbc[1], structure.pbc[2]});
     }
     // Structure types pick their own cutoff in periodic cells.
     const bool ownRange = tool == "ptm" || tool == "cna" || tool == "vorotop" || tool == "surface-mesh" || tool == "voronoi" || tool == "fcc-planar-faults" || tool == "chill-plus" || tool == "local-entropy" || tool == "elastic-strain";
     if (!ownRange && ((tool != "structure-type" && tool != "diamond-structure") || !structure.hasUnitCell)) request["cutoff_A"] = cutoffA;
     if (tool == "local-entropy" && !structure.hasUnitCell) request["local_density"] = true;
     if (tool == "bond-order") request["degrees"] = Json::array({6});
-    if (tool == "ptm") {
+    const ScienceToolDef& def = definition(tool);
+    const bool takesTypes = std::any_of(def.parameters.begin(), def.parameters.end(), [](const auto& q) { return std::string(q.name) == "types"; });
+    if (takesTypes) {
         Json species = Json::array();
         for (const auto& atom : structure.atoms) species.push(static_cast<double>(atom.atomicNumber));
         request["types"] = species;

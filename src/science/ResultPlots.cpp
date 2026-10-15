@@ -477,6 +477,15 @@ void frameDifferencePlots(const Json& result, std::vector<PlotSpec>& plots)
     addHistogram(plots, "Change between frames", quantity && quantity->isString() ? quantity->string() : "Change", numbers(result.find("difference")));
 }
 
+void bondOrderAssignmentPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    std::vector<double> orders;
+    if (const Json* bonds = result.find("bonds"); bonds && bonds->isArray())
+        for (const auto& bond : bonds->items()) orders.push_back(bond.at("order").number());
+    if (!orders.empty()) plots.push_back(plot("Bond orders", "Bond order", "Bonds", {histogram("Bond order", orders, 40)}));
+    addHistogram(plots, "Bond-valence sums", "Sum of bond orders", numbers(result.find("valence_sum")));
+}
+
 void voronoiPlots(const Json& result, std::vector<PlotSpec>& plots)
 {
     addHistogram(plots, "Atomic volume", "Volume (A^3)", numbers(result.find("atomic_volume_A3")));
@@ -616,6 +625,7 @@ const std::map<std::string, PlotBuilder>& plotBuilders()
         {"wigner-seitz", wignerSeitzPlots},
         {"ptm", ptmPlots},
         {"voronoi", voronoiPlots},
+        {"bond-orders", bondOrderAssignmentPlots},
         {"scatter-plot", scatterPlots},
         {"ambient-occlusion", ambientOcclusionPlots},
         {"surface-mesh", surfaceMeshPlots},

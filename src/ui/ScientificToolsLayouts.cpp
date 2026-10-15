@@ -465,14 +465,16 @@ void ScientificToolsDialog::drawAtomLayout(const Structure& structure, const std
 // The surface mesh of a result, shown translucent over the structure.
 void ScientificToolsDialog::drawSurfaceControls()
 {
-    const auto found = std::find_if(m_result.files.begin(), m_result.files.end(), [](const auto& file) { return file.first == "surface.obj"; });
+    const auto found = std::find_if(m_result.files.begin(), m_result.files.end(), [](const auto& file) {
+        return file.first.size() > 4 && file.first.compare(file.first.size() - 4, 4, ".obj") == 0;
+    });
     SurfaceMeshOverlay& overlay = surfaceMeshOverlay();
     if (found == m_result.files.end()) return;
     ImGui::SeparatorText("Surface");
     bool show = overlay.visible && m_surfaceFrom == m_result.output;
     const bool scripted = !show && uiScript::take("science.surface");
     if (scripted) show = true;
-    if (ImGui::Checkbox("Show the surface in the view", &show) || scripted) {
+    if (ImGui::Checkbox(found->first == "surface.obj" ? "Show the surface in the view" : "Show the mesh in the view", &show) || scripted) {
         if (show && m_surfaceFrom != m_result.output) {
             try {
                 overlay.vertices = trianglesFromObj(found->second);

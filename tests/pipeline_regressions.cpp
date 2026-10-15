@@ -436,6 +436,26 @@ int main()
         check(surface.selectedCount() == 0, "a periodic bulk crystal has no surface");
     });
 
+    test("periodic boundaries per cell vector and LAMMPS region selection", [] {
+        Structure fcc = copper(3);
+        // An atom just outside the cell along c: wrapped back only while c is periodic.
+        AtomSite outside = fcc.atoms[0];
+        outside.z = fcc.cellVectors[2][2] + 0.5;
+        outside.x += 0.9;
+        fcc.atoms.push_back(outside);
+        const double top = fcc.cellVectors[2][2];
+        check(run("wrap", fcc).structure.atoms.back().z < top, "wrapped along periodic c");
+        check(run("set-pbc c=false | wrap", fcc).structure.atoms.back().z > top, "not wrapped along open c");
+        // A sphere around an atom on the bottom face reaches atoms at the top face only through a periodic c.
+        const auto periodic = run("select-sphere 0 0 0 2.6", copper(3)).selectedCount();
+        const auto slab = run("set-pbc c=false | select-sphere 0 0 0 2.6", copper(3)).selectedCount();
+        check(slab < periodic, "fewer neighbours without periodicity along c");
+        const auto lower = run("select-region \"region low block INF INF INF INF INF 3 units box\"", copper(3));
+        std::size_t expected = 0;
+        for (const auto& a : copper(3).atoms) expected += a.z <= 3;
+        check(lower.selectedCount() == expected, "atoms in the region");
+    });
+
     test("pipeline editor: replace keeps state and shared parameters", [] {
         PipelineEditor editor;
         editor.setInput(copper(2));

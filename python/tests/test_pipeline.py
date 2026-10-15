@@ -78,6 +78,28 @@ class PipelineTests(unittest.TestCase):
         overlap = Pipeline.parse("replicate 2 2 2 | add-atom Cu 0.2 0 0 | select-overlapping 1.0 | delete-selected").run(copper())
         self.assertEqual(len(overlap.structure.atoms), 32)
 
+    def test_python_script_step(self):
+        script = Path(tempfile.mkdtemp()) / "lift.py"
+        script.write_text(
+            "from atomforge.pipeline import script_step\n"
+            "def lift(structure, selected, prop):\n"
+            "    for atom in structure.atoms:\n"
+            "        atom.z += 1.0\n"
+            "    print('lifted', len(structure.atoms), 'atoms', structure.arguments)\n"
+            "    return structure, [1] * len(structure.atoms), [atom.z for atom in structure.atoms], 'height'\n"
+            "script_step(lift)\n", encoding="utf-8")
+        package = str(Path(__file__).resolve().parents[1])
+        env = dict(os.environ)
+        env["PYTHONPATH"] = package + os.pathsep + env.get("PYTHONPATH", "")
+        os.environ["PYTHONPATH"] = env["PYTHONPATH"]
+        steps = Pipeline()
+        steps.add("python-script", script=str(script), arguments="up", python=sys.executable)
+        result = steps.run(copper())
+        self.assertEqual(result.selected_count, 4)
+        self.assertAlmostEqual(min(a.z for a in result.structure.atoms), 1.0)
+        notes = result.stages[0]["notes"]
+        self.assertTrue(any("lifted 4 atoms up" in n for n in notes), notes)
+
     def test_errors_and_property(self):
         s = copper(2)
         with self.assertRaises(PipelineError) as failure:

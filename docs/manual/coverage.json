@@ -279,7 +279,7 @@
     },
     {
       "source": "python/atomforge/pipeline.py",
-      "sha256": "9e2c7a9cbdef6ba6b94215afb1d249887355b6a9e45b4c0ec889becc9fa04859",
+      "sha256": "e38149ce43e9495c3ed6242d1e54149434a653344d863321be0edd30cbb94162",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -1069,7 +1069,7 @@
     },
     {
       "source": "src/pipeline/Modifiers.cpp",
-      "sha256": "9bec7fe61f03fa2e689f334b57e04ec0d29ece925817246db62f132d034c95b0",
+      "sha256": "6a35803b8e7f33ed6b0a5a2b44b2b2304ee8bff26a304a94f5a0b89830f76679",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -1142,6 +1142,15 @@
     {
       "source": "src/science/Batch.h",
       "sha256": "14726fb11ea1c51ed00958bab5ab13953638e06d4006cd6d9bcee21ab625b910",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/science/BondsAndRegions.h",
+      "sha256": "9745e621698c3a78f16fcbe3c16157599b43aeca7a73aa5d9dbfdcbecfff8eac",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -3839,7 +3848,7 @@
     },
     {
       "source": "src/ui/MenuParity.cpp",
-      "sha256": "aaf5c3fbeb16bbb2aaec8443daa437c154f1b8cd0d96375d31fc36ad54979ba7",
+      "sha256": "d011f030a0c0e7095c9d809c6f32b4abf19d793cda8a7e19c6fc3c9c8ac286ca",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4691,7 +4700,7 @@
     },
     {
       "source": "src/ui/ScientificToolsLayouts.cpp",
-      "sha256": "65e2ff9dfa627b4a4da6812a4169ff1b646cf018089fa9d9c2aa9d2bd4cf7947",
+      "sha256": "2628c17e8bad3b674bbb71c1d5eb36f2aa2826a6c7b86f66354ec0abef0c9e69",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -4842,43 +4851,39 @@
           "declaration_label": "Plots"
         },
         {
-          "line": 475,
-          "declaration_label": "Show the surface in the view"
-        },
-        {
-          "line": 486,
+          "line": 488,
           "declaration_label": "Opacity"
         },
         {
-          "line": 487,
+          "line": 489,
           "declaration_label": "Colour"
         },
         {
-          "line": 502,
+          "line": 504,
           "declaration_label": "Optional inputs"
         },
         {
-          "line": 599,
+          "line": 601,
           "declaration_label": "Plots"
         },
         {
-          "line": 683,
+          "line": 685,
           "declaration_label": "##preview"
         },
         {
-          "line": 684,
+          "line": 686,
           "declaration_label": "Save This File"
         },
         {
-          "line": 686,
+          "line": 688,
           "declaration_label": "Save All Files"
         },
         {
-          "line": 688,
+          "line": 690,
           "declaration_label": "Copy to Clipboard"
         },
         {
-          "line": 690,
+          "line": 692,
           "declaration_label": "Save Results"
         }
       ]

@@ -890,6 +890,40 @@ int main()
         close(angles[17], 64 * 3, 0, "180 degree angles");
     });
 
+    test("bond orders and LAMMPS regions", [] {
+        // Carbon-carbon bonds of ethane, benzene, ethylene and acetylene, far apart.
+        const std::vector<double> lengths = {1.54, 1.39, 1.34, 1.20};
+        const std::vector<double> expected = {1, 1.5, 2, 3};
+        std::vector<Vec3> atoms;
+        for (std::size_t k = 0; k < lengths.size(); ++k) {
+            atoms.push_back({20.0 * static_cast<double>(k), 0, 0});
+            atoms.push_back({20.0 * static_cast<double>(k) + lengths[k], 0, 0});
+        }
+        const Json result = run("bond-orders", object({{"positions", rows(atoms)}, {"types", toJson(std::vector<double>(atoms.size(), 6))}}));
+        check(result.at("bonds").size() == 4, "four C-C bonds");
+        for (std::size_t k = 0; k < 4; ++k)
+            close(result.at("bonds").items()[k].at("rounded_order").number(), expected[k], 0, "bond order " + std::to_string(k));
+        // Regions: a box, a sphere outside, a cylinder, a plane, lattice units.
+        std::vector<Vec3> grid;
+        for (int x = 0; x < 10; ++x)
+            for (int y = 0; y < 10; ++y)
+                for (int z = 0; z < 10; ++z) grid.push_back({x + 0.5, y + 0.5, z + 0.5});
+        const Mat3 box = {{{10, 0, 0}, {0, 10, 0}, {0, 0, 10}}};
+        const Json regions = run("lammps-regions", object({{"positions", rows(grid)}, {"cell", matrixJson(box)},
+            {"regions", "region slab block INF INF INF INF 5 INF units box; region ball sphere 5 5 5 3 side out units box\n"
+                        "region rod cylinder z 5 5 2 INF INF units box; region half plane 0 0 2 0 0 -1 units box; region cell block 0 1 0 1 0 1 units lattice"},
+            {"lattice_scale", 2.0}, {"export_mesh", true}}));
+        close(number(regions.at("atoms_inside").at("slab")), 500, 0, "block with infinite bounds");
+        close(number(regions.at("atoms_inside").at("rod")), 120, 0, "cylinder");
+        close(number(regions.at("atoms_inside").at("half")), 200, 0, "plane");
+        close(number(regions.at("atoms_inside").at("cell")), 8, 0, "lattice units");
+        double ballInside = 0;
+        for (const auto& x : grid) ballInside += norm(sub(x, {5, 5, 5})) > 3 ? 1 : 0;
+        close(number(regions.at("atoms_inside").at("ball")), ballInside, 0, "sphere, side out");
+        check(regions.at("files").at("regions.obj").string().find("o ball") != std::string::npos, "region mesh");
+        expectError([&] { run("lammps-regions", object({{"positions", rows(grid)}, {"regions", "region x union 2 a b"}})); }, "unsupported style");
+    });
+
     test("Wigner-Seitz Frenkel pair and box mapping", [] {
         const std::vector<Vec3> sites = {{0, 0, 0}, {2, 0, 0}, {4, 0, 0}};
         auto moved = sites;
