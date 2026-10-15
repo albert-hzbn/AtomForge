@@ -1,0 +1,13 @@
+AtomForge Icons (AtomForgeIcons.h) is a subset of the Codicons icon font.
+
+Codicons
+Copyright (c) Microsoft Corporation.
+https://github.com/microsoft/vscode-codicons
+
+The Codicons font is licensed under the Creative Commons Attribution 4.0
+International License (CC BY 4.0):
+https://creativecommons.org/licenses/by/4.0/
+
+Changes: only the glyphs used by the AtomForge interface are kept (see
+make_icon_font.py), hinting is removed, and the font is renamed
+"AtomForge Icons". The glyph designs are unchanged.

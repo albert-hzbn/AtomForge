@@ -128,8 +128,6 @@ void rebuildFonts()
     };
     static const ImWchar textRanges[] = {0x20, 0xFF, 0x2190, 0x2192, 0x2022, 0x2022, 0x2026, 0x2026, 0x00B0, 0x00B0, 0x212B, 0x212B, 0x0391, 0x03C9,
                                          0x2013, 0x2014, 0x2070, 0x209F, 0x1D62, 0x1D62, 0x2C7C, 0x2C7C, 0x2212, 0x2212, 0x2248, 0x2248, 0x2260, 0x2265, 0};
-    // The icons of src/ui/Fonts.h, from the font compiled into the application.
-    static const ImWchar iconRanges[] = {0x2016, 0x2016, 0x2139, 0x2139, 0x21B6, 0x21B6, 0x21B7, 0x21B7, 0x21C9, 0x21C9, 0x21E4, 0x21E4, 0x21E5, 0x21E5, 0x2302, 0x2302, 0x25A1, 0x25A1, 0x25A4, 0x25A4, 0x25B6, 0x25B6, 0x25C9, 0x25C9, 0x2699, 0x2699, 0x26A0, 0x26A0, 0x26B2, 0x26B2, 0x270E, 0x270E, 0x2714, 0x2714, 0x2716, 0x2716, 0x2718, 0x2718, 0x271A, 0x271A, 0x2750, 0x2750, 0x27F3, 0x27F3, 0x27F7, 0x27F7, 0x2B07, 0x2B07, 0x2B21, 0x2B21, 0};
     ImFontConfig text;
     text.OversampleH = 2;
     text.OversampleV = 1;
@@ -146,10 +144,14 @@ void rebuildFonts()
         ImFontConfig icon;
         icon.MergeMode = true;
         icon.FontDataOwnedByAtlas = false;
-        icon.GlyphOffset = ImVec2(0.0f, 1.0f);
-        icon.GlyphMinAdvanceX = kBaseFontSizePixels;
+        // Codicons are drawn on a 16-unit grid: slightly larger than the text,
+        // nudged down to sit on its centre line.
+        constexpr float kIconSizePixels = kBaseFontSizePixels + 1.0f;
+        icon.GlyphOffset = ImVec2(0.0f, 4.0f);
+        icon.GlyphMinAdvanceX = kIconSizePixels;
+        icon.PixelSnapH = true;
         uiFonts::icons = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(atomforgeIcons::kFontData), static_cast<int>(atomforgeIcons::kFontSize),
-                                                        kBaseFontSizePixels, &icon, iconRanges) != nullptr;
+                                                        kIconSizePixels, &icon, atomforgeIcons::kRanges) != nullptr;
     }
     if (const char* path = firstExisting(kHeadingFonts)) {
         ImFontConfig headingConfig;
