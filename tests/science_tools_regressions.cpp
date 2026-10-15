@@ -771,6 +771,10 @@ int main()
         const auto fccCounts = values(series.at("counts").at("fcc"));
         check(fccCounts.size() == 8 && fccCounts[0] == 108 && fccCounts[4] == 108 && fccCounts[7] < 10, "fcc atoms disappear on melting");
         close(values(series.at("volume_A3"))[3], std::pow(10.8, 3), 1e-9, "cell volume per frame");
+        const Json melted = run("frame-difference", object({{"trajectory_file", meltPath.u8string()}, {"analysis", "cna"}}));
+        check(number(melted.at("atoms_changed")) > 95, "fcc atoms changed type on melting");
+        const Json drifted = run("frame-difference", object({{"trajectory_file", path.u8string()}, {"reference_frame", 0}, {"frame", 1}}));
+        close(values(drifted.at("difference"))[0], 0.6, 1e-9, "displacement between frames");
         const Json entropy = run("time-series", object({{"trajectory_file", meltPath.u8string()}, {"analysis", "centrosymmetry"}, {"cutoff_A", 3.0}}));
         check(values(entropy.at("mean_property"))[0] < 1e-12 && values(entropy.at("mean_property"))[7] > 1, "mean centrosymmetry rises");
         std::filesystem::remove_all(directory);

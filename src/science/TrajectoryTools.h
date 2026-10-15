@@ -16,4 +16,8 @@ ToolOutput unwrapTrajectory(const Parameters& p);
 // every frame: type counts or the mean property versus time, plus the cell
 // volume and number density.
 Json timeSeries(const Parameters& p);
+
+// The change of a per-atom quantity between two frames: the displacement
+// (minimum image) or any per-atom analysis (after minus reference).
+Json frameDifference(const Parameters& p);
 }

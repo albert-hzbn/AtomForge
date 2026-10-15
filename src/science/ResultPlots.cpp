@@ -471,6 +471,12 @@ void ambientOcclusionPlots(const Json& result, std::vector<PlotSpec>& plots)
     addHistogram(plots, "Ambient brightness", "Brightness", numbers(result.find("brightness")));
 }
 
+void frameDifferencePlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    const Json* quantity = result.find("quantity");
+    addHistogram(plots, "Change between frames", quantity && quantity->isString() ? quantity->string() : "Change", numbers(result.find("difference")));
+}
+
 void voronoiPlots(const Json& result, std::vector<PlotSpec>& plots)
 {
     addHistogram(plots, "Atomic volume", "Volume (A^3)", numbers(result.find("atomic_volume_A3")));
@@ -616,6 +622,7 @@ const std::map<std::string, PlotBuilder>& plotBuilders()
         {"trajectory-average", trajectoryAveragePlots},
         {"unwrap-trajectory", unwrapTrajectoryPlots},
         {"time-series", timeSeriesPlots},
+        {"frame-difference", frameDifferencePlots},
         {"cna", cnaPlots},
         {"vorotop", voroTopPlots},
         {"grain-segmentation", grainSegmentationPlots},

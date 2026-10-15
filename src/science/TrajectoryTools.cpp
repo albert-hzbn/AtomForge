@@ -259,4 +259,85 @@ Json timeSeries(const Parameters& p)
     result["counts"] = countJson;
     return result;
 }
+
+namespace
+{
+// The first (or named) per-atom property of an analysis of one frame.
+std::vector<double> analyseFrameProperty(const FrameData& frame, const std::string& tool, const std::string& wanted, double cutoff, std::string& name)
+{
+    const Structure& s = frame.structure;
+    Json request = Json::object();
+    Json positions = Json::array();
+    for (const auto& a : s.atoms) positions.push(Json::array({a.x, a.y, a.z}));
+    request["positions"] = positions;
+    if (s.hasUnitCell) {
+        Json cell = Json::array();
+        for (const auto& row : s.cellVectors) cell.push(Json::array({row[0], row[1], row[2]}));
+        request["cell"] = cell;
+        request["pbc"] = Json::array({frame.pbc[0], frame.pbc[1], frame.pbc[2]});
+    }
+    const bool ownRange = tool == "ptm" || tool == "cna" || tool == "voronoi" || tool == "vorotop" || tool == "structure-type" ||
+                          tool == "diamond-structure" || tool == "chill-plus" || tool == "local-entropy" || tool == "fcc-planar-faults";
+    if (!ownRange) request["cutoff_A"] = cutoff;
+    if (tool == "local-entropy" && !(frame.pbc[0] && frame.pbc[1] && frame.pbc[2])) request["local_density"] = true;
+    for (const auto& property : perAtomProperties(tool, runTool(tool, request).result))
+        if (wanted.empty() || property.name == wanted) { name = property.name; return property.values; }
+    throw std::runtime_error(tool + (wanted.empty() ? " gives no per-atom property" : " has no property " + wanted));
+}
+}
+
+Json frameDifference(const Parameters& p)
+{
+    const TrajectoryStream stream = openTrajectory(p);
+    const long long count = static_cast<long long>(stream.size());
+    long long reference = static_cast<long long>(p.number("reference_frame", 0));
+    long long current = static_cast<long long>(p.number("frame", -1));
+    if (reference < 0) reference += count;
+    if (current < 0) current += count;
+    if (reference < 0 || reference >= count || current < 0 || current >= count)
+        throw std::runtime_error("Frames must lie in the trajectory (" + std::to_string(count) + " frames; negative counts from the end)");
+    const FrameData a = stream.frame(static_cast<std::size_t>(reference)), b = stream.frame(static_cast<std::size_t>(current));
+    if (a.structure.atoms.size() != b.structure.atoms.size()) throw std::runtime_error("The two frames have different numbers of atoms");
+    const std::string tool = p.has("analysis") ? p.json("analysis").string() : std::string("positions");
+    const std::size_t n = a.structure.atoms.size();
+    std::vector<double> difference(n), before, after;
+    std::string name = "displacement (A)";
+    if (tool == "positions") {
+        const bool periodic = b.structure.hasUnitCell && (b.pbc[0] || b.pbc[1] || b.pbc[2]);
+        const MinimumImage mic = periodic ? MinimumImage(cellOf(b.structure), b.pbc) : MinimumImage();
+        for (std::size_t i = 0; i < n; ++i) {
+            Vec3 d = sub(Vec3{b.structure.atoms[i].x, b.structure.atoms[i].y, b.structure.atoms[i].z},
+                         Vec3{a.structure.atoms[i].x, a.structure.atoms[i].y, a.structure.atoms[i].z});
+            if (periodic) d = mic(d);
+            difference[i] = norm(d);
+        }
+    } else {
+        const std::string wanted = p.has("property") ? p.json("property").string() : std::string();
+        const double cutoff = p.number("cutoff_A", 3.0);
+        before = analyseFrameProperty(a, tool, wanted, cutoff, name);
+        after = analyseFrameProperty(b, tool, wanted, cutoff, name);
+        for (std::size_t i = 0; i < n; ++i) difference[i] = after[i] - before[i];
+    }
+    double sum = 0, squares = 0, largest = 0;
+    std::size_t changed = 0, valid = 0;
+    for (double d : difference) {
+        if (!std::isfinite(d)) continue;
+        ++valid;
+        sum += d;
+        squares += d * d;
+        largest = std::max(largest, std::abs(d));
+        changed += std::abs(d) > 1e-12;
+    }
+    Json result = Json::object();
+    result["difference"] = toJson(difference);
+    if (!before.empty()) { result["reference_values"] = toJson(before); result["frame_values"] = toJson(after); }
+    result["quantity"] = name;
+    result["reference_frame"] = static_cast<double>(reference);
+    result["frame"] = static_cast<double>(current);
+    result["mean_difference"] = valid ? sum / static_cast<double>(valid) : std::numeric_limits<double>::quiet_NaN();
+    result["rms_difference"] = valid ? std::sqrt(squares / static_cast<double>(valid)) : std::numeric_limits<double>::quiet_NaN();
+    result["max_abs_difference"] = largest;
+    result["atoms_changed"] = static_cast<double>(changed);
+    return result;
+}
 }

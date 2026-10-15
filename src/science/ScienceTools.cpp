@@ -253,6 +253,7 @@ const std::map<std::string, ToolRunner>& toolRunners()
         {"wigner-seitz", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(wignerSeitz(p)); }},
         {"trajectory-average", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return trajectoryAverage(p); }},
         {"unwrap-trajectory", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return unwrapTrajectory(p); }},
+        {"frame-difference", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(frameDifference(p)); }},
         {"time-series", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(timeSeries(p)); }},
         {"surface-mesh", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(surfaceMesh(p)); }},
         {"voronoi", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(voronoiAnalysis(p)); }},

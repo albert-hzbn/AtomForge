@@ -1357,7 +1357,7 @@
     },
     {
       "source": "src/science/TrajectoryTools.h",
-      "sha256": "d8ed1a1e62412f3cf38470a6f2efcc21c2013f95e52e5eac3d93f74108a76557",
+      "sha256": "49571f07e03e6e5792a7e63f0a98e8265d22edf00daf4777f80f9741788c6b2e",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -4668,7 +4668,7 @@
     },
     {
       "source": "src/ui/ScientificToolsDialog.cpp",
-      "sha256": "52830f622578245c0c3a13d561e90a87c57c423ff7313528e8e5a16db2bc68f7",
+      "sha256": "157c94df9bef47753c5af94ebf62b8b651272cc44bf506bd4c6bedea3079c67e",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"

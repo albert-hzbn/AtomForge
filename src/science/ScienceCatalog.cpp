@@ -47,6 +47,14 @@ const std::vector<ScienceToolDef>& scienceToolCatalog()
             {"first_frame", "First frame", "0", "int", false},
             {"every", "Use every Nth frame", "1", "int", false},
         }, ScienceToolView::Trajectory},
+        {"frame-difference", "Difference between frames", "Change of a per-atom quantity between two frames of a trajectory.\n\nanalysis positions gives each atom's displacement (minimum image); a per-atom\ntool id (cna, ptm, centrosymmetry, local-entropy, voronoi, ...) gives the\nproperty in the frame minus that in the reference frame, with property\nnaming one of several. Negative frame numbers count from the end. Reports\nthe mean, RMS and largest change and how many atoms changed.", "Trajectories and transport", {
+            {"trajectory_file", "Trajectory (extXYZ, XDATCAR or LAMMPS dump)", "", "file", true},
+            {"reference_frame", "Reference frame", "0", "int", false},
+            {"frame", "Frame (-1 = last)", "-1", "int", false},
+            {"analysis", "positions or a per-atom tool id", "\"positions\"", "string", false},
+            {"property", "Per-atom property (default: the first)", "", "string", false},
+            {"cutoff_A", "Cutoff for tools that need one (Angstrom)", "3.0", "float", false},
+        }, ScienceToolView::Trajectory},
         {"vacf", "Velocity autocorrelation", "Unbiased time-origin average of v(t) dot v(t+lag), per atom.\n\nremove_drift removes each frame's geometric mean velocity, not its\nmass-weighted centre-of-mass velocity. Units before normalization: A^2/fs^2.", "Trajectories and transport", {
             {"velocities", "Velocities (Angstrom/fs)", "", "data", true},
             {"timestep_fs", "Sampling interval (fs)", "1.0", "float", true},
