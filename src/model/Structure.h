@@ -54,6 +54,10 @@ struct Structure
     // shown by the "Atom Property" colour mode. Same size as atoms or empty.
     std::vector<double> atomProperty;
     std::string atomPropertyName;
+    // A copy of the property kept by the pipeline's freeze-property step, so
+    // later steps can compare with it (the variable "frozen" of expressions).
+    std::vector<double> frozenProperty;
+    std::string frozenPropertyName;
 
     // User-visible note set on load to indicate how IPF was obtained
     // (metadata sidecar, geometry fallback, or unavailable).
@@ -90,6 +94,10 @@ struct Structure
             atomProperty.erase(atomProperty.begin() + static_cast<std::ptrdiff_t>(index));
         else
             atomProperty.clear();
+        if (frozenProperty.size() == atoms.size())
+            frozenProperty.erase(frozenProperty.begin() + static_cast<std::ptrdiff_t>(index));
+        else
+            frozenProperty.clear();
         atoms.erase(atoms.begin() + index);
         dislocationLoopPoints.clear();
         dislocationDetectionDone = false;

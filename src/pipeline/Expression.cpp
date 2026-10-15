@@ -262,7 +262,7 @@ private:
         using V = AtomVariables;
         static const std::vector<std::pair<std::string, double V::*>> numbers = {
             {"x", &V::x}, {"y", &V::y}, {"z", &V::z}, {"fx", &V::fx}, {"fy", &V::fy}, {"fz", &V::fz},
-            {"index", &V::index}, {"count", &V::count}, {"property", &V::property}, {"selected", &V::selected},
+            {"index", &V::index}, {"count", &V::count}, {"property", &V::property}, {"frozen", &V::frozen}, {"selected", &V::selected},
             {"Z", &V::atomicNumber}, {"atomic_number", &V::atomicNumber}, {"fixed", &V::fixed}};
         for (const auto& [n, member] : numbers)
             if (name == n) return node([member](const AtomVariables& v) { return Value{v.*member}; });
@@ -284,7 +284,7 @@ private:
         std::vector<std::string> names = {"element", "Z"};
         for (const auto& entry : numbers) names.push_back(entry.first);
         fail("unknown name '" + name + "'" + suggest::didYouMean(name, names) +
-             "; the variables are x y z fx fy fz index count Z element property selected fixed, and other text goes in quotes");
+             "; the variables are x y z fx fy fz index count Z element property frozen selected fixed, and other text goes in quotes");
     }
 
     const std::string& m_text;

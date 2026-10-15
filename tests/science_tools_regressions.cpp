@@ -818,6 +818,55 @@ int main()
         close(number(scatter.at("points")), 3, 0, "NaN pairs left out");
     });
 
+    test("VoroTop with the built-in filter", [=] {
+        std::mt19937 random(21);
+        std::normal_distribution<double> gauss(0, 1);
+        const auto noisy = [&](Crystal c, double amplitude) { for (auto& x : c.positions) for (double& v : x) v += amplitude * gauss(random); return c; };
+        const auto fraction = [](const Json& result, const char* name, std::size_t atoms) { return number(result.at("counts").at(name)) / static_cast<double>(atoms); };
+        const Crystal fcc = noisy(lattice(scaled(cubic, 3.6), fccBasis, {4, 4, 4}), 0.05 * 2.55);
+        check(fraction(run("vorotop", periodicRequest(fcc)), "fcc", fcc.positions.size()) > 0.85, "noisy fcc");
+        const Crystal bcc = noisy(lattice(scaled(cubic, 2.87), {{0, 0, 0}, {.5, .5, .5}}, {5, 5, 5}), 0.05 * 2.49);
+        check(fraction(run("vorotop", periodicRequest(bcc)), "bcc", bcc.positions.size()) > 0.95, "noisy bcc");
+        Crystal gas = fcc;
+        std::uniform_real_distribution<double> uniform(0, 14.4);
+        for (auto& x : gas.positions) x = {uniform(random), uniform(random), uniform(random)};
+        check(fraction(run("vorotop", periodicRequest(gas)), "other", gas.positions.size()) > 0.9, "random positions are other");
+        // The exported filter reads back as a VoroTop filter file.
+        Json request = periodicRequest(bcc);
+        request["export_filter"] = true;
+        const Json exported = run("vorotop", request);
+        const auto path = std::filesystem::temp_directory_path() / "atomforge-vorotop.filter";
+        std::ofstream(path) << exported.at("files").at("vorotop.filter").string();
+        request = periodicRequest(bcc);
+        request["filter_file"] = path.u8string();
+        check(fraction(run("vorotop", request), "bcc", bcc.positions.size()) > 0.95, "filter file");
+        std::filesystem::remove(path);
+    });
+
+    test("chemical ordering from template matching", [=] {
+        // Cu3Au (L1_2): Au at the cube corners, Cu on the faces.
+        const Crystal l12 = lattice(scaled(cubic, 3.75), fccBasis, {3, 3, 3});
+        std::vector<double> species;
+        for (std::size_t i = 0; i < l12.positions.size(); ++i) species.push_back(i % 4 == 0 ? 79 : 29);
+        Json request = periodicRequest(l12);
+        request["types"] = toJson(species);
+        const Json result = run("ptm", request);
+        check(number(result.at("ordering_counts").at("L1_2 (minority site)")) == 27, "L1_2 minority site");
+        check(number(result.at("ordering_counts").at("L1_2 (majority site)")) == 81, "L1_2 majority site");
+        // CuAu (L1_0): alternating (001) layers.
+        for (std::size_t i = 0; i < l12.positions.size(); ++i) species[i] = std::fmod(l12.positions[i][2] / 1.875, 2.0) < 0.5 ? 79 : 29;
+        request["types"] = toJson(species);
+        check(number(run("ptm", request).at("ordering_counts").at("L1_0")) == 108, "L1_0");
+        // Zincblende needs the diamond templates.
+        Crystal gaas = lattice(scaled(cubic, 5.65), diamondBasis, {2, 2, 2});
+        std::vector<double> zinc;
+        for (std::size_t i = 0; i < gaas.positions.size(); ++i) zinc.push_back((i % 8) < 4 ? 31 : 33);
+        request = periodicRequest(gaas);
+        request["types"] = toJson(zinc);
+        request["structures"] = Json::array({"fcc", "cubic-diamond"});
+        check(number(run("ptm", request).at("ordering_counts").at("zincblende or wurtzite")) == 64, "zincblende");
+    });
+
     test("Wigner-Seitz Frenkel pair and box mapping", [] {
         const std::vector<Vec3> sites = {{0, 0, 0}, {2, 0, 0}, {4, 0, 0}};
         auto moved = sites;

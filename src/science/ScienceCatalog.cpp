@@ -144,15 +144,25 @@ const std::vector<ScienceToolDef>& scienceToolCatalog()
             {"cell", "Cell vectors (Angstrom)", "", "data", false},
             {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
         }, ScienceToolView::Atoms},
+        {"vorotop", "VoroTop (Voronoi topology)", "Structure of each atom from the topology of its Voronoi cell.\n\nLazar, Han and Srolovitz, PNAS 112, 13212 (2015), as OVITO's VoroTop: the\ncanonical Weinberg code of each cell (smallest traversal code over all\nstarting edges and both orientations) is looked up in a filter. Without\nfilter_file the filter is sampled here from fcc, bcc and hcp crystals with\nGaussian displacements of noise times the nearest-neighbour distance (codes\nseen in two lattices are dropped); a VoroTop filter file ('* id name' lines\nand 'id (code)' lines) can be given instead. Unknown topologies are 'other'.\nThe most common topologies are listed with their codes.", "Structure and defects", {
+            {"positions", "Atomic positions (Angstrom)", "", "data", true},
+            {"noise", "Built-in filter: thermal noise (fraction of the bond length)", "0.06", "float", false},
+            {"filter_file", "VoroTop filter file (optional)", "", "file", false},
+            {"samples", "Built-in filter: crystals sampled per lattice", "60", "int", false},
+            {"export_filter", "Write the filter used (vorotop.filter)", "false", "bool", false},
+            {"cell", "Cell vectors (Angstrom)", "", "data", false},
+            {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
+        }, ScienceToolView::Atoms},
         {"cna", "Common neighbour analysis (adaptive)", "Per-atom fcc, hcp, bcc and icosahedral order from common-neighbour signatures.\n\nAdaptive CNA (Stukowski 2012), OVITO's default: the cutoff of each atom is\n(1+sqrt 2)/2 times the mean distance of its 12 nearest neighbours (fcc, hcp,\nicosahedral: 12 x 421; 6 x 421 + 6 x 422; 12 x 555) or, for bcc, of its 8\nand 6 nearest (8 x 666 + 6 x 444). With cutoff_A, conventional CNA with that\nfixed cutoff.", "Structure and defects", {
             {"positions", "Atomic positions (Angstrom)", "", "data", true},
             {"cutoff_A", "Fixed cutoff (Angstrom, 0 = adaptive)", "0.0", "float", false},
             {"cell", "Cell vectors (Angstrom)", "", "data", false},
             {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
         }, ScienceToolView::Atoms},
-        {"ptm", "Polyhedral template matching", "Structure type, lattice orientation and local lattice constant of each atom.\n\nLarsen, Schmidt and Schiotz (2016), as OVITO's Polyhedral Template\nMatching: the nearest neighbours (12 fcc/hcp/icosahedral, 14 bcc, 6 simple\ncubic; diamond: 4 nearest and their 12 further neighbours) are fitted by\nthe best rotation and scale to each ideal shell. The structure with the\nlowest RMSD (neighbour lengths scaled to a mean of 1) wins when it is below\nrmsd_cutoff (0 = no cutoff). Orientations are quaternions (w, x, y, z)\nreduced to the symmetry-equivalent rotation closest to the identity.\nstructures: any of fcc, hcp, bcc, ico, sc, cubic-diamond, hex-diamond.", "Structure and defects", {
+        {"ptm", "Polyhedral template matching", "Structure type, lattice orientation and local lattice constant of each atom.\n\nLarsen, Schmidt and Schiotz (2016), as OVITO's Polyhedral Template\nMatching: the nearest neighbours (12 fcc/hcp/icosahedral, 14 bcc, 6 simple\ncubic; diamond: 4 nearest and their 12 further neighbours) are fitted by\nthe best rotation and scale to each ideal shell. The structure with the\nlowest RMSD (neighbour lengths scaled to a mean of 1) wins when it is below\nrmsd_cutoff (0 = no cutoff). Orientations are quaternions (w, x, y, z)\nreduced to the symmetry-equivalent rotation closest to the identity.\nstructures: any of fcc, hcp, bcc, ico, sc, cubic-diamond, hex-diamond.\nWith types (species per atom) each crystalline atom also gets its chemical\nordering: pure, L1_0, L1_2 (minority or majority site), B2, zincblende or\nwurtzite, from which neighbours of its shell are of another species.", "Structure and defects", {
             {"positions", "Atomic positions (Angstrom)", "", "data", true},
             {"structures", "Structures to identify", "[\"fcc\", \"hcp\", \"bcc\", \"ico\"]", "data", false},
+            {"types", "Species per atom for chemical ordering (e.g. atomic numbers)", "", "data", false},
             {"rmsd_cutoff", "RMSD cutoff (0 = none)", "0.1", "float", false},
             {"cutoff_A", "Neighbor search radius (Angstrom, 0 = automatic)", "0.0", "float", false},
             {"cell", "Cell vectors (Angstrom)", "", "data", false},

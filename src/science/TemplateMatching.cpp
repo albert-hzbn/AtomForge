@@ -600,6 +600,54 @@ Json polyhedralTemplateMatching(const Parameters& p)
     result["orientation_angle_deg"] = toJson(angle);
     result["lattice_constant_A"] = toJson(lattice);
     result["cutoff_A"] = m.geometry.cutoff;
+    if (p.has("types")) {
+        // Chemical ordering from the species of the matched shell.
+        const auto species = finiteArray(p.array("types"), "types", 1).values;
+        if (species.size() != n) throw std::runtime_error("types needs one value per atom");
+        static const std::vector<std::string> orderNames = {"none", "pure", "L1_0", "L1_2 (minority site)", "L1_2 (majority site)", "B2",
+                                                            "zincblende or wurtzite", "other"};
+        std::vector<int> ordering(n, 0);
+        std::vector<V3> env;
+        std::vector<int> atoms;
+        // True when the given vectors lie in one plane through the centre.
+        const auto coplanar = [](const std::vector<V3>& v) {
+            if (v.size() < 3) return true;
+            V3 normal = V3::Zero();
+            for (std::size_t a = 0; a < v.size() && normal.norm() < 1e-6; ++a)
+                for (std::size_t b = a + 1; b < v.size() && normal.norm() < 1e-6; ++b) normal = v[a].normalized().cross(v[b].normalized());
+            if (normal.norm() < 1e-6) return true;
+            normal.normalize();
+            for (const V3& x : v)
+                if (std::abs(normal.dot(x.normalized())) > 0.25) return false;
+            return true;
+        };
+        for (std::size_t i = 0; i < n; ++i) {
+            const int kind = m.fits[i].kind;
+            if (kind == Other || !environment(kind, i, m.neighbors, env, atoms)) continue;
+            const std::size_t first = (kind == CubicDiamond || kind == HexDiamond) ? 4 : kind == Bcc ? 8 : env.size();
+            std::vector<V3> same, unlike;
+            bool outerSame = true;
+            for (std::size_t k = 0; k < env.size(); ++k) {
+                const bool equal = species[static_cast<std::size_t>(atoms[k])] == species[i];
+                if (k < first) (equal ? same : unlike).push_back(env[k]);
+                else outerSame = outerSame && equal;
+            }
+            int order = 7;
+            if (unlike.empty() && outerSame) order = 1;
+            else if (kind == Fcc && unlike.size() == 12) order = 3;
+            else if (kind == Fcc && unlike.size() == 4 && coplanar(unlike)) order = 4;
+            else if (kind == Fcc && same.size() == 4 && coplanar(same)) order = 2;
+            else if (kind == Bcc && same.empty() && outerSame) order = 5;
+            else if ((kind == CubicDiamond || kind == HexDiamond) && same.empty() && outerSame) order = 6;
+            ordering[i] = order;
+        }
+        Json orderFractions;
+        result["ordering"] = toJson(ordering);
+        Json orderJson = Json::array();
+        for (const auto& name : orderNames) orderJson.push(name);
+        result["ordering_names"] = orderJson;
+        result["ordering_counts"] = countsJson(ordering, orderNames, orderFractions);
+    }
     return result;
 }
 

@@ -13,6 +13,7 @@ struct AtomVariables
     double index = 0;               // zero-based atom index
     double count = 0;               // number of atoms
     double property = 0;            // per-atom property (NaN when absent)
+    double frozen = 0;              // the property kept by freeze-property (NaN when absent)
     double selected = 0;            // 1 when selected
     double atomicNumber = 0;
     double fixed = 0;               // number of fixed coordinates (selective dynamics)

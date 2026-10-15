@@ -482,6 +482,11 @@ void voronoiPlots(const Json& result, std::vector<PlotSpec>& plots)
     }
 }
 
+void voroTopPlots(const Json& result, std::vector<PlotSpec>& plots)
+{
+    countPlot(result, plots, "VoroTop structures (type index as in the report)");
+}
+
 void cnaPlots(const Json& result, std::vector<PlotSpec>& plots)
 {
     countPlot(result, plots, "CNA structures (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)");
@@ -599,6 +604,7 @@ const std::map<std::string, PlotBuilder>& plotBuilders()
         {"unwrap-trajectory", unwrapTrajectoryPlots},
         {"time-series", timeSeriesPlots},
         {"cna", cnaPlots},
+        {"vorotop", voroTopPlots},
         {"grain-segmentation", grainSegmentationPlots},
         {"elastic-strain", elasticStrainPlots},
         {"fcc-planar-faults", fccPlanarFaultPlots},

@@ -1051,7 +1051,7 @@
     },
     {
       "source": "src/pipeline/Expression.cpp",
-      "sha256": "a571036c4d5f4dadd7859981e3e1dba0198dcad8de0f4e3142afb2e2fd05b108",
+      "sha256": "b41e5b8a8f4f548ba4a373ca95f20876a93f65eb6d5e8fbce12bbc3af899e70a",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -1060,7 +1060,7 @@
     },
     {
       "source": "src/pipeline/Expression.h",
-      "sha256": "8aad6cf7346c24b561a7bfba968bc93435d0beb4ed7826164298797d2f573dab",
+      "sha256": "115be17f813709335a834593ae08e42ebe937691ea6eef31971050b192ee71a4",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -1069,7 +1069,7 @@
     },
     {
       "source": "src/pipeline/Modifiers.cpp",
-      "sha256": "5c9d1c2e50c5405519099ee5a0c23001586ca16bd4f642c9fe80af71cfd8b6f1",
+      "sha256": "9bec7fe61f03fa2e689f334b57e04ec0d29ece925817246db62f132d034c95b0",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -1375,7 +1375,7 @@
     },
     {
       "source": "src/science/VoronoiAnalysis.h",
-      "sha256": "ecb5ffe3d86022156df78e0c913c7a6173dcc9fc94f460d39833ac1aadf20c79",
+      "sha256": "1a0e34f8cf45579f221c2a95a48060a35ac2556e0197732bf57c249faecd5967",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -3839,7 +3839,7 @@
     },
     {
       "source": "src/ui/MenuParity.cpp",
-      "sha256": "9bdbaa4e384b48c8ed47abe2f4157eecd5c6bb7c4b2c5b276235dc9b15365e5e",
+      "sha256": "aaf5c3fbeb16bbb2aaec8443daa437c154f1b8cd0d96375d31fc36ad54979ba7",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

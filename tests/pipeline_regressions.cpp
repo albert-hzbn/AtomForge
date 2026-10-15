@@ -426,6 +426,12 @@ int main()
         check(darkest < 0.5f, "buried atoms darkened");
         // Expanding to the 4 nearest neighbours adds exactly 4 atoms around one atom.
         check(run("select-sphere 0 0 0 0.1 | expand-selection cutoff=3 nearest=4", copper(3)).selectedCount() == 5, "four nearest neighbours");
+        // freeze-property keeps the property for comparison after later steps.
+        const auto changed = run("compute-property cna | freeze-property | random-displacement 0.3 | compute-property cna | select-expression \"property != frozen\"", copper(3));
+        check(changed.selectedCount() > 50, "atoms whose structure changed");
+        check(changed.structure.frozenProperty.size() == changed.structure.atoms.size(), "frozen values travel with the atoms");
+        const auto replicated = run("compute-property cna | freeze-property | replicate 2 1 1", copper(2));
+        check(replicated.structure.frozenProperty.size() == replicated.structure.atoms.size(), "frozen values are replicated");
         const auto surface = run("select-surface 4", copper(3));
         check(surface.selectedCount() == 0, "a periodic bulk crystal has no surface");
     });

@@ -56,12 +56,14 @@ void rebuild(PipelineData& data, const std::vector<std::size_t>& keep)
     out.grainColors.clear();
     out.grainRegionIds.clear();
     out.atomProperty.clear();
+    out.frozenProperty.clear();
     std::vector<char> selected;
     for (std::size_t i : keep) {
         out.atoms.push_back(s.atoms[i]);
         if (s.grainColors.size() == n) out.grainColors.push_back(s.grainColors[i]);
         if (s.grainRegionIds.size() == n) out.grainRegionIds.push_back(s.grainRegionIds[i]);
         if (s.atomProperty.size() == n) out.atomProperty.push_back(s.atomProperty[i]);
+        if (s.frozenProperty.size() == n) out.frozenProperty.push_back(s.frozenProperty[i]);
         selected.push_back(i < data.selected.size() ? data.selected[i] : 0);
     }
     out.dislocationLoopPoints.clear();
@@ -150,6 +152,7 @@ std::vector<double> evaluateForAtoms(const Expression& expression, const Pipelin
         }
         v.index = static_cast<double>(i);
         v.property = s.atomProperty.size() == s.atoms.size() ? s.atomProperty[i] : std::numeric_limits<double>::quiet_NaN();
+        v.frozen = s.frozenProperty.size() == s.atoms.size() ? s.frozenProperty[i] : std::numeric_limits<double>::quiet_NaN();
         v.selected = data.selected[i] ? 1 : 0;
         v.atomicNumber = a.atomicNumber;
         v.fixed = static_cast<double>((a.fixed & 1) + ((a.fixed >> 1) & 1) + ((a.fixed >> 2) & 1));
@@ -415,6 +418,7 @@ void addAtom(const Json& p, PipelineData& data)
     if (s.grainColors.size() == n) s.grainColors.push_back({0.6f, 0.6f, 0.6f});
     if (s.grainRegionIds.size() == n) s.grainRegionIds.push_back(-1);
     if (s.atomProperty.size() == n && n) s.atomProperty.push_back(std::numeric_limits<double>::quiet_NaN());
+    if (s.frozenProperty.size() == n && n) s.frozenProperty.push_back(std::numeric_limits<double>::quiet_NaN());
     s.atoms.push_back(atom);
     data.selected.push_back(flag(p, "add-atom", "select") ? 1 : 0);
 }
@@ -459,6 +463,7 @@ void insertInterstitials(const Json& p, PipelineData& data)
         if (s.grainColors.size() == before) s.grainColors.push_back({0.6f, 0.6f, 0.6f});
         if (s.grainRegionIds.size() == before) s.grainRegionIds.push_back(-1);
         if (s.atomProperty.size() == before && before) s.atomProperty.push_back(std::numeric_limits<double>::quiet_NaN());
+        if (s.frozenProperty.size() == before && before) s.frozenProperty.push_back(std::numeric_limits<double>::quiet_NaN());
         s.atoms.push_back(atom);
         data.selected.push_back(1);
     }
@@ -474,6 +479,7 @@ void merge(const Json& p, PipelineData& data)
     Structure& s = data.structure;
     const std::size_t n = s.atoms.size();
     const bool colours = s.grainColors.size() == n, regions = s.grainRegionIds.size() == n, property = s.atomProperty.size() == n && n;
+    const bool frozen = s.frozenProperty.size() == n && n;
     const Structure& other = frames.front().structure;
     for (AtomSite atom : other.atoms) {
         place(atom, science::add(positionOf(atom), offset));
@@ -481,6 +487,7 @@ void merge(const Json& p, PipelineData& data)
         if (colours) s.grainColors.push_back({0.6f, 0.6f, 0.6f});
         if (regions) s.grainRegionIds.push_back(-1);
         if (property) s.atomProperty.push_back(std::numeric_limits<double>::quiet_NaN());
+        if (frozen) s.frozenProperty.push_back(std::numeric_limits<double>::quiet_NaN());
         data.selected.push_back(flag(p, "merge", "select") ? 1 : 0);
     }
     if (!s.hasUnitCell && other.hasUnitCell && flag(p, "merge", "use_cell")) { s.hasUnitCell = true; s.cellVectors = other.cellVectors; }
@@ -519,8 +526,9 @@ void replicate(const Json& p, PipelineData& data)
     Structure& s = data.structure;
     const std::size_t count = s.atoms.size();
     const bool colours = s.grainColors.size() == count, regions = s.grainRegionIds.size() == count, property = s.atomProperty.size() == count;
+    const bool frozen = s.frozenProperty.size() == count;
     Structure out = s;
-    out.atoms.clear(); out.grainColors.clear(); out.grainRegionIds.clear(); out.atomProperty.clear();
+    out.atoms.clear(); out.grainColors.clear(); out.grainRegionIds.clear(); out.atomProperty.clear(); out.frozenProperty.clear();
     std::vector<char> selected;
     for (long long i = 0; i < n[0]; ++i)
         for (long long j = 0; j < n[1]; ++j)
@@ -534,6 +542,7 @@ void replicate(const Json& p, PipelineData& data)
                     if (colours) out.grainColors.push_back(s.grainColors[a]);
                     if (regions) out.grainRegionIds.push_back(s.grainRegionIds[a]);
                     if (property) out.atomProperty.push_back(s.atomProperty[a]);
+                    if (frozen) out.frozenProperty.push_back(s.frozenProperty[a]);
                     selected.push_back(data.selected[a]);
                 }
             }
@@ -576,8 +585,9 @@ void supercell(const Json& p, PipelineData& data)
         for (int r = 0; r < 3; ++r) (integers[r][k] < 0 ? low[k] : high[k]) += integers[r][k];
     }
     const bool colours = s.grainColors.size() == count, regions = s.grainRegionIds.size() == count, property = s.atomProperty.size() == count;
+    const bool frozen = s.frozenProperty.size() == count;
     Structure out = s;
-    out.atoms.clear(); out.grainColors.clear(); out.grainRegionIds.clear(); out.atomProperty.clear();
+    out.atoms.clear(); out.grainColors.clear(); out.grainRegionIds.clear(); out.atomProperty.clear(); out.frozenProperty.clear();
     std::vector<char> selected;
     constexpr double eps = 1e-7;
     for (std::size_t a = 0; a < count; ++a) {
@@ -595,6 +605,7 @@ void supercell(const Json& p, PipelineData& data)
                     if (colours) out.grainColors.push_back(s.grainColors[a]);
                     if (regions) out.grainRegionIds.push_back(s.grainRegionIds[a]);
                     if (property) out.atomProperty.push_back(s.atomProperty[a]);
+                    if (frozen) out.frozenProperty.push_back(s.frozenProperty[a]);
                     selected.push_back(data.selected[a]);
                 }
     }
@@ -983,6 +994,16 @@ void ambientOcclusionStep(const Json& p, PipelineData& data)
     data.notes.push_back("Ambient occlusion from " + std::to_string(static_cast<long long>(number(p, "ambient-occlusion", "directions"))) + " directions");
 }
 
+// Keeps a copy of the per-atom property for later comparison.
+void freezeProperty(const Json&, PipelineData& data)
+{
+    Structure& s = data.structure;
+    if (s.atomProperty.size() != s.atoms.size() || s.atoms.empty()) throw std::runtime_error("freeze-property needs a per-atom property; add compute-property above");
+    s.frozenProperty = s.atomProperty;
+    s.frozenPropertyName = s.atomPropertyName;
+    data.notes.push_back("Kept " + (s.atomPropertyName.empty() ? std::string("the property") : s.atomPropertyName) + " as frozen");
+}
+
 void clearProperty(const Json&, PipelineData& data)
 {
     data.structure.atomProperty.clear();
@@ -1046,10 +1067,14 @@ void computeProperty(const Json& p, PipelineData& data)
     else if (analysis == "coordination") property = science::analysePerAtom(data.structure, "bond-order", cutoff, "Coordination");
     else if (analysis == "ptm") property = science::analysePerAtom(data.structure, "ptm", cutoff);
     else if (analysis == "cna") property = science::analysePerAtom(data.structure, "cna", cutoff);
+    else if (analysis == "vorotop") property = science::analysePerAtom(data.structure, "vorotop", cutoff);
     else if (analysis == "surface") property = science::analysePerAtom(data.structure, "surface-mesh", cutoff);
     else if (analysis == "voronoi-volume") property = science::analysePerAtom(data.structure, "voronoi", cutoff);
     else if (analysis == "voronoi-coordination") property = science::analysePerAtom(data.structure, "voronoi", cutoff, "Voronoi coordination");
     else if (analysis == "orientation") property = science::analysePerAtom(data.structure, "ptm", cutoff, "Orientation angle (degrees)");
+    else if (analysis == "ptm-ordering")
+        property = science::analysePerAtom(data.structure, "ptm", cutoff,
+                                           "PTM ordering (0 none, 1 pure, 2 L1_0, 3 L1_2 minority, 4 L1_2 majority, 5 B2, 6 zincblende/wurtzite, 7 other)");
     else if (analysis == "planar-faults") property = science::analysePerAtom(data.structure, "fcc-planar-faults", cutoff);
     else if (analysis == "chill-plus") {
         Structure oxygens = data.structure;
@@ -1152,6 +1177,8 @@ std::vector<ModifierType>& registry()
          "Darkens the atoms by how hidden they are from all directions (covalent radii), which brings out pores and grooves; the brightness becomes the per-atom property.",
          {{"intensity", "Intensity (0-1)", "float", "0.7", ""}, {"directions", "Directions", "int", "40", ""}}, ambientOcclusionStep},
         {"clear-property", "Remove per-atom property", "Analysis", "Removes the per-atom property (and its colouring).", {}, clearProperty},
+        {"freeze-property", "Freeze per-atom property", "Analysis",
+         "Keeps a copy of the per-atom property; later expressions compare with it as the variable frozen, e.g. compute-property cna | freeze-property |\nrelax ... | compute-property cna | select-expression \"property != frozen\" selects the atoms whose structure changed.", {}, freezeProperty},
         {"shrink-wrap", "Shrink-wrap cell", "Cell", "Replaces the cell by the orthogonal box that just encloses the atoms, plus padding on every side.",
          {{"padding", "Padding (Angstrom)", "float", "0", ""}}, shrinkWrap},
         {"center", "Center in cell", "Cell", "Shifts the atoms so their extent (in fractional coordinates) is centred in the cell.", {}, center},
@@ -1159,7 +1186,7 @@ std::vector<ModifierType>& registry()
          {{"axis", "Cell vector", "choice", "c", "a|b|c"}, {"thickness", "Vacuum (Angstrom)", "float", "10", ""}, {"center", "Centre the atoms", "bool", "true", ""}}, addVacuum},
         // Analysis
         {"compute-property", "Compute per-atom property", "Analysis", "Computes a per-atom property for colouring and select-property: Ackland-Jones structure type, adaptive CNA, diamond structure, Voronoi volume or coordination, centrosymmetry, coordination,\nSteinhardt q6, polyhedral template matching (structure or orientation angle), fcc planar faults, Chill+ ice types, local entropy or rings\nthrough each atom (bond cutoff). PTM, planar faults, Chill+ and entropy choose their own neighbour range.",
-         {{"analysis", "Property", "choice", "structure-type", "structure-type|cna|diamond|centrosymmetry|coordination|q6|ptm|orientation|voronoi-volume|voronoi-coordination|surface|planar-faults|chill-plus|local-entropy|rings"},
+         {{"analysis", "Property", "choice", "structure-type", "structure-type|cna|vorotop|diamond|centrosymmetry|coordination|q6|ptm|orientation|ptm-ordering|voronoi-volume|voronoi-coordination|surface|planar-faults|chill-plus|local-entropy|rings"},
           {"cutoff", "Neighbour cutoff (Angstrom)", "float", "3", ""}}, computeProperty},
         {"compute-expression", "Compute property from a formula", "Analysis",
          "Sets the per-atom property to a formula of the atom variables, e.g. sqrt(x^2 + y^2) or property * 2 (see select-expression for the variables);\nwith target selected, only selected atoms change.",

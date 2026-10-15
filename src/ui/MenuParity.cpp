@@ -35,6 +35,7 @@ const std::vector<MenuLocation>& menuLocations()
         {"assign-color", "Edit", "Structure Operations", "Assign Colour", false},
         {"ambient-occlusion", "Edit", "Structure Operations", "Ambient Occlusion", false},
         {"clear-property", "Edit", "Structure Operations", "Remove Per-Atom Property", false},
+        {"freeze-property", "Edit", "Structure Operations", "Freeze Per-Atom Property", false},
         {"displace", "Edit", "Structure Operations", "Displace Atoms", false},
         {"fix-atoms", "Edit", "Structure Operations", "Fix Atoms", false},
         {"free-atoms", "Edit", "Structure Operations", "Free Atoms", false},

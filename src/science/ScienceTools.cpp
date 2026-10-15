@@ -256,6 +256,7 @@ const std::map<std::string, ToolRunner>& toolRunners()
         {"time-series", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(timeSeries(p)); }},
         {"surface-mesh", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(surfaceMesh(p)); }},
         {"voronoi", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(voronoiAnalysis(p)); }},
+        {"vorotop", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(voroTop(p)); }},
         {"cna", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(adaptiveCna(p)); }},
         {"ptm", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(polyhedralTemplateMatching(p)); }},
         {"grain-segmentation", [](const Parameters& p, const std::filesystem::path&) -> ToolOutput { return numeric(grainSegmentation(p)); }},
@@ -327,10 +328,15 @@ AtomProperty analysePerAtom(const Structure& structure, const std::string& tool,
         request["pbc"] = Json::array({true, true, true});
     }
     // Structure types pick their own cutoff in periodic cells.
-    const bool ownRange = tool == "ptm" || tool == "cna" || tool == "surface-mesh" || tool == "voronoi" || tool == "fcc-planar-faults" || tool == "chill-plus" || tool == "local-entropy" || tool == "elastic-strain";
+    const bool ownRange = tool == "ptm" || tool == "cna" || tool == "vorotop" || tool == "surface-mesh" || tool == "voronoi" || tool == "fcc-planar-faults" || tool == "chill-plus" || tool == "local-entropy" || tool == "elastic-strain";
     if (!ownRange && ((tool != "structure-type" && tool != "diamond-structure") || !structure.hasUnitCell)) request["cutoff_A"] = cutoffA;
     if (tool == "local-entropy" && !structure.hasUnitCell) request["local_density"] = true;
     if (tool == "bond-order") request["degrees"] = Json::array({6});
+    if (tool == "ptm") {
+        Json species = Json::array();
+        for (const auto& atom : structure.atoms) species.push(static_cast<double>(atom.atomicNumber));
+        request["types"] = species;
+    }
     const auto properties = perAtomProperties(tool, runTool(tool, request).result);
     for (const auto& candidate : properties)
         if (property.empty() || candidate.name == property) return candidate;

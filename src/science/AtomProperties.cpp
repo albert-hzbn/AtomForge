@@ -122,6 +122,12 @@ void voronoiProperties(const Json& result, std::vector<AtomProperty>& properties
     add(properties, "Max face order", numbers(result.find("max_face_order")));
 }
 
+void voroTopProperties(const Json& result, std::vector<AtomProperty>& properties)
+{
+    add(properties, "VoroTop structure (0 other, 1 fcc, 2 bcc, 3 hcp with the built-in filter)", numbers(result.find("structure_type")));
+    add(properties, "Voronoi topology id", numbers(result.find("topology_id")));
+}
+
 void cnaProperties(const Json& result, std::vector<AtomProperty>& properties)
 {
     add(properties, "CNA structure (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)", numbers(result.find("structure_type")));
@@ -133,6 +139,7 @@ void ptmProperties(const Json& result, std::vector<AtomProperty>& properties)
     add(properties, "PTM RMSD", numbers(result.find("rmsd")));
     add(properties, "Orientation angle (degrees)", numbers(result.find("orientation_angle_deg")));
     add(properties, "Local lattice constant (A)", numbers(result.find("lattice_constant_A")));
+    add(properties, "PTM ordering (0 none, 1 pure, 2 L1_0, 3 L1_2 minority, 4 L1_2 majority, 5 B2, 6 zincblende/wurtzite, 7 other)", numbers(result.find("ordering")));
 }
 
 void grainSegmentationProperties(const Json& result, std::vector<AtomProperty>& properties)
@@ -198,6 +205,7 @@ const std::map<std::string, PropertyBuilder>& propertyBuilders()
         {"ambient-occlusion", ambientOcclusionProperties},
         {"surface-mesh", surfaceMeshProperties},
         {"cna", cnaProperties},
+        {"vorotop", voroTopProperties},
         {"grain-segmentation", grainSegmentationProperties},
         {"elastic-strain", elasticStrainProperties},
         {"fcc-planar-faults", fccPlanarFaultProperties},
