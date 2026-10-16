@@ -1050,6 +1050,15 @@
       "literal_controls": []
     },
     {
+      "source": "src/pipeline/AnalysisSteps.cpp",
+      "sha256": "0db2d2879c96e58932ed78e2a570c860dfd2b25cfc6723a33540dba92729bd76",
+      "documentation": [
+        "03-editing.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
       "source": "src/pipeline/Expression.cpp",
       "sha256": "b41e5b8a8f4f548ba4a373ca95f20876a93f65eb6d5e8fbce12bbc3af899e70a",
       "documentation": [
@@ -1069,7 +1078,25 @@
     },
     {
       "source": "src/pipeline/Modifiers.cpp",
-      "sha256": "6a35803b8e7f33ed6b0a5a2b44b2b2304ee8bff26a304a94f5a0b89830f76679",
+      "sha256": "3f6b534e284d7e462d27ff44124db253917e1366fd987cf005f9042036d4d7c1",
+      "documentation": [
+        "03-editing.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/pipeline/ModifierSupport.cpp",
+      "sha256": "d1466f68c6f384467331521a486baa62d135cb5f91b536bc5a6661f3d719f538",
+      "documentation": [
+        "03-editing.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/pipeline/ModifierSupport.h",
+      "sha256": "14b7935d184e5fda36059495d0f78528887ce6a9dcc20e7d19d19bf110140098",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -1122,6 +1149,24 @@
       "literal_controls": []
     },
     {
+      "source": "src/pipeline/PipelineSteps.h",
+      "sha256": "1a8af9e9b442bc5e5584e6c33400af76fddf53bd3dd78f296268a55c23a1a54a",
+      "documentation": [
+        "03-editing.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/pipeline/PythonScriptStep.cpp",
+      "sha256": "fccf264518d5d85adc01194e496429369cf775c186776fde486666de7a22a74c",
+      "documentation": [
+        "03-editing.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
       "source": "src/science/Analysis.h",
       "sha256": "8e7491a3a409c73dcca35bb9c2c2628c1bcdcddb86c6fed338d928375bd961f0",
       "documentation": [
@@ -1132,7 +1177,7 @@
     },
     {
       "source": "src/science/AtomProperties.h",
-      "sha256": "f0c2c980b7d13f48b9d797d0460861ededf563ee2f85f028a14fe4fe98fb716b",
+      "sha256": "04a8e73676490d0b7956bfaaca1195b70c09ecf4c3ccb5a52a06166f93bbf6db",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -1230,6 +1275,15 @@
       "literal_controls": []
     },
     {
+      "source": "src/science/LocalGeometry.h",
+      "sha256": "9879e398cb19e817c0e7aa4c3cf6c60520bff567c7a94ae2895fae077e1c7f59",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
       "source": "src/science/Phonons.h",
       "sha256": "b65ad63ac4ad8abc0e6670bc0588f38a5e216816dd5f589990bc37dd30fd8008",
       "documentation": [
@@ -1312,7 +1366,7 @@
     },
     {
       "source": "src/science/ScienceTools.h",
-      "sha256": "dbc2ce7b6af846d4545eae7a451141a5b9392742d32aee196cc7fcf2d809be31",
+      "sha256": "f8f81a5a67c9a6c3fbdd6fbf1fa934f577f4abc2d5a8cadfbb4b3c2cdd32dc4e",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -1366,7 +1420,7 @@
     },
     {
       "source": "src/science/TrajectoryTools.h",
-      "sha256": "49571f07e03e6e5792a7e63f0a98e8265d22edf00daf4777f80f9741788c6b2e",
+      "sha256": "3848e34ea3205f28006e6e1a2ea53b2995cc49c8b46d96e8b0c7dfbb5ead30cd",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -3467,7 +3521,7 @@
     },
     {
       "source": "src/ui/Fonts.h",
-      "sha256": "7d019d6d1eccc76ee6ebeecc9be1e84b276afee8845b521b085468f1f1d1b29b",
+      "sha256": "7e15882d87751fd6c1eb4080bb352829a6039b6e0f048bf9a6086c5d992a3ef4",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3478,7 +3532,7 @@
     },
     {
       "source": "src/ui/ImGuiSetup.cpp",
-      "sha256": "d16018bbc9f3f2739126fff23e246674ed7df3f9ac430faecbaf8deb95f03e12",
+      "sha256": "db79d1a8b74a2a152f183dffc1ae3b33b1c68f288e1588119e99e8e0e4c80cec",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -4217,6 +4271,17 @@
       "literal_controls": []
     },
     {
+      "source": "src/ui/OverlayProjection.h",
+      "sha256": "d4e38c91876880068c91df793b8f929b3eb4e14d6e873f5ae21b049cf7076b52",
+      "documentation": [
+        "01-start.tex",
+        "04-analysis.tex",
+        "04-display-controls.tex",
+        "09-installation.tex"
+      ],
+      "literal_controls": []
+    },
+    {
       "source": "src/ui/PathField.cpp",
       "sha256": "326fb98025773f47e00970bb99a815f8ede88b2429bda66ec41ff3314f828f42",
       "documentation": [
@@ -4677,21 +4742,21 @@
     },
     {
       "source": "src/ui/ScientificToolsDialog.cpp",
-      "sha256": "157c94df9bef47753c5af94ebf62b8b651272cc44bf506bd4c6bedea3079c67e",
+      "sha256": "f714c085ef4d9f02b65945289fa817983a7a4bfd7465fae2f5cff7a11023bc27",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": [
         {
-          "line": 803,
+          "line": 807,
           "declaration_label": "Cell to keep"
         }
       ]
     },
     {
       "source": "src/ui/ScientificToolsDialog.h",
-      "sha256": "ff05c57f056b47cbe0f04f10cc76df3657cd6733b9b6a36c433375ccd7c7ab3c",
+      "sha256": "d35681e79a08b66f413076bcfa241a3baa1d55f932e30cce50c04dbde26ceb9c",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -4700,7 +4765,7 @@
     },
     {
       "source": "src/ui/ScientificToolsLayouts.cpp",
-      "sha256": "2628c17e8bad3b674bbb71c1d5eb36f2aa2826a6c7b86f66354ec0abef0c9e69",
+      "sha256": "e912b7d6198c88a72b43390b1595a7aa16093d58b106a6231144eff69407daf9",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -5127,7 +5192,7 @@
     },
     {
       "source": "src/ui/SurfaceMeshOverlay.cpp",
-      "sha256": "64810cc51cc188e4d52ce5af1b8ae9acb5726801226d2b852e8f41238c10a7c1",
+      "sha256": "09b8d196bf2e4f50e639bc5dab3f10f5dfb64c2a52ae1ccfdc7409de89dd95bc",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -5167,78 +5232,78 @@
     },
     {
       "source": "src/ui/TrajectoryDialog.cpp",
-      "sha256": "1e3875ca1657b1a0ee719150c227b1fbfaad3408b6960e3aa0996490e3e9b910",
+      "sha256": "232765566dc653b4edf5fe9a31e41b5b0998b60b06fe56633773c62b1653c9fe",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
       ],
       "literal_controls": [
         {
-          "line": 21,
+          "line": 22,
           "declaration_label": "Trajectory Playback"
         },
         {
-          "line": 137,
+          "line": 138,
           "declaration_label": "Open Trajectory"
         },
         {
-          "line": 141,
+          "line": 142,
           "declaration_label": "##lammpsTypes"
         },
         {
-          "line": 149,
+          "line": 150,
           "declaration_label": "Cancel"
         },
         {
-          "line": 160,
+          "line": 161,
           "declaration_label": "<##previous"
         },
         {
-          "line": 168,
+          "line": 169,
           "declaration_label": ">##next"
         },
         {
-          "line": 183,
+          "line": 184,
           "declaration_label": "##frame"
         },
         {
-          "line": 187,
+          "line": 188,
           "declaration_label": "##fps"
         },
         {
-          "line": 192,
+          "line": 193,
           "declaration_label": "Analyse every displayed frame"
         },
         {
-          "line": 194,
+          "line": 195,
           "declaration_label": "##frameanalysis"
         },
         {
-          "line": 202,
+          "line": 203,
           "declaration_label": "Neighbour cutoff (\\xc3\\x85)"
         },
         {
-          "line": 209,
+          "line": 210,
           "declaration_label": "Trace every Nth atom"
         },
         {
-          "line": 213,
+          "line": 214,
           "declaration_label": "Show trajectory lines"
         },
         {
-          "line": 215,
+          "line": 216,
           "declaration_label": "Whole path"
         },
         {
-          "line": 220,
+          "line": 221,
           "declaration_label": "##gifstride"
         },
         {
-          "line": 222,
+          "line": 223,
           "declaration_label": "Export GIF"
         },
         {
-          "line": 226,
+          "line": 227,
           "declaration_label": "Stop Export"
         }
       ]
@@ -5254,7 +5319,7 @@
     },
     {
       "source": "src/ui/TrajectoryLinesOverlay.cpp",
-      "sha256": "952e60b252a2bc0ffc779fd0ac297c16b5a36bed6eb57e88312f0171a4c4572d",
+      "sha256": "25bfade608cc2cd0f41099b3881ff8d67c8b7f37e9de7cef013086a56d693a63",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

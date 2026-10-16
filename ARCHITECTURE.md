@@ -81,18 +81,31 @@ to step *i* re-runs only steps *i* and later. `Pipeline::parse`/`toText` and
 editing state (input, list operations, cache invalidation, change detection);
 `ui/PipelineDialog` draws it and `cli/PipelineCLI` runs `AtomForge --pipe`.
 
-To add a modifier, add one entry to `modifierTypes()` in
-`src/pipeline/Modifiers.cpp`: id, title, category, help, parameters (name,
-label, kind, default, choices) and an apply function on `PipelineData`. The panel
-builds its editor from the parameter kinds, and the text syntax, files and
-command line accept it with no other change. Selection modifiers combine their
-mask with `select(data, mask, mode)`; modifiers that drop or copy atoms use
-`rebuild`/`replicate`-style helpers so per-atom metadata stays aligned.
-`tests/pipeline_regressions.cpp` covers every modifier.
+The built-in modifiers come in families: selection, editing and cell steps in
+`src/pipeline/Modifiers.cpp`, analysis, property, colouring and derived
+selection steps in `AnalysisSteps.cpp`, the Python-script step in
+`PythonScriptStep.cpp` and the scientific-tool steps generated from the catalog
+(`scienceStepTypes()`). `registry()` gathers them (families are declared in
+`PipelineSteps.h`) and keeps each category together for the menus. Shared
+helpers (parameter access, `rebuild`, `targets`, `select`, minimum images,
+expression evaluation) are in `ModifierSupport.h`.
+
+To add a modifier, add an entry to its family's list: id, title, category,
+help, parameters (name, label, kind, default, choices) and an apply function on
+`PipelineData`. The panel builds its editor from the parameter kinds, and the
+text syntax, files and command line accept it with no other change. Selection
+modifiers combine their mask with `select(data, mask, mode)`; modifiers that
+drop or copy atoms use `rebuild`/`replicate`-style helpers so per-atom metadata
+(property, frozen property, colours, regions) stays aligned. A new per-atom
+analysis for `compute-property` is one row of `propertyChoices()`
+(`AnalysisSteps.cpp`): the choice, the catalog tool, the property and,
+optionally, the element it is restricted to. `tests/pipeline_regressions.cpp`
+covers every modifier.
 
 The interface shares one look through `ui/ImGuiSetup.cpp` (light and dark
-palettes, spacing, fonts: a semibold heading face and, on Windows, icon glyphs
-declared in `ui/Fonts.h`) and `ui/DialogLayout.h` (section headings, callouts,
+palettes, spacing, fonts: a semibold heading face and the icon glyphs of
+`ui/Fonts.h`, a Codicons subset compiled into the application from
+`third_party/icons` so every platform shows the same icons) and `ui/DialogLayout.h` (section headings, callouts,
 help markers, primary/secondary/danger buttons, right-aligned footers, empty
 states); dialogs build on these rather than on literal colours or sizes.
 `ui/MainWindowChrome.cpp` draws the toolbar, status bar and welcome panel.
@@ -144,6 +157,14 @@ named function per tool:
 the catalog drives request validation, the CLI catalog, the batch runner and
 the desktop window. The registry test in `tests/science_tools_regressions.cpp`
 fails if a catalog tool has no runner or a table names an unknown tool.
+
+Analyses of a `Structure` (the desktop's colouring, `compute-property`, the
+trajectory tools) build their request with `perAtomRequest` (`ScienceTools.h`):
+the atoms, cell and periodic axes, the species for tools that take `types`, and
+the neighbour cutoff only for tools whose `cutoff_A` is required; the others
+choose their own range. Local-environment tools share the building blocks of
+`science/LocalGeometry.h` (reading atoms, neighbour lists, union-find,
+classification results with `addClassification`).
 
 Parameters of kind `structure` in the catalog are parsed as structures
 (`Parameters::structure(name)`), so a tool may name several structure inputs
