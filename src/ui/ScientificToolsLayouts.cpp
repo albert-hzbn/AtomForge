@@ -455,15 +455,15 @@ void ScientificToolsDialog::drawAtomLayout(const Structure& structure, const std
             drawPropertyControls(structure, colourAtoms);
             ImGui::Checkbox("Colour automatically after each analysis", &m_autoColour);
         }
-        drawSurfaceControls();
+        drawMeshControls();
         if (!m_result.plots.empty() && ImGui::CollapsingHeader("Plots", ImGuiTreeNodeFlags_DefaultOpen)) drawPlots(responsive::dp(260));
         drawSaveButtons(loadResult);
         drawDetails();
     }
 }
 
-// The surface mesh of a result, shown translucent over the structure.
-void ScientificToolsDialog::drawSurfaceControls()
+// A mesh of a result (surface, regions), shown translucent over the structure.
+void ScientificToolsDialog::drawMeshControls()
 {
     const auto found = std::find_if(m_result.files.begin(), m_result.files.end(), [](const auto& file) {
         return file.first.size() > 4 && file.first.compare(file.first.size() - 4, 4, ".obj") == 0;
@@ -471,14 +471,14 @@ void ScientificToolsDialog::drawSurfaceControls()
     SurfaceMeshOverlay& overlay = surfaceMeshOverlay();
     if (found == m_result.files.end()) return;
     ImGui::SeparatorText("Surface");
-    bool show = overlay.visible && m_surfaceFrom == m_result.output;
+    bool show = overlay.visible && m_meshFrom == m_result.output;
     const bool scripted = !show && uiScript::take("science.surface");
     if (scripted) show = true;
     if (ImGui::Checkbox(found->first == "surface.obj" ? "Show the surface in the view" : "Show the mesh in the view", &show) || scripted) {
-        if (show && m_surfaceFrom != m_result.output) {
+        if (show && m_meshFrom != m_result.output) {
             try {
                 overlay.vertices = trianglesFromObj(found->second);
-                m_surfaceFrom = m_result.output;
+                m_meshFrom = m_result.output;
             } catch (const std::exception& error) { m_error = error.what(); show = false; }
         }
         overlay.visible = show;

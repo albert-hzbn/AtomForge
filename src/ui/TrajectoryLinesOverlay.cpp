@@ -1,4 +1,5 @@
 #include "ui/TrajectoryLinesOverlay.h"
+#include "ui/OverlayProjection.h"
 
 #include "imgui.h"
 
@@ -29,17 +30,16 @@ void drawTrajectoryLinesOverlay(ImDrawList* drawList, const glm::mat4& projectio
         const float hue = std::fmod(static_cast<float>(p) * 0.61803399f, 1.0f);
         const ImU32 colour = ImColor::HSV(hue, 0.75f, 0.85f, 0.9f);
         screen.clear();
+        // A point behind the camera breaks the line.
+        const auto flush = [&] {
+            if (screen.size() > 1) drawList->AddPolyline(screen.data(), static_cast<int>(screen.size()), colour, ImDrawFlags_None, overlay.width);
+            screen.clear();
+        };
         for (std::size_t k = 0; k < std::min(count, path.size()); ++k) {
-            const glm::vec4 clip = viewProjection * glm::vec4(path[k], 1.0f);
-            if (clip.w <= 1e-6f) {
-                if (screen.size() > 1) drawList->AddPolyline(screen.data(), static_cast<int>(screen.size()), colour, ImDrawFlags_None, overlay.width);
-                screen.clear();
-                continue;
-            }
-            const glm::vec3 ndc = glm::vec3(clip) / clip.w;
-            screen.push_back(ImVec2((ndc.x * 0.5f + 0.5f) * static_cast<float>(framebufferWidth),
-                                    (1.0f - (ndc.y * 0.5f + 0.5f)) * static_cast<float>(framebufferHeight)));
+            ImVec2 point;
+            if (projectToView(viewProjection, path[k], framebufferWidth, framebufferHeight, point)) screen.push_back(point);
+            else flush();
         }
-        if (screen.size() > 1) drawList->AddPolyline(screen.data(), static_cast<int>(screen.size()), colour, ImDrawFlags_None, overlay.width);
+        flush();
     }
 }

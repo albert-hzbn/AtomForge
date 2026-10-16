@@ -1,4 +1,5 @@
 #include "ui/SurfaceMeshOverlay.h"
+#include "ui/OverlayProjection.h"
 
 #include "imgui.h"
 
@@ -57,14 +58,9 @@ void drawSurfaceMeshOverlay(ImDrawList* drawList, const glm::mat4& projection, c
         bool visible = true;
         glm::vec3 eye[3];
         for (int c = 0; c < 3; ++c) {
-            const glm::vec4 world(overlay.vertices[t + static_cast<std::size_t>(c)], 1.0f);
-            const glm::vec4 clip = viewProjection * world;
-            if (clip.w <= 1e-6f) { visible = false; break; }
-            const glm::vec3 ndc = glm::vec3(clip) / clip.w;
-            // The same screen mapping as the other overlays.
-            tri.corners[c] = ImVec2((ndc.x * 0.5f + 0.5f) * static_cast<float>(framebufferWidth),
-                                    (1.0f - (ndc.y * 0.5f + 0.5f)) * static_cast<float>(framebufferHeight));
-            eye[c] = glm::vec3(view * world);
+            const glm::vec3& world = overlay.vertices[t + static_cast<std::size_t>(c)];
+            if (!projectToView(viewProjection, world, framebufferWidth, framebufferHeight, tri.corners[c])) { visible = false; break; }
+            eye[c] = glm::vec3(view * glm::vec4(world, 1.0f));
         }
         if (!visible) continue;
         const glm::vec3 normal = glm::cross(eye[1] - eye[0], eye[2] - eye[0]);

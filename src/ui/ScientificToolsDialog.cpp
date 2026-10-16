@@ -56,35 +56,45 @@ std::vector<std::pair<std::string, std::string>> generatedFiles(const Json& resu
     return files;
 }
 
-// Large structures go through a file, avoiding a fixed-size text buffer.
-std::string saveActiveStructure(const Structure& structure)
+// Writes tool input from the view to a new file in the temporary folder of the
+// scientific tools (large inputs go through files, not a fixed-size text buffer).
+std::string saveInputFile(const std::string& kind, const std::string& text)
 {
     const auto root = std::filesystem::temp_directory_path() / "AtomForge-science";
     std::filesystem::create_directories(root);
-    const auto file = root / ("structure-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".json");
+    const auto file = root / (kind + "-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".json");
     std::ofstream output(file);
-    output << atomforge::science::structureJson(structure).dump();
-    if (!output) throw std::runtime_error("Cannot save active structure for analysis");
+    output << text;
+    if (!output) throw std::runtime_error("Cannot save the " + kind + " for analysis");
     return file.u8string();
+}
+
+std::string saveActiveStructure(const Structure& structure)
+{
+    return saveInputFile("structure", atomforge::science::structureJson(structure).dump());
 }
 
 // The view's per-atom property as a JSON list (NaN for atoms without a value).
 std::string saveActiveProperty(const Structure& structure)
 {
-    const auto root = std::filesystem::temp_directory_path() / "AtomForge-science";
-    std::filesystem::create_directories(root);
-    const auto file = root / ("property-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".json");
-    std::ofstream output(file);
-    output << std::setprecision(17) << '[';
+    std::ostringstream text;
+    text << std::setprecision(17) << '[';
     for (std::size_t i = 0; i < structure.atomProperty.size(); ++i) {
-        if (i) output << ',';
+        if (i) text << ',';
         const double value = structure.atomProperty[i];
-        if (std::isfinite(value)) output << value;
-        else output << "NaN";
+        if (std::isfinite(value)) text << value;
+        else text << "NaN";
     }
-    output << "]\n";
-    if (!output) throw std::runtime_error("Cannot save the per-atom property for analysis");
-    return file.u8string();
+    text << "]\n";
+    return saveInputFile("property", text.str());
+}
+
+// The atomic numbers of the view's atoms, for species inputs.
+std::string saveActiveSpecies(const Structure& structure)
+{
+    Json species = Json::array();
+    for (const auto& atom : structure.atoms) species.push(static_cast<double>(atom.atomicNumber));
+    return saveInputFile("species", species.dump());
 }
 
 // Index order of the desktop's interatomic-potential selector.
@@ -632,14 +642,8 @@ void ScientificToolsDialog::useActiveStructure(std::size_t index, const Structur
     // Species inputs take the atomic numbers of the same atoms.
     for (std::size_t j = 0; j < tool.parameters.size(); ++j)
         if (std::string(tool.parameters[j].name) == "types") {
-            Json species = Json::array();
-            for (const auto& atom : structure.atoms) species.push(static_cast<double>(atom.atomicNumber));
-            const auto root = std::filesystem::temp_directory_path() / "AtomForge-science";
-            std::filesystem::create_directories(root);
-            const auto file = root / ("species-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".json");
-            std::ofstream(file) << species.dump();
             auto& other = m_fields[j];
-            other.path = file.u8string();
+            other.path = saveActiveSpecies(structure);
             other.activeLabel = "Atomic numbers of the active structure";
             other.useFile = true;
             other.enabled = true;
