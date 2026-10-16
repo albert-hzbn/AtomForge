@@ -17,6 +17,16 @@ struct AtomProperty
 };
 
 std::vector<AtomProperty> perAtomProperties(const std::string& tool, const Json& result);
+
+// Names of properties that callers pick from a tool's several properties.
+namespace propertyName
+{
+inline constexpr const char* coordination = "Coordination";
+inline constexpr const char* voronoiCoordination = "Voronoi coordination";
+inline constexpr const char* orientationAngle = "Orientation angle (degrees)";
+inline constexpr const char* ptmOrdering =
+    "PTM ordering (0 none, 1 pure, 2 L1_0, 3 L1_2 minority, 4 L1_2 majority, 5 B2, 6 zincblende/wurtzite, 7 other)";
+}
 // Tool ids that report per-atom properties (for registry consistency checks).
 std::vector<std::string> toolsWithAtomProperties();
 

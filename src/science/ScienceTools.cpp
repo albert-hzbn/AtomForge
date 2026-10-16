@@ -320,7 +320,12 @@ ToolOutput runTool(const std::string& tool, const Json& request, const std::file
     return runner->second(p, base);
 }
 
-AtomProperty analysePerAtom(const Structure& structure, const std::string& tool, double cutoffA, const std::string& property)
+Pbc periodicAxes(const Structure& structure)
+{
+    return {structure.hasUnitCell && structure.pbc[0], structure.hasUnitCell && structure.pbc[1], structure.hasUnitCell && structure.pbc[2]};
+}
+
+Json atomsRequest(const Structure& structure, const Pbc& pbc)
 {
     Json positions = Json::array();
     for (const auto& atom : structure.atoms) positions.push(Json::array({atom.x, atom.y, atom.z}));
@@ -330,20 +335,41 @@ AtomProperty analysePerAtom(const Structure& structure, const std::string& tool,
         Json cell = Json::array();
         for (const auto& row : structure.cellVectors) cell.push(Json::array({row[0], row[1], row[2]}));
         request["cell"] = cell;
-        request["pbc"] = Json::array({structure.pbc[0], structure.pbc[1], structure.pbc[2]});
+        request["pbc"] = Json::array({pbc[0], pbc[1], pbc[2]});
     }
-    // Structure types pick their own cutoff in periodic cells.
-    const bool ownRange = tool == "ptm" || tool == "cna" || tool == "vorotop" || tool == "surface-mesh" || tool == "voronoi" || tool == "fcc-planar-faults" || tool == "chill-plus" || tool == "local-entropy" || tool == "elastic-strain";
-    if (!ownRange && ((tool != "structure-type" && tool != "diamond-structure") || !structure.hasUnitCell)) request["cutoff_A"] = cutoffA;
-    if (tool == "local-entropy" && !structure.hasUnitCell) request["local_density"] = true;
-    if (tool == "bond-order") request["degrees"] = Json::array({6});
+    return request;
+}
+
+Json perAtomRequest(const std::string& tool, const Structure& structure, const Pbc& pbc, double cutoffA)
+{
     const ScienceToolDef& def = definition(tool);
-    const bool takesTypes = std::any_of(def.parameters.begin(), def.parameters.end(), [](const auto& q) { return std::string(q.name) == "types"; });
-    if (takesTypes) {
+    const auto parameter = [&](const char* name) -> const ScienceParameterDef* {
+        for (const auto& candidate : def.parameters)
+            if (std::strcmp(candidate.name, name) == 0) return &candidate;
+        return nullptr;
+    };
+    Json request = atomsRequest(structure, pbc);
+    // The cutoff goes to tools that require one. Others keep their default or
+    // automatic range, except that the automatic range of the Ackland-Jones and
+    // diamond structure types comes from the cell, so open structures need it.
+    if (const ScienceParameterDef* cutoff = parameter("cutoff_A")) {
+        const bool automaticNeedsCell = tool == "structure-type" || tool == "diamond-structure";
+        if (cutoff->required || (automaticNeedsCell && !structure.hasUnitCell)) request["cutoff_A"] = cutoffA;
+    }
+    if (parameter("types")) {
         Json species = Json::array();
         for (const auto& atom : structure.atoms) species.push(static_cast<double>(atom.atomicNumber));
         request["types"] = species;
     }
+    // The global density needs a fully periodic cell.
+    if (parameter("local_density") && !(pbc[0] && pbc[1] && pbc[2])) request["local_density"] = true;
+    return request;
+}
+
+AtomProperty analysePerAtom(const Structure& structure, const std::string& tool, double cutoffA, const std::string& property)
+{
+    Json request = perAtomRequest(tool, structure, periodicAxes(structure), cutoffA);
+    if (tool == "bond-order") request["degrees"] = Json::array({6});  // the q6 property
     const auto properties = perAtomProperties(tool, runTool(tool, request).result);
     for (const auto& candidate : properties)
         if (property.empty() || candidate.name == property) return candidate;

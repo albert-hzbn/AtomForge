@@ -1,4 +1,5 @@
 #include "science/TemplateMatching.h"
+#include "science/LocalGeometry.h"
 #include "util/TaskControl.h"
 
 #include <Eigen/Dense>
@@ -397,11 +398,9 @@ std::vector<int> enabledKinds(const Parameters& p)
     return kinds;
 }
 
-struct Geometry
+// The atoms and the neighbour search radius.
+struct Geometry : AtomSet
 {
-    std::vector<Vec3> positions;
-    Mat3 cell{};
-    Pbc pbc{};
     double cutoff = 0;
     bool automatic = false;  // cutoff chosen here, so it may be widened
 };
@@ -409,24 +408,12 @@ struct Geometry
 Geometry geometry(const Parameters& p)
 {
     Geometry g;
-    g.positions = points(p.array("positions"), "positions");
-    g.pbc = p.pbc("pbc", {false, false, false});
-    if ((g.pbc[0] || g.pbc[1] || g.pbc[2]) && !p.has("cell")) throw std::runtime_error("Periodic analysis requires a cell");
-    g.cell = p.has("cell") ? cellMatrix(p.array("cell")) : identity();
+    static_cast<AtomSet&>(g) = readAtomSet(p);
     g.cutoff = p.number("cutoff_A", 0.0);
     if (g.cutoff < 0) throw std::runtime_error("cutoff_A must be nonnegative");
     if (g.cutoff == 0 && !g.positions.empty()) {
         // Automatic: 1.8 times the mean atomic spacing reaches the second bcc and diamond shells.
-        double volume = 0;
-        if (p.has("cell")) volume = cellVolume(g.cell);
-        else {
-            Vec3 low = g.positions[0], high = g.positions[0];
-            for (const auto& x : g.positions)
-                for (int d = 0; d < 3; ++d) { low[static_cast<std::size_t>(d)] = std::min(low[static_cast<std::size_t>(d)], x[static_cast<std::size_t>(d)]); high[static_cast<std::size_t>(d)] = std::max(high[static_cast<std::size_t>(d)], x[static_cast<std::size_t>(d)]); }
-            volume = 1;
-            for (int d = 0; d < 3; ++d) volume *= high[static_cast<std::size_t>(d)] - low[static_cast<std::size_t>(d)] + 2.0;
-        }
-        g.cutoff = 1.8 * std::cbrt(volume / static_cast<double>(g.positions.size()));
+        g.cutoff = 1.8 * meanAtomicSpacing(g);
         g.automatic = true;
     }
     return g;
@@ -541,30 +528,11 @@ double rmsdCutoffOf(const Parameters& p)
 
 Json quaternionJson(const Quat& q) { return Json::array({q.w(), q.x(), q.y(), q.z()}); }
 
-Json countsJson(const std::vector<int>& types, const std::vector<std::string>& names, Json& fractions)
-{
-    std::vector<int> counts(names.size(), 0);
-    for (int t : types) ++counts[static_cast<std::size_t>(t)];
-    Json result = Json::object();
-    fractions = Json::object();
-    for (std::size_t k = 0; k < names.size(); ++k) {
-        result[names[k]] = counts[k];
-        fractions[names[k]] = types.empty() ? 0.0 : static_cast<double>(counts[k]) / static_cast<double>(types.size());
-    }
-    return result;
-}
-
 std::vector<std::string> kindNames()
 {
     return std::vector<std::string>(kNames, kNames + KindCount);
 }
 
-// Union-find with path halving.
-std::size_t root(std::vector<std::size_t>& parent, std::size_t i)
-{
-    while (parent[i] != i) i = parent[i] = parent[parent[i]];
-    return i;
-}
 }
 
 Json polyhedralTemplateMatching(const Parameters& p)
@@ -588,13 +556,7 @@ Json polyhedralTemplateMatching(const Parameters& p)
         orientations.push(quaternionJson(q));
     }
     Json result = Json::object();
-    result["structure_type"] = toJson(types);
-    Json names = Json::array();
-    for (const auto& name : kindNames()) names.push(name);
-    result["type_names"] = names;
-    Json fractions;
-    result["counts"] = countsJson(types, kindNames(), fractions);
-    result["fractions"] = fractions;
+    addClassification(result, "structure_type", types, kindNames());
     result["rmsd"] = toJson(rmsd);
     result["orientation"] = orientations;
     result["orientation_angle_deg"] = toJson(angle);
@@ -641,12 +603,7 @@ Json polyhedralTemplateMatching(const Parameters& p)
             else if ((kind == CubicDiamond || kind == HexDiamond) && same.empty() && outerSame) order = 6;
             ordering[i] = order;
         }
-        Json orderFractions;
-        result["ordering"] = toJson(ordering);
-        Json orderJson = Json::array();
-        for (const auto& name : orderNames) orderJson.push(name);
-        result["ordering_names"] = orderJson;
-        result["ordering_counts"] = countsJson(ordering, orderNames, orderFractions);
+        addClassification(result, "ordering", ordering, orderNames, "ordering_");
     }
     return result;
 }
@@ -687,7 +644,7 @@ Json grainSegmentation(const Parameters& p)
     const auto meanOf = [&](std::size_t r) { Quat q; q.coeffs() = sum[r].normalized(); return q; };
     for (std::size_t e = 0; e < edges.size(); ++e) {
         if (e % 4096 == 0) taskCheckpoint();
-        std::size_t a = root(parent, edges[e].a), b = root(parent, edges[e].b);
+        std::size_t a = unionRoot(parent, edges[e].a), b = unionRoot(parent, edges[e].b);
         if (a == b) continue;
         const int kind = m.fits[edges[e].a].kind;
         const Quat qa = meanOf(a), qb = meanOf(b);
@@ -712,7 +669,7 @@ Json grainSegmentation(const Parameters& p)
     }
     std::map<std::size_t, std::vector<std::size_t>> clusters;
     for (std::size_t i = 0; i < n; ++i)
-        if (m.fits[i].kind != Other) clusters[root(parent, i)].push_back(i);
+        if (m.fits[i].kind != Other) clusters[unionRoot(parent, i)].push_back(i);
     std::vector<std::pair<std::size_t, std::vector<std::size_t>>> grains;
     for (auto& [r, members] : clusters)
         if (static_cast<long long>(members.size()) >= minimum) grains.push_back({r, std::move(members)});
@@ -865,18 +822,12 @@ Json fccPlanarFaults(const Parameters& p)
         else if (up == 3 && down == 3) fault[i] = 3;
         else fault[i] = 4;
     }
-    Json fractions;
-    Json counts = countsJson(fault, names, fractions);
     std::vector<long long> count(names.size(), 0);
     for (int f : fault) ++count[static_cast<std::size_t>(f)];
     const double d = spacingCount ? spacing / static_cast<double>(spacingCount) : kNaN;
     const double areaPerAtom = std::sqrt(3.0) / 2 * d * d;  // one atom of a close-packed plane
     Json result = Json::object();
-    result["fault_type"] = toJson(fault);
-    Json typeNames = Json::array();
-    for (const auto& name : names) typeNames.push(name);
-    result["type_names"] = typeNames;
-    result["counts"] = counts;
+    addClassification(result, "fault_type", fault, names);
     result["nearest_neighbor_distance_A"] = d;
     // An intrinsic stacking fault is two hcp planes, a twin boundary one.
     result["stacking_fault_area_A2"] = static_cast<double>(count[1]) / 2 * areaPerAtom;

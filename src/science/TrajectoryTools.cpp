@@ -208,22 +208,7 @@ Json timeSeries(const Parameters& p)
         volume.push_back(v);
         density.push_back(s.hasUnitCell ? static_cast<double>(s.atoms.size()) / v : kNaN);
         if (tool == "none") continue;
-        // The same request as the per-atom analysis of the view.
-        Json request = Json::object();
-        Json positions = Json::array();
-        for (const auto& a : s.atoms) positions.push(Json::array({a.x, a.y, a.z}));
-        request["positions"] = positions;
-        if (s.hasUnitCell) {
-            Json cell = Json::array();
-            for (const auto& row : s.cellVectors) cell.push(Json::array({row[0], row[1], row[2]}));
-            request["cell"] = cell;
-            request["pbc"] = Json::array({frame.pbc[0], frame.pbc[1], frame.pbc[2]});
-        }
-        const bool ownRange = tool == "ptm" || tool == "cna" || tool == "voronoi" || tool == "structure-type" || tool == "diamond-structure" ||
-                              tool == "chill-plus" || tool == "local-entropy" || tool == "fcc-planar-faults";
-        if (!ownRange) request["cutoff_A"] = cutoff;
-        if (tool == "local-entropy" && !(frame.pbc[0] && frame.pbc[1] && frame.pbc[2])) request["local_density"] = true;
-        const Json result = runTool(tool, request).result;
+        const Json result = runTool(tool, perAtomRequest(tool, s, frame.pbc, cutoff)).result;
         if (const Json* c = result.find("counts"); c && c->isObject()) {
             for (const auto& [name, value] : c->members()) {
                 if (!counts.count(name)) { counts[name] = std::vector<double>(step, kNaN); countOrder.push_back(name); }
@@ -265,22 +250,7 @@ namespace
 // The first (or named) per-atom property of an analysis of one frame.
 std::vector<double> analyseFrameProperty(const FrameData& frame, const std::string& tool, const std::string& wanted, double cutoff, std::string& name)
 {
-    const Structure& s = frame.structure;
-    Json request = Json::object();
-    Json positions = Json::array();
-    for (const auto& a : s.atoms) positions.push(Json::array({a.x, a.y, a.z}));
-    request["positions"] = positions;
-    if (s.hasUnitCell) {
-        Json cell = Json::array();
-        for (const auto& row : s.cellVectors) cell.push(Json::array({row[0], row[1], row[2]}));
-        request["cell"] = cell;
-        request["pbc"] = Json::array({frame.pbc[0], frame.pbc[1], frame.pbc[2]});
-    }
-    const bool ownRange = tool == "ptm" || tool == "cna" || tool == "voronoi" || tool == "vorotop" || tool == "structure-type" ||
-                          tool == "diamond-structure" || tool == "chill-plus" || tool == "local-entropy" || tool == "fcc-planar-faults";
-    if (!ownRange) request["cutoff_A"] = cutoff;
-    if (tool == "local-entropy" && !(frame.pbc[0] && frame.pbc[1] && frame.pbc[2])) request["local_density"] = true;
-    for (const auto& property : perAtomProperties(tool, runTool(tool, request).result))
+    for (const auto& property : perAtomProperties(tool, runTool(tool, perAtomRequest(tool, frame.structure, frame.pbc, cutoff)).result))
         if (wanted.empty() || property.name == wanted) { name = property.name; return property.values; }
     throw std::runtime_error(tool + (wanted.empty() ? " gives no per-atom property" : " has no property " + wanted));
 }

@@ -24,6 +24,7 @@ add_library(atomforge_science STATIC
     ${PROJECT_SOURCE_DIR}/src/science/Symmetry.cpp
     ${PROJECT_SOURCE_DIR}/src/science/Workflows.cpp
     ${PROJECT_SOURCE_DIR}/src/science/TrajectoryStructure.cpp
+    ${PROJECT_SOURCE_DIR}/src/science/LocalGeometry.cpp
     ${PROJECT_SOURCE_DIR}/src/science/TemplateMatching.cpp
     ${PROJECT_SOURCE_DIR}/src/science/LocalEnvironment.cpp
     ${PROJECT_SOURCE_DIR}/src/science/PropertyAnalysis.cpp
@@ -34,6 +35,9 @@ add_library(atomforge_science STATIC
     # Non-destructive structure-editing pipeline (modifiers, expressions, text syntax).
     ${PROJECT_SOURCE_DIR}/src/pipeline/Pipeline.cpp
     ${PROJECT_SOURCE_DIR}/src/pipeline/Modifiers.cpp
+    ${PROJECT_SOURCE_DIR}/src/pipeline/ModifierSupport.cpp
+    ${PROJECT_SOURCE_DIR}/src/pipeline/AnalysisSteps.cpp
+    ${PROJECT_SOURCE_DIR}/src/pipeline/PythonScriptStep.cpp
     ${PROJECT_SOURCE_DIR}/src/pipeline/Expression.cpp
     ${PROJECT_SOURCE_DIR}/src/pipeline/PipelineEditor.cpp
     # Out-of-core atom clouds (billions of atoms) for the large-data renderer.

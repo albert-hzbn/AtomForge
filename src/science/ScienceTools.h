@@ -13,6 +13,17 @@ namespace atomforge::science
 // catalog; data references are resolved relative to the base directory.
 ToolOutput runTool(const std::string& tool, const Json& request, const std::filesystem::path& base = ".",
                    const StructureReader& reader = {});
+// Periodic axes of a structure: none without a cell.
+Pbc periodicAxes(const Structure& structure);
+
+// Positions, cell and periodic axes of a structure as tool parameters.
+Json atomsRequest(const Structure& structure, const Pbc& pbc);
+
+// The request of a per-atom analysis of a structure: its atoms, the species
+// for tools that take them, and the neighbour cutoff only for tools that need
+// one; tools with their own default or automatic range choose it themselves.
+Json perAtomRequest(const std::string& tool, const Structure& structure, const Pbc& pbc, double cutoffA);
+
 // Per-atom analysis of one structure through a catalog tool that reports
 // per-atom properties (structure-type, centrosymmetry, bond-order, ...); returns
 // the property named `property` (the first one when empty).

@@ -1,4 +1,5 @@
 #include "science/LocalEnvironment.h"
+#include "science/LocalGeometry.h"
 #include "util/TaskControl.h"
 
 #include <algorithm>
@@ -18,63 +19,15 @@ namespace
 const double kPi = std::acos(-1.0);
 const double kNaN = std::numeric_limits<double>::quiet_NaN();
 
-struct Atoms
-{
-    std::vector<Vec3> positions;
-    Mat3 cell{};
-    Pbc pbc{};
-};
-
-Atoms atomsOf(const Parameters& p)
-{
-    Atoms a;
-    a.positions = points(p.array("positions"), "positions");
-    a.pbc = p.pbc("pbc", {false, false, false});
-    if ((a.pbc[0] || a.pbc[1] || a.pbc[2]) && !p.has("cell")) throw std::runtime_error("Periodic analysis requires a cell");
-    a.cell = p.has("cell") ? cellMatrix(p.array("cell")) : identity();
-    return a;
-}
-
-std::vector<std::vector<std::size_t>> byCenter(const std::vector<Neighbor>& neighbors, std::size_t count)
-{
-    std::vector<std::vector<std::size_t>> result(count);
-    for (std::size_t n = 0; n < neighbors.size(); ++n) result[static_cast<std::size_t>(neighbors[n].i)].push_back(n);
-    return result;
-}
-
-// Orthonormal associated Legendre factor of Y_lm (Condon-Shortley phase).
-double legendre(int l, int m, double x)
-{
-    double pmm = 1.0;
-    if (m > 0) {
-        const double omx2 = (1.0 - x) * (1.0 + x);
-        double fact = 1.0;
-        for (int i = 1; i <= m; ++i) { pmm *= omx2 * fact / (fact + 1.0); fact += 2.0; }
-    }
-    pmm = std::sqrt((2 * m + 1) * pmm / (4 * kPi));
-    if (m & 1) pmm = -pmm;
-    if (l == m) return pmm;
-    double pmmp1 = x * std::sqrt(2.0 * m + 3.0) * pmm;
-    if (l == m + 1) return pmmp1;
-    double oldFactor = std::sqrt(2.0 * m + 3.0), pll = 0;
-    for (int ll = m + 2; ll <= l; ++ll) {
-        const double factor = std::sqrt((4.0 * ll * ll - 1.0) / (static_cast<double>(ll) * ll - static_cast<double>(m) * m));
-        pll = (x * pmmp1 - pmm / oldFactor) * factor;
-        oldFactor = factor;
-        pmm = pmmp1;
-        pmmp1 = pll;
-    }
-    return pll;
-}
 
 }
 
 Json chillPlus(const Parameters& p)
 {
-    const Atoms a = atomsOf(p);
+    const AtomSet a = readAtomSet(p);
     const double cutoff = positive(p.number("cutoff_A", 3.5), "cutoff_A");
     const auto neighbors = neighborList(a.positions, a.cell, a.pbc, cutoff);
-    const auto groups = byCenter(neighbors, a.positions.size());
+    const auto groups = neighborsByCenter(neighbors, a.positions.size());
     const std::size_t n = a.positions.size();
     // q_3m for m = 0..3 (negative m follow by symmetry).
     std::vector<std::array<std::complex<double>, 4>> q(n);
@@ -85,7 +38,7 @@ Json chillPlus(const Parameters& p)
             const double r = norm(v);
             if (r < 1e-10) throw std::runtime_error("Coincident atoms make Chill+ undefined");
             const double cosine = std::clamp(v[2] / r, -1.0, 1.0), azimuth = std::atan2(v[1], v[0]);
-            for (int m = 0; m <= 3; ++m) q[i][static_cast<std::size_t>(m)] += legendre(3, m, cosine) * std::polar(1.0, m * azimuth);
+            for (int m = 0; m <= 3; ++m) q[i][static_cast<std::size_t>(m)] += normalizedLegendre(3, m, cosine) * std::polar(1.0, m * azimuth);
         }
     }
     const auto correlation = [&](std::size_t i, std::size_t j) {
@@ -117,16 +70,8 @@ Json chillPlus(const Parameters& p)
         else if (staggered == 3 && eclipsed == 1) type[i] = 1;
         else if (staggered == 3 || staggered == 2) type[i] = 3;
     }
-    std::vector<long long> counts(names.size(), 0);
-    for (int t : type) ++counts[static_cast<std::size_t>(t)];
-    Json result = Json::object(), countJson = Json::object(), typeNames = Json::array();
-    for (std::size_t t = 0; t < names.size(); ++t) {
-        countJson[names[t]] = static_cast<double>(counts[t]);
-        typeNames.push(names[t]);
-    }
-    result["chill_type"] = toJson(type);
-    result["type_names"] = typeNames;
-    result["counts"] = countJson;
+    Json result = Json::object();
+    addClassification(result, "chill_type", type, names);
     result["staggered_bonds"] = toJson(staggeredCount);
     result["eclipsed_bonds"] = toJson(eclipsedCount);
     result["cutoff_A"] = cutoff;
@@ -135,7 +80,7 @@ Json chillPlus(const Parameters& p)
 
 Json localEntropy(const Parameters& p)
 {
-    const Atoms a = atomsOf(p);
+    const AtomSet a = readAtomSet(p);
     const double cutoff = positive(p.number("cutoff_A", 5.0), "cutoff_A");
     const double sigma = positive(p.number("sigma_A", 0.2), "sigma_A");
     const bool localDensity = p.boolean("local_density", false);
@@ -148,7 +93,7 @@ Json localEntropy(const Parameters& p)
     if (!localDensity && !std::isfinite(globalDensity))
         throw std::runtime_error("The global density needs a fully periodic cell; set local_density for other systems");
     const auto neighbors = neighborList(a.positions, a.cell, a.pbc, std::max(cutoff + 3 * sigma, averageCutoff));
-    const auto groups = byCenter(neighbors, n);
+    const auto groups = neighborsByCenter(neighbors, n);
     // Radial grid for the integral, from dr/2 to the cutoff.
     const double dr = sigma / 10;
     const std::size_t bins = static_cast<std::size_t>(std::ceil(cutoff / dr));
@@ -210,7 +155,7 @@ Json localEntropy(const Parameters& p)
 
 Json findRings(const Parameters& p)
 {
-    const Atoms a = atomsOf(p);
+    const AtomSet a = readAtomSet(p);
     const double cutoff = positive(p.number("cutoff_A", 2.0), "cutoff_A");
     const long long maxSize = integer(p.number("max_size", 10), "max_size", 3);
     if (maxSize > 24) throw std::runtime_error("max_size must be at most 24");
@@ -376,7 +321,7 @@ Json displacementVectors(const Parameters& p)
 
 Json bondDistributions(const Parameters& p)
 {
-    const Atoms a = atomsOf(p);
+    const AtomSet a = readAtomSet(p);
     const std::size_t n = a.positions.size();
     const double cutoff = positive(p.number("cutoff_A"), "cutoff_A");
     const long long bins = integer(p.number("bins", 100), "bins", 4);
@@ -386,7 +331,7 @@ Json bondDistributions(const Parameters& p)
         if (species.size() != n) throw std::runtime_error("types needs one value per atom");
     }
     const auto neighbors = neighborList(a.positions, a.cell, a.pbc, cutoff);
-    const auto groups = byCenter(neighbors, n);
+    const auto groups = neighborsByCenter(neighbors, n);
     const auto name = [](double t) {
         const long long z = std::llround(t);
         return std::to_string(z);
@@ -397,8 +342,7 @@ Json bondDistributions(const Parameters& p)
     std::vector<double> bondLengths;
     long long bondCount = 0, angleCount = 0;
     for (const auto& link : neighbors) {
-        // Each bond once (an atom bonded to its own periodic image: one of the two shifts).
-        if (link.j < link.i || (link.j == link.i && link.shift < std::array<int, 3>{0, 0, 0})) continue;
+        if (!firstOfPair(link)) continue;  // each bond once
         const double r = norm(link.vector);
         if (r <= 0) continue;
         const std::size_t b = std::min(static_cast<std::size_t>(bins - 1), static_cast<std::size_t>(r / lengthWidth));

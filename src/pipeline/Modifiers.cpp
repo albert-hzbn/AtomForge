@@ -4,6 +4,8 @@
 #include "algorithms/InterstitialVoidAnalysis.h"
 #include "pipeline/Expression.h"
 #include "pipeline/Pipeline.h"
+#include "pipeline/ModifierSupport.h"
+#include "pipeline/PipelineSteps.h"
 #include "science/ScienceCatalog.h"
 #include "science/ScienceCore.h"
 #include "science/ScienceData.h"
@@ -29,112 +31,7 @@ namespace
 using science::Mat3;
 using science::Vec3;
 
-// ---------------------------------------------------------------- parameter access
-const ModifierType& self(const char* id) { return *findModifierType(id); }
-double number(const Json& p, const char* id, const char* name) { return parameter(p, self(id), name).number(); }
-bool flag(const Json& p, const char* id, const char* name) { return parameter(p, self(id), name).boolean(); }
-std::string text(const Json& p, const char* id, const char* name) { return parameter(p, self(id), name).string(); }
-Vec3 vector(const Json& p, const char* id, const char* name)
-{
-    const Json v = parameter(p, self(id), name);
-    return {v.items()[0].number(), v.items()[1].number(), v.items()[2].number()};
-}
-
-Mat3 cellOf(const Structure& s) { Mat3 m{}; for (int r = 0; r < 3; ++r) m[r] = s.cellVectors[r]; return m; }
-Vec3 positionOf(const AtomSite& a) { return {a.x, a.y, a.z}; }
-void place(AtomSite& a, const Vec3& x) { a.x = x[0]; a.y = x[1]; a.z = x[2]; }
-
-void requireCell(const PipelineData& data, const char* what)
-{
-    if (!data.structure.hasUnitCell) throw std::runtime_error(std::string(what) + " needs a structure with a unit cell");
-}
-
-// Keeps atoms by index (in the given order), carrying aligned per-atom metadata.
-void rebuild(PipelineData& data, const std::vector<std::size_t>& keep)
-{
-    Structure& s = data.structure;
-    const std::size_t n = s.atoms.size();
-    Structure out = s;
-    out.atoms.clear();
-    out.grainColors.clear();
-    out.grainRegionIds.clear();
-    out.atomProperty.clear();
-    out.frozenProperty.clear();
-    std::vector<char> selected;
-    for (std::size_t i : keep) {
-        out.atoms.push_back(s.atoms[i]);
-        if (s.grainColors.size() == n) out.grainColors.push_back(s.grainColors[i]);
-        if (s.grainRegionIds.size() == n) out.grainRegionIds.push_back(s.grainRegionIds[i]);
-        if (s.atomProperty.size() == n) out.atomProperty.push_back(s.atomProperty[i]);
-        if (s.frozenProperty.size() == n) out.frozenProperty.push_back(s.frozenProperty[i]);
-        selected.push_back(i < data.selected.size() ? data.selected[i] : 0);
-    }
-    out.dislocationLoopPoints.clear();
-    out.dislocationDetectionDone = false;
-    data.structure = std::move(out);
-    data.selected = std::move(selected);
-}
-
-// Indices the operation applies to: the selection, or every atom.
-std::vector<std::size_t> targets(const PipelineData& data, bool selectedOnly, const char* what)
-{
-    std::vector<std::size_t> out;
-    for (std::size_t i = 0; i < data.structure.atoms.size(); ++i)
-        if (!selectedOnly || data.selected[i]) out.push_back(i);
-    if (selectedOnly && out.empty()) throw std::runtime_error(std::string(what) + ": no atoms are selected; add a selection modifier above");
-    return out;
-}
-
-// Combines a new selection with the current one.
-void select(PipelineData& data, const std::vector<char>& mask, const std::string& mode)
-{
-    for (std::size_t i = 0; i < mask.size(); ++i) {
-        char& s = data.selected[i];
-        if (mode == "replace") s = mask[i];
-        else if (mode == "add") s = s || mask[i];
-        else if (mode == "subtract") s = s && !mask[i];
-        else s = s && mask[i];  // intersect
-    }
-    data.notes.push_back(std::to_string(data.selectedCount()) + " of " + std::to_string(mask.size()) + " atoms selected");
-}
-
-// Periodic axes of the structure (none without a cell).
-science::Pbc pbcOf(const Structure& s)
-{
-    return {s.hasUnitCell && s.pbc[0], s.hasUnitCell && s.pbc[1], s.hasUnitCell && s.pbc[2]};
-}
-
-Json pbcJson(const Structure& s)
-{
-    const science::Pbc p = pbcOf(s);
-    return Json::array({p[0], p[1], p[2]});
-}
-
-Vec3 minimumImage(const Structure& s, Vec3 d)
-{
-    if (!s.hasUnitCell) return d;
-    const Mat3 cell = cellOf(s);
-    Vec3 f = science::fractional(d, cell);
-    for (std::size_t k = 0; k < 3; ++k)
-        if (s.pbc[k]) f[k] -= std::round(f[k]);
-    return science::rowTimes(f, cell);
-}
-
-const char* kModes = "replace|add|subtract|intersect";
-#define MODE {"mode", "Combine with the current selection", "choice", "replace", kModes}
-
-// An element symbol in any case ("cu", "CU" -> "Cu"); throws for an unknown one.
-std::string standardElement(const std::string& name)
-{
-    std::string lower = name;
-    for (char& c : lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    for (int z = 1; z <= 118; ++z) {
-        std::string symbol = elementSymbol(z);
-        for (char& c : symbol) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        if (symbol == lower) return elementSymbol(z);
-    }
-    throw std::runtime_error("Unknown element " + name);
-}
+using namespace support;
 
 // ---------------------------------------------------------------- selection
 void selectElement(const Json& p, PipelineData& data)
@@ -151,33 +48,6 @@ void selectElement(const Json& p, PipelineData& data)
     select(data, mask, text(p, "select-element", "mode"));
 }
 
-// The value of an expression for every atom.
-std::vector<double> evaluateForAtoms(const Expression& expression, const PipelineData& data)
-{
-    const Structure& s = data.structure;
-    const Mat3 inv = s.hasUnitCell ? science::inverse(cellOf(s)) : Mat3{};
-    std::vector<double> values(s.atoms.size());
-    AtomVariables v;
-    v.count = static_cast<double>(s.atoms.size());
-    for (std::size_t i = 0; i < s.atoms.size(); ++i) {
-        const AtomSite& a = s.atoms[i];
-        v.x = a.x; v.y = a.y; v.z = a.z;
-        if (s.hasUnitCell) {
-            const Vec3 f = science::rowTimes(positionOf(a), inv);
-            v.fx = f[0]; v.fy = f[1]; v.fz = f[2];
-        }
-        v.index = static_cast<double>(i);
-        v.property = s.atomProperty.size() == s.atoms.size() ? s.atomProperty[i] : std::numeric_limits<double>::quiet_NaN();
-        v.frozen = s.frozenProperty.size() == s.atoms.size() ? s.frozenProperty[i] : std::numeric_limits<double>::quiet_NaN();
-        v.selected = data.selected[i] ? 1 : 0;
-        v.atomicNumber = a.atomicNumber;
-        v.fixed = static_cast<double>((a.fixed & 1) + ((a.fixed >> 1) & 1) + ((a.fixed >> 2) & 1));
-        v.element = a.symbol;
-        values[i] = expression.evaluate(v);
-    }
-    return values;
-}
-
 void selectExpression(const Json& p, PipelineData& data)
 {
     const Expression expression(text(p, "select-expression", "expression"));
@@ -185,68 +55,6 @@ void selectExpression(const Json& p, PipelineData& data)
     std::vector<char> mask(values.size(), 0);
     for (std::size_t i = 0; i < values.size(); ++i) mask[i] = values[i] != 0;
     select(data, mask, text(p, "select-expression", "mode"));
-}
-
-// Atoms on the surface of the solid: those a probe sphere touches.
-void selectSurface(const Json& p, PipelineData& data)
-{
-    Json request = Json::object();
-    Json positions = Json::array();
-    for (const auto& a : data.structure.atoms) positions.push(Json::array({a.x, a.y, a.z}));
-    request["positions"] = positions;
-    if (data.structure.hasUnitCell) {
-        Json cell = Json::array();
-        for (const auto& row : data.structure.cellVectors) cell.push(Json::array({row[0], row[1], row[2]}));
-        request["cell"] = cell;
-        request["pbc"] = pbcJson(data.structure);
-    }
-    request["probe_radius_A"] = number(p, "select-surface", "probe_radius");
-    request["export_mesh"] = false;
-    const Json result = science::runTool("surface-mesh", request).result;
-    std::vector<char> mask;
-    for (const auto& flag : result.at("surface_atom").items()) mask.push_back(flag.boolean() ? 1 : 0);
-    char note[160];
-    std::snprintf(note, sizeof note, "Surface area %.6g A^2, solid volume %.6g A^3", result.at("surface_area_A2").number(), result.at("solid_volume_A3").number());
-    data.notes.push_back(note);
-    select(data, mask, text(p, "select-surface", "mode"));
-}
-
-Json atomsRequest(const Structure& s);  // positions, cell and periodicity as a tool request
-
-// Atoms inside LAMMPS regions (region commands, ';' between them).
-void selectRegion(const Json& p, PipelineData& data)
-{
-    Json request = atomsRequest(data.structure);
-    request["regions"] = text(p, "select-region", "regions");
-    request["lattice_scale"] = number(p, "select-region", "lattice_scale");
-    request["export_mesh"] = false;
-    const Json result = science::runTool("lammps-regions", request).result;
-    std::vector<char> mask;
-    for (const auto& flag : result.at("inside_any").items()) mask.push_back(flag.boolean() ? 1 : 0);
-    select(data, mask, text(p, "select-region", "mode"));
-}
-
-// Pairs of atoms closer than a distance: both atoms, or only the later one
-// of each pair (so deleting the selection keeps one atom per overlap).
-void selectOverlapping(const Json& p, PipelineData& data)
-{
-    const double distance = number(p, "select-overlapping", "distance");
-    if (!(distance > 0)) throw std::runtime_error("select-overlapping needs a positive distance");
-    const bool both = text(p, "select-overlapping", "atoms") == "both";
-    const Structure& s = data.structure;
-    std::vector<Vec3> positions;
-    for (const auto& a : s.atoms) positions.push_back(positionOf(a));
-    const science::Pbc pbc = pbcOf(s);
-    std::vector<char> mask(s.atoms.size(), 0);
-    std::size_t pairs = 0;
-    for (const auto& n : science::neighborList(positions, s.hasUnitCell ? cellOf(s) : science::identity(), pbc, distance)) {
-        if (n.i >= n.j) continue;  // each pair once; skips an atom's own periodic images
-        ++pairs;
-        mask[static_cast<std::size_t>(n.j)] = 1;
-        if (both) mask[static_cast<std::size_t>(n.i)] = 1;
-    }
-    data.notes.push_back(std::to_string(pairs) + " overlapping pairs");
-    select(data, mask, text(p, "select-overlapping", "mode"));
 }
 
 void selectSlab(const Json& p, PipelineData& data)
@@ -314,7 +122,7 @@ void expandSelection(const Json& p, PipelineData& data)
     const Structure& s = data.structure;
     std::vector<Vec3> positions;
     for (const auto& a : s.atoms) positions.push_back(positionOf(a));
-    const science::Pbc pbc = pbcOf(s);
+    const science::Pbc pbc = science::periodicAxes(s);
     auto neighbours = science::neighborList(positions, s.hasUnitCell ? cellOf(s) : science::identity(), pbc, cutoff);
     if (nearest > 0) {
         // Only each atom's N nearest neighbours within the cutoff.
@@ -676,7 +484,7 @@ bool scalarKind(const std::string& kind) { return kind == "float" || kind == "in
 void runScienceStep(const ScienceStep& step, const Json& p, PipelineData& data)
 {
     const ::ScienceToolDef* tool = ::findScienceTool(step.tool);
-    const ModifierType& type = self(step.id);
+    const ModifierType& type = *findModifierType(step.id);
     Json request = Json::object();
     for (const auto& definition : tool->parameters) {
         const std::string kind = definition.kind;
@@ -823,143 +631,6 @@ void addVacuum(const Json& p, PipelineData& data)
         for (auto& a : data.structure.atoms) place(a, science::add(positionOf(a), science::scale(direction, 0.5 * thickness)));
 }
 
-// Positions, cell and periodicity of the structure as a tool request.
-Json atomsRequest(const Structure& s)
-{
-    Json positions = Json::array();
-    for (const auto& a : s.atoms) positions.push(Json::array({a.x, a.y, a.z}));
-    Json request = Json::object();
-    request["positions"] = positions;
-    if (s.hasUnitCell) {
-        Json cell = Json::array();
-        for (const auto& row : s.cellVectors) cell.push(Json::array({row[0], row[1], row[2]}));
-        request["cell"] = cell;
-        request["pbc"] = pbcJson(s);
-    }
-    return request;
-}
-
-void setProperty(PipelineData& data, std::vector<double> values, const std::string& name)
-{
-    data.structure.atomProperty = std::move(values);
-    data.structure.atomPropertyName = name;
-    std::size_t valid = 0;
-    for (double v : data.structure.atomProperty) valid += std::isfinite(v);
-    data.notes.push_back(name + " computed for " + std::to_string(valid) + " of " + std::to_string(data.structure.atomProperty.size()) + " atoms");
-}
-
-std::vector<double> numbersOf(const Json& list)
-{
-    std::vector<double> out;
-    for (const auto& item : list.items()) out.push_back(item.isNumber() ? item.number() : std::numeric_limits<double>::quiet_NaN());
-    return out;
-}
-
-// Elastic strain relative to an ideal lattice (polyhedral template matching).
-void elasticStrainStep(const Json& p, PipelineData& data)
-{
-    Json request = atomsRequest(data.structure);
-    request["lattice"] = text(p, "elastic-strain", "lattice");
-    request["lattice_constant_A"] = number(p, "elastic-strain", "a");
-    request["c_over_a"] = number(p, "elastic-strain", "c_over_a");
-    const Json result = science::runTool("elastic-strain", request).result;
-    const std::string component = text(p, "elastic-strain", "component");
-    if (component == "volumetric") { setProperty(data, numbersOf(result.at("volumetric_strain")), "Volumetric elastic strain"); return; }
-    if (component == "shear") { setProperty(data, numbersOf(result.at("shear_strain")), "Von Mises elastic shear strain"); return; }
-    static const char* names[] = {"xx", "yy", "zz", "yz", "xz", "xy"};
-    const std::size_t c = static_cast<std::size_t>(std::find(names, names + 6, component) - names);
-    std::vector<double> values;
-    for (const auto& row : result.at("strain_voigt").items()) values.push_back(row.items()[c].isNumber() ? row.items()[c].number() : std::numeric_limits<double>::quiet_NaN());
-    setProperty(data, values, "Elastic strain " + component);
-}
-
-// Displacements from a reference structure file (same atoms, same order).
-void displacementStep(const Json& p, PipelineData& data)
-{
-    const std::string file = text(p, "displacements", "reference");
-    if (file.empty()) throw std::runtime_error("Choose the reference structure file");
-    const Structure reference = science::readFrames(std::filesystem::u8path(file)).front().structure;
-    const Structure& s = data.structure;
-    if (reference.atoms.size() != s.atoms.size())
-        throw std::runtime_error("The reference has " + std::to_string(reference.atoms.size()) + " atoms, the structure " + std::to_string(s.atoms.size()));
-    Json request = Json::object();
-    Json current = atomsRequest(s).at("positions");
-    request["reference"] = atomsRequest(reference).at("positions");
-    request["current"] = current;
-    const std::string mapping = text(p, "displacements", "affine_mapping");
-    if (reference.hasUnitCell) {
-        request["reference_cell"] = atomsRequest(reference).at("cell");
-        request["pbc"] = pbcJson(reference);
-        if (s.hasUnitCell) request["current_cell"] = atomsRequest(s).at("cell");
-    }
-    if (mapping != "off") request["affine_mapping"] = mapping;
-    const Json result = science::runTool("displacements", request).result;
-    const std::string component = text(p, "displacements", "component");
-    if (component == "magnitude") { setProperty(data, numbersOf(result.at("magnitude_A")), "Displacement magnitude (A)"); return; }
-    const std::size_t c = component == "x" ? 0 : component == "y" ? 1 : 2;
-    std::vector<double> values;
-    for (const auto& row : result.at("displacement_A").items()) values.push_back(row.items()[c].number());
-    setProperty(data, values, "Displacement " + component + " (A)");
-}
-
-// Statistics of the per-atom property (OVITO's Reduce property), as notes.
-void reduceProperty(const Json& p, PipelineData& data)
-{
-    const Structure& s = data.structure;
-    if (s.atomProperty.size() != s.atoms.size() || s.atoms.empty()) throw std::runtime_error("reduce-property needs a per-atom property; add compute-property above");
-    const bool selectedOnly = text(p, "reduce-property", "target") == "selected";
-    std::vector<double> values;
-    for (std::size_t i = 0; i < s.atoms.size(); ++i)
-        if ((!selectedOnly || data.selected[i]) && std::isfinite(s.atomProperty[i])) values.push_back(s.atomProperty[i]);
-    if (values.empty()) throw std::runtime_error("No atom has a value");
-    Json request = Json::object();
-    request["values"] = science::toJson(values);
-    request["bins"] = number(p, "reduce-property", "bins");
-    const Json r = science::runTool("property-histogram", request).result;
-    char line[256];
-    std::snprintf(line, sizeof line, "%s: n=%.0f sum=%.6g mean=%.6g std=%.6g min=%.6g median=%.6g max=%.6g",
-                  s.atomPropertyName.empty() ? "property" : s.atomPropertyName.c_str(), r.at("count").number(), r.at("sum").number(),
-                  r.at("mean").number(), r.at("std").number(), r.at("min").number(), r.at("median").number(), r.at("max").number());
-    data.notes.push_back(line);
-    std::string histogram = "histogram:";
-    const auto centers = numbersOf(r.at("centers")), counts = numbersOf(r.at("counts"));
-    for (std::size_t b = 0; b < centers.size(); ++b) {
-        std::snprintf(line, sizeof line, " %.4g:%.0f", centers[b], counts[b]);
-        histogram += line;
-    }
-    data.notes.push_back(histogram);
-}
-
-// Spatial binning of the per-atom property (or atom counts); each atom takes
-// the value of its bin, so the profile or map can colour the structure.
-void binProperty(const Json& p, PipelineData& data)
-{
-    const Structure& s = data.structure;
-    requireCell(data, "bin-property");
-    Json request = atomsRequest(s);
-    const bool hasProperty = s.atomProperty.size() == s.atoms.size() && !s.atoms.empty();
-    if (hasProperty) request["values"] = science::toJson(s.atomProperty);
-    const Vec3 bins = vector(p, "bin-property", "bins");
-    request["bins"] = Json::array({bins[0], bins[1], bins[2]});
-    request["operation"] = text(p, "bin-property", "operation");
-    const Json result = science::runTool("spatial-binning", request).result;
-    const auto grid = numbersOf(result.at("values"));
-    const Mat3 cell = cellOf(s);
-    std::vector<double> perAtom(s.atoms.size());
-    const long long n[3] = {std::llround(bins[0]), std::llround(bins[1]), std::llround(bins[2])};
-    for (std::size_t i = 0; i < s.atoms.size(); ++i) {
-        Vec3 f = science::fractional(positionOf(s.atoms[i]), cell);
-        long long index[3];
-        for (int d = 0; d < 3; ++d) {
-            f[static_cast<std::size_t>(d)] -= std::floor(f[static_cast<std::size_t>(d)]);
-            index[d] = std::min(n[d] - 1, static_cast<long long>(f[static_cast<std::size_t>(d)] * static_cast<double>(n[d])));
-        }
-        perAtom[i] = grid[static_cast<std::size_t>((index[0] * n[1] + index[1]) * n[2] + index[2])];
-    }
-    const std::string operation = text(p, "bin-property", "operation");
-    setProperty(data, perAtom, "Binned " + operation + (hasProperty ? " of " + s.atomPropertyName : std::string(" (atoms)")));
-}
-
 // An orthogonal cell just enclosing the atoms (plus padding), with the atoms
 // shifted to start at the padding.
 void shrinkWrap(const Json& p, PipelineData& data)
@@ -985,265 +656,8 @@ void shrinkWrap(const Json& p, PipelineData& data)
                          std::to_string(s.cellVectors[2][2]) + " Angstrom");
 }
 
-// Colours the selected (or all) atoms; the colour stays with the atoms.
-void assignColor(const Json& p, PipelineData& data)
-{
-    const Vec3 colour = vector(p, "assign-color", "color");
-    for (double c : colour)
-        if (!(c >= 0 && c <= 1)) throw std::runtime_error("Colour components are between 0 and 1 (red green blue)");
-    const auto indices = targets(data, text(p, "assign-color", "target") == "selected", "assign-color");
-    Structure& s = data.structure;
-    for (std::size_t i : indices) {
-        s.atoms[i].r = static_cast<float>(colour[0]);
-        s.atoms[i].g = static_cast<float>(colour[1]);
-        s.atoms[i].b = static_cast<float>(colour[2]);
-    }
-    if (s.grainColors.size() == s.atoms.size())
-        for (std::size_t i : indices) s.grainColors[i] = {static_cast<float>(colour[0]), static_cast<float>(colour[1]), static_cast<float>(colour[2])};
-    data.notes.push_back(std::to_string(indices.size()) + " atoms coloured");
-}
-
-// Darkens atom colours by ambient occlusion (covalent radii).
-void ambientOcclusionStep(const Json& p, PipelineData& data)
-{
-    Structure& s = data.structure;
-    if (s.atoms.empty()) return;
-    static const std::vector<float> covalent = makeLiteratureCovalentRadii();
-    Json positions = Json::array();
-    std::vector<double> radii;
-    for (const auto& a : s.atoms) {
-        positions.push(Json::array({a.x, a.y, a.z}));
-        const std::size_t z = static_cast<std::size_t>(std::max(0, a.atomicNumber));
-        radii.push_back(z < covalent.size() && covalent[z] > 0 ? covalent[z] : 1.0);
-    }
-    Json request = Json::object();
-    request["positions"] = positions;
-    request["radii"] = science::toJson(radii);
-    request["directions"] = number(p, "ambient-occlusion", "directions");
-    const Json result = science::runTool("ambient-occlusion", request).result;
-    const double intensity = number(p, "ambient-occlusion", "intensity");
-    if (!(intensity >= 0 && intensity <= 1)) throw std::runtime_error("intensity is between 0 and 1");
-    const auto& brightness = result.at("brightness").items();
-    for (std::size_t i = 0; i < s.atoms.size(); ++i) {
-        const float factor = static_cast<float>(1 - intensity + intensity * brightness[i].number());
-        s.atoms[i].r *= factor;
-        s.atoms[i].g *= factor;
-        s.atoms[i].b *= factor;
-        if (s.grainColors.size() == s.atoms.size()) for (float& c : s.grainColors[i]) c *= factor;
-    }
-    std::vector<double> values;
-    for (const auto& b : brightness) values.push_back(b.number());
-    s.atomProperty = std::move(values);
-    s.atomPropertyName = "Ambient brightness";
-    data.notes.push_back("Ambient occlusion from " + std::to_string(static_cast<long long>(number(p, "ambient-occlusion", "directions"))) + " directions");
-}
-
-// Keeps a copy of the per-atom property for later comparison.
-void freezeProperty(const Json&, PipelineData& data)
-{
-    Structure& s = data.structure;
-    if (s.atomProperty.size() != s.atoms.size() || s.atoms.empty()) throw std::runtime_error("freeze-property needs a per-atom property; add compute-property above");
-    s.frozenProperty = s.atomProperty;
-    s.frozenPropertyName = s.atomPropertyName;
-    data.notes.push_back("Kept " + (s.atomPropertyName.empty() ? std::string("the property") : s.atomPropertyName) + " as frozen");
-}
-
-void clearProperty(const Json&, PipelineData& data)
-{
-    data.structure.atomProperty.clear();
-    data.structure.atomPropertyName.clear();
-}
-
-// Runs a Python script on the structure (OVITO's Python script modifier). The
-// script is called as  python SCRIPT INPUT.json OUTPUT.json  and writes the
-// modified data: {"structure": {"symbols", "positions", "cell"}, "pbc",
-// "selected", "property", "property_name"}; atomforge.pipeline.script_step
-// does the reading and writing.
-void pythonScript(const Json& p, PipelineData& data)
-{
-    const std::string script = text(p, "python-script", "script");
-    if (script.empty() || !std::filesystem::is_regular_file(std::filesystem::u8path(script))) throw std::runtime_error("Choose an existing Python script file");
-    const auto directory = std::filesystem::temp_directory_path() / ("AtomForge-python-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-    std::filesystem::create_directories(directory);
-    const auto input = directory / "input.json", output = directory / "output.json", log = directory / "log.txt";
-    Structure& s = data.structure;
-    Json document = Json::object();
-    document["structure"] = science::structureJson(s);
-    document["pbc"] = pbcJson(s);
-    Json selected = Json::array();
-    for (char c : data.selected) selected.push(c ? 1.0 : 0.0);
-    document["selected"] = selected;
-    if (s.atomProperty.size() == s.atoms.size() && !s.atoms.empty()) {
-        document["property"] = science::toJson(s.atomProperty);
-        document["property_name"] = s.atomPropertyName;
-    }
-    document["arguments"] = text(p, "python-script", "arguments");
-    { std::ofstream(input) << document.dump(); }
-    std::string interpreter = text(p, "python-script", "python");
-    if (interpreter.empty()) {
-        const char* configured = std::getenv("ATOMFORGE_PYTHON");
-#ifdef _WIN32
-        interpreter = configured && *configured ? configured : "python";
-#else
-        interpreter = configured && *configured ? configured : "python3";
-#endif
-    }
-    const auto quoted = [](const std::string& word) { return "\"" + word + "\""; };
-    std::string command = quoted(interpreter) + " " + quoted(script) + " " + quoted(input.u8string()) + " " + quoted(output.u8string()) + " > " +
-                          quoted(log.u8string()) + " 2>&1";
-#ifdef _WIN32
-    command = "\"" + command + "\"";  // cmd /c strips one pair of quotes
-#endif
-    const int status = std::system(command.c_str());
-    std::string messages;
-    {
-        std::ifstream in(log);
-        std::stringstream buffer;
-        buffer << in.rdbuf();
-        messages = buffer.str();
-    }
-    std::error_code ignored;  // temporary files; a leftover is harmless
-    if (status != 0 || !std::filesystem::exists(output)) {
-        std::filesystem::remove_all(directory, ignored);
-        const std::string tail = messages.size() > 1500 ? messages.substr(messages.size() - 1500) : messages;
-        throw std::runtime_error("The Python script failed (" + interpreter + "):\n" + tail);
-    }
-    std::string text;
-    {
-        std::ifstream in(output);
-        std::stringstream buffer;
-        buffer << in.rdbuf();
-        text = buffer.str();
-    }
-    const Json result = Json::parse(text);
-    std::filesystem::remove_all(directory, ignored);
-    if (const Json* structure = result.find("structure")) {
-        Structure changed = science::structureFromJson(*structure);
-        changed.pbc = s.pbc;
-        // Atoms keep their colours where they still exist.
-        for (std::size_t i = 0; i < changed.atoms.size(); ++i) {
-            if (i < s.atoms.size() && s.atoms[i].symbol == changed.atoms[i].symbol) {
-                changed.atoms[i].r = s.atoms[i].r; changed.atoms[i].g = s.atoms[i].g; changed.atoms[i].b = s.atoms[i].b;
-                changed.atoms[i].fixed = s.atoms[i].fixed;
-            } else getDefaultElementColor(changed.atoms[i].atomicNumber, changed.atoms[i].r, changed.atoms[i].g, changed.atoms[i].b);
-        }
-        if (changed.atoms.size() == s.atoms.size()) {
-            changed.grainColors = s.grainColors;
-            changed.grainRegionIds = s.grainRegionIds;
-            changed.atomProperty = s.atomProperty;
-            changed.atomPropertyName = s.atomPropertyName;
-            changed.frozenProperty = s.frozenProperty;
-            changed.frozenPropertyName = s.frozenPropertyName;
-        } else data.selected.assign(changed.atoms.size(), 0);
-        changed.cellOffset = s.cellOffset;
-        s = std::move(changed);
-    }
-    if (const Json* pbc = result.find("pbc"); pbc && pbc->isArray() && pbc->size() == 3)
-        for (std::size_t k = 0; k < 3; ++k) s.pbc[k] = pbc->items()[k].boolean();
-    if (const Json* mask = result.find("selected"); mask && mask->isArray()) {
-        if (mask->size() != s.atoms.size()) throw std::runtime_error("The script's selection has " + std::to_string(mask->size()) + " entries for " + std::to_string(s.atoms.size()) + " atoms");
-        data.selected.clear();
-        for (const auto& v : mask->items()) data.selected.push_back(v.isBool() ? v.boolean() : v.number() != 0);
-    }
-    if (const Json* values = result.find("property"); values && values->isArray()) {
-        if (values->size() != s.atoms.size()) throw std::runtime_error("The script's property has " + std::to_string(values->size()) + " values for " + std::to_string(s.atoms.size()) + " atoms");
-        s.atomProperty.clear();
-        for (const auto& v : values->items()) s.atomProperty.push_back(v.isNumber() ? v.number() : std::numeric_limits<double>::quiet_NaN());
-        if (const Json* name = result.find("property_name"); name && name->isString()) s.atomPropertyName = name->string();
-    }
-    std::istringstream lines(messages);
-    for (std::string line; std::getline(lines, line);)
-        if (!line.empty()) data.notes.push_back(line);
-}
-
 // ---------------------------------------------------------------- analysis
-void computeExpression(const Json& p, PipelineData& data)
-{
-    const std::string formula = text(p, "compute-expression", "expression");
-    const auto values = evaluateForAtoms(Expression(formula), data);
-    const bool selectedOnly = text(p, "compute-expression", "target") == "selected";
-    Structure& s = data.structure;
-    std::vector<double> property = s.atomProperty.size() == s.atoms.size() ? s.atomProperty
-                                   : std::vector<double>(s.atoms.size(), std::numeric_limits<double>::quiet_NaN());
-    for (std::size_t i = 0; i < values.size(); ++i)
-        if (!selectedOnly || data.selected[i]) property[i] = values[i];
-    s.atomProperty = std::move(property);
-    const std::string name = text(p, "compute-expression", "name");
-    s.atomPropertyName = name.empty() ? formula : name;
-    data.notes.push_back(s.atomPropertyName + " computed for " + std::to_string(selectedOnly ? data.selectedCount() : values.size()) + " atoms");
-}
 
-// Grains from local lattice orientations; atoms are coloured by grain and the
-// grain id becomes the per-atom property.
-void segmentGrains(const Json& p, PipelineData& data)
-{
-    Structure& s = data.structure;
-    Json request = atomsRequest(s);
-    request["merge_threshold_deg"] = number(p, "segment-grains", "threshold");
-    request["min_grain_size"] = number(p, "segment-grains", "min_size");
-    request["adopt_orphans"] = flag(p, "segment-grains", "adopt");
-    const Json result = science::runTool("grain-segmentation", request).result;
-    const Json& ids = result.at("grain_id");
-    s.atomProperty.clear();
-    s.grainColors.clear();
-    for (const auto& id : ids.items()) {
-        const double g = id.number();
-        s.atomProperty.push_back(g);
-        // Golden-ratio hues give neighbouring grain ids distinct colours; grey for none.
-        if (g <= 0) { s.grainColors.push_back({0.6f, 0.6f, 0.6f}); continue; }
-        const double hue = std::fmod(g * 0.6180339887, 1.0) * 6;
-        const int sector = static_cast<int>(hue);
-        const float f = static_cast<float>(hue - sector), v = 0.9f, lo = 0.25f;
-        const float rise = lo + (v - lo) * f, fall = v - (v - lo) * f;
-        const std::array<std::array<float, 3>, 6> colours = {{{v, rise, lo}, {fall, v, lo}, {lo, v, rise}, {lo, fall, v}, {rise, lo, v}, {v, lo, fall}}};
-        s.grainColors.push_back(colours[static_cast<std::size_t>(sector % 6)]);
-    }
-    s.atomPropertyName = "Grain id (0 none)";
-    data.notes.push_back(std::to_string(static_cast<long long>(result.at("grain_count").number())) + " grains");
-}
-
-void computeProperty(const Json& p, PipelineData& data)
-{
-    const std::string analysis = text(p, "compute-property", "analysis");
-    const double cutoff = number(p, "compute-property", "cutoff");
-    science::AtomProperty property;
-    if (analysis == "structure-type") property = science::analysePerAtom(data.structure, "structure-type", cutoff);
-    else if (analysis == "diamond") property = science::analysePerAtom(data.structure, "diamond-structure", cutoff);
-    else if (analysis == "centrosymmetry") property = science::analysePerAtom(data.structure, "centrosymmetry", cutoff);
-    else if (analysis == "coordination") property = science::analysePerAtom(data.structure, "bond-order", cutoff, "Coordination");
-    else if (analysis == "ptm") property = science::analysePerAtom(data.structure, "ptm", cutoff);
-    else if (analysis == "cna") property = science::analysePerAtom(data.structure, "cna", cutoff);
-    else if (analysis == "bond-valence") property = science::analysePerAtom(data.structure, "bond-orders", cutoff);
-    else if (analysis == "vorotop") property = science::analysePerAtom(data.structure, "vorotop", cutoff);
-    else if (analysis == "surface") property = science::analysePerAtom(data.structure, "surface-mesh", cutoff);
-    else if (analysis == "voronoi-volume") property = science::analysePerAtom(data.structure, "voronoi", cutoff);
-    else if (analysis == "voronoi-coordination") property = science::analysePerAtom(data.structure, "voronoi", cutoff, "Voronoi coordination");
-    else if (analysis == "orientation") property = science::analysePerAtom(data.structure, "ptm", cutoff, "Orientation angle (degrees)");
-    else if (analysis == "ptm-ordering")
-        property = science::analysePerAtom(data.structure, "ptm", cutoff,
-                                           "PTM ordering (0 none, 1 pure, 2 L1_0, 3 L1_2 minority, 4 L1_2 majority, 5 B2, 6 zincblende/wurtzite, 7 other)");
-    else if (analysis == "planar-faults") property = science::analysePerAtom(data.structure, "fcc-planar-faults", cutoff);
-    else if (analysis == "chill-plus") {
-        Structure oxygens = data.structure;
-        std::vector<std::size_t> index;
-        oxygens.atoms.clear();
-        for (std::size_t i = 0; i < data.structure.atoms.size(); ++i)
-            if (data.structure.atoms[i].symbol == "O") { oxygens.atoms.push_back(data.structure.atoms[i]); index.push_back(i); }
-        if (oxygens.atoms.empty() || oxygens.atoms.size() == data.structure.atoms.size()) property = science::analysePerAtom(data.structure, "chill-plus", cutoff);
-        else {
-            const auto onOxygens = science::analysePerAtom(oxygens, "chill-plus", cutoff);
-            property.name = onOxygens.name;
-            property.values.assign(data.structure.atoms.size(), std::numeric_limits<double>::quiet_NaN());
-            for (std::size_t k = 0; k < index.size(); ++k) property.values[index[k]] = onOxygens.values[k];
-        }
-    }
-    else if (analysis == "local-entropy") property = science::analysePerAtom(data.structure, "local-entropy", cutoff);
-    else if (analysis == "rings") property = science::analysePerAtom(data.structure, "find-rings", cutoff);
-    else property = science::analysePerAtom(data.structure, "bond-order", cutoff);
-    data.structure.atomProperty = property.values;
-    data.structure.atomPropertyName = property.name;
-    data.notes.push_back(property.name + " computed for " + std::to_string(property.values.size()) + " atoms");
-}
 }
 
 namespace
@@ -1254,30 +668,21 @@ std::vector<ModifierType>& registry()
         std::vector<ModifierType> builtIn = {
         // Selection
         {"select-element", "Select by element", "Selection", "Selects atoms of the listed elements.",
-         {{"elements", "Elements (e.g. Cu O)", "elements", "Cu", ""}, MODE}, selectElement},
+         {{"elements", "Elements (e.g. Cu O)", "elements", "Cu", ""}, kModeParameter}, selectElement},
         {"select-expression", "Select by expression", "Selection",
          "Selects atoms for which a condition holds, e.g. fz > 0.5 && element == O.\nVariables: x y z (Angstrom), fx fy fz (fractional), index, count, element,\nZ, property (per-atom property), selected. Operators + - * / ^, < <= > >= == !=,\n&& || ! (and or not), functions abs sqrt exp log sin cos tan floor ceil min max.",
-         {{"expression", "Condition", "expression", "x > 0", ""}, MODE}, selectExpression},
+         {{"expression", "Condition", "expression", "x > 0", ""}, kModeParameter}, selectExpression},
         {"select-slab", "Select a slab", "Selection", "Selects atoms between two coordinates along x, y or z (Angstrom) or along a, b or c (fractional, wrapped into [0, 1)).",
-         {{"axis", "Axis", "choice", "z", "x|y|z|a|b|c"}, {"minimum", "From", "float", "0", ""}, {"maximum", "To", "float", "5", ""}, MODE}, selectSlab},
+         {{"axis", "Axis", "choice", "z", "x|y|z|a|b|c"}, {"minimum", "From", "float", "0", ""}, {"maximum", "To", "float", "5", ""}, kModeParameter}, selectSlab},
         {"select-sphere", "Select a sphere", "Selection", "Selects atoms within a radius of a point (minimum-image distance in periodic cells).",
-         {{"center", "Centre (Angstrom)", "vector", "0 0 0", ""}, {"radius", "Radius (Angstrom)", "float", "3", ""}, MODE}, selectSphere},
+         {{"center", "Centre (Angstrom)", "vector", "0 0 0", ""}, {"radius", "Radius (Angstrom)", "float", "3", ""}, kModeParameter}, selectSphere},
         {"select-property", "Select by property range", "Selection", "Selects atoms whose per-atom property lies in a range (needs compute-property or a coloured result).",
-         {{"minimum", "Minimum", "float", "0", ""}, {"maximum", "Maximum", "float", "1", ""}, MODE}, selectProperty},
+         {{"minimum", "Minimum", "float", "0", ""}, {"maximum", "Maximum", "float", "1", ""}, kModeParameter}, selectProperty},
         {"select-random", "Select a random fraction", "Selection", "Selects round(fraction x N) atoms at random, reproducibly for a seed.",
-         {{"fraction", "Fraction", "float", "0.1", ""}, {"seed", "Seed", "int", "1", ""}, MODE}, selectRandom},
+         {{"fraction", "Fraction", "float", "0.1", ""}, {"seed", "Seed", "int", "1", ""}, kModeParameter}, selectRandom},
         {"expand-selection", "Expand selection to neighbours", "Selection", "Adds the neighbours (within the cutoff, or the N nearest) of selected atoms, repeated for the number of steps.",
          {{"cutoff", "Neighbour cutoff (Angstrom)", "float", "3", ""}, {"steps", "Steps", "int", "1", ""},
           {"nearest", "Only the N nearest neighbours (0 = all within the cutoff)", "int", "0", ""}}, expandSelection},
-        {"select-overlapping", "Select overlapping atoms", "Selection",
-         "Selects atoms closer than a distance to another atom (minimum image in periodic cells): the later atom of each pair, or both.",
-         {{"distance", "Distance (Angstrom)", "float", "1", ""}, {"atoms", "Atoms to select", "choice", "one", "one|both"}, MODE}, selectOverlapping},
-        {"select-surface", "Select surface atoms", "Selection",
-         "Selects the atoms on the surface of the solid: those a probe sphere of the given radius touches (as in Analysis > Surface Mesh); reports the surface area and solid volume.",
-         {{"probe_radius", "Probe radius (Angstrom)", "float", "4", ""}, MODE}, selectSurface},
-        {"select-region", "Select a LAMMPS region", "Selection",
-         "Selects the atoms inside LAMMPS regions given by their region commands, separated by ';' (e.g. region top block INF INF INF INF 10 INF units box);\nunits lattice multiplies coordinates by the lattice spacing.",
-         {{"regions", "Region commands", "string", "region r1 sphere 0 0 0 5 units box", ""}, {"lattice_scale", "Lattice spacing (units lattice)", "float", "1", ""}, MODE}, selectRegion},
         {"invert-selection", "Invert selection", "Selection", "Selects the unselected atoms and deselects the rest.", {}, invertSelection},
         {"clear-selection", "Clear selection", "Selection", "Deselects all atoms.", {}, clearSelection},
         // Modification
@@ -1324,52 +729,24 @@ std::vector<ModifierType>& registry()
         {"set-pbc", "Periodic boundaries", "Cell",
          "Sets which cell vectors are periodic (a slab: a and b; a wire: c). Analyses, neighbour searches, wrapping and extended XYZ files follow it.",
          {{"a", "Periodic along a", "bool", "true", ""}, {"b", "Periodic along b", "bool", "true", ""}, {"c", "Periodic along c", "bool", "true", ""}}, setPbc},
-        {"assign-color", "Assign colour", "Modification", "Colours the selected (or all) atoms with a red green blue colour (components 0 to 1).",
-         {{"color", "Colour (red green blue, 0-1)", "vector", "1 0 0", ""}, {"target", "Atoms", "choice", "selected", "selected|all"}}, assignColor},
-        {"ambient-occlusion", "Ambient occlusion", "Modification",
-         "Darkens the atoms by how hidden they are from all directions (covalent radii), which brings out pores and grooves; the brightness becomes the per-atom property.",
-         {{"intensity", "Intensity (0-1)", "float", "0.7", ""}, {"directions", "Directions", "int", "40", ""}}, ambientOcclusionStep},
-        {"clear-property", "Remove per-atom property", "Analysis", "Removes the per-atom property (and its colouring).", {}, clearProperty},
-        {"freeze-property", "Freeze per-atom property", "Analysis",
-         "Keeps a copy of the per-atom property; later expressions compare with it as the variable frozen, e.g. compute-property cna | freeze-property |\nrelax ... | compute-property cna | select-expression \"property != frozen\" selects the atoms whose structure changed.", {}, freezeProperty},
-        {"python-script", "Python script", "Modification",
-         "Runs a Python script on the structure: python SCRIPT INPUT.json OUTPUT.json. With atomforge.pipeline.script_step the script is a function of the\nstructure (and its selection and property) returning the changed data; what it prints becomes the step's notes.",
-         {{"script", "Python script file", "string", "", ""}, {"arguments", "Arguments for the script (text)", "string", "", ""},
-          {"python", "Python interpreter (empty: ATOMFORGE_PYTHON or python)", "string", "", ""}}, pythonScript},
         {"shrink-wrap", "Shrink-wrap cell", "Cell", "Replaces the cell by the orthogonal box that just encloses the atoms, plus padding on every side.",
          {{"padding", "Padding (Angstrom)", "float", "0", ""}}, shrinkWrap},
         {"center", "Center in cell", "Cell", "Shifts the atoms so their extent (in fractional coordinates) is centred in the cell.", {}, center},
         {"add-vacuum", "Add vacuum", "Cell", "Lengthens one cell vector by a thickness, e.g. to turn a bulk cell into a slab; optionally centres the atoms.",
          {{"axis", "Cell vector", "choice", "c", "a|b|c"}, {"thickness", "Vacuum (Angstrom)", "float", "10", ""}, {"center", "Centre the atoms", "bool", "true", ""}}, addVacuum},
         // Analysis
-        {"compute-property", "Compute per-atom property", "Analysis", "Computes a per-atom property for colouring and select-property: Ackland-Jones structure type, adaptive CNA, diamond structure, Voronoi volume or coordination, centrosymmetry, coordination,\nSteinhardt q6, polyhedral template matching (structure or orientation angle), fcc planar faults, Chill+ ice types, local entropy or rings\nthrough each atom (bond cutoff). PTM, planar faults, Chill+ and entropy choose their own neighbour range.",
-         {{"analysis", "Property", "choice", "structure-type", "structure-type|cna|vorotop|bond-valence|diamond|centrosymmetry|coordination|q6|ptm|orientation|ptm-ordering|voronoi-volume|voronoi-coordination|surface|planar-faults|chill-plus|local-entropy|rings"},
-          {"cutoff", "Neighbour cutoff (Angstrom)", "float", "3", ""}}, computeProperty},
-        {"compute-expression", "Compute property from a formula", "Analysis",
-         "Sets the per-atom property to a formula of the atom variables, e.g. sqrt(x^2 + y^2) or property * 2 (see select-expression for the variables);\nwith target selected, only selected atoms change.",
-         {{"expression", "Formula", "expression", "z", ""}, {"name", "Property name (empty: the formula)", "string", "", ""},
-          {"target", "Atoms", "choice", "all", "all|selected"}}, computeExpression},
-        {"elastic-strain", "Elastic strain", "Analysis",
-         "Sets the per-atom property to the elastic strain relative to the ideal lattice (polyhedral template matching): volumetric (trace/3), von Mises\nshear or one Green-Lagrange component. Atoms of other structures get no value.",
-         {{"lattice", "Lattice", "choice", "fcc", "fcc|hcp|bcc|sc|cubic-diamond|hex-diamond"}, {"a", "Unstrained lattice constant (Angstrom)", "float", "3.615", ""},
-          {"c_over_a", "Unstrained c/a (hexagonal)", "float", "1.633", ""},
-          {"component", "Property", "choice", "volumetric", "volumetric|shear|xx|yy|zz|yz|xz|xy"}}, elasticStrainStep},
-        {"displacements", "Displacement vectors", "Analysis",
-         "Sets the per-atom property to the displacement from a reference structure file (same atoms in the same order; minimum image in periodic\ncells; optionally after mapping the cell deformation).",
-         {{"reference", "Reference structure file", "string", "", ""}, {"component", "Property", "choice", "magnitude", "magnitude|x|y|z"},
-          {"affine_mapping", "Affine mapping", "choice", "off", "off|to_reference|to_current"}}, displacementStep},
-        {"bin-property", "Spatial binning", "Analysis",
-         "Averages (or sums, counts, ...) the per-atom property over bins along a, b and c (1 = not binned) and gives each atom its bin's value;\nwithout a property the atoms are counted. bins 1 1 20 gives a profile along c.",
-         {{"bins", "Bins along a, b, c", "ivec3", "1 1 20", ""}, {"operation", "Operation", "choice", "mean", "mean|sum|density|min|max|count"}}, binProperty},
-        {"reduce-property", "Property statistics", "Analysis",
-         "Reports the count, sum, mean, standard deviation, minimum, median and maximum and a histogram of the per-atom property (all or selected atoms).",
-         {{"target", "Atoms", "choice", "all", "all|selected"}, {"bins", "Histogram bins", "int", "10", ""}}, reduceProperty},
-        {"segment-grains", "Segment grains", "Analysis",
-         "Finds the grains of a polycrystal from local lattice orientations (polyhedral template matching), colours atoms by grain and sets the\nper-atom property to the grain id (0 for none).",
-         {{"threshold", "Misorientation threshold (degrees)", "float", "4", ""}, {"min_size", "Minimum grain size (atoms)", "int", "100", ""},
-          {"adopt", "Assign boundary atoms to grains", "bool", "true", ""}}, segmentGrains},
         };
+        for (auto& type : analysisStepTypes()) builtIn.push_back(std::move(type));
+        builtIn.push_back(pythonScriptStepType());
         for (auto& type : scienceStepTypes()) builtIn.push_back(std::move(type));
+        // Menus list steps by category in this order, each category together.
+        const auto rank = [](const ModifierType& type) {
+            static const char* const order[] = {"Selection", "Modification", "Cell", "Analysis", "Simulation"};
+            for (int k = 0; k < 5; ++k)
+                if (std::string(type.category) == order[k]) return k;
+            return 5;
+        };
+        std::stable_sort(builtIn.begin(), builtIn.end(), [&](const ModifierType& a, const ModifierType& b) { return rank(a) < rank(b); });
         builtIn.reserve(256);  // registered types keep their addresses
         return builtIn;
     }();
@@ -1387,5 +764,4 @@ void registerModifierType(ModifierType type)
     if (types.size() == types.capacity()) throw std::runtime_error("Too many modifier types");
     types.push_back(std::move(type));
 }
-#undef MODE
 }

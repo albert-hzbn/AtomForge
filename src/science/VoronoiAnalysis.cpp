@@ -1,4 +1,5 @@
 #include "science/VoronoiAnalysis.h"
+#include "science/LocalGeometry.h"
 #include "util/TaskControl.h"
 
 #include <algorithm>
@@ -21,51 +22,6 @@ namespace
 {
 const double kNaN = std::numeric_limits<double>::quiet_NaN();
 
-struct Atoms
-{
-    std::vector<Vec3> positions;
-    Mat3 cell{};
-    Pbc pbc{};
-    bool hasCell = false;
-};
-
-Atoms atomsOf(const Parameters& p)
-{
-    Atoms a;
-    a.positions = points(p.array("positions"), "positions");
-    a.pbc = p.pbc("pbc", {false, false, false});
-    a.hasCell = p.has("cell");
-    if ((a.pbc[0] || a.pbc[1] || a.pbc[2]) && !a.hasCell) throw std::runtime_error("Periodic analysis requires a cell");
-    a.cell = a.hasCell ? cellMatrix(p.array("cell")) : identity();
-    return a;
-}
-
-// Mean spacing (V/N)^(1/3) from the cell or the padded bounding box.
-double meanSpacing(const Atoms& a)
-{
-    double volume = 0;
-    if (a.hasCell) volume = cellVolume(a.cell);
-    else {
-        Vec3 low = a.positions[0], high = a.positions[0];
-        for (const auto& x : a.positions)
-            for (std::size_t d = 0; d < 3; ++d) { low[d] = std::min(low[d], x[d]); high[d] = std::max(high[d], x[d]); }
-        volume = 1;
-        for (std::size_t d = 0; d < 3; ++d) volume *= high[d] - low[d] + 2.0;
-    }
-    return std::cbrt(volume / static_cast<double>(a.positions.size()));
-}
-
-// Neighbour vectors of every atom within the cutoff, nearest first.
-std::vector<std::vector<Vec3>> sortedNeighbors(const Atoms& a, double cutoff)
-{
-    std::vector<std::vector<Vec3>> lists(a.positions.size());
-    for (const auto& link : neighborList(a.positions, a.cell, a.pbc, cutoff)) {
-        if (norm(link.vector) < 1e-10) throw std::runtime_error("Coincident atoms make the analysis undefined");
-        lists[static_cast<std::size_t>(link.i)].push_back(link.vector);
-    }
-    for (auto& list : lists) std::sort(list.begin(), list.end(), [](const Vec3& x, const Vec3& y) { return dot(x, x) < dot(y, y); });
-    return lists;
-}
 
 // ---------------------------------------------------------------- Voronoi cell
 struct Face
@@ -189,16 +145,16 @@ CellResult voronoiCell(const std::vector<Vec3>& neighbors, double half, double e
 // Every atom's cell; cells whose vertices reach beyond half the search
 // radius may be cut by farther atoms, so the search widens for them.
 // cutoff: the initial search radius (0 = automatic); returns the last one used.
-std::vector<CellResult> allCells(const Atoms& a, double& cutoff)
+std::vector<CellResult> allCells(const AtomSet& a, double& cutoff)
 {
     const std::size_t n = a.positions.size();
-    const bool periodic = a.pbc[0] && a.pbc[1] && a.pbc[2];
-    if (cutoff <= 0) cutoff = 2.5 * meanSpacing(a);
-    const double eps = 1e-9 * meanSpacing(a);
+    const bool periodic = a.fullyPeriodic();
+    if (cutoff <= 0) cutoff = 2.5 * meanAtomicSpacing(a);
+    const double eps = 1e-9 * meanAtomicSpacing(a);
     std::vector<CellResult> cells(n);
     std::vector<char> done(n, 0);
     for (int attempt = 0; attempt < 6; ++attempt) {
-        const auto neighbors = sortedNeighbors(a, cutoff);
+        const auto neighbors = sortedNeighborVectors(a, cutoff);
         std::size_t pending = 0;
         for (std::size_t i = 0; i < n; ++i) {
             if (done[i]) continue;
@@ -320,11 +276,11 @@ std::string codeKey(const std::vector<int>& code)
 }
 
 // Canonical codes of every atom's cell (empty for open cells).
-std::vector<std::vector<int>> cellCodes(const Atoms& a)
+std::vector<std::vector<int>> cellCodes(const AtomSet& a)
 {
     double cutoff = 0;
     const auto cells = allCells(a, cutoff);
-    const double eps = 1e-6 * meanSpacing(a);
+    const double eps = 1e-6 * meanAtomicSpacing(a);
     std::vector<std::vector<int>> codes(cells.size());
     for (std::size_t i = 0; i < cells.size(); ++i) {
         if (cells[i].open) continue;
@@ -358,7 +314,7 @@ const Filter& builtInFilter(double noise, int samples)
     std::mt19937 random(12345);
     std::normal_distribution<double> gauss(0.0, 1.0);
     for (int type = 1; type <= 3; ++type) {
-        Atoms crystal;
+        AtomSet crystal;
         std::vector<Vec3> basis;
         Mat3 unit{};
         int repeat[3] = {4, 4, 4};
@@ -482,7 +438,7 @@ int cnaType(const std::vector<Vec3>& v, double cutoff)
 
 Json voronoiAnalysis(const Parameters& p)
 {
-    const Atoms a = atomsOf(p);
+    const AtomSet a = readAtomSet(p);
     const std::size_t n = a.positions.size();
     if (n == 0) throw std::runtime_error("No atoms");
     const double areaThreshold = p.number("face_area_threshold_A2", 0.0);
@@ -552,7 +508,7 @@ Json voronoiAnalysis(const Parameters& p)
 
 Json voroTop(const Parameters& p)
 {
-    const Atoms a = atomsOf(p);
+    const AtomSet a = readAtomSet(p);
     const std::size_t n = a.positions.size();
     if (n == 0) throw std::runtime_error("No atoms");
     const double noise = p.number("noise", 0.06);
@@ -571,13 +527,8 @@ Json voroTop(const Parameters& p)
         topology[i] = entry->second;
         ++topologies[static_cast<std::size_t>(entry->second)].second;
     }
-    std::vector<long long> counts(filter.names.size(), 0);
-    for (int t : type) ++counts[static_cast<std::size_t>(t)];
-    Json result = Json::object(), countJson = Json::object(), names = Json::array();
-    for (std::size_t t = 0; t < filter.names.size(); ++t) {
-        countJson[filter.names[t]] = static_cast<double>(counts[t]);
-        names.push(filter.names[t]);
-    }
+    Json result = Json::object();
+    addClassification(result, "structure_type", type, filter.names);
     std::vector<std::size_t> order(topologies.size());
     std::iota(order.begin(), order.end(), 0);
     std::sort(order.begin(), order.end(), [&](std::size_t x, std::size_t y) { return topologies[x].second > topologies[y].second; });
@@ -591,9 +542,6 @@ Json voroTop(const Parameters& p)
         item["type"] = filter.names[static_cast<std::size_t>(found == filter.types.end() ? 0 : found->second)];
         common.push(item);
     }
-    result["structure_type"] = toJson(type);
-    result["type_names"] = names;
-    result["counts"] = countJson;
     result["topology_id"] = toJson(topology);
     result["distinct_topologies"] = static_cast<double>(topologies.size());
     std::size_t withoutCode = 0;
@@ -616,13 +564,13 @@ Json voroTop(const Parameters& p)
 
 Json adaptiveCna(const Parameters& p)
 {
-    const Atoms a = atomsOf(p);
+    const AtomSet a = readAtomSet(p);
     const std::size_t n = a.positions.size();
     if (n == 0) throw std::runtime_error("No atoms");
     const double fixed = p.number("cutoff_A", 0.0);
     if (fixed < 0) throw std::runtime_error("cutoff_A must be nonnegative");
     const double factor = (1 + std::sqrt(2.0)) / 2;
-    const auto neighbors = sortedNeighbors(a, fixed > 0 ? fixed : 1.8 * meanSpacing(a));
+    const auto neighbors = sortedNeighborVectors(a, fixed > 0 ? fixed : 1.8 * meanAtomicSpacing(a));
     static const std::vector<std::string> names = {"other", "fcc", "hcp", "bcc", "icosahedral"};
     std::vector<int> type(n, 0);
     for (std::size_t i = 0; i < n; ++i) {
@@ -644,18 +592,8 @@ Json adaptiveCna(const Parameters& p)
             if (cnaType(shell, cutoff) == 3) type[i] = 3;
         }
     }
-    std::vector<long long> counts(names.size(), 0);
-    for (int t : type) ++counts[static_cast<std::size_t>(t)];
-    Json result = Json::object(), countJson = Json::object(), typeNames = Json::array(), fractions = Json::object();
-    for (std::size_t t = 0; t < names.size(); ++t) {
-        countJson[names[t]] = static_cast<double>(counts[t]);
-        fractions[names[t]] = static_cast<double>(counts[t]) / static_cast<double>(n);
-        typeNames.push(names[t]);
-    }
-    result["structure_type"] = toJson(type);
-    result["type_names"] = typeNames;
-    result["counts"] = countJson;
-    result["fractions"] = fractions;
+    Json result = Json::object();
+    addClassification(result, "structure_type", type, names);
     result["mode"] = fixed > 0 ? "fixed cutoff" : "adaptive";
     return result;
 }

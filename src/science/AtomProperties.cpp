@@ -83,14 +83,14 @@ void localStrainProperties(const Json& result, std::vector<AtomProperty>& proper
         }
     add(properties, "Von Mises shear strain", shear);
     add(properties, "Volumetric strain trace(E)", volumetric);
-    add(properties, "Coordination", numbers(result.find("coordination")));
+    add(properties, propertyName::coordination, numbers(result.find("coordination")));
 }
 
 void bondOrderProperties(const Json& result, std::vector<AtomProperty>& properties)
 {
     if (const Json* order = result.find("order"); order && order->isObject())
         for (const auto& [name, values] : order->members()) add(properties, name, numbers(&values));
-    add(properties, "Coordination", numbers(result.find("coordination")));
+    add(properties, propertyName::coordination, numbers(result.find("coordination")));
 }
 
 void wignerSeitzProperties(const Json& result, std::vector<AtomProperty>& properties)
@@ -131,7 +131,7 @@ void lammpsRegionProperties(const Json& result, std::vector<AtomProperty>& prope
 void voronoiProperties(const Json& result, std::vector<AtomProperty>& properties)
 {
     add(properties, "Atomic volume (A^3)", numbers(result.find("atomic_volume_A3")));
-    add(properties, "Voronoi coordination", numbers(result.find("coordination")));
+    add(properties, propertyName::voronoiCoordination, numbers(result.find("coordination")));
     add(properties, "Max face order", numbers(result.find("max_face_order")));
 }
 
@@ -150,9 +150,9 @@ void ptmProperties(const Json& result, std::vector<AtomProperty>& properties)
 {
     add(properties, "PTM structure (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico, 5 sc, 6 cubic diamond, 7 hex diamond)", numbers(result.find("structure_type")));
     add(properties, "PTM RMSD", numbers(result.find("rmsd")));
-    add(properties, "Orientation angle (degrees)", numbers(result.find("orientation_angle_deg")));
+    add(properties, propertyName::orientationAngle, numbers(result.find("orientation_angle_deg")));
     add(properties, "Local lattice constant (A)", numbers(result.find("lattice_constant_A")));
-    add(properties, "PTM ordering (0 none, 1 pure, 2 L1_0, 3 L1_2 minority, 4 L1_2 majority, 5 B2, 6 zincblende/wurtzite, 7 other)", numbers(result.find("ordering")));
+    add(properties, propertyName::ptmOrdering, numbers(result.find("ordering")));
 }
 
 void grainSegmentationProperties(const Json& result, std::vector<AtomProperty>& properties)

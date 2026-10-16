@@ -1,4 +1,5 @@
 #include "science/Analysis.h"
+#include "science/LocalGeometry.h"
 #include "util/TaskControl.h"
 
 #include <Eigen/Dense>
@@ -128,37 +129,6 @@ std::vector<Neighbor> localNeighbors(const std::vector<Vec3>& positions, double 
     return neighbors;
 }
 
-std::vector<std::vector<std::size_t>> byCenter(const std::vector<Neighbor>& neighbors, std::size_t count)
-{
-    std::vector<std::vector<std::size_t>> result(count);
-    for (std::size_t n = 0; n < neighbors.size(); ++n) result[static_cast<std::size_t>(neighbors[n].i)].push_back(n);
-    return result;
-}
-
-// Orthonormal spherical harmonic magnitude basis: Ylm(theta, 0) with Condon-Shortley phase.
-double normalizedLegendre(int l, int m, double x)
-{
-    double pmm = 1.0;
-    if (m > 0) {
-        const double omx2 = (1.0 - x) * (1.0 + x);
-        double fact = 1.0;
-        for (int i = 1; i <= m; ++i) { pmm *= omx2 * fact / (fact + 1.0); fact += 2.0; }
-    }
-    pmm = std::sqrt((2 * m + 1) * pmm / (4 * kPi));
-    if (m & 1) pmm = -pmm;
-    if (l == m) return pmm;
-    double pmmp1 = x * std::sqrt(2.0 * m + 3.0) * pmm;
-    if (l == m + 1) return pmmp1;
-    double oldFactor = std::sqrt(2.0 * m + 3.0), pll = 0;
-    for (int ll = m + 2; ll <= l; ++ll) {
-        const double factor = std::sqrt((4.0 * ll * ll - 1.0) / (static_cast<double>(ll) * ll - static_cast<double>(m) * m));
-        pll = (x * pmmp1 - pmm / oldFactor) * factor;
-        oldFactor = factor;
-        pmm = pmmp1;
-        pmmp1 = pll;
-    }
-    return pll;
-}
 }
 
 Json meanSquareDisplacement(const Parameters& p)
@@ -381,7 +351,7 @@ Json localStrain(const Parameters& p)
     std::vector<double> residual(count, kNaN);
     std::vector<bool> valid(count, false);
     std::vector<int> coordination(count, 0);
-    const auto groups = byCenter(neighbors, count);
+    const auto groups = neighborsByCenter(neighbors, count);
     for (std::size_t index = 0; index < count; ++index) {
         if (index % 64 == 0) taskProgress(static_cast<double>(index) / static_cast<double>(count));
         const auto& group = groups[index];
@@ -480,7 +450,7 @@ Json structureType(const Parameters& p)
     }
     Mat3 cell{};
     const auto neighbors = localNeighbors(positions, cutoff, p, "cell", pbc, cell);
-    const auto groups = byCenter(neighbors, positions.size());
+    const auto groups = neighborsByCenter(neighbors, positions.size());
     static const char* names[] = {"other", "fcc", "hcp", "bcc", "icosahedral"};
     std::vector<int> types(positions.size(), 0);
     int counts[5] = {};
@@ -555,7 +525,7 @@ Json diamondStructure(const Parameters& p)
     }
     Mat3 cell{};
     const auto neighbors = localNeighbors(positions, cutoff, p, "cell", pbc, cell);
-    auto groups = byCenter(neighbors, positions.size());
+    auto groups = neighborsByCenter(neighbors, positions.size());
     const std::size_t count = positions.size();
     std::vector<bool> fourfold(count, false);
     for (std::size_t i = 0; i < count; ++i) {
@@ -626,7 +596,7 @@ Json centrosymmetry(const Parameters& p)
     const double cutoff = positive(p.number("cutoff_A"), "cutoff_A");
     Mat3 cell{};
     const auto neighbors = localNeighbors(positions, cutoff, p, "cell", p.pbc("pbc", {false, false, false}), cell);
-    const auto groups = byCenter(neighbors, positions.size());
+    const auto groups = neighborsByCenter(neighbors, positions.size());
     const std::size_t n = static_cast<std::size_t>(neighborCount);
     std::vector<double> values(positions.size(), kNaN);
     std::vector<bool> valid(positions.size(), false);
@@ -668,7 +638,7 @@ Json bondOrder(const Parameters& p)
     const double cutoff = positive(p.number("cutoff_A"), "cutoff_A");
     Mat3 cell{};
     const auto neighbors = localNeighbors(positions, cutoff, p, "cell", p.pbc("pbc", {false, false, false}), cell);
-    const auto groups = byCenter(neighbors, positions.size());
+    const auto groups = neighborsByCenter(neighbors, positions.size());
     std::vector<int> coordination(positions.size());
     std::vector<bool> valid(positions.size());
     for (std::size_t i = 0; i < positions.size(); ++i) {

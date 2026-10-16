@@ -1,4 +1,5 @@
 #include "science/Clusters.h"
+#include "science/LocalGeometry.h"
 #include "util/TaskControl.h"
 
 #include <algorithm>
@@ -16,12 +17,6 @@ namespace atomforge::science
 namespace
 {
 const double kPi = std::acos(-1.0);
-
-std::size_t root(std::vector<std::size_t>& parent, std::size_t i)
-{
-    while (parent[i] != i) i = parent[i] = parent[parent[i]];
-    return i;
-}
 
 double medianNearest(const std::vector<Vec3>& positions, const Mat3& cell, const Pbc& pbc)
 {
@@ -61,11 +56,11 @@ Json clusterAnalysis(const Parameters& p)
     std::iota(parent.begin(), parent.end(), 0);
     std::vector<std::vector<std::pair<std::size_t, Vec3>>> adjacency(chosen.size());
     for (const auto& link : links) {
-        parent[root(parent, static_cast<std::size_t>(link.i))] = root(parent, static_cast<std::size_t>(link.j));
+        parent[unionRoot(parent, static_cast<std::size_t>(link.i))] = unionRoot(parent, static_cast<std::size_t>(link.j));
         adjacency[static_cast<std::size_t>(link.i)].push_back({static_cast<std::size_t>(link.j), link.vector});
     }
     std::map<std::size_t, std::vector<std::size_t>> groups;
-    for (std::size_t k = 0; k < chosen.size(); ++k) groups[root(parent, k)].push_back(k);
+    for (std::size_t k = 0; k < chosen.size(); ++k) groups[unionRoot(parent, k)].push_back(k);
     std::vector<std::vector<std::size_t>> clusters;
     for (auto& [r, members] : groups)
         if (static_cast<long long>(members.size()) >= minimum) clusters.push_back(members);

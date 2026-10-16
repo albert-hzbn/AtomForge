@@ -1,4 +1,5 @@
 #include "science/BondsAndRegions.h"
+#include "science/LocalGeometry.h"
 #include "electronic/Volume.h"
 #include "util/ElementData.h"
 #include "util/TaskControl.h"
@@ -172,7 +173,7 @@ Json bondOrders(const Parameters& p)
     Json bonds = Json::array();
     std::map<double, long long> rounded;
     for (const auto& link : neighborList(positions, cell, pbc, 2 * largest * tolerance)) {
-        if (link.j < link.i || (link.j == link.i && link.shift < std::array<int, 3>{0, 0, 0})) continue;
+        if (!firstOfPair(link)) continue;  // each bond once
         const double r = norm(link.vector);
         const double single = radius(species[static_cast<std::size_t>(link.i)]) + radius(species[static_cast<std::size_t>(link.j)]);
         if (r > tolerance * single || r <= 0) continue;
