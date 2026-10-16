@@ -1284,6 +1284,15 @@
       "literal_controls": []
     },
     {
+      "source": "src/science/MeshText.h",
+      "sha256": "8966e9844fa5e79e96a5db07cb9c81b3e33586fac37f1e511e3d73091659b27f",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
       "source": "src/science/Phonons.h",
       "sha256": "b65ad63ac4ad8abc0e6670bc0588f38a5e216816dd5f589990bc37dd30fd8008",
       "documentation": [

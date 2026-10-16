@@ -1,5 +1,6 @@
 #include "science/SurfaceMesh.h"
 #include "electronic/Volume.h"
+#include "science/MeshText.h"
 #include "util/TaskControl.h"
 
 #include <glm/glm.hpp>
@@ -244,15 +245,13 @@ Json surfaceMesh(const Parameters& p)
     result["triangles"] = static_cast<double>(mesh.vertices.size() / 3);
     result["grid"] = Json::array({static_cast<double>(g.n[0]), static_cast<double>(g.n[1]), static_cast<double>(g.n[2])});
     result["probe_radius_A"] = probe;
-    // The mesh as Wavefront OBJ (shared vertices are not merged).
     if (p.boolean("export_mesh", true) && mesh.vertices.size() <= 3'000'000) {
-        std::ostringstream obj;
-        obj.precision(8);
-        obj << "# AtomForge surface mesh: probe radius " << probe << " A, area " << area << " A^2\n";
-        for (const auto& v : mesh.vertices) obj << "v " << v.x << ' ' << v.y << ' ' << v.z << '\n';
-        for (std::size_t t = 0; t + 2 < mesh.vertices.size(); t += 3) obj << "f " << t + 1 << ' ' << t + 2 << ' ' << t + 3 << '\n';
+        std::ostringstream comment;
+        comment << "AtomForge surface mesh: probe radius " << probe << " A, area " << area << " A^2";
+        ObjWriter obj(comment.str());
+        obj.add("", mesh.vertices);
         Json files = Json::object();
-        files["surface.obj"] = obj.str();
+        files["surface.obj"] = obj.text();
         result["files"] = files;
     }
     return result;

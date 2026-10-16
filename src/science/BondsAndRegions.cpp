@@ -1,6 +1,7 @@
 #include "science/BondsAndRegions.h"
 #include "science/LocalGeometry.h"
 #include "electronic/Volume.h"
+#include "science/MeshText.h"
 #include "util/ElementData.h"
 #include "util/TaskControl.h"
 
@@ -251,10 +252,7 @@ Json lammpsRegions(const Parameters& p)
         double longest = 0;
         for (std::size_t d = 0; d < 3; ++d) longest = std::max(longest, high[d] - low[d]);
         const double step = longest / static_cast<double>(resolution);
-        std::ostringstream obj;
-        obj.precision(8);
-        obj << "# AtomForge LAMMPS regions\n";
-        std::size_t vertices = 0;
+        ObjWriter obj("AtomForge LAMMPS regions");
         for (const auto& r : regions) {
             taskCheckpoint();
             atomforge::electronic::Grid field;
@@ -275,15 +273,10 @@ Json lammpsRegions(const Parameters& p)
                         for (std::size_t k = 0; k < 3; ++k) d = std::min({d, q[static_cast<glm::length_t>(k)] - low[k], high[k] - q[static_cast<glm::length_t>(k)]});
                         field.values[(static_cast<std::size_t>(z) * field.shape[1] + y) * field.shape[0] + x] = d;
                     }
-            const auto mesh = atomforge::electronic::isosurface(field, 0.0);
-            obj << "o " << r.id << '\n';
-            for (const auto& v : mesh.vertices) obj << "v " << v.x << ' ' << v.y << ' ' << v.z << '\n';
-            for (std::size_t t = 0; t + 2 < mesh.vertices.size(); t += 3)
-                obj << "f " << vertices + t + 1 << ' ' << vertices + t + 2 << ' ' << vertices + t + 3 << '\n';
-            vertices += mesh.vertices.size();
+            obj.add(r.id, atomforge::electronic::isosurface(field, 0.0).vertices);
         }
         Json files = Json::object();
-        files["regions.obj"] = obj.str();
+        files["regions.obj"] = obj.text();
         result["files"] = files;
     }
     return result;
