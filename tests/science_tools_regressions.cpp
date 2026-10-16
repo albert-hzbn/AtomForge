@@ -10,6 +10,7 @@
 #include "science/ResultPlots.h"
 #include "science/ScienceCatalog.h"
 #include "science/ScienceTools.h"
+#include "science/TrajectoryTools.h"
 #include "science/Simulation.h"
 #include "science/VaspElectronic.h"
 
@@ -739,6 +740,11 @@ int main()
         check(unwrapped.frames.size() == 20, "every frame");
         close(unwrapped.frames.back().atoms[0].x, 0.6 * 19, 1e-9, "continuous path");
         close(values(unwrapped.result.at("net_displacement_A"))[0], 0.6 * 19, 1e-9, "net displacement");
+        // Trajectory lines: the same continuous path, sampled every other frame.
+        std::vector<std::size_t> sampled;
+        const auto paths = unwrappedPaths(TrajectoryStream(path), {0, 1}, 2, sampled);
+        check(sampled.size() == 10 && sampled[1] == 2, "every other frame");
+        close(paths[0].back()[0], 0.6 * 18, 1e-9, "unwrapped trajectory line");
         request["smooth_window"] = 3;
         close(runTool("unwrap-trajectory", request).frames[5].atoms[1].x, 3 - 0.1 / 3, 1e-9, "smoothed vibration (frames 4-6: -, +, -)");
         Json average = object({{"trajectory_file", path.u8string()}});

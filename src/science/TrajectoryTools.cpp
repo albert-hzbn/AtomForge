@@ -186,6 +186,30 @@ ToolOutput unwrapTrajectory(const Parameters& p)
     return output;
 }
 
+std::vector<std::vector<Vec3>> unwrappedPaths(const TrajectoryStream& stream, const std::vector<std::size_t>& atoms,
+                                              std::size_t stride, std::vector<std::size_t>& frames)
+{
+    std::vector<std::vector<Vec3>> paths(atoms.size());
+    std::vector<Vec3> previous, unwrapped;
+    frames.clear();
+    for (std::size_t index = 0; index < stream.size(); index += std::max<std::size_t>(1, stride)) {
+        taskCheckpoint();
+        const FrameData frame = stream.frame(index);
+        std::vector<Vec3> current;
+        for (std::size_t atom : atoms) {
+            if (atom >= frame.structure.atoms.size()) throw std::runtime_error("The number of atoms changes between frames");
+            const auto& a = frame.structure.atoms[atom];
+            current.push_back({a.x, a.y, a.z});
+        }
+        if (frames.empty()) unwrapped = current;
+        else unwrapStep(unwrapped, previous, current, frame);
+        previous = std::move(current);
+        for (std::size_t k = 0; k < atoms.size(); ++k) paths[k].push_back(unwrapped[k]);
+        frames.push_back(index);
+    }
+    return paths;
+}
+
 Json timeSeries(const Parameters& p)
 {
     const TrajectoryStream stream = openTrajectory(p);

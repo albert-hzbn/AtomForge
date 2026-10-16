@@ -71,6 +71,19 @@ void addHistogram(std::vector<PlotSpec>& plots, const std::string& title, const 
     if (any) plots.push_back(plot(title, xLabel, "Atoms", {histogram(xLabel, values, 40)}));
 }
 
+// Bar-like plot of the "counts" object of a classification (index order).
+void countPlot(const Json& result, std::vector<PlotSpec>& plots, const std::string& title)
+{
+    if (const Json* counts = result.find("counts"); counts && counts->isObject()) {
+        std::vector<double> x, y;
+        for (std::size_t t = 0; t < counts->size(); ++t) {
+            x.push_back(static_cast<double>(t));
+            y.push_back(counts->members()[t].second.number());
+        }
+        plots.push_back(plot(title, "Type", "Atoms", {line("atoms", x, y, true)}));
+    }
+}
+
 using PlotBuilder = void (*)(const Json& result, std::vector<PlotSpec>& plots);
 
 void msdPlots(const Json& result, std::vector<PlotSpec>& plots)
@@ -229,28 +242,12 @@ void voidAnalysisPlots(const Json& result, std::vector<PlotSpec>& plots)
 
 void structureTypePlots(const Json& result, std::vector<PlotSpec>& plots)
 {
-    if (const Json* counts = result.find("counts"); counts && counts->isObject()) {
-        std::vector<double> x, y;
-        for (std::size_t t = 0; t < counts->size(); ++t) {
-            x.push_back(static_cast<double>(t));
-            y.push_back(counts->members()[t].second.number());
-        }
-        auto spec = plot("Structure types (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)", "Type", "Atoms", {line("atoms", x, y, true)});
-        plots.push_back(spec);
-    }
+    countPlot(result, plots, "Structure types (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)");
 }
 
 void diamondStructurePlots(const Json& result, std::vector<PlotSpec>& plots)
 {
-    if (const Json* counts = result.find("counts"); counts && counts->isObject()) {
-        std::vector<double> x, y;
-        for (std::size_t t = 0; t < counts->size(); ++t) {
-            x.push_back(static_cast<double>(t));
-            y.push_back(counts->members()[t].second.number());
-        }
-        plots.push_back(plot("Diamond types (0 other, 1 cubic, 2-3 its neighbours, 4 hexagonal, 5-6 its neighbours)", "Type", "Atoms",
-                             {line("atoms", x, y, true)}));
-    }
+    countPlot(result, plots, "Diamond types (0 other, 1 cubic, 2-3 its neighbours, 4 hexagonal, 5-6 its neighbours)");
 }
 
 void centrosymmetryPlots(const Json& result, std::vector<PlotSpec>& plots)
@@ -408,18 +405,6 @@ void trajectoryStructurePlots(const Json& result, std::vector<PlotSpec>& plots)
         {line("angles", numbers(result.find("angle_deg")), numbers(result.find("angle_density_per_deg")))}));
 }
 
-// Bar-like plot of the "counts" object of a classification (index order).
-void countPlot(const Json& result, std::vector<PlotSpec>& plots, const std::string& title)
-{
-    if (const Json* counts = result.find("counts"); counts && counts->isObject()) {
-        std::vector<double> x, y;
-        for (std::size_t t = 0; t < counts->size(); ++t) {
-            x.push_back(static_cast<double>(t));
-            y.push_back(counts->members()[t].second.number());
-        }
-        plots.push_back(plot(title, "Type", "Atoms", {line("atoms", x, y, true)}));
-    }
-}
 
 void trajectoryAveragePlots(const Json& result, std::vector<PlotSpec>& plots)
 {

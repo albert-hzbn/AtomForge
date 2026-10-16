@@ -8,6 +8,12 @@ namespace atomforge::science
 // boundaries before averaging) with each atom's RMS fluctuation.
 ToolOutput trajectoryAverage(const Parameters& p);
 
+// Unwrapped paths of the given atoms through every `stride`-th frame, each
+// sampled frame continuing the previous one by the minimum-image step (the
+// sampling must resolve the motion); `frames` receives the frame indices.
+std::vector<std::vector<Vec3>> unwrappedPaths(const TrajectoryStream& stream, const std::vector<std::size_t>& atoms,
+                                              std::size_t stride, std::vector<std::size_t>& frames);
+
 // Unwrapped (continuous) trajectory frames, optionally smoothed by a centred
 // moving average over a window of frames.
 ToolOutput unwrapTrajectory(const Parameters& p);
