@@ -6,6 +6,7 @@
 #include <array>
 #include <cmath>
 #include <complex>
+#include <functional>
 #include <limits>
 #include <map>
 #include <set>
@@ -153,6 +154,98 @@ Json localEntropy(const Parameters& p)
     return result;
 }
 
+namespace
+{
+// A node of the unwrapped bond network: atom and periodic image.
+using Node = std::array<int, 4>;
+
+struct NodeHash
+{
+    std::size_t operator()(const Node& k) const
+    {
+        std::size_t h = static_cast<std::size_t>(k[0]) * 1000003u;
+        for (std::size_t d = 1; d < 4; ++d) h = (h ^ static_cast<std::size_t>(k[d] + 512)) * 1000003u;
+        return h;
+    }
+};
+
+// The bond network and breadth-first searches on it.
+class Network
+{
+public:
+    struct Bond { int j; std::array<int, 3> shift; };
+
+    Network(const AtomSet& atoms, double cutoff) : m_bonds(atoms.positions.size())
+    {
+        for (const auto& link : neighborList(atoms.positions, atoms.cell, atoms.pbc, cutoff))
+            m_bonds[static_cast<std::size_t>(link.i)].push_back({link.j, link.shift});
+    }
+
+    const std::vector<Bond>& bonds(int atom) const { return m_bonds[static_cast<std::size_t>(atom)]; }
+    static Node step(const Node& from, const Bond& b) { return {b.j, from[1] + b.shift[0], from[2] + b.shift[1], from[3] + b.shift[2]}; }
+
+    struct Search
+    {
+        std::unordered_map<Node, int, NodeHash> distance;
+        std::unordered_map<Node, std::vector<Node>, NodeHash> parents;  // previous nodes on shortest paths
+        std::vector<std::vector<Node>> levels;                         // nodes by distance
+    };
+
+    // Search from atom `atom` (image 0) to `depth` bonds; with parents, all shortest paths can be traced.
+    Search search(int atom, int depth, bool withParents) const
+    {
+        Search s;
+        const Node source{atom, 0, 0, 0};
+        s.distance[source] = 0;
+        s.levels.push_back({source});
+        for (int d = 0; d < depth && !s.levels.back().empty(); ++d) {
+            std::vector<Node> next;
+            for (const Node& node : s.levels.back())
+                for (const Bond& b : bonds(node[0])) {
+                    const Node to = step(node, b);
+                    const auto [entry, added] = s.distance.insert({to, d + 1});
+                    if (added) next.push_back(to);
+                    if (withParents && entry->second == d + 1) s.parents[to].push_back(node);
+                }
+            s.levels.push_back(std::move(next));
+        }
+        return s;
+    }
+
+    // Graph distance between two nodes, if at most `depth` bonds (searches are cached per atom).
+    int distance(const Node& from, const Node& to, int depth)
+    {
+        auto found = m_distances.find(from[0]);
+        if (found == m_distances.end()) found = m_distances.emplace(from[0], search(from[0], depth, false).distance).first;
+        const auto d = found->second.find(Node{to[0], to[1] - from[1], to[2] - from[2], to[3] - from[3]});
+        return d == found->second.end() ? depth + 1 : d->second;
+    }
+
+private:
+    std::vector<std::vector<Bond>> m_bonds;
+    std::unordered_map<int, std::unordered_map<Node, int, NodeHash>> m_distances;
+};
+
+// Canonical form of a ring: the rotation and direction giving the smallest
+// sequence, with images relative to its first node.
+std::vector<Node> canonicalRing(const std::vector<Node>& ring)
+{
+    const std::size_t m = ring.size();
+    std::vector<Node> best;
+    for (std::size_t start = 0; start < m; ++start)
+        for (int direction : {1, -1}) {
+            std::vector<Node> sequence(m);
+            const Node& origin = ring[start];
+            for (std::size_t k = 0; k < m; ++k) {
+                const Node& node = ring[direction > 0 ? (start + k) % m : (start + m - k % m) % m];
+                sequence[k] = {node[0], node[1] - origin[1], node[2] - origin[2], node[3] - origin[3]};
+            }
+            if (best.empty() || sequence < best) best = std::move(sequence);
+        }
+    return best;
+}
+}
+
 Json findRings(const Parameters& p)
 {
     const AtomSet a = readAtomSet(p);
@@ -160,91 +253,91 @@ Json findRings(const Parameters& p)
     const long long maxSize = integer(p.number("max_size", 10), "max_size", 3);
     if (maxSize > 24) throw std::runtime_error("max_size must be at most 24");
     const std::size_t n = a.positions.size();
-    struct Bond { int j; std::array<int, 3> shift; };
-    std::vector<std::vector<Bond>> bonds(n);
-    for (const auto& link : neighborList(a.positions, a.cell, a.pbc, cutoff))
-        bonds[static_cast<std::size_t>(link.i)].push_back({link.j, link.shift});
-    // A node of the unwrapped network: atom and periodic image.
-    using Node = std::array<int, 4>;
-    struct NodeHash
-    {
-        std::size_t operator()(const Node& k) const
-        {
-            std::size_t h = static_cast<std::size_t>(k[0]) * 1000003u;
-            for (int d = 1; d < 4; ++d) h = (h ^ static_cast<std::size_t>(k[static_cast<std::size_t>(d)] + 512)) * 1000003u;
-            return h;
-        }
-    };
-    const auto step = [](const Node& from, const Bond& b) {
-        return Node{b.j, from[1] + b.shift[0], from[2] + b.shift[1], from[3] + b.shift[2]};
-    };
-    // Canonical key: rotation and direction that give the smallest sequence,
-    // with images taken relative to the first node.
-    const auto canonical = [](const std::vector<Node>& ring) {
+    const int half = static_cast<int>(maxSize / 2);
+    Network network(a, cutoff);
+    const std::size_t pathLimit = 512;  // shortest paths followed per node
+    bool truncated = false;
+    std::set<std::vector<Node>> rings, rejected;
+
+    // A ring is a shortest-path ring when no two of its nodes are closer in
+    // the network than around the ring.
+    const auto shortestPathRing = [&](const std::vector<Node>& ring) {
         const std::size_t m = ring.size();
-        std::vector<Node> best;
-        for (std::size_t start = 0; start < m; ++start)
-            for (int direction : {1, -1}) {
-                std::vector<Node> sequence(m);
-                const Node& origin = ring[start];
-                for (std::size_t k = 0; k < m; ++k) {
-                    const std::size_t index = direction > 0 ? (start + k) % m : (start + m - k % m) % m;
-                    const Node& node = ring[index];
-                    sequence[k] = {node[0], node[1] - origin[1], node[2] - origin[2], node[3] - origin[3]};
-                }
-                if (best.empty() || sequence < best) best = std::move(sequence);
+        for (std::size_t i = 0; i < m; ++i)
+            for (std::size_t j = i + 2; j < m; ++j) {
+                const std::size_t around = std::min(j - i, m - (j - i));
+                if (around < 2) continue;
+                if (network.distance(ring[i], ring[j], half) < static_cast<int>(around)) return false;
             }
-        return best;
+        return true;
     };
-    std::set<std::vector<Node>> rings;
-    const std::size_t pathLimit = 64;
-    for (std::size_t i = 0; i < n; ++i) {
-        if (i % 128 == 0) taskProgress(static_cast<double>(i) / static_cast<double>(n));
-        for (const Bond& bond : bonds[i]) {
-            const std::size_t j = static_cast<std::size_t>(bond.j);
-            // Each undirected bond once.
-            if (j < i || (j == i && bond.shift < std::array<int, 3>{0, 0, 0})) continue;
-            const Node source{static_cast<int>(i), 0, 0, 0};
-            const Node target{bond.j, bond.shift[0], bond.shift[1], bond.shift[2]};
-            // Breadth-first search from i to j without the bond itself.
-            std::unordered_map<Node, int, NodeHash> distance;
-            std::unordered_map<Node, std::vector<Node>, NodeHash> parents;
-            distance[source] = 0;
-            std::vector<Node> level = {source};
-            bool found = false;
-            for (int depth = 0; depth + 1 < maxSize && !level.empty() && !found; ++depth) {
-                std::vector<Node> next;
-                for (const Node& node : level)
-                    for (const Bond& b : bonds[static_cast<std::size_t>(node[0])]) {
-                        const Node to = step(node, b);
-                        if ((node == source && to == target) || (node == target && to == source)) continue;
-                        const auto known = distance.find(to);
-                        if (known == distance.end()) {
-                            distance[to] = depth + 1;
-                            parents[to].push_back(node);
-                            next.push_back(to);
-                        } else if (known->second == depth + 1) parents[to].push_back(node);
-                        if (to == target) found = true;
+
+    for (std::size_t r = 0; r < n; ++r) {
+        if (r % 64 == 0) taskProgress(static_cast<double>(r) / static_cast<double>(n));
+        const int source = static_cast<int>(r);
+        const Network::Search s = network.search(source, half, true);
+        // All shortest paths from the source to a node (bounded in number).
+        std::unordered_map<Node, std::vector<std::vector<Node>>, NodeHash> paths;
+        const std::function<const std::vector<std::vector<Node>>&(const Node&)> pathsTo = [&](const Node& node) -> const std::vector<std::vector<Node>>& {
+            if (const auto found = paths.find(node); found != paths.end()) return found->second;
+            std::vector<std::vector<Node>> result;
+            if (s.distance.at(node) == 0) result.push_back({node});
+            else
+                for (const Node& parent : s.parents.at(node)) {
+                    for (const auto& path : pathsTo(parent)) {
+                        if (result.size() >= pathLimit) { truncated = true; break; }
+                        result.push_back(path);
+                        result.back().push_back(node);
                     }
-                level = std::move(next);
-            }
-            if (!found) continue;
-            // Every shortest path back from the target (bounded in number).
-            std::vector<std::vector<Node>> paths = {{target}};
-            std::vector<std::vector<Node>> complete;
-            while (!paths.empty() && complete.size() < pathLimit) {
-                std::vector<Node> path = std::move(paths.back());
-                paths.pop_back();
-                const Node& last = path.back();
-                if (last == source) { complete.push_back(std::move(path)); continue; }
-                for (const Node& parent : parents[last]) {
-                    if (paths.size() + complete.size() > 4 * pathLimit) break;
-                    std::vector<Node> extended = path;
-                    extended.push_back(parent);
-                    paths.push_back(std::move(extended));
                 }
+            return paths[node] = std::move(result);
+        };
+        // A candidate ring, kept once from its lowest atom when it is a shortest-path ring.
+        const auto consider = [&](std::vector<Node> ring) {
+            for (const Node& node : ring)
+                if (node[0] < source) return;
+            auto key = canonicalRing(ring);
+            if (rings.count(key) || rejected.count(key)) return;
+            if (shortestPathRing(ring)) rings.insert(std::move(key));
+            else rejected.insert(std::move(key));
+        };
+        const auto disjoint = [](const std::vector<Node>& x, std::size_t xFrom, std::size_t xTo, const std::vector<Node>& y, std::size_t yFrom, std::size_t yTo) {
+            for (std::size_t i = xFrom; i < xTo; ++i)
+                for (std::size_t j = yFrom; j < yTo; ++j)
+                    if (x[i] == y[j]) return false;
+            return true;
+        };
+        // Every shortest-path ring through the source is two shortest paths
+        // meeting at the farthest node (even rings) or edge (odd rings).
+        for (int d = 1; d <= half && static_cast<std::size_t>(d) < s.levels.size(); ++d) {
+            taskCheckpoint();
+            for (const Node& m : s.levels[static_cast<std::size_t>(d)]) {
+                if (2 * d <= maxSize) {
+                    const auto& toM = pathsTo(m);
+                    for (std::size_t i = 0; i < toM.size(); ++i)
+                        for (std::size_t j = i + 1; j < toM.size(); ++j) {
+                            const auto& x = toM[i];
+                            const auto& y = toM[j];
+                            if (!disjoint(x, 1, x.size() - 1, y, 1, y.size() - 1)) continue;
+                            std::vector<Node> ring = x;
+                            for (std::size_t k = y.size() - 1; k-- > 1;) ring.push_back(y[k]);
+                            consider(std::move(ring));
+                        }
+                }
+                if (2 * d + 1 <= maxSize)
+                    for (const auto& b : network.bonds(m[0])) {
+                        const Node other = Network::step(m, b);
+                        const auto found = s.distance.find(other);
+                        if (found == s.distance.end() || found->second != d || !(m < other)) continue;
+                        for (const auto& x : pathsTo(m))
+                            for (const auto& y : pathsTo(other)) {
+                                if (!disjoint(x, 1, x.size(), y, 1, y.size())) continue;
+                                std::vector<Node> ring = x;
+                                for (std::size_t k = y.size(); k-- > 1;) ring.push_back(y[k]);
+                                consider(std::move(ring));
+                            }
+                    }
             }
-            for (const auto& path : complete) rings.insert(canonical(path));
         }
     }
     std::map<std::size_t, long long> sizes;
@@ -272,6 +365,7 @@ Json findRings(const Parameters& p)
     result["rings_per_atom"] = toJson(perAtom);
     result["rings"] = list;
     result["rings_listed"] = static_cast<double>(list.size());
+    result["paths_truncated"] = truncated;
     result["cutoff_A"] = cutoff;
     result["max_size"] = static_cast<double>(maxSize);
     return result;

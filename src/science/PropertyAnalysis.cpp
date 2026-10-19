@@ -244,8 +244,10 @@ Json spatialCorrelation(const Parameters& p)
                 };
                 const Vec3 f = {wrapped(i, n[0]), wrapped(j, n[1]), wrapped(k, n[2])};
                 const double r = norm(rowTimes(f, cell));
-                if (r >= rMax) continue;
-                const std::size_t bin = static_cast<std::size_t>(r / width);
+                // Grid distances often fall exactly on a bin edge: such a
+                // distance belongs to the bin it starts, despite rounding.
+                const std::size_t bin = static_cast<std::size_t>(r / width * (1 + 1e-12) + 1e-12);
+                if (bin >= static_cast<std::size_t>(radialBins)) continue;
                 const std::size_t index = (i * n[1] + j) * n[2] + k;
                 numerator[bin] += ab[index].real();
                 pairs[bin] += nn[index].real();

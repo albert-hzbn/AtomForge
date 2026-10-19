@@ -167,6 +167,22 @@ std::vector<CellResult> allCells(const AtomSet& a, double& cutoff)
         if (!pending) break;
         cutoff *= 1.6;
     }
+    // With open boundaries a cell that still reaches the bounding cube may just
+    // be large: cut it by every atom inside a cube far beyond the structure.
+    // It stays open only if unbounded (an atom on the outer hull).
+    if (!a.periodic()) {
+        const double spacing = meanAtomicSpacing(a);
+        for (std::size_t i = 0; i < n; ++i) {
+            if (!cells[i].open) continue;
+            taskCheckpoint();
+            std::vector<Vec3> others;
+            others.reserve(n - 1);
+            for (std::size_t j = 0; j < n; ++j)
+                if (j != i) others.push_back(sub(a.positions[j], a.positions[i]));
+            std::sort(others.begin(), others.end(), [](const Vec3& x, const Vec3& y) { return dot(x, x) < dot(y, y); });
+            cells[i] = voronoiCell(others, 1e6 * spacing, eps);
+        }
+    }
     return cells;
 }
 

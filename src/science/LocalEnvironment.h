@@ -13,9 +13,10 @@ Json chillPlus(const Parameters& p);
 // atom's Gaussian-smoothed g(r), optionally averaged over its neighbours.
 Json localEntropy(const Parameters& p);
 
-// Shortest-path rings of the bond network (bonds shorter than the cutoff):
-// for every bond, the shortest closed paths through it that wind around no
-// periodic direction. Reports the ring-size distribution and rings per atom.
+// Shortest-path rings (Franzblau, Phys. Rev. B 44, 4925 (1991)) of the bond
+// network (bonds shorter than the cutoff, periodic images included): closed
+// paths in which every two atoms are joined around the ring by a shortest
+// path of the network. Reports the ring-size distribution and rings per atom.
 Json findRings(const Parameters& p);
 
 // Displacement of each atom from a reference configuration (minimum image in

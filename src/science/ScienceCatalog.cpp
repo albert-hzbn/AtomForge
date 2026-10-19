@@ -244,7 +244,7 @@ const std::vector<ScienceToolDef>& scienceToolCatalog()
             {"cell", "Cell vectors (Angstrom)", "", "data", false},
             {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
         }, ScienceToolView::Atoms},
-        {"find-rings", "Ring statistics", "Shortest-path rings of the bond network and their size distribution.\n\nBonds join atoms closer than the cutoff, across periodic boundaries. For\nevery bond, the shortest closed paths through it (the bond removed, all\npaths of equal length) are rings, provided they wind around no periodic\ndirection. Distinct rings up to max_size atoms are counted by size and per\natom. Typical for silica, amorphous carbon or silicon and networks.", "Structure and defects", {
+        {"find-rings", "Ring statistics", "Shortest-path rings of the bond network and their size distribution.\n\nFranzblau's shortest-path rings (as matscipy and R.I.N.G.S.): bonds join\natoms closer than the cutoff, across periodic boundaries, and a closed path\nis a ring when every two of its atoms are joined around it by a shortest\npath of the network (no shortcut through the network). Distinct rings up to\nmax_size atoms are counted by size and per atom. Typical for silica,\namorphous carbon or silicon and other networks.", "Structure and defects", {
             {"positions", "Atomic positions (Angstrom)", "", "data", true},
             {"cutoff_A", "Bond cutoff (Angstrom)", "2.0", "float", true},
             {"max_size", "Largest ring (atoms)", "10", "int", false},
