@@ -309,8 +309,8 @@ Structure structureFromJson(const Json& value)
 {
     if (!value.isObject()) throw std::runtime_error("Structure requires a file reference or symbols, positions and optional cell");
     for (const auto& member : value.members())
-        if (member.first != "symbols" && member.first != "positions" && member.first != "cell")
-            throw std::runtime_error("Structure requires a file reference or symbols, positions and optional cell");
+        if (member.first != "symbols" && member.first != "positions" && member.first != "cell" && member.first != "pbc")
+            throw std::runtime_error("Structure requires a file reference or symbols, positions, optional cell and pbc");
     Structure structure;
     const auto& symbols = value.at("symbols").items();
     const auto positions = points(toArray(value.at("positions"), "positions"), "positions");
@@ -321,6 +321,8 @@ Structure structureFromJson(const Json& value)
         for (int r = 0; r < 3; ++r) structure.cellVectors[r] = matrix[r];
         structure.hasUnitCell = true;
     }
+    // Periodic cell vectors (default: all of them).
+    if (const Json* pbc = value.find("pbc"); pbc && !pbc->isNull()) structure.pbc = parsePbc(*pbc);
     return structure;
 }
 
@@ -992,6 +994,7 @@ Json structureJson(const Structure& structure)
         Mat3 cell{};
         for (int r = 0; r < 3; ++r) cell[r] = structure.cellVectors[r];
         result["cell"] = toJson(cell);
+        result["pbc"] = Json::array({structure.pbc[0], structure.pbc[1], structure.pbc[2]});
     } else result["cell"] = Json();
     return result;
 }

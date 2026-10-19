@@ -39,11 +39,15 @@ class Structure:
     cell : list[list[float]] | None
         3×3 lattice vectors ``[[a1,a2,a3], [b1,b2,b3], [c1,c2,c3]]``
         in Angstrom, or ``None`` for a non-periodic (cluster) structure.
+    pbc : list[bool]
+        Whether the structure is periodic along each cell vector (with a
+        cell); a slab is ``[True, True, False]``.
     """
 
     def __init__(self) -> None:
         self.atoms: List[Atom] = []
         self.cell: Optional[List[List[float]]] = None
+        self.pbc: List[bool] = [True, True, True]
 
     # ── Dunder helpers ──────────────────────────────────────────────────────────
 
@@ -62,6 +66,7 @@ class Structure:
         s = Structure()
         s.atoms = [a.copy() for a in self.atoms]
         s.cell = [list(row) for row in self.cell] if self.cell else None
+        s.pbc = list(self.pbc)
         return s
 
     # ── Atom editing ────────────────────────────────────────────────────────────

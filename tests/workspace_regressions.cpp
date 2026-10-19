@@ -166,6 +166,20 @@ int main()
             const auto withPipeline=atomforge::loadWorkspace(extraPath);
             check(withPipeline[0].pipeline==extra.pipeline && withPipeline[0].hasPipelineInput &&
                   withPipeline[0].pipelineInput.atoms.size()==1,"Pipeline and its input changed");
+            // Format 5: periodicity per cell vector and the frozen per-atom property.
+            extra.structure.pbc={true,true,false};
+            extra.pipelineInput.pbc={false,true,true};
+            extra.structure.frozenProperty={2.5,std::numeric_limits<double>::quiet_NaN()};
+            extra.structure.frozenPropertyName="CNA structure";
+            atomforge::saveWorkspace({extra},extraPath);
+            const auto format5=atomforge::loadWorkspace(extraPath);
+            check(format5[0].structure.pbc==extra.structure.pbc && format5[0].pipelineInput.pbc==extra.pipelineInput.pbc,"Periodic axes changed");
+            check(format5[0].structure.frozenProperty.size()==2 && format5[0].structure.frozenProperty[0]==2.5 &&
+                  std::isnan(format5[0].structure.frozenProperty[1]) && format5[0].structure.frozenPropertyName=="CNA structure","Frozen property changed");
+            atomforge::saveWorkspace({extra},extraPath,4);
+            const auto format4=atomforge::loadWorkspace(extraPath);
+            check(format4[0].structure.pbc==std::array<bool,3>{true,true,true} && format4[0].structure.frozenProperty.empty(),"Format 4 project did not load as periodic");
+            extra.structure.frozenProperty.clear();
             atomforge::saveWorkspace({extra},extraPath,2);
             const auto format2=atomforge::loadWorkspace(extraPath);
             check(format2[0].pipeline.empty() && !format2[0].hasPipelineInput && format2[0].science==extra.science,"Format 2 project did not load");

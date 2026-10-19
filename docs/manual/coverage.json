@@ -131,7 +131,7 @@
     },
     {
       "source": "python/atomforge/_structure.py",
-      "sha256": "7ea05ebeea6c1eb06a2cc2a0aed809928305ac41a764835d6e395337782e6c43",
+      "sha256": "ff2a4ecaa0cc10327c0d366a65294c34421d925cf1f7085f5858931dd2d82a65",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -270,7 +270,7 @@
     },
     {
       "source": "python/atomforge/native.py",
-      "sha256": "15a97a66647501839d493dc047eeb8cab33bf0bf2d97a834fe566a39327837e4",
+      "sha256": "d21d3650f4d9512b255f699c2cc0001fd815752b444534d363ebe32c2362c276",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -279,7 +279,7 @@
     },
     {
       "source": "python/atomforge/pipeline.py",
-      "sha256": "e38149ce43e9495c3ed6242d1e54149434a653344d863321be0edd30cbb94162",
+      "sha256": "8cdb45c74f53ea348a01d805c7ac8a28047a268ab69e38039b2dc9813b7232b0",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -1267,7 +1267,7 @@
     },
     {
       "source": "src/science/LocalEnvironment.h",
-      "sha256": "b9fc1fa4c1866556c8fd4abc35a35c624dbb7a989684d096d1b23a1e84a9e5a0",
+      "sha256": "21252d4a85af2273a4ee91b1a65c50a1afe0619e00e2e84a8a3d342b6e1ece5c",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"

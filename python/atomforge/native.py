@@ -97,7 +97,8 @@ def _structure_json(structure: Structure) -> Dict[str, Any]:
     data: Dict[str, Any] = {"symbols": [a.symbol for a in structure.atoms],
                             "positions": [[a.x, a.y, a.z] for a in structure.atoms]}
     if structure.cell:
-        data["cell"] = [list(map(float, row)) for row in structure.cell]  # a cell makes it periodic
+        data["cell"] = [list(map(float, row)) for row in structure.cell]
+        data["pbc"] = [bool(p) for p in getattr(structure, "pbc", (True, True, True))]
     return data
 
 
@@ -107,6 +108,8 @@ def _from_json(data: Dict[str, Any]) -> Structure:
         structure.atoms.append(Atom(symbol, float(x), float(y), float(z)))
     if data.get("cell"):
         structure.cell = [list(map(float, row)) for row in data["cell"]]
+    if data.get("pbc"):
+        structure.pbc = [bool(p) for p in data["pbc"]]
     return structure
 
 
@@ -153,7 +156,7 @@ def _expand_structures(tool: str, payload: Dict[str, Any]) -> None:
         if first.cell and "cell" in names and "cell" not in payload:
             payload["cell"] = first.cell
         if first.cell and "pbc" in names and "pbc" not in payload:
-            payload["pbc"] = [True, True, True]
+            payload["pbc"] = [bool(p) for p in getattr(first, "pbc", (True, True, True))]
 
 
 class NativeResult:

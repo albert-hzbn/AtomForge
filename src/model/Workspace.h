@@ -30,6 +30,6 @@ struct Workspace
 // Projects are written in format 3 (format 2 added per-atom properties and
 // scientific tool state, format 3 the structure pipeline); formats 1 and 2 still
 // load. formatVersion exists for compatibility tests.
-void saveWorkspace(const std::vector<Workspace>& tabs, const std::string& path, int formatVersion = 4);
+void saveWorkspace(const std::vector<Workspace>& tabs, const std::string& path, int formatVersion = 5);
 std::vector<Workspace> loadWorkspace(const std::string& path);
 }

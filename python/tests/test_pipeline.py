@@ -78,6 +78,16 @@ class PipelineTests(unittest.TestCase):
         overlap = Pipeline.parse("replicate 2 2 2 | add-atom Cu 0.2 0 0 | select-overlapping 1.0 | delete-selected").run(copper())
         self.assertEqual(len(overlap.structure.atoms), 32)
 
+    def test_periodic_axes_follow_the_structure(self):
+        slab = Pipeline.parse("set-pbc c=false").run(copper()).structure
+        self.assertEqual(slab.pbc, [True, True, False])
+        copy = slab.copy()
+        self.assertEqual(copy.pbc, [True, True, False])
+        # The open c axis travels into the next pipeline: no image across c.
+        slab.atoms[0].z = slab.cell[2][2] - 0.2
+        near = Pipeline.parse("select-sphere 0 0 0.1 0.5").run(slab)
+        self.assertEqual(near.selected_count, 0)
+
     def test_python_script_step(self):
         script = Path(tempfile.mkdtemp()) / "lift.py"
         script.write_text(

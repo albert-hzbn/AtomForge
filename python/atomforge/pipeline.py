@@ -414,7 +414,8 @@ def _extxyz(structure: Structure, property: Optional[Sequence[float]]) -> str:
     lines = [str(len(structure.atoms))]
     header = ""
     if structure.cell:
-        header += 'Lattice="' + " ".join(repr(float(v)) for row in structure.cell for v in row) + '" pbc="T T T" '
+        flags = " ".join("T" if p else "F" for p in getattr(structure, "pbc", (True, True, True)))
+        header += 'Lattice="' + " ".join(repr(float(v)) for row in structure.cell for v in row) + f'" pbc="{flags}" '
     columns = "species:S:1:pos:R:3" + (":property:R:1" if property is not None else "")
     lines.append(header + "Properties=" + columns)
     values = list(_values(property)) if property is not None else None
@@ -482,7 +483,8 @@ def script_step(function) -> None:
             name = returned[3]
     elif returned is not None:
         structure = returned
-    out = {"structure": native._structure_json(structure), "pbc": data.get("pbc", [True, True, True])}
+    structure.pbc = list(data.get("pbc", structure.pbc))
+    out = {"structure": native._structure_json(structure), "pbc": structure.pbc}
     if len(selected) == len(structure.atoms):
         out["selected"] = [1 if v else 0 for v in selected]
     if prop is not None and len(prop) == len(structure.atoms):

@@ -108,6 +108,19 @@ public:
             if (in) atom.fixed=static_cast<std::uint8_t>(flags);
         }
     }
+    // Periodicity per cell vector and the frozen per-atom property (format 5).
+    void periodicity(Structure& s) {
+        for (bool& axis:s.pbc) value(axis);
+    }
+    void frozenProperty(Structure& s) {
+        std::uint64_t count=s.frozenProperty.size(); value(count);
+        if (count!=0 && count!=s.atoms.size()) throw std::runtime_error("Misaligned project frozen property");
+        if (in) s.frozenProperty.resize(static_cast<std::size_t>(count));
+        for (double& number:s.frozenProperty) {
+            std::uint64_t bits=0; std::memcpy(&bits,&number,8); value(bits); if (in) std::memcpy(&number,&bits,8);
+        }
+        value(s.frozenPropertyName);
+    }
     void value(electronic::Site& s) { value(s.number); value(s.position); }
     void value(electronic::Grid& g) { value(g.shape); value(g.cell); value(g.origin); value(g.periodic); value(g.name); value(g.unit); value(g.values); g.validate(); }
     void value(electronic::Volume& v) { value(v.sites); value(v.fields); }
@@ -139,6 +152,11 @@ public:
             fixedFlags(w.structure);
             if (w.hasPipelineInput) fixedFlags(w.pipelineInput);
         }
+        if (version>=5) {
+            periodicity(w.structure);
+            if (w.hasPipelineInput) periodicity(w.pipelineInput);
+            frozenProperty(w.structure);
+        }
         if (!w.camera.empty() && w.camera.size()!=7) throw std::runtime_error("Invalid project camera");
         for (double coordinate:w.camera)
             if (std::abs(coordinate)>1e9) throw std::runtime_error("Project camera outside supported range");
@@ -155,7 +173,7 @@ private:
 void saveWorkspace(const std::vector<Workspace>& tabs,const std::string& filename,int formatVersion)
 {
     if (tabs.empty() || tabs.size()>1000) throw std::runtime_error("A project requires 1-1000 tabs");
-    if (formatVersion<1 || formatVersion>4) throw std::runtime_error("Unsupported project format");
+    if (formatVersion<1 || formatVersion>5) throw std::runtime_error("Unsupported project format");
     const auto path=std::filesystem::u8path(filename);
     auto temporary=path;
     temporary += ".tmp-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
@@ -192,6 +210,7 @@ std::vector<Workspace> loadWorkspace(const std::string& filename)
     else if (magic=="ATOMFORGE_PROJECT_2") archive.version=2;
     else if (magic=="ATOMFORGE_PROJECT_3") archive.version=3;
     else if (magic=="ATOMFORGE_PROJECT_4") archive.version=4;
+    else if (magic=="ATOMFORGE_PROJECT_5") archive.version=5;
     else throw std::runtime_error("Unsupported project version (saved by a newer AtomForge?)");
     std::uint64_t count=0; archive.value(count);
     if (count==0 || count>1000) throw std::runtime_error("Invalid project tab count");
