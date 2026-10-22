@@ -1,5 +1,7 @@
 #pragma once
 
+#include "model/DisplaySettings.h"
+
 #include <glm/glm.hpp>
 
 struct GLFWwindow;
@@ -34,8 +36,11 @@ bool updateViewport(GLFWwindow* window, FrameView& frame);
 // stay in the whole-window coordinates they already use.
 void fitProjectionToArea(FrameView& frame);
 
+// The light comes from the direction the display settings give, fixed in
+// the scene or turning with the camera.
 void buildFrameView(
     Camera& camera,
     const SceneBuffers& sceneBuffers,
     bool useOrthographicView,
-    FrameView& frame);
+    FrameView& frame,
+    const atomforge::display::DisplaySettings& display = atomforge::display::DisplaySettings());

@@ -24,6 +24,7 @@ endif()
 
 add_library(atomforge_core STATIC
     ${PROJECT_SOURCE_DIR}/src/model/Workspace.cpp
+    ${PROJECT_SOURCE_DIR}/src/model/DisplaySettings.cpp
     ${PROJECT_SOURCE_DIR}/src/io/Trajectory.cpp
     ${PROJECT_SOURCE_DIR}/src/graphics/Picking.cpp
     ${PROJECT_SOURCE_DIR}/src/util/ElementData.cpp

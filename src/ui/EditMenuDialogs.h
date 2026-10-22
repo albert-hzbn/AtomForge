@@ -2,8 +2,10 @@
 
 #include <vector>
 #include <functional>
+#include <string>
 #include <glm/glm.hpp>
 
+#include "model/DisplaySettings.h"
 #include "model/Structure.h"
 #include "ui/StepEditing.h"
 
@@ -16,16 +18,8 @@ struct EditMenuDialogs
     std::vector<glm::vec3> elementColors;
     std::vector<float>     elementShininess;
 
-    // Lighting parameters (applied as shader uniforms each frame).
-    float lightAmbient           = 0.40f;
-    float lightSaturation        = 1.55f;
-    float lightContrast          = 1.25f;
-    float lightShadowStrength    = 0.20f;
-
-    // Material parameters (applied as shader uniforms each frame).
-    float materialSpecularIntensity = 0.65f;
-    float materialShininessScale    = 1.5f;
-    float materialShininessFloor    = 32.0f;
+    // Lighting, surface, sizes and colours of the view (Display Settings).
+    atomforge::display::DisplaySettings display;
 
     // Initialise radii and colours to literature / CPK defaults.
     EditMenuDialogs();
@@ -59,6 +53,8 @@ private:
     bool m_showEditStructureElementPicker = false;
     bool m_restoreEditStructureAfterElementPicker = false;
     bool m_useDirectCoords = false;
+    bool m_displayRebuildPending = false;
+    std::string m_displayStatus;
     int  m_selectedRadiusElement = 6;
     int  m_selectedColorElement  = 6;
     int  m_selectedEditAtom = 0;
@@ -75,4 +71,6 @@ private:
     bool   m_stepFractional = false;
     bool   m_stepSelect = true;
     void drawStepEditor();
+    void drawDisplaySettings(Structure& structure, const std::function<void(Structure&)>& updateBuffers);
+    void drawRadiusEditor(Structure& structure, const std::function<void(Structure&)>& updateBuffers);
 };

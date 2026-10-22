@@ -579,7 +579,7 @@ StructureInstanceData buildRenderData(const EditorState& state)
         filterInstances(data, visible);
     }
 
-    const float radiusScale = state.fileBrowser.getAtomRadiusScale();
+    const float radiusScale = state.fileBrowser.getAtomRadiusScale() * state.editMenuDialogs.display.atomScale;
     if (std::abs(radiusScale - 1.0f) > 1e-4f)
     {
         for (float& scale : data.scales)
@@ -591,6 +591,10 @@ StructureInstanceData buildRenderData(const EditorState& state)
 
 void refreshSceneBuffers(EditorState& state, const StructureInstanceData& data)
 {
+    const atomforge::display::DisplaySettings& display = state.editMenuDialogs.display;
+    state.sceneBuffers.bondStyle.thickness = display.bondScale;
+    state.sceneBuffers.bondStyle.uniformColour = display.uniformBondColour;
+    state.sceneBuffers.bondStyle.colour = display.bondColour;
     state.sceneBuffers.upload(
         data,
         state.fileBrowser.isBondElementFilterEnabled(),

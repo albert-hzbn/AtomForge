@@ -115,6 +115,15 @@ struct SceneBuffers
     // Release all GPU resources owned by this SceneBuffers.
     void destroy();
 
+    // How bonds are drawn (Display Settings), read by upload().
+    struct BondStyle
+    {
+        float thickness = 1.0f;        // multiplies the automatic bond radius
+        bool uniformColour = false;    // one colour instead of half of each atom's
+        glm::vec3 colour = glm::vec3(0.62f);
+    };
+    BondStyle bondStyle;
+
     // Upload a new StructureInstanceData set to the GPU and cache derived data.
     void upload(const StructureInstanceData& data,
                 bool bondElementFilterEnabled,

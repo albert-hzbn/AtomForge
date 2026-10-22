@@ -23,6 +23,8 @@ struct ImageExportView
     glm::mat4 lightMVP = glm::mat4(1.0f);
     glm::vec3 lightPosition = glm::vec3(0.0f);
     glm::vec3 cameraPosition = glm::vec3(0.0f);
+    // Cell outline colour; negative: dark on a light background, else light.
+    glm::vec3 boxColor = glm::vec3(-1.0f);
 };
 
 // Renders the scene off-screen into RGBA pixels (rows top to bottom), as used

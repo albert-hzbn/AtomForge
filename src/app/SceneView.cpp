@@ -92,10 +92,8 @@ glm::vec3 computeCameraOffset(float distance, float yawDeg, float pitchDeg)
         -std::sin(pitch) * std::cos(yaw)));
     }
 
-glm::vec3 buildLightPosition(const SceneBuffers& sceneBuffers)
-{
-    return sceneBuffers.orbitCenter + glm::vec3(40.0f, 40.0f, 40.0f);
-}
+// The light's distance from the scene centre (along (1, 1, 1) by default).
+constexpr float kLightDistance = 69.2820323f;
 }
 
 bool updateViewport(GLFWwindow* window, FrameView& frame)
@@ -140,7 +138,8 @@ void buildFrameView(
     Camera& camera,
     const SceneBuffers& sceneBuffers,
     bool useOrthographicView,
-    FrameView& frame)
+    FrameView& frame,
+    const atomforge::display::DisplaySettings& display)
 {
     const float aspect = (float)frame.framebufferWidth / (float)frame.framebufferHeight;
     const float verticalFov = glm::radians(kVerticalFovDeg);
@@ -183,9 +182,13 @@ void buildFrameView(
         rolledUp);
 
     const glm::mat4 lightProjection = glm::perspective(glm::radians(kVerticalFovDeg), 1.0f, 0.1f, 1000.0f);
-    frame.lightPosition = buildLightPosition(sceneBuffers);
+    glm::vec3 toLight = atomforge::display::lightDirection(display);
+    if (display.lightFollowsCamera)
+        toLight = toLight.x * right + toLight.y * rolledUp - toLight.z * forward;
+    toLight = glm::normalize(toLight);
+    frame.lightPosition = sceneBuffers.orbitCenter + kLightDistance * toLight;
     frame.lightMVP = lightProjection * glm::lookAt(
         frame.lightPosition,
         sceneBuffers.orbitCenter,
-        glm::vec3(0, 1, 0));
+        std::abs(toLight.y) > 0.98f ? glm::vec3(0, 0, 1) : glm::vec3(0, 1, 0));
 }

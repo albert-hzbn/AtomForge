@@ -4,6 +4,12 @@
 
 - `src/model/Structure.h` owns atom and structure data, including per-atom metadata
   and deletion rules. Include it when only domain types are needed.
+- `src/model/DisplaySettings.*` owns how the view is drawn (lighting, light
+  direction, surface finish, atom and bond sizes, bond, background and cell
+  colours), its presets and its saved text form; one per tab, in
+  `EditMenuDialogs::display`. Both renderers and image export read it through
+  `buildFrameView` (light direction), `SceneBuffers::bondStyle` and the scene
+  colours; it is tested in `tests/display_settings.cpp`.
 - `src/util/ElementData.*` owns element names, radii, masses, and default colors.
 - `src/algorithms/` owns structure generation and scientific calculations.
   CNA and RDF expose typed parameter/result objects in `atomforge::analysis`.

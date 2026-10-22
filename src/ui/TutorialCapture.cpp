@@ -212,9 +212,16 @@ void FileBrowser::runTutorialCapture(Structure& current, EditMenuDialogs& dialog
         // Edit and display settings.
         s.push_back(Shot{"tutorials/edit-structure.jpg", {{0, main(host)}, {2, [](Context& x) { x.dialogs.openEditStructure(); }}}, 14, popups});
         s.push_back(Shot{"tutorials/atomic-sizes.jpg", {{0, [](Context& x) { x.dialogs.openAtomicSizes(); }}}, 14, popups});
+        s.push_back(Shot{"tutorials/display-style.jpg", {{0, main(host)}, {2, [](Context& x) { x.dialogs.openDisplaySettings(); }}, {6, script("display.style")}}, 14, popups});
         s.push_back(Shot{"tutorials/display-lighting.jpg", {{0, [](Context& x) { x.dialogs.openDisplaySettings(); }}, {4, script("display.lighting")}}, 14, popups});
-        s.push_back(Shot{"tutorials/display-material.jpg", {{0, [](Context& x) { x.dialogs.openDisplaySettings(); }}, {4, script("display.material")}}, 14, popups});
-        s.push_back(Shot{"tutorials/display-colors.jpg", {{0, [](Context& x) { x.dialogs.openDisplaySettings(); }}, {4, script("display.colors")}}, 14, popups});
+        s.push_back(Shot{"tutorials/display-atoms.jpg", {{0, [](Context& x) { x.dialogs.openDisplaySettings(); }}, {4, script("display.atoms")}}, 14, popups});
+        // The Publication look in the view, then back to the default look.
+        s.push_back(Shot{"tutorials/display-publication.jpg", {{0, [](Context& x) {
+            ImGui::ClosePopupToLevel(0, true);
+            atomforge::display::applyPreset(x.dialogs.display, atomforge::display::presets().back());
+        }}}, 20, viewportRect});
+        s.push_back(Shot{"tutorials/display-colors.jpg", {{0, [](Context& x) { x.dialogs.display = atomforge::display::DisplaySettings(); x.dialogs.openDisplaySettings(); }},
+                                                         {4, script("display.colors")}}, 14, popups});
         s.push_back(Shot{"tutorials/lattice-planes.jpg", {{0, [this](Context&) { showLatticePlanesDialog = true; }}, {6, script("lattice.add")}}, 14, popups});
         s.push_back(Shot{"tutorials/miller-directions.jpg", {{0, [this](Context&) { showMillerDirectionsDialog = true; }}, {6, script("miller.add")}}, 14, popups});
         s.push_back(Shot{"tutorials/polyhedral-settings.jpg", {{0, [this](Context&) { showPolyhedralSettingsDialog = true; }}}, 14, popups});

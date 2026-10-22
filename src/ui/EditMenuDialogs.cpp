@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cstdio>
 #include <iostream>
 
 namespace
@@ -184,6 +185,337 @@ void EditMenuDialogs::drawStepEditor()
     }
 }
 
+// ---------------------------------------------------------------- display settings
+namespace
+{
+using atomforge::display::DisplaySettings;
+using atomforge::display::Range;
+
+float labelColumn() { return ImGui::GetFontSize() * 10.5f; }
+float sliderWidth() { return ImGui::GetFontSize() * 17.0f; }
+
+bool differs(float value, float reference) { return std::abs(value - reference) > 1e-4f * std::max(1.0f, std::abs(reference)); }
+
+// A Reset button for one value, enabled while it differs from the default.
+bool resetButton(bool modified, const char* tooltip)
+{
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!modified);
+    const bool pressed = ImGui::SmallButton("Reset");
+    ImGui::EndDisabled();
+    dialogLayout::hint(tooltip);
+    return pressed;
+}
+
+// One setting: its name, a slider (Ctrl+click to type a value), a Reset
+// button and its explanation on hover. Returns true when the value changed.
+bool settingSlider(const char* label, float& value, Range range, float factory, const char* format, const char* help)
+{
+    ImGui::PushID(label);
+    dialogLayout::fieldLabel(label, labelColumn());
+    dialogLayout::hint(help);
+    ImGui::SetNextItemWidth(sliderWidth());
+    bool changed = ImGui::SliderFloat("##value", &value, range.low, range.high, format, ImGuiSliderFlags_AlwaysClamp);
+    dialogLayout::hint(help);
+    char tooltip[96];
+    std::snprintf(tooltip, sizeof(tooltip), "Back to the default, %g.", factory);
+    if (resetButton(differs(value, factory), tooltip)) {
+        value = factory;
+        changed = true;
+    }
+    ImGui::PopID();
+    return changed;
+}
+
+// "Theme colour" or a chosen one, with a few common swatches.
+bool colourChoice(const char* id, const char* themeLabel, bool& custom, glm::vec3& colour)
+{
+    ImGui::PushID(id);
+    bool changed = false;
+    if (ImGui::RadioButton(themeLabel, !custom)) { custom = false; changed = true; }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Custom colour", custom)) { custom = true; changed = true; }
+    if (custom) {
+        ImGui::SetNextItemWidth(sliderWidth());
+        changed |= ImGui::ColorEdit3("##colour", &colour.x);
+        struct Swatch { const char* name; glm::vec3 colour; };
+        const Swatch swatches[] = {{"White", glm::vec3(1.0f)}, {"Light grey", glm::vec3(0.82f)}, {"Mid grey", glm::vec3(0.5f)},
+                                   {"Dark grey", glm::vec3(0.18f)}, {"Black", glm::vec3(0.0f)}, {"Navy", glm::vec3(0.06f, 0.09f, 0.2f)}};
+        for (const Swatch& swatch : swatches) {
+            ImGui::SameLine();
+            const float side = ImGui::GetFrameHeight();
+            if (ImGui::ColorButton(swatch.name, ImVec4(swatch.colour.r, swatch.colour.g, swatch.colour.b, 1.0f),
+                                   ImGuiColorEditFlags_NoTooltip, ImVec2(side, side))) {
+                colour = swatch.colour;
+                changed = true;
+            }
+            dialogLayout::hint(swatch.name);
+        }
+    }
+    ImGui::PopID();
+    return changed;
+}
+}  // namespace
+
+void EditMenuDialogs::drawRadiusEditor(Structure& structure, const std::function<void(Structure&)>& updateBuffers)
+{
+    ImGui::TextDisabled("Pick an element and set the radius its atoms are drawn with. Defaults: covalent radii of Cordero et al., Dalton Trans. 2008.");
+    ImGui::Spacing();
+    drawPeriodicTableInlineSelector(m_selectedRadiusElement);
+
+    if (isValidElementNumber(m_selectedRadiusElement))
+    {
+        dialogLayout::section((std::string(elementSymbol(m_selectedRadiusElement)) + " (Z = " + std::to_string(m_selectedRadiusElement) + ")").c_str());
+
+        float radius = elementRadii[m_selectedRadiusElement];
+        ImGui::SetNextItemWidth(responsive::dp(240.0f));
+        if (ImGui::DragFloat("Radius", &radius,
+                             0.01f, 0.20f, 3.50f, "%.2f \xc3\x85"))
+        {
+            elementRadii[m_selectedRadiusElement] = radius;
+            updateBuffers(structure);
+        }
+
+        ImGui::SameLine();
+        if (dialogLayout::secondaryButton("Reset Element"))
+        {
+            const std::vector<float> defaults = makeLiteratureCovalentRadii();
+            elementRadii[m_selectedRadiusElement] =
+                defaults[m_selectedRadiusElement];
+            updateBuffers(structure);
+        }
+    }
+    else
+    {
+        ImGui::TextDisabled("No element selected.");
+    }
+}
+
+void EditMenuDialogs::drawDisplaySettings(Structure& structure, const std::function<void(Structure&)>& updateBuffers)
+{
+    using namespace atomforge::display;
+    const DisplaySettings factory;
+    DisplaySettings& d = display;
+    // Sizes and bond colours rebuild the scene: at once for small structures,
+    // when the slider is released for large ones.
+    bool rebuild = false;
+
+    if (ImGui::BeginTabBar("##displayTabs"))
+    {
+        // ==============================================================
+        // TAB: Style
+        // ==============================================================
+        if (ImGui::BeginTabItem("Style", nullptr, uiScript::selectTab("display.style")))
+        {
+            dialogLayout::section("Look");
+            ImGui::TextDisabled("Start from a ready-made look, then fine-tune it in the other tabs.");
+            const int current = matchingPreset(d);
+            const auto& all = presets();
+            const float buttonWidth = ImGui::GetFontSize() * 9.0f;
+            for (std::size_t i = 0; i < all.size(); ++i)
+            {
+                if (i % 4 != 0) ImGui::SameLine();
+                const bool selected = static_cast<int>(i) == current;
+                const bool pressed = selected ? dialogLayout::primaryButton(all[i].name, ImVec2(buttonWidth, 0))
+                                              : dialogLayout::secondaryButton(all[i].name, ImVec2(buttonWidth, 0));
+                dialogLayout::hint(all[i].description);
+                if (pressed)
+                {
+                    applyPreset(d, all[i]);
+                    rebuild = true;
+                }
+            }
+            if (current >= 0)
+                ImGui::TextDisabled("Current look: %s. %s", all[static_cast<std::size_t>(current)].name, all[static_cast<std::size_t>(current)].description);
+            else
+                ImGui::TextDisabled("Current look: custom. Pick a look above to start again from it.");
+
+            dialogLayout::section("Background");
+            colourChoice("background", "Theme colour", d.customBackground, d.background);
+            dialogLayout::section("Cell Outline");
+            colourChoice("cell", "Theme colour", d.customCellColour, d.cellColour);
+            ImGui::TextDisabled("Both are used in exported images too.");
+            ImGui::EndTabItem();
+        }
+
+        // ==============================================================
+        // TAB: Lighting
+        // ==============================================================
+        if (ImGui::BeginTabItem("Lighting", nullptr, uiScript::selectTab("display.lighting")))
+        {
+            dialogLayout::section("Light Direction");
+            ImGui::Checkbox("Light follows the camera", &d.lightFollowsCamera);
+            dialogLayout::hint("On: the light turns with the view, so the side facing you stays lit as you rotate.\n"
+                               "Off: the light is fixed in the scene, like a lamp in a room.");
+            settingSlider("Horizontal angle", d.lightAzimuth, kAzimuth, factory.lightAzimuth, "%.0f\xc2\xb0",
+                          d.lightFollowsCamera ? "Where the light comes from around you: 0\xc2\xb0 from the camera, 90\xc2\xb0 from the right, 270\xc2\xb0 from the left."
+                                               : "Where the light comes from around the vertical (y) axis: 0\xc2\xb0 along +x, 90\xc2\xb0 along +z.");
+            settingSlider("Height", d.lightElevation, kElevation, factory.lightElevation, "%.0f\xc2\xb0",
+                          "How high the light stands: 0\xc2\xb0 level with the scene, 85\xc2\xb0 from almost straight above, negative from below.");
+
+            dialogLayout::section("Brightness and Shadows");
+            settingSlider("Shadow-side light", d.ambient, kAmbient, factory.ambient, "%.2f",
+                          "Light reaching the sides of atoms facing away from the lamp. Raise it to see into dense regions.");
+            settingSlider("Shadow darkness", d.shadowStrength, kShadowStrength, factory.shadowStrength, "%.2f",
+                          "How dark the shadows atoms cast on each other are: 0 for none, 1 for black.");
+            settingSlider("Contrast", d.contrast, kContrast, factory.contrast, "%.2f",
+                          "Stretch between dark and light: 1 for none, more for a punchier picture.");
+            settingSlider("Colour vividness", d.saturation, kSaturation, factory.saturation, "%.2f",
+                          "Colour saturation: 0 for greys, 1 for the element colours as they are, more for richer colours.");
+
+            dialogLayout::section("Surface Finish");
+            settingSlider("Highlight strength", d.specularIntensity, kSpecularIntensity, factory.specularIntensity, "%.2f",
+                          "Brightness of the shiny spot on atoms and bonds: 0 for a matte look.");
+            settingSlider("Highlight sharpness", d.shininessScale, kShininessScale, factory.shininessScale, "%.2f",
+                          "Multiplies each element's shininess: larger values give smaller, sharper highlights.");
+            settingSlider("Least sharpness", d.shininessFloor, kShininessFloor, factory.shininessFloor, "%.0f",
+                          "The broadest a highlight may spread (the lowest specular exponent).");
+            ImGui::Spacing();
+            if (dialogLayout::secondaryButton("Reset Lighting"))
+            {
+                d.lightAzimuth = factory.lightAzimuth;
+                d.lightElevation = factory.lightElevation;
+                d.lightFollowsCamera = factory.lightFollowsCamera;
+                d.ambient = factory.ambient;
+                d.shadowStrength = factory.shadowStrength;
+                d.contrast = factory.contrast;
+                d.saturation = factory.saturation;
+                d.specularIntensity = factory.specularIntensity;
+                d.shininessScale = factory.shininessScale;
+                d.shininessFloor = factory.shininessFloor;
+            }
+            dialogLayout::hint("Every value on this tab back to its default.");
+            ImGui::EndTabItem();
+        }
+
+        // ==============================================================
+        // TAB: Atoms and Bonds
+        // ==============================================================
+        if (ImGui::BeginTabItem("Atoms and Bonds", nullptr, uiScript::selectTab("display.atoms")))
+        {
+            dialogLayout::section("Sizes");
+            rebuild |= settingSlider("Atom size", d.atomScale, kAtomScale, factory.atomScale, "%.2f\xc3\x97",
+                                     "Multiplies every atom's radius (on top of View > Atom Style). Smaller atoms show bonds and the inside of a structure.");
+            rebuild |= settingSlider("Bond thickness", d.bondScale, kBondScale, factory.bondScale, "%.2f\xc3\x97",
+                                     "Multiplies the radius of the bond cylinders.");
+
+            ImGui::TextDisabled("Bonds are drawn in the Ball and Stick and Polyhedral styles (View > Atom Style).");
+
+            dialogLayout::section("Bond Colour");
+            if (ImGui::RadioButton("Half of each atom's colour", !d.uniformBondColour)) { d.uniformBondColour = false; rebuild = true; }
+            ImGui::SameLine();
+            if (ImGui::RadioButton("One colour", d.uniformBondColour)) { d.uniformBondColour = true; rebuild = true; }
+            if (d.uniformBondColour)
+            {
+                ImGui::SetNextItemWidth(sliderWidth());
+                rebuild |= ImGui::ColorEdit3("Bond colour", &d.bondColour.x);
+            }
+
+            dialogLayout::section("Element Radii");
+            drawRadiusEditor(structure, updateBuffers);
+            ImGui::SameLine();
+            if (dialogLayout::secondaryButton("Reset All Radii"))
+            {
+                elementRadii = makeLiteratureCovalentRadii();
+                updateBuffers(structure);
+            }
+            ImGui::EndTabItem();
+        }
+
+        // ==============================================================
+        // TAB: Colours
+        // ==============================================================
+        if (ImGui::BeginTabItem("Element Colours", nullptr, uiScript::selectTab("display.colors")))
+        {
+            ImGui::Spacing();
+            ImGui::TextDisabled("The colour each element is drawn with (View > Colour Atoms By > Element).");
+            ImGui::Spacing();
+
+            drawPeriodicTableInlineSelector(m_selectedColorElement);
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            if (isValidElementNumber(m_selectedColorElement))
+            {
+                ImGui::Text("%s (Z = %d)", elementSymbol(m_selectedColorElement), m_selectedColorElement);
+
+                float color[3] = {
+                    elementColors[m_selectedColorElement].r,
+                    elementColors[m_selectedColorElement].g,
+                    elementColors[m_selectedColorElement].b
+                };
+                ImGui::SetNextItemWidth(sliderWidth());
+                if (ImGui::ColorEdit3("Colour##el", color))
+                {
+                    elementColors[m_selectedColorElement] =
+                        glm::vec3(color[0], color[1], color[2]);
+                    updateBuffers(structure);
+                }
+
+                ImGui::SameLine();
+                if (dialogLayout::secondaryButton("Reset Element##sel"))
+                {
+                    float r, g, b;
+                    getDefaultElementColor(m_selectedColorElement, r, g, b);
+                    elementColors[m_selectedColorElement] = glm::vec3(r, g, b);
+                    updateBuffers(structure);
+                }
+            }
+            else
+            {
+                ImGui::TextDisabled("No element selected.");
+            }
+
+            ImGui::Spacing();
+            if (dialogLayout::secondaryButton("Reset All Colours"))
+            {
+                elementColors = makeDefaultElementColors();
+                updateBuffers(structure);
+            }
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
+    }
+
+    // Footer: keep this look for new windows, back to the factory look, close.
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    if (dialogLayout::secondaryButton("Save as My Default"))
+    {
+        m_displayStatus = saveDefaults(d) ? "Saved: new windows and the next start use this look."
+                                          : "Could not write " + savedDefaultsPath().string() + ".";
+    }
+    dialogLayout::hint("Keep the look, light, sizes, bond colour, background and cell colour for new windows and the next start.\n"
+                       "Element colours and radii are not part of it.");
+    ImGui::SameLine();
+    if (dialogLayout::secondaryButton("Restore Factory Look"))
+    {
+        d = DisplaySettings();
+        rebuild = true;
+        m_displayStatus = "Factory look restored for this window (Save as My Default keeps it).";
+    }
+    dialogLayout::hint("Every setting in the Style, Lighting and Atoms and Bonds tabs back to its default.");
+    if (!m_displayStatus.empty())
+        ImGui::TextDisabled("%s", m_displayStatus.c_str());
+
+    if (rebuild) m_displayRebuildPending = true;
+    if (m_displayRebuildPending && (structure.atoms.size() < 20000 || !ImGui::IsAnyItemActive()))
+    {
+        m_displayRebuildPending = false;
+        updateBuffers(structure);
+    }
+
+    if (dialogLayout::footer("Close", nullptr) == 1)
+    {
+        m_displayStatus.clear();
+        ImGui::CloseCurrentPopup();
+    }
+}
+
 void EditMenuDialogs::drawSettingsMenuItems()
 {
     if (ImGui::MenuItem("Atomic Sizes"))
@@ -208,36 +540,7 @@ void EditMenuDialogs::drawPopups(Structure& structure,
     if (responsive::beginModal("Atomic Sizes##edit", &atomicSizesOpen,
                                ImGuiWindowFlags_AlwaysAutoResize))
     {
-        ImGui::TextDisabled("Pick an element and set the radius its atoms are drawn with. Defaults: covalent radii of Cordero et al., Dalton Trans. 2008.");
-        ImGui::Spacing();
-        drawPeriodicTableInlineSelector(m_selectedRadiusElement);
-
-        if (isValidElementNumber(m_selectedRadiusElement))
-        {
-            dialogLayout::section((std::string(elementSymbol(m_selectedRadiusElement)) + " (Z = " + std::to_string(m_selectedRadiusElement) + ")").c_str());
-
-            float radius = elementRadii[m_selectedRadiusElement];
-            ImGui::SetNextItemWidth(responsive::dp(240.0f));
-            if (ImGui::DragFloat("Radius", &radius,
-                                 0.01f, 0.20f, 3.50f, "%.2f \xc3\x85"))
-            {
-                elementRadii[m_selectedRadiusElement] = radius;
-                updateBuffers(structure);
-            }
-
-            ImGui::SameLine();
-            if (dialogLayout::secondaryButton("Reset Element"))
-            {
-                const std::vector<float> defaults = makeLiteratureCovalentRadii();
-                elementRadii[m_selectedRadiusElement] =
-                    defaults[m_selectedRadiusElement];
-                updateBuffers(structure);
-            }
-        }
-        else
-        {
-            ImGui::TextDisabled("No element selected.");
-        }
+        drawRadiusEditor(structure, updateBuffers);
 
         const int sizesPressed = dialogLayout::footer("Close", "Reset All Elements");
         if (sizesPressed == 2)
@@ -257,159 +560,14 @@ void EditMenuDialogs::drawPopups(Structure& structure,
     // Display Settings modal
     // ------------------------------------------------------------------
 
-    bool elementColorsOpen = true;
-    if (responsive::beginModal("Display Settings##edit", &elementColorsOpen,
+    bool displayOpen = true;
+    if (responsive::beginModal("Display Settings##edit", &displayOpen,
                                ImGuiWindowFlags_AlwaysAutoResize))
     {
-        constexpr float kSliderW = 340.0f;
-
-        if (ImGui::BeginTabBar("##displayTabs"))
-        {
-            // ==============================================================
-            // TAB: Lighting
-            // ==============================================================
-            if (ImGui::BeginTabItem("Lighting", nullptr, uiScript::selectTab("display.lighting")))
-            {
-                ImGui::Spacing();
-                ImGui::TextDisabled("Controls the scene illumination model.");
-                ImGui::Spacing();
-
-                auto lightRow = [&](const char* label, float* v,
-                                    float mn, float mx, const char* fmt,
-                                    const char* tip)
-                {
-                    ImGui::SetNextItemWidth(kSliderW);
-                    ImGui::SliderFloat(label, v, mn, mx, fmt);
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tip);
-                };
-
-                lightRow("Ambient##L",        &lightAmbient,        0.00f, 0.60f, "%.2f",
-                         "Shadow-side base brightness (default 0.18).");
-                lightRow("Saturation##L",     &lightSaturation,     0.50f, 3.00f, "%.2f",
-                         "Colour vividness — 1.0 = neutral, >1 = more vivid (default 1.55).");
-                lightRow("Contrast##L",       &lightContrast,       0.50f, 2.50f, "%.2f",
-                         "Dark-to-light stretch — 1.0 = none, >1 = more contrast (default 1.25).");
-                lightRow("Shadow Strength##L",&lightShadowStrength, 0.00f, 1.00f, "%.2f",
-                         "Shadow darkness — 0 = no shadow, 1 = fully black (default 0.75).");
-
-                ImGui::Spacing();
-                ImGui::Separator();
-                ImGui::Spacing();
-                if (responsive::button("Reset Lighting Defaults"))
-                {
-                    lightAmbient        = 0.18f;
-                    lightSaturation     = 1.55f;
-                    lightContrast       = 1.25f;
-                    lightShadowStrength = 0.75f;
-                }
-                ImGui::Spacing();
-                ImGui::EndTabItem();
-            }
-
-            // ==============================================================
-            // TAB: Material
-            // ==============================================================
-            if (ImGui::BeginTabItem("Material", nullptr, uiScript::selectTab("display.material")))
-            {
-                ImGui::Spacing();
-                ImGui::TextDisabled("Global material properties applied to all atoms and bonds.");
-                ImGui::Spacing();
-
-                auto matRow = [&](const char* label, float* v,
-                                  float mn, float mx, const char* fmt,
-                                  const char* tip)
-                {
-                    ImGui::SetNextItemWidth(kSliderW);
-                    ImGui::SliderFloat(label, v, mn, mx, fmt);
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tip);
-                };
-
-                matRow("Specular Intensity##M", &materialSpecularIntensity, 0.00f, 2.00f, "%.2f",
-                       "Highlight brightness on all surfaces (default 0.65).");
-                matRow("Shininess Scale##M",    &materialShininessScale,    0.10f, 5.00f, "%.2f",
-                       "Multiplier on per-element shininess — higher = tighter highlights (default 1.50).");
-                matRow("Shininess Floor##M",    &materialShininessFloor,    4.00f, 256.0f, "%.1f",
-                       "Minimum specular exponent — prevents very diffuse highlights (default 32).");
-
-                ImGui::Spacing();
-                ImGui::Separator();
-                ImGui::Spacing();
-                if (responsive::button("Reset Material Defaults"))
-                {
-                    materialSpecularIntensity = 0.65f;
-                    materialShininessScale    = 1.5f;
-                    materialShininessFloor    = 32.0f;
-                }
-                ImGui::Spacing();
-                ImGui::EndTabItem();
-            }
-
-            // ==============================================================
-            // TAB: Colors
-            // ==============================================================
-            if (ImGui::BeginTabItem("Colours", nullptr, uiScript::selectTab("display.colors")))
-            {
-                ImGui::Spacing();
-                ImGui::TextDisabled("The colour each element is drawn with.");
-                ImGui::Spacing();
-
-                drawPeriodicTableInlineSelector(m_selectedColorElement);
-
-                ImGui::Spacing();
-                ImGui::Separator();
-                ImGui::Spacing();
-
-                if (isValidElementNumber(m_selectedColorElement))
-                {
-                    ImGui::Text("%s (Z = %d)", elementSymbol(m_selectedColorElement), m_selectedColorElement);
-
-                    float color[3] = {
-                        elementColors[m_selectedColorElement].r,
-                        elementColors[m_selectedColorElement].g,
-                        elementColors[m_selectedColorElement].b
-                    };
-                    ImGui::SetNextItemWidth(kSliderW);
-                    if (ImGui::ColorEdit3("Colour##el", color))
-                    {
-                        elementColors[m_selectedColorElement] =
-                            glm::vec3(color[0], color[1], color[2]);
-                        updateBuffers(structure);
-                    }
-
-                    ImGui::SameLine();
-                    if (dialogLayout::secondaryButton("Reset Element##sel"))
-                    {
-                        float r, g, b;
-                        getDefaultElementColor(m_selectedColorElement, r, g, b);
-                        elementColors[m_selectedColorElement] = glm::vec3(r, g, b);
-                        updateBuffers(structure);
-                    }
-                }
-                else
-                {
-                    ImGui::TextDisabled("No element selected.");
-                }
-
-                ImGui::Spacing();
-                ImGui::Separator();
-                ImGui::Spacing();
-                if (dialogLayout::secondaryButton("Reset All Colours"))
-                {
-                    elementColors = makeDefaultElementColors();
-                    updateBuffers(structure);
-                }
-                ImGui::Spacing();
-                ImGui::EndTabItem();
-            }
-
-            ImGui::EndTabBar();
-        }
-
-        if (dialogLayout::footer("Close", nullptr) == 1)
-            ImGui::CloseCurrentPopup();
+        drawDisplaySettings(structure, updateBuffers);
         ImGui::EndPopup();
     }
-    if (!elementColorsOpen)
+    if (!displayOpen)
         ImGui::CloseCurrentPopup();
 
     // ------------------------------------------------------------------

@@ -612,6 +612,8 @@ void SceneBuffers::upload(const StructureInstanceData& data,
         {
             glm::ivec3 centerCell = getGridCell(atomPositions[i], kSpatialHashCellSize);
             float radiusA = (i < bondSourceRadii.size()) ? bondSourceRadii[i] : 1.0f;
+            // Bonds end inside the drawn sphere, which the atom size may shrink.
+            const float drawnA = (i < data.scales.size()) ? std::min(radiusA, data.scales[i]) : radiusA;
 
             // Check all neighboring cells
             for (int dx = -neighborRange; dx <= neighborRange; ++dx)
@@ -662,22 +664,32 @@ void SceneBuffers::upload(const StructureInstanceData& data,
                                     continue;
 
                                 glm::vec3 direction = delta / distance;
-                                float insetA = std::min(radiusA * kBondInsetFactor, distance * 0.30f);
-                                float insetB = std::min(radiusB * kBondInsetFactor, distance * 0.30f);
+                                const float drawnB = (j < data.scales.size()) ? std::min(radiusB, data.scales[j]) : radiusB;
+                                float insetA = std::min(drawnA * kBondInsetFactor, distance * 0.30f);
+                                float insetB = std::min(drawnB * kBondInsetFactor, distance * 0.30f);
                                 glm::vec3 start = atomPositions[i] + direction * insetA;
                                 glm::vec3 end = atomPositions[j] - direction * insetB;
                                 float visibleLength = glm::length(end - start);
                                 if (visibleLength <= kMinBondDistance)
                                     continue;
 
-                                float bondRadius = clampValue(0.12f * (radiusA + radiusB) * 0.5f,
+                                float bondRadius = bondStyle.thickness *
+                                                   clampValue(0.12f * (radiusA + radiusB) * 0.5f,
                                                               kMinBondRadius,
                                                               kMaxBondRadius);
 
                                 bondStartPositions.push_back(start);
                                 bondEndPositions.push_back(end);
-                                bondColorA.push_back((i < atomColors.size()) ? atomColors[i] : glm::vec3(0.8f));
-                                bondColorB.push_back((j < atomColors.size()) ? atomColors[j] : glm::vec3(0.8f));
+                                if (bondStyle.uniformColour)
+                                {
+                                    bondColorA.push_back(bondStyle.colour);
+                                    bondColorB.push_back(bondStyle.colour);
+                                }
+                                else
+                                {
+                                    bondColorA.push_back((i < atomColors.size()) ? atomColors[i] : glm::vec3(0.8f));
+                                    bondColorB.push_back((j < atomColors.size()) ? atomColors[j] : glm::vec3(0.8f));
+                                }
                                 bondRadii.push_back(bondRadius);
                                 bondShininessA.push_back((i < atomShininess.size()) ? atomShininess[i] : 32.0f);
                                 bondShininessB.push_back((j < atomShininess.size()) ? atomShininess[j] : 32.0f);

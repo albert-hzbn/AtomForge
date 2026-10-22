@@ -507,6 +507,26 @@ void mergeContextRequests(FrameActionRequests& requests, const AtomRequests& con
     requests.requestAtomInfo = requests.requestAtomInfo || contextRequests.atomInfo;
 }
 
+// The view's background and cell outline colours, and whether the background is light.
+struct SceneColours
+{
+    glm::vec4 background;
+    glm::vec3 cell;
+    bool light;
+};
+
+SceneColours sceneColours(const EditorState& state)
+{
+    const atomforge::display::DisplaySettings& display = state.editMenuDialogs.display;
+    const bool lightTheme = state.fileBrowser.isLightThemeEnabled();
+    SceneColours colours;
+    colours.background = display.customBackground ? glm::vec4(display.background, 1.0f)
+                                                   : (lightTheme ? kLightBackground : kDarkBackground);
+    colours.light = 0.2126f * colours.background.r + 0.7152f * colours.background.g + 0.0722f * colours.background.b > 0.5f;
+    colours.cell = display.customCellColour ? display.cellColour : (colours.light ? glm::vec3(0.25f) : glm::vec3(0.85f));
+    return colours;
+}
+
 void drawScene(Renderer& renderer,
                const FrameView& frame,
                const ShadowMap& shadow,
@@ -515,7 +535,7 @@ void drawScene(Renderer& renderer,
                bool showAtoms,
                bool showBoundingBox,
                bool showDislocationLines,
-               bool lightTheme,
+               const SceneColours& colours,
                CloudRenderer* cloud = nullptr,
                bool orthographic = false)
 {
@@ -590,7 +610,8 @@ void drawScene(Renderer& renderer,
 
     // Restore viewport to screen size after shadow passes
     glViewport(0, 0, frame.framebufferWidth, frame.framebufferHeight);
-    const glm::vec4& bg = lightTheme ? kLightBackground : kDarkBackground;
+    const bool lightTheme = colours.light;
+    const glm::vec4& bg = colours.background;
     glClearColor(bg.r, bg.g, bg.b, bg.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -729,7 +750,7 @@ void drawScene(Renderer& renderer,
         frame.view,
         sceneBuffers.lineVAO,
         sceneBuffers.boxLines.size(),
-        lightTheme ? glm::vec3(0.25f) : glm::vec3(0.85f));
+        colours.cell);
     }
 
     if (showDislocationLines
@@ -756,7 +777,7 @@ void drawSceneVulkan(const Renderer& renderer,
                      bool showAtoms,
                      bool showBoundingBox,
                      bool showDislocationLines,
-                     bool lightTheme,
+                     const SceneColours& colours,
                      const std::vector<glm::vec3>& haloPositions,
                      const std::vector<float>& haloRadii,
                      CloudRenderer* cloud,
@@ -784,8 +805,9 @@ void drawSceneVulkan(const Renderer& renderer,
     flags.bonds = showBonds;
     flags.box = showBoundingBox;
     flags.dislocation = showDislocationLines;
+    const bool lightTheme = colours.light;
     flags.lightTheme = lightTheme;
-    const glm::vec4& bg = lightTheme ? kLightBackground : kDarkBackground;
+    const glm::vec4& bg = colours.background;
     const float clear[4] = {bg.r, bg.g, bg.b, bg.a};
     if (cloud && cloud->active())
     {
@@ -797,7 +819,7 @@ void drawSceneVulkan(const Renderer& renderer,
         return;
     }
     const uint32_t offset = scene.prepare(view, lighting);
-    const glm::vec3 boxColor = lightTheme ? glm::vec3(0.25f) : glm::vec3(0.85f);
+    const glm::vec3 boxColor = colours.cell;
     if (gpuDrivenScene())
     {
         scene.beginGpuScene(cmd, sceneBuffers, view, offset, flags, ctx.extent());
@@ -837,12 +859,14 @@ void handleImageExportIfRequested(bool hasImageExportRequest,
     exportView.lightMVP = frame.lightMVP;
     exportView.lightPosition = frame.lightPosition;
     exportView.cameraPosition = frame.cameraPosition;
+    const SceneColours colours = sceneColours(state);
+    exportView.boxColor = colours.cell;
 
     std::string exportError;
     const bool exportOk = exportStructureImage(
         imageExportRequest,
         exportView,
-        state.fileBrowser.isLightThemeEnabled() ? kLightBackground : kDarkBackground,
+        colours.background,
         state.fileBrowser.isShowBondsEnabled(),
         state.fileBrowser.isShowAtomsEnabled(),
         state.fileBrowser.isShowBoundingBoxEnabled(),
@@ -885,11 +909,13 @@ void captureTrajectoryGifFrame(const FrameView& frame,
     exportView.lightMVP = frame.lightMVP;
     exportView.lightPosition = frame.lightPosition;
     exportView.cameraPosition = frame.cameraPosition;
+    const SceneColours colours = sceneColours(state);
+    exportView.boxColor = colours.cell;
 
     std::vector<unsigned char> pixels;
     std::string error;
     if (renderSceneToRgba(exportView,
-                          state.fileBrowser.isLightThemeEnabled() ? kLightBackground : kDarkBackground,
+                          colours.background,
                           state.fileBrowser.isShowBondsEnabled(),
                           state.fileBrowser.isShowAtomsEnabled(),
                           state.fileBrowser.isShowBoundingBoxEnabled(),
@@ -966,13 +992,17 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
     updateSplashScreen(splash, 0.28f, "Initializing UI");
 
     initImGui(window);
-    // The user's theme and interface size; the review and capture modes keep
-    // the defaults so their screenshots do not depend on them.
+    // The user's theme, interface size and saved display settings; the review
+    // and capture modes keep the defaults so their screenshots do not depend on them.
+    atomforge::display::DisplaySettings savedDisplay;
     {
         bool harness = false;
         for (const char* mode : {"ATOMFORGE_UI_TOUR", "ATOMFORGE_TUTORIAL_CAPTURE", "ATOMFORGE_STEP_DIALOG_CHECK", "ATOMFORGE_CLOUD_BENCHMARK", "ATOMFORGE_SCENE_BENCHMARK"})
             if (const char* value = std::getenv(mode); value && *value) harness = true;
-        if (!harness) loadAppearancePreferences();
+        if (!harness) {
+            loadAppearancePreferences();
+            savedDisplay = atomforge::display::loadDefaults();
+        }
         // Modes taking screenshots keep every frame (the cloud benchmark only
         // with ATOMFORGE_CLOUD_SHOTS, as copying them would skew its timings).
         bool screenshots = false;
@@ -1002,6 +1032,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
     // Multi-tab state — unique_ptr because EditorState holds non-movable atomics/threads
     std::vector<std::unique_ptr<StructureTab>> tabs;
     tabs.push_back(std::make_unique<StructureTab>());
+    tabs[0]->state.editMenuDialogs.display = savedDisplay;
     int activeTabIdx     = 0;
     int pendingTabSwitch = -1;
     int closePromptTab = -1;   // tab whose close waits for the unsaved-changes prompt
@@ -1039,13 +1070,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
     // Propagate display settings (lighting, material, theme) from source tab to a new tab.
     auto copyDisplaySettings = [](const EditorState& src, EditorState& dst)
     {
-        dst.editMenuDialogs.lightAmbient              = src.editMenuDialogs.lightAmbient;
-        dst.editMenuDialogs.lightSaturation           = src.editMenuDialogs.lightSaturation;
-        dst.editMenuDialogs.lightContrast             = src.editMenuDialogs.lightContrast;
-        dst.editMenuDialogs.lightShadowStrength       = src.editMenuDialogs.lightShadowStrength;
-        dst.editMenuDialogs.materialSpecularIntensity = src.editMenuDialogs.materialSpecularIntensity;
-        dst.editMenuDialogs.materialShininessScale    = src.editMenuDialogs.materialShininessScale;
-        dst.editMenuDialogs.materialShininessFloor    = src.editMenuDialogs.materialShininessFloor;
+        dst.editMenuDialogs.display = src.editMenuDialogs.display;
     };
 
     atomforge::BackgroundTask<bool> autosaveTask;
@@ -1270,7 +1295,8 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         }
         if (sceneBenchmark && !state.hasCloud())
             sceneBenchmark->beforeFrame(camera, state.sceneBuffers);
-        buildFrameView(camera, state.sceneBuffers, state.fileBrowser.isOrthographicViewEnabled(), frame);
+        buildFrameView(camera, state.sceneBuffers, state.fileBrowser.isOrthographicViewEnabled(), frame,
+                       state.editMenuDialogs.display);
         if (state.hasCloud())
             adjustCloudProjection(frame, camera, *state.cloud, state.fileBrowser.isOrthographicViewEnabled());
         // The view fills what docked windows leave free (as of the last frame).
@@ -1384,6 +1410,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                     auto tab=std::make_unique<StructureTab>();
                     initTabResources(*tab,sphere,lowPolyMesh,billboardMesh,cylinder,renderer);
                     tab->state.fileBrowser.restoreWorkspace(item,tab->state.structure);
+                    tab->state.editMenuDialogs.display=tabs[activeTabIdx]->state.editMenuDialogs.display;
                     if (item.camera.size()==7) {
                         auto& c=tab->cameraState;
                         c.yaw=item.camera[0]; c.pitch=item.camera[1]; c.roll=item.camera[2];
@@ -1540,6 +1567,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             {
                 // Last tab closed: keep one empty tab instead of no tabs
                 tabs.push_back(std::make_unique<StructureTab>());
+                tabs[0]->state.editMenuDialogs.display = savedDisplay;
                 initTabResources(*tabs[0], sphere, lowPolyMesh,
                                  billboardMesh, cylinder, renderer);
                 restoreCameraFromTab(camera, *tabs[0]);
@@ -1578,7 +1606,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                 if (graphics::usingVulkan())
                 {
                     // The frame was begun: present it with the background only.
-                    const glm::vec4& bg = tabs[activeTabIdx]->state.fileBrowser.isLightThemeEnabled() ? kLightBackground : kDarkBackground;
+                    const glm::vec4 bg = sceneColours(tabs[activeTabIdx]->state).background;
                     const float clear[4] = {bg.r, bg.g, bg.b, bg.a};
                     vkr::context().beginMainPass(clear);
                     vkr::context().endMainPass();
@@ -1766,13 +1794,16 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         ImGui::Render();
 
         // Apply per-tab lighting/material parameters to the renderer before drawing.
-        renderer.lightAmbient              = activeState.editMenuDialogs.lightAmbient;
-        renderer.lightSaturation           = activeState.editMenuDialogs.lightSaturation;
-        renderer.lightContrast             = activeState.editMenuDialogs.lightContrast;
-        renderer.lightShadowStrength       = activeState.editMenuDialogs.lightShadowStrength;
-        renderer.materialSpecularIntensity = activeState.editMenuDialogs.materialSpecularIntensity;
-        renderer.materialShininessScale    = activeState.editMenuDialogs.materialShininessScale;
-        renderer.materialShininessFloor    = activeState.editMenuDialogs.materialShininessFloor;
+        {
+            const atomforge::display::DisplaySettings& display = activeState.editMenuDialogs.display;
+            renderer.lightAmbient              = display.ambient;
+            renderer.lightSaturation           = display.saturation;
+            renderer.lightContrast             = display.contrast;
+            renderer.lightShadowStrength       = display.shadowStrength;
+            renderer.materialSpecularIntensity = display.specularIntensity;
+            renderer.materialShininessScale    = display.shininessScale;
+            renderer.materialShininessFloor    = display.shininessFloor;
+        }
 
         // Selection halos: drawn after atoms so nearer atoms hide them.
         std::vector<glm::vec3> selPos;
@@ -1812,7 +1843,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                             activeState.fileBrowser.isShowAtomsEnabled(),
                             activeState.fileBrowser.isShowBoundingBoxEnabled(),
                             activeState.fileBrowser.isShowDislocationLinesEnabled(),
-                            activeState.fileBrowser.isLightThemeEnabled(),
+                            sceneColours(activeState),
                             selPos, selRad, activeState.cloud.get(),
                             activeState.fileBrowser.isOrthographicViewEnabled());
             saveCameraToTab(camera, *tabs[activeTabIdx]);
@@ -1838,7 +1869,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                   activeState.fileBrowser.isShowAtomsEnabled(),
                   activeState.fileBrowser.isShowBoundingBoxEnabled(),
                   activeState.fileBrowser.isShowDislocationLinesEnabled(),
-                  activeState.fileBrowser.isLightThemeEnabled(),
+                  sceneColours(activeState),
                   activeState.cloud.get(),
                   activeState.fileBrowser.isOrthographicViewEnabled());
         if (!selPos.empty())

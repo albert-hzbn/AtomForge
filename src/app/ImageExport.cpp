@@ -104,6 +104,12 @@ bool projectPoint(const glm::vec3& world,
     return true;
 }
 
+glm::vec3 exportBoxColor(const ImageExportView& view, const glm::vec4& clearColor)
+{
+    if (view.boxColor.r >= 0.0f) return view.boxColor;
+    return clearColor.r > 0.5f ? glm::vec3(0.25f) : glm::vec3(0.85f);
+}
+
 void drawSceneToCurrentFramebuffer(const ImageExportView& view,
                                    const glm::vec4& clearColor,
                                    bool showBonds,
@@ -209,7 +215,7 @@ void drawSceneToCurrentFramebuffer(const ImageExportView& view,
             view.view,
             sceneBuffers.lineVAO,
             sceneBuffers.boxLines.size(),
-            clearColor.r > 0.5f ? glm::vec3(0.25f) : glm::vec3(0.85f));
+            exportBoxColor(view, clearColor));
     }
 }
 
@@ -294,7 +300,7 @@ bool captureSceneVulkan(const ImageExportView& view,
         scene.renderShadowMap(cmd, sceneBuffers, offset, flags);
         if (!canvas.begin(view.width, view.height, glm::vec3(clearColor), cmd)) return;
         canvas.setView(sceneView, lighting);
-        canvas.drawScene(sceneBuffers, flags, clearColor.r > 0.5f ? glm::vec3(0.25f) : glm::vec3(0.85f));
+        canvas.drawScene(sceneBuffers, flags, exportBoxColor(view, clearColor));
         canvas.end();
         canvas.copyTo(cmd, readback);
         drawn = true;

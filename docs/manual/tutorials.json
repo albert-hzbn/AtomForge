@@ -1,6 +1,6 @@
 {
-  "capture_date": "2026-10-12",
-  "application_source_baseline": "70f297b",
+  "capture_date": "2026-10-22",
+  "application_source_baseline": "13b9087",
   "notes": "Real AtomForge screenshots and native shape examples. Captions distinguish input previews and completed results; paired scientific 3D/projection plots have been removed.",
   "required_tutorials": [
     "build-menu",
@@ -52,7 +52,8 @@
     "polyhedra",
     "radii",
     "lighting",
-    "material",
+    "display-style",
+    "display-atoms",
     "colours",
     "theme",
     "structure-info",
@@ -164,7 +165,7 @@
             "For a two-species example, add a second row and choose a different element. Recheck both rows before building."
           ],
           "check": "Only the intended site/species row should acquire the selected identity. Choosing an element does not assign a charge state or pseudopotential.",
-          "options": "Settings > Display Settings > Colours and Atomic Sizes also use a periodic table, but those dialogs change appearance/radius settings rather than substituting atoms."
+          "options": "Settings > Display Settings > Element Colours and Atomic Sizes also use a periodic table, but those dialogs change appearance/radius settings rather than substituting atoms."
         },
         {
           "id": "alloy",
@@ -1288,65 +1289,99 @@
           "options": "Record radius overrides in comparable images. Radius information can also be consumed by geometry tools, so restore intended values before reproducing their results."
         },
         {
+          "id": "display-style",
+          "title": "Choose a look, background and cell colour",
+          "start": "Open \\ui{Settings > Display Settings > Style}.",
+          "images": [
+            {
+              "file": "tutorials/display-style.jpg",
+              "bounds": [
+                602,
+                282,
+                1318,
+                876
+              ],
+              "caption": "Style tab: seven ready-made looks, then the background and cell outline colours."
+            },
+            {
+              "file": "tutorials/display-publication.jpg",
+              "bounds": [
+                0,
+                98,
+                1920,
+                1101
+              ],
+              "caption": "The Publication look: white background, black cell and soft light."
+            }
+          ],
+          "steps": [
+            "Click Soft, Glossy, Matte, Dramatic, Flat or Publication and watch the view change; hover a look for its description. The highlighted button and the Current look line name the look in use.",
+            "Under Background, choose Custom colour and click the White or Black swatch, or pick any colour. Do the same for Cell Outline.",
+            "Change any slider in the Lighting tab: the current look becomes custom. Click Default to return."
+          ],
+          "check": "A look changes only lighting, highlights and the background and cell colours; atom sizes, bond colours and the light direction stay as they are.",
+          "options": "Background and cell colours are also used in exported images. Theme colour follows View > Theme. Save as My Default keeps the look for new windows and the next start; Restore Factory Look returns every display setting to its default."
+        },
+        {
           "id": "lighting",
-          "title": "Tune scene illumination",
+          "title": "Set the light direction, shadows and highlights",
           "start": "Open \\ui{Settings > Display Settings > Lighting}.",
           "images": [
             {
               "file": "tutorials/display-lighting.jpg",
               "bounds": [
-                713,
-                308,
-                1207,
-                730
+                602,
+                282,
+                1318,
+                1072
               ],
-              "caption": "Lighting controls at their default values; Reset Lighting Defaults restores them."
+              "caption": "Lighting tab at its default values; each setting has its own Reset button."
             }
           ],
           "steps": [
-            "Adjust Ambient to reveal shadow-side atoms. Change Shadow Strength independently to compare contrast between front and rear layers.",
-            "Adjust Saturation and Contrast while keeping a visible reference species.",
-            "Use Reset Lighting Defaults to return to the baseline appearance."
+            "Move Horizontal angle and Height to light the structure from another side. Tick Light follows the camera to keep the side facing you lit while you rotate the view.",
+            "Raise Shadow-side light to see into dense regions; change Shadow darkness to compare front and rear layers. Adjust Contrast and Colour vividness while keeping a reference species visible.",
+            "Under Surface Finish, lower Highlight strength for a matte look, or raise Highlight sharpness for small, bright highlights. Reset Lighting restores the whole tab."
           ],
           "check": "Lighting changes must not be interpreted as a change in local density or composition.",
-          "options": "Ambient controls background illumination; Saturation changes vividness; Contrast stretches the light/dark response. Electronic surface lighting has separate controls in its Appearance panel."
+          "options": "Hover a setting's name for an explanation; Ctrl+click a slider to type a value. The light direction is in the scene's frame (y up) unless it follows the camera. Electronic surface lighting has separate controls in its Appearance panel."
         },
         {
-          "id": "material",
-          "title": "Control highlights on atoms and bonds",
-          "start": "Open \\ui{Display Settings > Material}.",
+          "id": "display-atoms",
+          "title": "Size atoms and bonds and colour the bonds",
+          "start": "Open \\ui{Settings > Display Settings > Atoms and Bonds} with View > Atom Style set to Ball and Stick.",
           "images": [
             {
-              "file": "tutorials/display-material.jpg",
+              "file": "tutorials/display-atoms.jpg",
               "bounds": [
-                713,
-                308,
-                1210,
-                692
+                602,
+                97,
+                1597,
+                1127
               ],
-              "caption": "Material controls are separate from scene illumination."
+              "caption": "Atoms and Bonds tab: global atom and bond sizes, bond colouring and the element radii."
             }
           ],
           "steps": [
-            "Lower Specular Intensity to reduce bright highlights, then compare a larger value.",
-            "Change Shininess Scale and Shininess Floor one at a time to inspect highlight concentration.",
-            "Use Reset Material Defaults and compare with the original view."
+            "Lower Atom size to about 0.5\\texttimes{} to see bonds and the inside of a structure; it multiplies every radius on top of the atom style.",
+            "Raise Bond thickness, then choose One colour and pick a bond colour (Half of each atom's colour is the default).",
+            "Pick an element in the table and set its radius; Reset Element or Reset All Radii restores the covalent radii."
           ],
-          "check": "The same atomic geometry should remain visible. Specular highlights are a rendering effect.",
-          "options": "Intensity controls highlight strength, Scale multiplies element response, and Floor sets the minimum exponent. Keep material settings fixed across a comparison series."
+          "check": "Sizes are drawing choices: which atoms are bonded does not depend on Atom size or Bond thickness.",
+          "options": "Bonds are drawn in the Ball and Stick and Polyhedral styles. With large structures, size changes are applied when the slider is released."
         },
         {
           "id": "colours",
           "title": "Change a species display colour",
-          "start": "Open \\ui{Display Settings > Colours}.",
+          "start": "Open \\ui{Settings > Display Settings > Element Colours}.",
           "images": [
             {
               "file": "tutorials/display-colors.jpg",
               "bounds": [
-                713,
-                242,
-                1708,
-                1007
+                602,
+                97,
+                1597,
+                900
               ],
               "caption": "Colours tab with a selected element, its RGB controls and the reset actions."
             }

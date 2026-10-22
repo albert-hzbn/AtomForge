@@ -118,7 +118,7 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \textbf{Check the result.} Only the intended site/species row should acquire the selected identity. Choosing an element does not assign a charge state or pseudopotential.
 
-\textbf{Try the options.} Settings > Display Settings > Colours and Atomic Sizes also use a periodic table, but those dialogs change appearance/radius settings rather than substituting atoms.
+\textbf{Try the options.} Settings > Display Settings > Element Colours and Atomic Sizes also use a periodic table, but those dialogs change appearance/radius settings rather than substituting atoms.
 
 \clearpage
 
@@ -1462,69 +1462,105 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \clearpage
 
-\subsection{Tune scene illumination}\label{tutorial:lighting}
+\subsection{Choose a look, background and cell colour}\label{tutorial:display-style}
+
+\textbf{Start here.} Open \ui{Settings > Display Settings > Style}.
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=451.5bp 189.75bp 451.5bp 211.5bp,clip]{figures/tutorials/display-style.jpg}
+
+\par\small\textit{Style tab: seven ready-made looks, then the background and cell outline colours.}
+
+\end{center}
+
+\begin{center}
+
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=0bp 21bp 0bp 73.5bp,clip]{figures/tutorials/display-publication.jpg}
+
+\par\small\textit{The Publication look: white background, black cell and soft light.}
+
+\end{center}
+
+\begin{enumerate}
+
+\item Click Soft, Glossy, Matte, Dramatic, Flat or Publication and watch the view change; hover a look for its description. The highlighted button and the Current look line name the look in use.
+
+\item Under Background, choose Custom colour and click the White or Black swatch, or pick any colour. Do the same for Cell Outline.
+
+\item Change any slider in the Lighting tab: the current look becomes custom. Click Default to return.
+
+\end{enumerate}
+
+\textbf{Check the result.} A look changes only lighting, highlights and the background and cell colours; atom sizes, bond colours and the light direction stay as they are.
+
+\textbf{Try the options.} Background and cell colours are also used in exported images. Theme colour follows View > Theme. Save as My Default keeps the look for new windows and the next start; Restore Factory Look returns every display setting to its default.
+
+\clearpage
+
+\subsection{Set the light direction, shadows and highlights}\label{tutorial:lighting}
 
 \textbf{Start here.} Open \ui{Settings > Display Settings > Lighting}.
 
 \begin{center}
 
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=534.75bp 209.25bp 534.75bp 231bp,clip]{figures/tutorials/display-lighting.jpg}
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=451.5bp 42.75bp 451.5bp 211.5bp,clip]{figures/tutorials/display-lighting.jpg}
 
-\par\small\textit{Lighting controls at their default values; Reset Lighting Defaults restores them.}
+\par\small\textit{Lighting tab at its default values; each setting has its own Reset button.}
 
 \end{center}
 
 \begin{enumerate}
 
-\item Adjust Ambient to reveal shadow-side atoms. Change Shadow Strength independently to compare contrast between front and rear layers.
+\item Move Horizontal angle and Height to light the structure from another side. Tick Light follows the camera to keep the side facing you lit while you rotate the view.
 
-\item Adjust Saturation and Contrast while keeping a visible reference species.
+\item Raise Shadow-side light to see into dense regions; change Shadow darkness to compare front and rear layers. Adjust Contrast and Colour vividness while keeping a reference species visible.
 
-\item Use Reset Lighting Defaults to return to the baseline appearance.
+\item Under Surface Finish, lower Highlight strength for a matte look, or raise Highlight sharpness for small, bright highlights. Reset Lighting restores the whole tab.
 
 \end{enumerate}
 
 \textbf{Check the result.} Lighting changes must not be interpreted as a change in local density or composition.
 
-\textbf{Try the options.} Ambient controls background illumination; Saturation changes vividness; Contrast stretches the light/dark response. Electronic surface lighting has separate controls in its Appearance panel.
+\textbf{Try the options.} Hover a setting's name for an explanation; Ctrl+click a slider to type a value. The light direction is in the scene's frame (y up) unless it follows the camera. Electronic surface lighting has separate controls in its Appearance panel.
 
 \clearpage
 
-\subsection{Control highlights on atoms and bonds}\label{tutorial:material}
+\subsection{Size atoms and bonds and colour the bonds}\label{tutorial:display-atoms}
 
-\textbf{Start here.} Open \ui{Display Settings > Material}.
+\textbf{Start here.} Open \ui{Settings > Display Settings > Atoms and Bonds} with View > Atom Style set to Ball and Stick.
 
 \begin{center}
 
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=534.75bp 237.75bp 532.5bp 231bp,clip]{figures/tutorials/display-material.jpg}
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=451.5bp 1.5bp 242.25bp 72.75bp,clip]{figures/tutorials/display-atoms.jpg}
 
-\par\small\textit{Material controls are separate from scene illumination.}
+\par\small\textit{Atoms and Bonds tab: global atom and bond sizes, bond colouring and the element radii.}
 
 \end{center}
 
 \begin{enumerate}
 
-\item Lower Specular Intensity to reduce bright highlights, then compare a larger value.
+\item Lower Atom size to about 0.5\texttimes{} to see bonds and the inside of a structure; it multiplies every radius on top of the atom style.
 
-\item Change Shininess Scale and Shininess Floor one at a time to inspect highlight concentration.
+\item Raise Bond thickness, then choose One colour and pick a bond colour (Half of each atom's colour is the default).
 
-\item Use Reset Material Defaults and compare with the original view.
+\item Pick an element in the table and set its radius; Reset Element or Reset All Radii restores the covalent radii.
 
 \end{enumerate}
 
-\textbf{Check the result.} The same atomic geometry should remain visible. Specular highlights are a rendering effect.
+\textbf{Check the result.} Sizes are drawing choices: which atoms are bonded does not depend on Atom size or Bond thickness.
 
-\textbf{Try the options.} Intensity controls highlight strength, Scale multiplies element response, and Floor sets the minimum exponent. Keep material settings fixed across a comparison series.
+\textbf{Try the options.} Bonds are drawn in the Ball and Stick and Polyhedral styles. With large structures, size changes are applied when the slider is released.
 
 \clearpage
 
 \subsection{Change a species display colour}\label{tutorial:colours}
 
-\textbf{Start here.} Open \ui{Display Settings > Colours}.
+\textbf{Start here.} Open \ui{Settings > Display Settings > Element Colours}.
 
 \begin{center}
 
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=534.75bp 1.5bp 159bp 181.5bp,clip]{figures/tutorials/display-colors.jpg}
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=451.5bp 171.75bp 242.25bp 72.75bp,clip]{figures/tutorials/display-colors.jpg}
 
 \par\small\textit{Colours tab with a selected element, its RGB controls and the reset actions.}
 

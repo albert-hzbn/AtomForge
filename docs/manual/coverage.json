@@ -741,7 +741,7 @@
     },
     {
       "source": "src/app/EditorApplication.cpp",
-      "sha256": "df1c86f6e7c00aee3564aa78ae1948a9e03b2c143fed15b7ba0df55625396b67",
+      "sha256": "758727fdb1b1a189e31a511b69e4fc2f5924a52acb63cb9721de5d6ef417b2c0",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -752,7 +752,7 @@
     },
     {
       "source": "src/app/EditorOps.cpp",
-      "sha256": "2b254ed1665b15348078fea27b604fef919eb6a812ae81773203e7a5473d1e64",
+      "sha256": "c8381a028e553c8384825070ab4a936e201e5dab121ff5415ff723d73400551f",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2512,7 +2512,7 @@
     },
     {
       "source": "src/ui/EditMenuDialogs.cpp",
-      "sha256": "8335541bcbdb07adc2dd357f3810e810a5f63e142ef515ed45fcef12a2891c65",
+      "sha256": "d2cdaa9c86a6d21447cff076b388bece22a590cfb7b26871bdbd708586af1b31",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -2520,126 +2520,122 @@
       ],
       "literal_controls": [
         {
-          "line": 45,
+          "line": 46,
           "declaration_label": "Edit Structure"
         },
         {
-          "line": 133,
+          "line": 134,
           "declaration_label": "a"
         },
         {
-          "line": 134,
+          "line": 135,
           "declaration_label": "b"
         },
         {
-          "line": 135,
+          "line": 136,
           "declaration_label": "c"
         },
         {
-          "line": 136,
+          "line": 137,
           "declaration_label": "Use Cell Entering The Step"
         },
         {
-          "line": 140,
+          "line": 141,
           "declaration_label": "Scale atoms with the cell (keep fractional coordinates)"
         },
         {
-          "line": 154,
+          "line": 155,
           "declaration_label": "Position Mode"
         },
         {
-          "line": 169,
+          "line": 170,
           "declaration_label": "Select the new atom"
         },
         {
-          "line": 173,
+          "line": 174,
           "declaration_label": "Update Step"
         },
         {
-          "line": 180,
+          "line": 181,
           "declaration_label": "Close"
         },
         {
-          "line": 189,
-          "declaration_label": "Atomic Sizes"
+          "line": 218,
+          "declaration_label": "##value"
         },
         {
-          "line": 192,
-          "declaration_label": "Display Settings"
+          "line": 237,
+          "declaration_label": "Custom colour"
         },
         {
-          "line": 221,
+          "line": 240,
+          "declaration_label": "##colour"
+        },
+        {
+          "line": 272,
           "declaration_label": "Radius"
         },
         {
-          "line": 271,
+          "line": 308,
+          "declaration_label": "Style"
+        },
+        {
+          "line": 344,
           "declaration_label": "Lighting"
         },
         {
-          "line": 286,
-          "declaration_label": "Ambient##L"
+          "line": 347,
+          "declaration_label": "Light follows the camera"
         },
         {
-          "line": 288,
-          "declaration_label": "Saturation##L"
+          "line": 394,
+          "declaration_label": "Atoms and Bonds"
         },
         {
-          "line": 290,
-          "declaration_label": "Contrast##L"
+          "line": 405,
+          "declaration_label": "Half of each atom's colour"
         },
         {
-          "line": 292,
-          "declaration_label": "Shadow Strength##L"
+          "line": 407,
+          "declaration_label": "One colour"
         },
         {
-          "line": 298,
-          "declaration_label": "Reset Lighting Defaults"
+          "line": 411,
+          "declaration_label": "Bond colour"
         },
         {
-          "line": 312,
-          "declaration_label": "Material"
+          "line": 428,
+          "declaration_label": "Element Colours"
         },
         {
-          "line": 327,
-          "declaration_label": "Specular Intensity##M"
-        },
-        {
-          "line": 329,
-          "declaration_label": "Shininess Scale##M"
-        },
-        {
-          "line": 331,
-          "declaration_label": "Shininess Floor##M"
-        },
-        {
-          "line": 337,
-          "declaration_label": "Reset Material Defaults"
-        },
-        {
-          "line": 350,
-          "declaration_label": "Colours"
-        },
-        {
-          "line": 372,
+          "line": 450,
           "declaration_label": "Colour##el"
         },
         {
-          "line": 468,
+          "line": 521,
+          "declaration_label": "Atomic Sizes"
+        },
+        {
+          "line": 524,
+          "declaration_label": "Display Settings"
+        },
+        {
+          "line": 626,
           "declaration_label": "Coordinates"
         },
         {
-          "line": 568,
+          "line": 726,
           "declaration_label": "##DirectPos"
         },
         {
-          "line": 586,
+          "line": 744,
           "declaration_label": "##CartesianPos"
         }
       ]
     },
     {
       "source": "src/ui/EditMenuDialogs.h",
-      "sha256": "20cc3aaf209215ac95317130eee167c83646c0167dd9fa537c7cbb94243738bc",
+      "sha256": "d3ab3792635d3c2925940b7a4c5be685177b28cf2efb1272bd30911ffe271a31",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -5379,7 +5375,7 @@
     },
     {
       "source": "src/ui/TutorialCapture.cpp",
-      "sha256": "3259619c9398877451321dfa6abc9fc96e1488086893af2c267e0f2ea72ba4f7",
+      "sha256": "04be74782bdaada26b9ed2717880d6a405a4cbc03db02fdbf16ee28827bee1ce",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
