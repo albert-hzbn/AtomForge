@@ -1,5 +1,6 @@
 // Display settings: light directions, presets, and the saved text form
 // (round trip, clamping, unknown keys and colours).
+#include "graphics/AmbientOcclusion.h"
 #include "model/DisplaySettings.h"
 #include "util/ElementColourSchemes.h"
 #include "util/ElementData.h"
@@ -90,6 +91,15 @@ int main()
         all.background = {0.0f, 0.0f, 0.0f};
         all.customCellColour = true;
         all.cellColour = {0.9f, 0.5f, 0.25f};
+        all.cellLineWidth = 6.0f;
+        all.depthCueing = 0.7f;
+        all.ambientOcclusion = 0.4f;
+        all.outlineWidth = 0.25f;
+        all.outlineColour = {0.2f, 0.1f, 0.0f};
+        all.selectionColour = {0.0f, 0.8f, 1.0f};
+        all.bondTolerance = 1.3f;
+        all.metalBonds = true;
+        all.bondAtomLimit = 1200000.0f;
         check(fromText(toText(all)) == all, "every setting round-trips through text");
         check(fromText(toText(defaults)) == defaults, "the defaults round-trip");
         check(toText(defaults).find("background=theme") != std::string::npos, "the theme background is written as 'theme'");
@@ -138,6 +148,62 @@ int main()
         readElementText("colour.Xx=1 1 1\nradius.Fe=nonsense\nradius.Fe=99\ncolour.H=0.5 0.5\n", colours, radii);
         check(colours == defaultLook().colours, "unknown elements and incomplete colours are skipped");
         check(radii[26] == 5.0f, "a radius is clamped");
+
+        // New keys: clamping of the line width, outline and bond rules; the atom limit is whole.
+        const DisplaySettings extremes = fromText("cell_line_width=40\noutline_width=-1\nbond_tolerance=9\nbond_atom_limit=12.6\nmetal_bonds=yes\n");
+        check(extremes.cellLineWidth == kCellLineWidth.high && extremes.outlineWidth == 0.0f &&
+              extremes.bondTolerance == kBondTolerance.high && extremes.bondAtomLimit == 13.0f && extremes.metalBonds,
+              "new keys clamped and read");
+        check(defaults.depthCueing == 0 && defaults.ambientOcclusion == 0 && defaults.outlineWidth == 0 &&
+              defaults.bondTolerance == 1.18f && !defaults.metalBonds && defaults.bondAtomLimit == 500000.0f,
+              "new effects are off by default and bond rules keep the previous behaviour");
+
+        // Ambient occlusion: an isolated atom sees the whole sky; an atom inside a
+        // close shell almost none; a slab's surface sees more than its middle.
+        check(occlusionDirections().size() == 48, "48 sampled directions");
+        glm::vec3 sum(0.0f);
+        for (const glm::vec3& d : occlusionDirections()) {
+            check(std::abs(glm::length(d) - 1.0f) < 1e-5f, "unit directions");
+            sum += d;
+        }
+        check(glm::length(sum) < 0.05f * 48, "directions spread evenly");
+        check(ambientOcclusion({{0, 0, 0}}, {1.0f}, 2.0f) == std::vector<float>{0.0f}, "a lone atom is open");
+        check(ambientOcclusion({{0, 0, 0}, {10, 0, 0}}, {1.0f, 1.0f}, 2.0f) == std::vector<float>({0.0f, 0.0f}), "out of reach");
+        {
+            std::vector<glm::vec3> centres{{0, 0, 0}};
+            for (int x = -1; x <= 1; ++x)
+                for (int y = -1; y <= 1; ++y)
+                    for (int z = -1; z <= 1; ++z)
+                        if (x || y || z) centres.emplace_back(1.6f * x, 1.6f * y, 1.6f * z);
+            const auto shell = ambientOcclusion(centres, std::vector<float>(centres.size(), 1.0f), 2.0f);
+            check(shell[0] > 0.9f, "an atom in a closed shell is enclosed: " + std::to_string(shell[0]));
+            check(shell[1] < shell[0], "a shell atom sees more sky than the centre");
+        }
+        {
+            std::vector<glm::vec3> slab;
+            for (int x = 0; x < 8; ++x)
+                for (int y = 0; y < 8; ++y)
+                    for (int z = 0; z < 5; ++z) slab.emplace_back(2.0f * x, 2.0f * y, 2.0f * z);
+            const auto slabOcclusion = ambientOcclusion(slab, std::vector<float>(slab.size(), 1.0f), 2.0f);
+            const auto at = [](int x, int y, int z) { return static_cast<std::size_t>((x * 8 + y) * 5 + z); };
+            check(slabOcclusion[at(4, 4, 0)] < slabOcclusion[at(4, 4, 2)], "the surface is lighter than the middle");
+            check(std::abs(slabOcclusion[at(4, 4, 0)] - slabOcclusion[at(4, 4, 4)]) < 0.1f, "both surfaces alike");
+            check(ambientOcclusion(slab, std::vector<float>(slab.size(), 1.0f), 2.0f, 100).empty(), "maxAtoms skips large sets");
+            // Many atoms run on several threads: the result is the same as on one.
+            std::vector<glm::vec3> big;
+            for (int x = 0; x < 16; ++x)
+                for (int y = 0; y < 16; ++y)
+                    for (int z = 0; z < 12; ++z) big.emplace_back(2.0f * x, 2.0f * y, 2.0f * z);
+            const auto bigOcclusion = ambientOcclusion(big, std::vector<float>(big.size(), 1.0f), 2.0f);
+            const auto one = ambientOcclusion({big[0], big[1], big[12], big[192]}, std::vector<float>(4, 1.0f), 2.0f);
+            check(bigOcclusion.size() == big.size() && bigOcclusion[0] > 0.0f, "threaded occlusion computed");
+            check(std::abs(one[0] - bigOcclusion[0]) < 0.25f, "a corner atom's occlusion comes from its own neighbours");
+            std::vector<glm::vec3> colours(slab.size(), glm::vec3(1.0f));
+            darkenOccluded(slab, std::vector<float>(slab.size(), 1.0f), colours, 0.0f);
+            check(colours == std::vector<glm::vec3>(slab.size(), glm::vec3(1.0f)), "strength 0 changes nothing");
+            darkenOccluded(slab, std::vector<float>(slab.size(), 1.0f), colours, 1.0f);
+            check(colours[at(4, 4, 2)].r < colours[at(4, 4, 0)].r && colours[at(4, 4, 0)].r < 1.0f, "buried atoms darken most");
+        }
 
         // Colour schemes: full tables, recognised, Jmol and RasMol values from their tables.
         check(colourSchemes().size() == 4, "four colour schemes");

@@ -65,6 +65,13 @@ struct SceneLighting
 {
     float ambient = 0.40f, saturation = 1.55f, contrast = 1.25f, shadowStrength = 0.20f;
     float specularIntensity = 0.65f, shininessScale = 1.5f, shininessFloor = 32.0f;
+    // Depth cueing and outlines (0: off), cell line width and selection rings, as Renderer.
+    float fogStrength = 0.0f, fogNear = 0.0f, fogFar = 1.0f;
+    glm::vec3 fogColor{1.0f};
+    float outlineWidth = 0.0f;
+    glm::vec3 outlineColor{0.0f};
+    float lineWidth = 3.5f;
+    glm::vec3 haloColor{1.0f, 0.66f, 0.12f};
 };
 
 struct SceneView
@@ -253,6 +260,8 @@ private:
     void bindFrame(VkCommandBuffer cmd, uint32_t frameOffset);
     void setViewport(VkCommandBuffer cmd, VkExtent2D extent);
     void setLineWidth(VkCommandBuffer cmd, float width = 3.5f);
+    float m_lineWidth = 3.5f;                     // cell lines (SceneLighting, per frame)
+    glm::vec3 m_haloColor{1.0f, 0.66f, 0.12f};    // selection rings
     // Binds the atom geometry and instance streams; returns the index count.
     uint32_t bindAtoms(VkCommandBuffer cmd, const SceneResources& scene, bool billboards, bool lowPoly);
     void bindBonds(VkCommandBuffer cmd, const SceneResources& scene);

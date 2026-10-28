@@ -212,6 +212,9 @@ if(ATOMFORGE_HAS_VULKAN)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/vulkan/shaders/*.vert
         ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/vulkan/shaders/*.frag
         ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/vulkan/shaders/*.comp)
+    # Shared code the shaders #include: a change recompiles every shader.
+    file(GLOB ATOMFORGE_VK_SHADER_INCLUDES CONFIGURE_DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/vulkan/shaders/*.glsl)
     set(ATOMFORGE_VK_SHADER_HEADERS "")
     foreach(shader ${ATOMFORGE_VK_SHADER_SOURCES})
         get_filename_component(shaderName ${shader} NAME)
@@ -221,7 +224,7 @@ if(ATOMFORGE_HAS_VULKAN)
             OUTPUT ${shaderHeader}
             COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/generated/vkshaders
             COMMAND ${ATOMFORGE_GLSLANG} -V --target-env vulkan1.1 --vn kSpv_${shaderVariable} -o ${shaderHeader} ${shader}
-            DEPENDS ${shader}
+            DEPENDS ${shader} ${ATOMFORGE_VK_SHADER_INCLUDES}
             COMMENT "Compiling ${shaderName} to SPIR-V"
             VERBATIM)
         list(APPEND ATOMFORGE_VK_SHADER_HEADERS ${shaderHeader})

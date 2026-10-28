@@ -1,6 +1,6 @@
 {
-  "capture_date": "2026-10-22",
-  "application_source_baseline": "13b9087",
+  "capture_date": "2026-10-28",
+  "application_source_baseline": "a5675aa",
   "notes": "Real AtomForge screenshots and native shape examples. Captions distinguish input previews and completed results; paired scientific 3D/projection plots have been removed.",
   "required_tutorials": [
     "build-menu",
@@ -1290,16 +1290,16 @@
         },
         {
           "id": "display-style",
-          "title": "Choose a look, background and cell colour",
+          "title": "Choose a look, colours, depth cues and outlines",
           "start": "Open \\ui{Settings > Display Settings > Style}.",
           "images": [
             {
               "file": "tutorials/display-style.jpg",
               "bounds": [
                 602,
-                282,
+                55,
                 1318,
-                876
+                983
               ],
               "caption": "Style tab: seven ready-made looks, then the background and cell outline colours."
             },
@@ -1309,18 +1309,18 @@
                 0,
                 98,
                 1920,
-                1101
+                981
               ],
               "caption": "The Publication look: white background, black cell and soft light."
             }
           ],
           "steps": [
             "Click Soft, Glossy, Matte, Dramatic, Flat or Publication and watch the view change; hover a look for its description. The highlighted button and the Current look line name the look in use.",
-            "Under Background, choose Custom colour and click the White or Black swatch, or pick any colour. Do the same for Cell Outline.",
-            "Change any slider in the Lighting tab: the current look becomes custom. Click Default to return."
+            "Under Background, choose Custom colour and click the White or Black swatch. Do the same for Cell Outline and raise its Line width.",
+            "Raise Depth cueing to fade the far side of the structure, and Ambient occlusion to darken buried atoms; set Outline width to about 0.25 for drawn edges."
           ],
-          "check": "A look changes only lighting, highlights and the background and cell colours; atom sizes, bond colours and the light direction stay as they are.",
-          "options": "Background and cell colours are also used in exported images. Theme colour follows View > Theme. Save as My Default keeps the look for new windows and the next start; Restore Factory Look returns every display setting to its default."
+          "check": "A look changes only lighting, highlights and the background and cell colours; atom sizes, bond colours, depth cues, outlines and the light direction stay as they are.",
+          "options": "Background, cell, depth cues and outlines are also used in exported images and by AtomForge --render --display. Save as My Default keeps every setting, element colours and radii included, for new windows and the next start; Restore Factory Look returns them to their defaults."
         },
         {
           "id": "lighting",
@@ -1331,9 +1331,9 @@
               "file": "tutorials/display-lighting.jpg",
               "bounds": [
                 602,
-                282,
+                55,
                 1318,
-                1072
+                845
               ],
               "caption": "Lighting tab at its default values; each setting has its own Reset button."
             }
@@ -1348,27 +1348,27 @@
         },
         {
           "id": "display-atoms",
-          "title": "Size atoms and bonds and colour the bonds",
-          "start": "Open \\ui{Settings > Display Settings > Atoms and Bonds} with View > Atom Style set to Ball and Stick.",
+          "title": "Choose the atom style, sizes and bond rules",
+          "start": "Open \\ui{Settings > Display Settings > Atoms and Bonds}.",
           "images": [
             {
               "file": "tutorials/display-atoms.jpg",
               "bounds": [
                 602,
-                97,
-                1597,
-                1127
+                55,
+                1186,
+                841
               ],
               "caption": "Atoms and Bonds tab: global atom and bond sizes, bond colouring and the element radii."
             }
           ],
           "steps": [
-            "Lower Atom size to about 0.5\\texttimes{} to see bonds and the inside of a structure; it multiplies every radius on top of the atom style.",
+            "Choose Ball and Stick under Atom Style, then lower Atom size to about 0.5\\texttimes{} to see the bonds and the inside of the structure.",
             "Raise Bond thickness, then choose One colour and pick a bond colour (Half of each atom's colour is the default).",
-            "Pick an element in the table and set its radius; Reset Element or Reset All Radii restores the covalent radii."
+            "Tick Bonds between metals to show the bond network of a metal, and change Bond tolerance to bond stretched structures; open Element Radii to set one element's radius."
           ],
-          "check": "Sizes are drawing choices: which atoms are bonded does not depend on Atom size or Bond thickness.",
-          "options": "Bonds are drawn in the Ball and Stick and Polyhedral styles. With large structures, size changes are applied when the slider is released."
+          "check": "Sizes are drawing choices: which atoms are bonded depends on the bond rules and element radii, not on Atom size or Bond thickness.",
+          "options": "Bonds are drawn in the Ball and Stick and Polyhedral styles. No bonds are searched for structures of at least Bonds up to atoms (default 500 000). With large structures, size changes are applied when the slider is released."
         },
         {
           "id": "colours",
@@ -1379,16 +1379,16 @@
               "file": "tutorials/display-colors.jpg",
               "bounds": [
                 602,
-                97,
+                52,
                 1597,
-                900
+                1007
               ],
               "caption": "Colours tab with a selected element, its RGB controls and the reset actions."
             }
           ],
           "steps": [
-            "Select Cu, then change its colour using the visible values or colour control.",
-            "Select Ni and give it a distinguishable colour. Inspect the same alloy from a second view.",
+            "Under Colour Scheme, click Jmol, then RasMol CPK and Greyscale, and back to AtomForge; the highlighted button names the scheme in use.",
+            "Select Cu, then change its colour using the visible values or colour control; the scheme line then reports your own changes.",
             "Use Reset Element for one species, or Reset All Colours to restore the palette."
           ],
           "check": "Colour edits do not substitute species. Verify chemistry using labels or Structure Info.",

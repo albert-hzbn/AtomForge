@@ -212,6 +212,23 @@ class RingsAgainstMatscipy(unittest.TestCase):
         cu.positions += np.random.default_rng(1).normal(0, 0.05, cu.positions.shape)
         self.check(cu, 2.6, 8)
 
+    def test_path_limit(self):
+        """max_paths bounds the shortest paths followed; 0 follows all of them."""
+        from ase.build import bulk
+        cu = bulk("Cu", "fcc", a=3.6, cubic=True).repeat((3, 3, 3))
+        common = dict(positions=cu.positions.tolist(), cell=cu.cell.array.tolist(), pbc=[True] * 3, cutoff_A=2.6, max_size=6)
+        default = run("find-rings", **common)
+        unlimited = run("find-rings", max_paths=0, **common)
+        one = run("find-rings", max_paths=1, **common)
+        self.assertEqual(default["max_paths"], 512)
+        self.assertFalse(default["paths_truncated"])
+        self.assertFalse(unlimited["paths_truncated"])
+        self.assertEqual((unlimited["ring_sizes"], unlimited["ring_counts"]), (default["ring_sizes"], default["ring_counts"]))
+        self.assertTrue(one["paths_truncated"])
+        self.assertLess(sum(one["ring_counts"]), sum(default["ring_counts"]))
+        with self.assertRaises(Exception):
+            run("find-rings", max_paths=-1, **common)
+
 
 @unittest.skipIf(np is None or not available("ase"), "ase is required")
 class BondsAgainstAse(unittest.TestCase):

@@ -4,6 +4,7 @@
 
 #include "Camera.h"
 #include "ElementData.h"
+#include "graphics/AmbientOcclusion.h"
 #include "graphics/StructureInstanceBuilder.h"
 #include "math/StructureMath.h"
 #include "science/AtomProperties.h"
@@ -585,6 +586,7 @@ StructureInstanceData buildRenderData(const EditorState& state)
         for (float& scale : data.scales)
             scale *= radiusScale;
     }
+    atomforge::display::darkenOccluded(data.positions, data.scales, data.colors, state.editMenuDialogs.display.ambientOcclusion);
 
     return data;
 }
@@ -595,6 +597,9 @@ void refreshSceneBuffers(EditorState& state, const StructureInstanceData& data)
     state.sceneBuffers.bondStyle.thickness = display.bondScale;
     state.sceneBuffers.bondStyle.uniformColour = display.uniformBondColour;
     state.sceneBuffers.bondStyle.colour = display.bondColour;
+    state.sceneBuffers.bondStyle.tolerance = display.bondTolerance;
+    state.sceneBuffers.bondStyle.metalBonds = display.metalBonds;
+    state.sceneBuffers.bondStyle.atomLimit = static_cast<std::size_t>(display.bondAtomLimit);
     state.sceneBuffers.upload(
         data,
         state.fileBrowser.isBondElementFilterEnabled(),

@@ -114,6 +114,27 @@ static const char* kAtomFS = R"(
 
     out vec4 color;
 
+    // Outlines and depth cueing (Display Settings), after the lighting.
+    uniform vec4 uFog;          // near, far (camera distance), strength (0: off), unused
+    uniform vec3 uFogColor;
+    uniform vec4 uOutline;      // width (0: off), unused x 3
+    uniform vec3 uOutlineColor;
+
+    vec3 finishColour(vec3 lit, vec3 worldPos, vec3 norm)
+    {
+        if (uOutline.x > 0.0)
+        {
+            float facing = abs(dot(norm, normalize(viewPos - worldPos)));
+            lit = mix(lit, uOutlineColor, 1.0 - smoothstep(uOutline.x, uOutline.x + 0.08, facing));
+        }
+        if (uFog.z > 0.0)
+        {
+            float t = clamp((length(viewPos - worldPos) - uFog.x) / max(uFog.y - uFog.x, 1e-4), 0.0, 1.0);
+            lit = mix(lit, uFogColor, t * uFog.z);
+        }
+        return lit;
+    }
+
     float computeShadow(vec4 pos, float cosTheta)
     {
         vec3 proj = pos.xyz / pos.w;
@@ -190,7 +211,7 @@ static const char* kAtomFS = R"(
         vec3 diffuse  = baseColor * litFactor;
         vec3 specular = vec3(uSpecularIntensity * spec * (1.0 - shadow * uShadowStrength));
 
-        color = vec4(diffuse + specular, 1.0);
+        color = vec4(finishColour(diffuse + specular, fragWorldPos, norm), 1.0);
     }
 )";
 
@@ -286,6 +307,27 @@ static const char* kBondFS = R"(
 
     out vec4 color;
 
+    // Outlines and depth cueing (Display Settings), after the lighting.
+    uniform vec4 uFog;          // near, far (camera distance), strength (0: off), unused
+    uniform vec3 uFogColor;
+    uniform vec4 uOutline;      // width (0: off), unused x 3
+    uniform vec3 uOutlineColor;
+
+    vec3 finishColour(vec3 lit, vec3 worldPos, vec3 norm)
+    {
+        if (uOutline.x > 0.0)
+        {
+            float facing = abs(dot(norm, normalize(viewPos - worldPos)));
+            lit = mix(lit, uOutlineColor, 1.0 - smoothstep(uOutline.x, uOutline.x + 0.08, facing));
+        }
+        if (uFog.z > 0.0)
+        {
+            float t = clamp((length(viewPos - worldPos) - uFog.x) / max(uFog.y - uFog.x, 1e-4), 0.0, 1.0);
+            lit = mix(lit, uFogColor, t * uFog.z);
+        }
+        return lit;
+    }
+
     void main()
     {
         vec3 norm = normalize(fragNormal);
@@ -338,7 +380,7 @@ static const char* kBondFS = R"(
         vec3 diffuse = baseColor * litFactor;
         vec3 specular = vec3(uSpecularIntensity * spec);
 
-        color = vec4(diffuse + specular, 1.0);
+        color = vec4(finishColour(diffuse + specular, fragWorldPos, norm), 1.0);
     }
 )";
 
@@ -517,6 +559,27 @@ static const char* kAtomBillboardFS = R"(
 
     out vec4 color;
 
+    // Outlines and depth cueing (Display Settings), after the lighting.
+    uniform vec4 uFog;          // near, far (camera distance), strength (0: off), unused
+    uniform vec3 uFogColor;
+    uniform vec4 uOutline;      // width (0: off), unused x 3
+    uniform vec3 uOutlineColor;
+
+    vec3 finishColour(vec3 lit, vec3 worldPos, vec3 norm)
+    {
+        if (uOutline.x > 0.0)
+        {
+            float facing = abs(dot(norm, normalize(viewPos - worldPos)));
+            lit = mix(lit, uOutlineColor, 1.0 - smoothstep(uOutline.x, uOutline.x + 0.08, facing));
+        }
+        if (uFog.z > 0.0)
+        {
+            float t = clamp((length(viewPos - worldPos) - uFog.x) / max(uFog.y - uFog.x, 1e-4), 0.0, 1.0);
+            lit = mix(lit, uFogColor, t * uFog.z);
+        }
+        return lit;
+    }
+
     float computeShadow(vec4 pos, float cosTheta)
     {
         vec3 proj = pos.xyz / pos.w;
@@ -611,7 +674,7 @@ static const char* kAtomBillboardFS = R"(
         vec3 diffuse = baseColor * litFactor;
         vec3 specular = vec3(uSpecularIntensity * spec * (1.0 - shadow * uShadowStrength));
 
-        color = vec4(diffuse + specular, 1.0);
+        color = vec4(finishColour(diffuse + specular, fragWorldPos, norm), 1.0);
     }
 )";
 
@@ -1120,6 +1183,7 @@ void Renderer::drawAtoms(const glm::mat4& projection,
     glUniform1f(glGetUniformLocation(atomProgram, "uShadowStrength"),    lightShadowStrength);
     glUniform1f(glGetUniformLocation(atomProgram, "uShininessScale"),    materialShininessScale);
     glUniform1f(glGetUniformLocation(atomProgram, "uShininessFloor"),    materialShininessFloor);
+    setFinishUniforms(atomProgram);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
@@ -1203,6 +1267,7 @@ void Renderer::drawAtomsLowPoly(const glm::mat4& projection,
     glUniform1f(glGetUniformLocation(atomLowPolyProgram, "uShadowStrength"),    lightShadowStrength);
     glUniform1f(glGetUniformLocation(atomLowPolyProgram, "uShininessScale"),    materialShininessScale);
     glUniform1f(glGetUniformLocation(atomLowPolyProgram, "uShininessFloor"),    materialShininessFloor);
+    setFinishUniforms(atomLowPolyProgram);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
@@ -1247,6 +1312,7 @@ void Renderer::drawAtomsBillboard(const glm::mat4& projection,
     glUniform1f(glGetUniformLocation(atomBillboardProgram, "uShadowStrength"),    lightShadowStrength);
     glUniform1f(glGetUniformLocation(atomBillboardProgram, "uShininessScale"),    materialShininessScale);
     glUniform1f(glGetUniformLocation(atomBillboardProgram, "uShininessFloor"),    materialShininessFloor);
+    setFinishUniforms(atomBillboardProgram);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
@@ -1282,9 +1348,18 @@ void Renderer::drawBonds(const glm::mat4& projection,
     glUniform1f(glGetUniformLocation(bondProgram, "uSpecularIntensity"), materialSpecularIntensity);
     glUniform1f(glGetUniformLocation(bondProgram, "uShininessScale"),    materialShininessScale);
     glUniform1f(glGetUniformLocation(bondProgram, "uShininessFloor"),    materialShininessFloor);
+    setFinishUniforms(bondProgram);
 
     glBindVertexArray(cylinderVAO);
     glDrawArraysInstanced(GL_TRIANGLES, 0, cylinderVertexCount, (GLsizei)bondCount);
+}
+
+void Renderer::setFinishUniforms(GLuint program) const
+{
+    glUniform4f(glGetUniformLocation(program, "uFog"), fogNear, fogFar, fogStrength, 0.0f);
+    glUniform3f(glGetUniformLocation(program, "uFogColor"), fogColor.r, fogColor.g, fogColor.b);
+    glUniform4f(glGetUniformLocation(program, "uOutline"), outlineWidth, 0.0f, 0.0f, 0.0f);
+    glUniform3f(glGetUniformLocation(program, "uOutlineColor"), outlineColor.r, outlineColor.g, outlineColor.b);
 }
 
 void Renderer::drawBoxLines(const glm::mat4& projection,
@@ -1304,7 +1379,7 @@ void Renderer::drawBoxLines(const glm::mat4& projection,
                        1, GL_FALSE, glm::value_ptr(view));
     glUniform3f(glGetUniformLocation(lineProgram, "uColor"), color.r, color.g, color.b);
 
-    glLineWidth(3.5f);
+    glLineWidth(boxLineWidth);
     glBindVertexArray(lineVAO);
     glDrawArrays(GL_LINES, 0, (GLsizei)lineVertexCount);
 }
@@ -1422,6 +1497,7 @@ void Renderer::drawAtomsIndirect(const glm::mat4& projection,
     glUniform1f(glGetUniformLocation(atomSSBOProgram, "uShadowStrength"),    lightShadowStrength);
     glUniform1f(glGetUniformLocation(atomSSBOProgram, "uShininessScale"),    materialShininessScale);
     glUniform1f(glGetUniformLocation(atomSSBOProgram, "uShininessFloor"),    materialShininessFloor);
+    setFinishUniforms(atomSSBOProgram);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
@@ -1460,6 +1536,7 @@ void Renderer::drawAtomsLowPolyIndirect(const glm::mat4& projection,
     glUniform1f(glGetUniformLocation(atomLowPolySSBOProgram, "uShadowStrength"),    lightShadowStrength);
     glUniform1f(glGetUniformLocation(atomLowPolySSBOProgram, "uShininessScale"),    materialShininessScale);
     glUniform1f(glGetUniformLocation(atomLowPolySSBOProgram, "uShininessFloor"),    materialShininessFloor);
+    setFinishUniforms(atomLowPolySSBOProgram);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
@@ -1498,6 +1575,7 @@ void Renderer::drawAtomsBillboardIndirect(const glm::mat4& projection,
     glUniform1f(glGetUniformLocation(atomBillboardSSBOProgram, "uShadowStrength"),    lightShadowStrength);
     glUniform1f(glGetUniformLocation(atomBillboardSSBOProgram, "uShininessScale"),    materialShininessScale);
     glUniform1f(glGetUniformLocation(atomBillboardSSBOProgram, "uShininessFloor"),    materialShininessFloor);
+    setFinishUniforms(atomBillboardSSBOProgram);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, shadow.depthTexture);
@@ -1687,7 +1765,7 @@ void Renderer::drawSelectionHalos(const glm::mat4& projection,
     glUniformMatrix4fv(glGetUniformLocation(selHaloProgram, "uView"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(selHaloProgram, "uProjection"), 1, GL_FALSE, glm::value_ptr(projection));
     glUniform1f(glGetUniformLocation(selHaloProgram, "uExtent"), kExtent);
-    glUniform3f(glGetUniformLocation(selHaloProgram, "uColor"), 1.0f, 0.66f, 0.12f);
+    glUniform3f(glGetUniformLocation(selHaloProgram, "uColor"), selectionColor.r, selectionColor.g, selectionColor.b);
     const GLint opacity = glGetUniformLocation(selHaloProgram, "uOpacity");
     GLint depthFunc = GL_LESS;
     glGetIntegerv(GL_DEPTH_FUNC, &depthFunc);

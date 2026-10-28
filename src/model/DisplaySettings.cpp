@@ -70,7 +70,10 @@ bool operator==(const DisplaySettings& a, const DisplaySettings& b)
            a.shininessScale == b.shininessScale && a.shininessFloor == b.shininessFloor && a.atomScale == b.atomScale &&
            a.bondScale == b.bondScale && a.uniformBondColour == b.uniformBondColour && a.bondColour == b.bondColour &&
            a.customBackground == b.customBackground && a.background == b.background &&
-           a.customCellColour == b.customCellColour && a.cellColour == b.cellColour;
+           a.customCellColour == b.customCellColour && a.cellColour == b.cellColour && a.cellLineWidth == b.cellLineWidth &&
+           a.depthCueing == b.depthCueing && a.ambientOcclusion == b.ambientOcclusion && a.outlineWidth == b.outlineWidth &&
+           a.outlineColour == b.outlineColour && a.selectionColour == b.selectionColour && a.bondTolerance == b.bondTolerance &&
+           a.metalBonds == b.metalBonds && a.bondAtomLimit == b.bondAtomLimit;
 }
 
 glm::vec3 lightDirection(const DisplaySettings& s)
@@ -154,7 +157,16 @@ std::string toText(const DisplaySettings& s)
         << "bond_scale=" << s.bondScale << '\n'
         << "bond_colour=" << (s.uniformBondColour ? colourText(s.bondColour) : "atoms") << '\n'
         << "background=" << (s.customBackground ? colourText(s.background) : "theme") << '\n'
-        << "cell_colour=" << (s.customCellColour ? colourText(s.cellColour) : "theme") << '\n';
+        << "cell_colour=" << (s.customCellColour ? colourText(s.cellColour) : "theme") << '\n'
+        << "cell_line_width=" << s.cellLineWidth << '\n'
+        << "depth_cueing=" << s.depthCueing << '\n'
+        << "ambient_occlusion=" << s.ambientOcclusion << '\n'
+        << "outline_width=" << s.outlineWidth << '\n'
+        << "outline_colour=" << colourText(s.outlineColour) << '\n'
+        << "selection_colour=" << colourText(s.selectionColour) << '\n'
+        << "bond_tolerance=" << s.bondTolerance << '\n'
+        << "metal_bonds=" << (s.metalBonds ? "true" : "false") << '\n'
+        << "bond_atom_limit=" << s.bondAtomLimit << '\n';
     return out.str();
 }
 
@@ -192,6 +204,17 @@ DisplaySettings fromText(const std::string& text, const DisplaySettings& base)
         else if (key == "cell_colour") {
             if (value == "theme") s.customCellColour = false;
             else if (readColour(value, s.cellColour)) s.customCellColour = true;
+        }
+        else if (key == "cell_line_width") readNumber(value, s.cellLineWidth, kCellLineWidth);
+        else if (key == "depth_cueing") readNumber(value, s.depthCueing, kDepthCueing);
+        else if (key == "ambient_occlusion") readNumber(value, s.ambientOcclusion, kAmbientOcclusion);
+        else if (key == "outline_width") readNumber(value, s.outlineWidth, kOutlineWidth);
+        else if (key == "outline_colour") readColour(value, s.outlineColour);
+        else if (key == "selection_colour") readColour(value, s.selectionColour);
+        else if (key == "bond_tolerance") readNumber(value, s.bondTolerance, kBondTolerance);
+        else if (key == "metal_bonds") readSwitch(value, s.metalBonds);
+        else if (key == "bond_atom_limit") {
+            if (readNumber(value, s.bondAtomLimit, kBondAtomLimit)) s.bondAtomLimit = std::round(s.bondAtomLimit);
         }
     }
     return s;

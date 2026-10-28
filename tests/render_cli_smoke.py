@@ -152,6 +152,48 @@ with tempfile.TemporaryDirectory(prefix="atomforge_render_") as folder:
     plain = draw("plain.png")
     if plain[0][0] != (255, 255, 255):
         raise AssertionError(f"default background not white: {plain[0][0]}")
+    # Effects on a 5 x 5 x 5 block of copper (ball and stick is the CLI's style).
+    block = root / "block.xyz"
+    sites = [(2.55 * x, 2.55 * y, 2.55 * z) for x in range(5) for y in range(5) for z in range(5)]
+    block.write_text(f"{len(sites)}\nblock\n" + "".join(f"Cu {x} {y} {z}\n" for x, y, z in sites), encoding="utf-8")
+    def look_of(name, text):
+        path = root / name
+        path.write_text("background=0 0 0\nshadow_strength=0\n" + text, encoding="utf-8")
+        image = root / (name + ".png")
+        run = subprocess.run([exe, "--render", "--input", str(block), "--output", str(image), "--width", "128", "--height", "128",
+                              "--yaw", "30", "--pitch", "25", "--display", str(path)], capture_output=True, text=True, timeout=60)
+        if run.returncode != 0:
+            raise AssertionError(f"--render with {text!r} failed:\n{run.stdout}\n{run.stderr}")
+        return [p for row in png_pixels(image)[2] for p in row]
+    lit = lambda pixels: [p for p in pixels if p != (0, 0, 0)]
+    brightness = lambda pixels: sum(sum(p) for p in lit(pixels)) / max(1, len(lit(pixels)))
+    plain = look_of("plain", "")
+    fogged = look_of("fog", "depth_cueing=1\n")
+    if not brightness(fogged) < 0.9 * brightness(plain):
+        raise AssertionError(f"depth cueing did not fade far atoms: {brightness(fogged):.1f} vs {brightness(plain):.1f}")
+    occluded = look_of("ao", "ambient_occlusion=1\n")
+    if not brightness(occluded) < 0.9 * brightness(plain):
+        raise AssertionError(f"ambient occlusion did not darken the block: {brightness(occluded):.1f} vs {brightness(plain):.1f}")
+    outlined = look_of("outline", "outline_width=0.4\noutline_colour=1 0 1\n")
+    magenta = lambda pixels: sum(1 for r, g, b in pixels if r > 150 and b > 150 and g < 90)
+    if magenta(outlined) < 50 or magenta(plain) > 0:
+        raise AssertionError(f"outlines not drawn in their colour ({magenta(outlined)} magenta pixels)")
+    blue = lambda pixels: sum(1 for r, g, b in pixels if b > 120 and r < 60 and g < 60)
+    no_metal = look_of("nometal", "bond_colour=0 0 1\nambient=1\n")
+    metal = look_of("metal", "bond_colour=0 0 1\nambient=1\nmetal_bonds=true\n")
+    if blue(no_metal) != 0 or blue(metal) < 20:
+        raise AssertionError(f"metal_bonds did not add Cu-Cu bonds ({blue(no_metal)} -> {blue(metal)} bond pixels)")
+    tight = look_of("tight", "bond_colour=0 0 1\nambient=1\nmetal_bonds=true\nbond_tolerance=0.8\n")
+    limited = look_of("limited", "bond_colour=0 0 1\nambient=1\nmetal_bonds=true\nbond_atom_limit=100\n")
+    if blue(tight) != 0 or blue(limited) != 0:
+        raise AssertionError("bond_tolerance or bond_atom_limit did not remove the bonds")
+    red = lambda pixels: sum(1 for r, g, b in pixels if r > 150 and g < 60 and b < 60)
+    thin = look_of("thin", "cell_colour=1 0 0\ncell_line_width=1\n")
+    thick = look_of("thick", "cell_colour=1 0 0\ncell_line_width=8\n")
+    if red(thick) < red(thin) or red(thin) == 0:
+        raise AssertionError(f"cell line width: {red(thin)} -> {red(thick)} cell pixels")
+    print("wide lines:", "drawn" if red(thick) > red(thin) else "not supported by this driver (1 px)")
+
     result = subprocess.run([exe, "--render", "--input", str(source), "--output", str(root / "x.png"),
                              "--display", str(root / "missing.txt")], capture_output=True, text=True, timeout=30)
     if result.returncode == 0 or "not found" not in result.stderr:

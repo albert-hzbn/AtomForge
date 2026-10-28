@@ -248,6 +248,7 @@ const std::vector<ScienceToolDef>& scienceToolCatalog()
             {"positions", "Atomic positions (Angstrom)", "", "data", true},
             {"cutoff_A", "Bond cutoff (Angstrom)", "2.0", "float", true},
             {"max_size", "Largest ring (atoms)", "10", "int", false},
+            {"max_paths", "Shortest paths kept per atom pair (0: all; more are reported as paths_truncated)", "512", "int", false},
             {"cell", "Cell vectors (Angstrom)", "", "data", false},
             {"pbc", "Periodic boundaries", "[false, false, false]", "axes", false},
         }, ScienceToolView::Atoms},

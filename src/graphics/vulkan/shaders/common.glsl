@@ -12,6 +12,9 @@ layout(set = 0, binding = 0) uniform Frame
     vec4 viewPos;
     vec4 params0;         // ambient, saturation, contrast, specular intensity
     vec4 params1;         // shadow strength, shininess scale, shininess floor, shadow texel size
+    vec4 params2;         // depth cueing: near, far (camera distance), strength (0: off); outline width (0: off)
+    vec4 params3;         // depth-cueing colour
+    vec4 params4;         // outline colour
 } frame;
 
 layout(set = 0, binding = 1) uniform sampler2DShadow shadowMap;
@@ -43,6 +46,22 @@ float computeShadowFast(vec4 pos, float cosTheta)
         return 0.0;
     float bias = max(0.012 * (1.0 - cosTheta), 0.002);
     return 1.0 - texture(shadowMap, vec3(proj.xy, proj.z - bias));
+}
+
+// Outlines and depth cueing (Display Settings), after the lighting; as in Renderer.cpp.
+vec3 finishColour(vec3 lit, vec3 worldPos, vec3 norm)
+{
+    if (frame.params2.w > 0.0)
+    {
+        float facing = abs(dot(norm, normalize(frame.viewPos.xyz - worldPos)));
+        lit = mix(lit, frame.params4.rgb, 1.0 - smoothstep(frame.params2.w, frame.params2.w + 0.08, facing));
+    }
+    if (frame.params2.z > 0.0)
+    {
+        float t = clamp((length(frame.viewPos.xyz - worldPos) - frame.params2.x) / max(frame.params2.y - frame.params2.x, 1e-4), 0.0, 1.0);
+        lit = mix(lit, frame.params3.rgb, t * frame.params2.z);
+    }
+    return lit;
 }
 
 // shadowTaps: 0 no shadow, 1 one tap, else the 5 x 5 kernel.
@@ -78,7 +97,7 @@ vec3 shadeTaps(vec3 norm, vec3 worldPos, vec3 baseColor, float shininess, vec4 p
     float ambient = frame.params0.x;
     float shadowStrength = frame.params1.x;
     float litFactor = ambient + (1.0 - ambient) * diff * (1.0 - shadow * shadowStrength);
-    return baseColor * litFactor + vec3(frame.params0.w * spec * (1.0 - shadow * shadowStrength));
+    return finishColour(baseColor * litFactor + vec3(frame.params0.w * spec * (1.0 - shadow * shadowStrength)), worldPos, norm);
 }
 
 vec3 shade(vec3 norm, vec3 worldPos, vec3 baseColor, float shininess, vec4 posLight, bool shadowed)

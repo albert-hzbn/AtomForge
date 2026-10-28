@@ -121,6 +121,9 @@ struct SceneBuffers
         float thickness = 1.0f;        // multiplies the automatic bond radius
         bool uniformColour = false;    // one colour instead of half of each atom's
         glm::vec3 colour = glm::vec3(0.62f);
+        float tolerance = 1.18f;       // bonded below tolerance x (sum of element radii)
+        bool metalBonds = false;       // also bonds between two metals
+        std::size_t atomLimit = 500000;  // no bond search from this many atoms
     };
     BondStyle bondStyle;
 

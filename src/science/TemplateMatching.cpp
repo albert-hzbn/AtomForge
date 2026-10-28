@@ -1,3 +1,4 @@
+#include "science/Parallel.h"
 #include "science/TemplateMatching.h"
 #include "science/LocalGeometry.h"
 #include "util/TaskControl.h"
@@ -499,23 +500,25 @@ Matching matchAll(const Parameters& p, const std::vector<int>& kinds, double rms
     m.neighbors = nearestNeighbors(m.geometry, needed);
     const std::size_t n = m.geometry.positions.size();
     m.fits.assign(n, Fit());
-    std::vector<V3> env;
-    std::vector<int> atoms;
-    for (std::size_t i = 0; i < n; ++i) {
-        if (i % 256 == 0) taskProgress(static_cast<double>(i) / static_cast<double>(n));
-        Fit best;
-        for (int kind : kinds) {
-            if (!environment(kind, i, m.neighbors, env, atoms)) continue;
-            Fit fit = fitTemplate(kind, env);
-            if (fit.rmsd < best.rmsd) best = std::move(fit);
+    // Atoms are matched independently (each writes only its own fit), on several threads.
+    parallelChunks(n, [&](std::size_t begin, std::size_t end) {
+        std::vector<V3> env;
+        std::vector<int> atoms;
+        for (std::size_t i = begin; i < end; ++i) {
+            Fit best;
+            for (int kind : kinds) {
+                if (!environment(kind, i, m.neighbors, env, atoms)) continue;
+                Fit fit = fitTemplate(kind, env);
+                if (fit.rmsd < best.rmsd) best = std::move(fit);
+            }
+            if (best.kind == Other || !(best.rmsd <= rmsdCutoff || rmsdCutoff <= 0)) {
+                const double rmsd = best.rmsd;
+                best = Fit();
+                best.rmsd = rmsd;
+            }
+            m.fits[i] = std::move(best);
         }
-        if (best.kind == Other || !(best.rmsd <= rmsdCutoff || rmsdCutoff <= 0)) {
-            const double rmsd = best.rmsd;
-            best = Fit();
-            best.rmsd = rmsd;
-        }
-        m.fits[i] = std::move(best);
-    }
+    });
     return m;
 }
 

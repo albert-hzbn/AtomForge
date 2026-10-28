@@ -7,6 +7,7 @@
 #include "app/ImageExport.h"
 #include "app/SceneView.h"
 #include "camera/Camera.h"
+#include "graphics/AmbientOcclusion.h"
 #include "graphics/BillboardMesh.h"
 #include "graphics/CylinderMesh.h"
 #include "graphics/LowPolyMesh.h"
@@ -410,13 +411,6 @@ int runRenderCLI(int argc, char* argv[])
 
             Renderer renderer;
             renderer.init();
-            renderer.lightAmbient = display.ambient;
-            renderer.lightSaturation = display.saturation;
-            renderer.lightContrast = display.contrast;
-            renderer.lightShadowStrength = display.shadowStrength;
-            renderer.materialSpecularIntensity = display.specularIntensity;
-            renderer.materialShininessScale = display.shininessScale;
-            renderer.materialShininessFloor = display.shininessFloor;
             ShadowMap shadow = createShadowMap(2048, 2048);
 
             SceneBuffers sceneBuffers;
@@ -431,9 +425,13 @@ int runRenderCLI(int argc, char* argv[])
             sceneBuffers.bondStyle.thickness = display.bondScale;
             sceneBuffers.bondStyle.uniformColour = display.uniformBondColour;
             sceneBuffers.bondStyle.colour = display.bondColour;
+            sceneBuffers.bondStyle.tolerance = display.bondTolerance;
+            sceneBuffers.bondStyle.metalBonds = display.metalBonds;
+            sceneBuffers.bondStyle.atomLimit = static_cast<std::size_t>(display.bondAtomLimit);
             const auto instances = [&](const Structure& source) {
                 StructureInstanceData data = buildStructureInstanceData(source, false, identity, elementRadii, elementShininess);
                 for (float& scale : data.scales) scale *= atomScale;
+                atomforge::display::darkenOccluded(data.positions, data.scales, data.colors, display.ambientOcclusion);
                 return data;
             };
             sceneBuffers.upload(instances(structure), false, {});
@@ -471,6 +469,7 @@ int runRenderCLI(int argc, char* argv[])
                 frameView.framebufferWidth = width;
                 frameView.framebufferHeight = height;
                 buildFrameView(camera, sceneBuffers, orthographic, frameView, display);
+                applyDisplaySettings(renderer, display, frameView, glm::vec3(background));
 
                 ImageExportView view;
                 view.width = width;

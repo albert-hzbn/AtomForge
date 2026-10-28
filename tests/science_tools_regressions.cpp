@@ -1,6 +1,7 @@
 // Analytical and independent-reference checks for the native scientific tools
 // (src/science). The cases mirror python/tests/test_condensed_matter.py so the
 // desktop/CLI implementation is held to the same contracts as the Python API.
+#include "science/Parallel.h"
 #include "science/AtomProperties.h"
 #include "science/LammpsExport.h"
 #include "science/Batch.h"
@@ -258,6 +259,33 @@ std::filesystem::path scratch(const std::string& name)
 int main()
 {
     std::cout << "Native scientific tool regressions\n";
+
+    test("parallel chunks", [] {
+        // Every item exactly once, whatever the chunk size; small inputs too.
+        for (std::size_t n : {0u, 1u, 7u, 1000u, 100003u}) {
+            std::vector<int> seen(n, 0);
+            atomforge::science::parallelChunks(n, [&](std::size_t begin, std::size_t end) {
+                for (std::size_t i = begin; i < end; ++i) ++seen[i];
+            }, 37);
+            check(std::all_of(seen.begin(), seen.end(), [](int k) { return k == 1; }), "each item once");
+        }
+        // A failing chunk stops the work and its exception reaches the caller.
+        bool thrown = false;
+        try {
+            atomforge::science::parallelChunks(100000, [](std::size_t begin, std::size_t) {
+                if (begin >= 5000) throw std::runtime_error("chunk failed");
+            }, 100);
+        } catch (const std::runtime_error& e) { thrown = std::string(e.what()) == "chunk failed"; }
+        check(thrown, "exception rethrown");
+        // A cancelled task stops with the cancellation error.
+        atomforge::TaskControl control;
+        control.cancelled = true;
+        atomforge::TaskControlScope scope(&control);
+        bool cancelled = false;
+        try { atomforge::science::parallelChunks(100000, [](std::size_t, std::size_t) {}, 100); }
+        catch (const std::runtime_error& e) { cancelled = std::string(e.what()).find("cancelled") != std::string::npos; }
+        check(cancelled, "cancellation stops the work");
+    });
 
     test("json round trip", [] {
         const Json value = Json::parse(R"({"a": [1, 2.5, -3e-2, true, null], "b": {"c": "x\nyé"}})");

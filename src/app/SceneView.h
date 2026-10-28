@@ -26,7 +26,15 @@ struct FrameView
     glm::mat4 lightMVP = glm::mat4(1.0f);
     glm::vec3 lightPosition = glm::vec3(0.0f);
     glm::vec3 cameraPosition = glm::vec3(0.0f);
+    // Camera distances of the nearest and farthest scene points (bounding sphere), for depth cueing.
+    float depthNear = 0.0f, depthFar = 1.0f;
 };
+
+struct Renderer;
+// The display settings the renderer applies per frame (lighting, depth cueing,
+// outlines, cell lines, selection rings); background is the clear colour.
+void applyDisplaySettings(Renderer& renderer, const atomforge::display::DisplaySettings& display,
+                          const FrameView& frame, const glm::vec3& background);
 
 bool updateViewport(GLFWwindow* window, FrameView& frame);
 

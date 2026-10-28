@@ -70,7 +70,7 @@ struct FrameUniforms
 {
     glm::mat4 projection, view, lightMVP, lightClip;
     glm::vec4 frustumPlanes[6];
-    glm::vec4 lightPos, viewPos, params0, params1;
+    glm::vec4 lightPos, viewPos, params0, params1, params2, params3, params4;
 };
 
 struct Push
@@ -735,6 +735,11 @@ uint32_t SceneRenderer::prepare(const SceneView& view, const SceneLighting& ligh
     uniforms.viewPos = glm::vec4(view.cameraPosition, 1.0f);
     uniforms.params0 = glm::vec4(lighting.ambient, lighting.saturation, lighting.contrast, lighting.specularIntensity);
     uniforms.params1 = glm::vec4(lighting.shadowStrength, lighting.shininessScale, lighting.shininessFloor, 1.0f / static_cast<float>(kShadowSize));
+    uniforms.params2 = glm::vec4(lighting.fogNear, lighting.fogFar, lighting.fogStrength, lighting.outlineWidth);
+    uniforms.params3 = glm::vec4(lighting.fogColor, 0.0f);
+    uniforms.params4 = glm::vec4(lighting.outlineColor, 0.0f);
+    m_lineWidth = lighting.lineWidth;
+    m_haloColor = lighting.haloColor;
     return allocateUniform(&uniforms, sizeof(uniforms));
 }
 
@@ -864,7 +869,7 @@ void SceneRenderer::drawOverlays(VkCommandBuffer cmd, const SceneBuffers& buffer
     if (flags.box && scene->boxVertexCount)
     {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_lineList);
-        setLineWidth(cmd);
+        setLineWidth(cmd, m_lineWidth);
         const Push push{glm::vec4(boxColor, 1.0f), glm::vec4(0.0f)};
         vkCmdPushConstants(cmd, m_layout, kPushStages, 0, sizeof(push), &push);
         const VkDeviceSize offset = 0;
@@ -945,7 +950,7 @@ void SceneRenderer::drawHalos(VkCommandBuffer cmd, uint32_t frameOffset, const s
     const VkDeviceSize offsets[2] = {0, offset};
     vkCmdBindVertexBuffers(cmd, 0, 2, streams, offsets);
     constexpr float kExtent = 1.6f;  // quad half-size in silhouette radii
-    const glm::vec4 color(1.0f, 0.66f, 0.12f, 1.0f);
+    const glm::vec4 color(m_haloColor, 1.0f);
     // Hidden parts faintly first (selected atoms behind others stay findable), then visible ones.
     Push push{color, glm::vec4(kExtent, 0.3f, 0.0f, 0.0f)};
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_haloHidden);

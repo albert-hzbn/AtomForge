@@ -335,7 +335,31 @@ void EditMenuDialogs::drawDisplaySettings(Structure& structure, const std::funct
             colourChoice("background", "Theme colour", d.customBackground, d.background);
             dialogLayout::section("Cell Outline");
             colourChoice("cell", "Theme colour", d.customCellColour, d.cellColour);
-            ImGui::TextDisabled("Both are used in exported images too.");
+            settingSlider("Line width", d.cellLineWidth, kCellLineWidth, factory.cellLineWidth, "%.1f px",
+                          "Thickness of the cell edges in pixels, where the graphics driver draws wide lines.");
+            ImGui::TextDisabled("Background and cell are used in exported images too.");
+
+            dialogLayout::section("Depth Cues");
+            settingSlider("Depth cueing", d.depthCueing, kDepthCueing, factory.depthCueing, "%.2f",
+                          "Far atoms fade into the background, so near and far are easy to tell apart: 0 for none, 1 for full fading at the back.");
+            rebuild |= settingSlider("Ambient occlusion", d.ambientOcclusion, kAmbientOcclusion, factory.ambientOcclusion, "%.2f",
+                                     "Atoms darken where neighbours hide the sky from them, so crevices and buried atoms look deeper: 0 for none.\n"
+                                     "Computed per atom when the structure changes (up to 2 million atoms).");
+
+            dialogLayout::section("Outlines");
+            settingSlider("Outline width", d.outlineWidth, kOutlineWidth, factory.outlineWidth, "%.2f",
+                          "Dark edges around atoms and bonds, as in a drawing: 0 for none, 0.2-0.3 for a thin line.");
+            if (d.outlineWidth > 0.0f)
+            {
+                ImGui::SetNextItemWidth(sliderWidth());
+                ImGui::ColorEdit3("Outline colour", &d.outlineColour.x);
+            }
+
+            dialogLayout::section("Selection");
+            ImGui::SetNextItemWidth(sliderWidth());
+            ImGui::ColorEdit3("Selection ring colour", &d.selectionColour.x);
+            ImGui::SameLine();
+            if (dialogLayout::secondaryButton("Reset##selection")) d.selectionColour = factory.selectionColour;
             ImGui::EndTabItem();
         }
 
@@ -436,14 +460,37 @@ void EditMenuDialogs::drawDisplaySettings(Structure& structure, const std::funct
                 rebuild |= ImGui::ColorEdit3("Bond colour", &d.bondColour.x);
             }
 
-            dialogLayout::section("Element Radii");
-            drawRadiusEditor(structure, updateBuffers);
-            ImGui::SameLine();
-            if (dialogLayout::secondaryButton("Reset All Radii"))
+            dialogLayout::section("Bond Rules");
+            rebuild |= settingSlider("Bond tolerance", d.bondTolerance, kBondTolerance, factory.bondTolerance, "%.2f",
+                                     "Atoms closer than this times the sum of their element radii are bonded. Raise it to bond stretched or distorted structures.");
+            if (ImGui::Checkbox("Bonds between metals", &d.metalBonds)) rebuild = true;
+            dialogLayout::hint("Off: bonds between two metal atoms are left out, so metallic crystals show no bond network.");
             {
-                elementRadii = makeLiteratureCovalentRadii();
-                updateBuffers(structure);
+                int limit = static_cast<int>(d.bondAtomLimit);
+                dialogLayout::fieldLabel("Bonds up to", labelColumn());
+                ImGui::SetNextItemWidth(sliderWidth());
+                if (ImGui::InputInt("atoms##bondLimit", &limit, 100000, 1000000))
+                {
+                    d.bondAtomLimit = std::clamp(static_cast<float>(limit), kBondAtomLimit.low, kBondAtomLimit.high);
+                    rebuild = true;
+                }
+                dialogLayout::hint("No bonds are searched for structures with at least this many atoms (bond search takes time and memory).");
+                if (structure.atoms.size() >= static_cast<std::size_t>(d.bondAtomLimit))
+                    ImGui::TextColored(themeStatusWarn(), "This structure has %zu atoms: raise the limit to draw its bonds.", structure.atoms.size());
             }
+
+            ImGui::Spacing();
+            if (ImGui::CollapsingHeader("Element Radii"))
+            {
+                drawRadiusEditor(structure, updateBuffers);
+                ImGui::SameLine();
+                if (dialogLayout::secondaryButton("Reset All Radii"))
+                {
+                    elementRadii = makeLiteratureCovalentRadii();
+                    updateBuffers(structure);
+                }
+            }
+            dialogLayout::hint("The radius each element is drawn with (also Settings > Atomic Sizes).");
             ImGui::EndTabItem();
         }
 

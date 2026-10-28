@@ -3,7 +3,7 @@
   "files": [
     {
       "source": "CMakeLists.txt",
-      "sha256": "785bfbc8041a40a3d667519b308eedc17e94af10ee4326f3857697ef019ac9df",
+      "sha256": "df0981ce039a61c26b1084d40145229d87d9eca1a646191330f0a2182d12f772",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -288,7 +288,7 @@
     },
     {
       "source": "python/atomforge/render.py",
-      "sha256": "dd0657a373055f2995fa93993e0230c5fa6e8f0a9df0dd070d5ebe2193811019",
+      "sha256": "4517d5023549578aea1124b8ca6e6889f4e541726b2d899763f51558d78842ea",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -741,7 +741,7 @@
     },
     {
       "source": "src/app/EditorApplication.cpp",
-      "sha256": "758727fdb1b1a189e31a511b69e4fc2f5924a52acb63cb9721de5d6ef417b2c0",
+      "sha256": "0331c7357a81f1e4060dd85488c9222fe2a6243dff5ae170c18a860d7564bb0e",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -752,7 +752,7 @@
     },
     {
       "source": "src/app/EditorOps.cpp",
-      "sha256": "c8381a028e553c8384825070ab4a936e201e5dab121ff5415ff723d73400551f",
+      "sha256": "ef2ec80801d2ec9cd55b9795dc5536cabf96f26ea0d238ba065eb9d248931c1c",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -975,7 +975,7 @@
     },
     {
       "source": "src/cli/RenderCLI.cpp",
-      "sha256": "d2bcd6b21d750a83c8bddf5d784b57098ecc50b1828e5ee5af22ff5677ed81be",
+      "sha256": "0492bb548958a14bd346df37303fd1aec2c5f7786d991f92793478896cd99dbb",
       "documentation": [
         "08-python.tex",
         "12-api-signatures.tex"
@@ -1286,6 +1286,15 @@
     {
       "source": "src/science/MeshText.h",
       "sha256": "8966e9844fa5e79e96a5db07cb9c81b3e33586fac37f1e511e3d73091659b27f",
+      "documentation": [
+        "14-workflows.tex",
+        "12-api-signatures.tex"
+      ],
+      "literal_controls": []
+    },
+    {
+      "source": "src/science/Parallel.h",
+      "sha256": "686b2f8bee6f643b9b0913143ff1493c015da9dbf240f66753a1b7bbc97c6a4b",
       "documentation": [
         "14-workflows.tex",
         "12-api-signatures.tex"
@@ -2512,7 +2521,7 @@
     },
     {
       "source": "src/ui/EditMenuDialogs.cpp",
-      "sha256": "d2cdaa9c86a6d21447cff076b388bece22a590cfb7b26871bdbd708586af1b31",
+      "sha256": "5b295384a51c57a5fe6a08dea8dec9ea6ea3eab0b78f0e278af1229e7dc04f31",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -2520,122 +2529,142 @@
       ],
       "literal_controls": [
         {
-          "line": 46,
+          "line": 47,
           "declaration_label": "Edit Structure"
         },
         {
-          "line": 134,
+          "line": 135,
           "declaration_label": "a"
         },
         {
-          "line": 135,
+          "line": 136,
           "declaration_label": "b"
         },
         {
-          "line": 136,
+          "line": 137,
           "declaration_label": "c"
         },
         {
-          "line": 137,
+          "line": 138,
           "declaration_label": "Use Cell Entering The Step"
         },
         {
-          "line": 141,
+          "line": 142,
           "declaration_label": "Scale atoms with the cell (keep fractional coordinates)"
         },
         {
-          "line": 155,
+          "line": 156,
           "declaration_label": "Position Mode"
         },
         {
-          "line": 170,
+          "line": 171,
           "declaration_label": "Select the new atom"
         },
         {
-          "line": 174,
+          "line": 175,
           "declaration_label": "Update Step"
         },
         {
-          "line": 181,
+          "line": 182,
           "declaration_label": "Close"
         },
         {
-          "line": 218,
+          "line": 219,
           "declaration_label": "##value"
         },
         {
-          "line": 237,
+          "line": 238,
           "declaration_label": "Custom colour"
         },
         {
-          "line": 240,
+          "line": 241,
           "declaration_label": "##colour"
         },
         {
-          "line": 272,
+          "line": 273,
           "declaration_label": "Radius"
         },
         {
-          "line": 308,
+          "line": 309,
           "declaration_label": "Style"
         },
         {
-          "line": 344,
+          "line": 355,
+          "declaration_label": "Outline colour"
+        },
+        {
+          "line": 360,
+          "declaration_label": "Selection ring colour"
+        },
+        {
+          "line": 369,
           "declaration_label": "Lighting"
         },
         {
-          "line": 347,
+          "line": 372,
           "declaration_label": "Light follows the camera"
         },
         {
-          "line": 394,
+          "line": 419,
           "declaration_label": "Atoms and Bonds"
         },
         {
-          "line": 405,
+          "line": 454,
           "declaration_label": "Half of each atom's colour"
         },
         {
-          "line": 407,
+          "line": 456,
           "declaration_label": "One colour"
         },
         {
-          "line": 411,
+          "line": 460,
           "declaration_label": "Bond colour"
         },
         {
-          "line": 428,
+          "line": 466,
+          "declaration_label": "Bonds between metals"
+        },
+        {
+          "line": 472,
+          "declaration_label": "atoms##bondLimit"
+        },
+        {
+          "line": 483,
+          "declaration_label": "Element Radii"
+        },
+        {
+          "line": 500,
           "declaration_label": "Element Colours"
         },
         {
-          "line": 450,
+          "line": 545,
           "declaration_label": "Colour##el"
         },
         {
-          "line": 521,
+          "line": 616,
           "declaration_label": "Atomic Sizes"
         },
         {
-          "line": 524,
+          "line": 619,
           "declaration_label": "Display Settings"
         },
         {
-          "line": 626,
+          "line": 721,
           "declaration_label": "Coordinates"
         },
         {
-          "line": 726,
+          "line": 821,
           "declaration_label": "##DirectPos"
         },
         {
-          "line": 744,
+          "line": 839,
           "declaration_label": "##CartesianPos"
         }
       ]
     },
     {
       "source": "src/ui/EditMenuDialogs.h",
-      "sha256": "d3ab3792635d3c2925940b7a4c5be685177b28cf2efb1272bd30911ffe271a31",
+      "sha256": "01b11efe88321f41b85c393644d88fa76ee1c6bc988469298b11485e2e28b212",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -3023,7 +3052,7 @@
     },
     {
       "source": "src/ui/FileBrowser.cpp",
-      "sha256": "84cbb295b17a9dca7409a4983a574ec6fdb1ee2c6583750e2ebbf174cae1d78e",
+      "sha256": "6ef31f5d5c5461d9824565f90008f7279024511e31ea614f38c39fd037c13ced",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -3332,183 +3361,183 @@
           "declaration_label": "##exportScale"
         },
         {
-          "line": 1771,
+          "line": 1779,
           "declaration_label": "OK"
         },
         {
-          "line": 1801,
+          "line": 1809,
           "declaration_label": "Show lattice planes"
         },
         {
-          "line": 1806,
+          "line": 1814,
           "declaration_label": "h##plane"
         },
         {
-          "line": 1809,
+          "line": 1817,
           "declaration_label": "k##plane"
         },
         {
-          "line": 1812,
+          "line": 1820,
           "declaration_label": "l##plane"
         },
         {
-          "line": 1815,
+          "line": 1823,
           "declaration_label": "Offset n##plane"
         },
         {
-          "line": 1817,
+          "line": 1825,
           "declaration_label": "Opacity##plane"
         },
         {
-          "line": 1819,
+          "line": 1827,
           "declaration_label": "Colour##plane"
         },
         {
-          "line": 1863,
+          "line": 1871,
           "declaration_label": "##visible"
         },
         {
-          "line": 1868,
+          "line": 1876,
           "declaration_label": "h##plane-h"
         },
         {
-          "line": 1871,
+          "line": 1879,
           "declaration_label": "k##plane-k"
         },
         {
-          "line": 1874,
+          "line": 1882,
           "declaration_label": "l##plane-l"
         },
         {
-          "line": 1877,
+          "line": 1885,
           "declaration_label": "n##plane-offset"
         },
         {
-          "line": 1880,
+          "line": 1888,
           "declaration_label": "opacity##plane-opacity"
         },
         {
-          "line": 1886,
+          "line": 1894,
           "declaration_label": "##plane-color"
         },
         {
-          "line": 1937,
+          "line": 1945,
           "declaration_label": "Show Miller directions"
         },
         {
-          "line": 1942,
+          "line": 1950,
           "declaration_label": "u##dir"
         },
         {
-          "line": 1945,
+          "line": 1953,
           "declaration_label": "v##dir"
         },
         {
-          "line": 1948,
+          "line": 1956,
           "declaration_label": "w##dir"
         },
         {
-          "line": 1951,
+          "line": 1959,
           "declaration_label": "Length (\\xc3\\x85)##dir"
         },
         {
-          "line": 1953,
+          "line": 1961,
           "declaration_label": "Colour##dir"
         },
         {
-          "line": 1992,
+          "line": 2000,
           "declaration_label": "##vis"
         },
         {
-          "line": 1997,
+          "line": 2005,
           "declaration_label": "u##du"
         },
         {
-          "line": 2000,
+          "line": 2008,
           "declaration_label": "v##dv"
         },
         {
-          "line": 2003,
+          "line": 2011,
           "declaration_label": "w##dw"
         },
         {
-          "line": 2006,
+          "line": 2014,
           "declaration_label": "\\xc3\\x85##dl"
         },
         {
-          "line": 2013,
+          "line": 2021,
           "declaration_label": "##dc"
         },
         {
-          "line": 2055,
+          "line": 2063,
           "declaration_label": "Max displayed centers"
         },
         {
-          "line": 2057,
+          "line": 2065,
           "declaration_label": "Nearest neighbors"
         },
         {
-          "line": 2059,
+          "line": 2067,
           "declaration_label": "Specify center atom indices"
         },
         {
-          "line": 2067,
+          "line": 2075,
           "declaration_label": "Center atom IDs##polyIndexFilter"
         },
         {
-          "line": 2078,
+          "line": 2086,
           "declaration_label": "Show polyhedral edges"
         },
         {
-          "line": 2080,
+          "line": 2088,
           "declaration_label": "Face opacity"
         },
         {
-          "line": 2082,
+          "line": 2090,
           "declaration_label": "Edge opacity"
         },
         {
-          "line": 2085,
+          "line": 2093,
           "declaration_label": "Filter center elements"
         },
         {
-          "line": 2094,
+          "line": 2102,
           "declaration_label": "Centers##polyFilter"
         },
         {
-          "line": 2105,
+          "line": 2113,
           "declaration_label": "Filter ligand elements"
         },
         {
-          "line": 2114,
+          "line": 2122,
           "declaration_label": "Ligands##polyFilter"
         },
         {
-          "line": 2330,
+          "line": 2338,
           "declaration_label": "Color"
         },
         {
-          "line": 2379,
+          "line": 2387,
           "declaration_label": "Automatic colour range"
         },
         {
-          "line": 2382,
+          "line": 2390,
           "declaration_label": "Minimum"
         },
         {
-          "line": 2383,
+          "line": 2391,
           "declaration_label": "Maximum"
         },
         {
-          "line": 2385,
+          "line": 2393,
           "declaration_label": "Hide atoms outside the range"
         },
         {
-          "line": 2386,
+          "line": 2394,
           "declaration_label": "Hide atoms without a value"
         },
         {
-          "line": 2387,
+          "line": 2395,
           "declaration_label": "Show Element Colours"
         }
       ]

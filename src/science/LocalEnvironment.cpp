@@ -255,7 +255,9 @@ Json findRings(const Parameters& p)
     const std::size_t n = a.positions.size();
     const int half = static_cast<int>(maxSize / 2);
     Network network(a, cutoff);
-    const std::size_t pathLimit = 512;  // shortest paths followed per node
+    // Shortest paths followed per node (0: all of them); more are dropped and reported.
+    const long long maxPaths = integer(p.number("max_paths", 512), "max_paths", 0);
+    const std::size_t pathLimit = maxPaths == 0 ? std::numeric_limits<std::size_t>::max() : static_cast<std::size_t>(maxPaths);
     bool truncated = false;
     std::set<std::vector<Node>> rings, rejected;
 
@@ -368,6 +370,7 @@ Json findRings(const Parameters& p)
     result["paths_truncated"] = truncated;
     result["cutoff_A"] = cutoff;
     result["max_size"] = static_cast<double>(maxSize);
+    result["max_paths"] = static_cast<double>(maxPaths);
     return result;
 }
 

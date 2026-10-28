@@ -281,6 +281,14 @@ bool captureSceneVulkan(const ImageExportView& view,
     lighting.specularIntensity = renderer.materialSpecularIntensity;
     lighting.shininessScale = renderer.materialShininessScale;
     lighting.shininessFloor = renderer.materialShininessFloor;
+    lighting.fogStrength = renderer.fogStrength;
+    lighting.fogNear = renderer.fogNear;
+    lighting.fogFar = renderer.fogFar;
+    lighting.fogColor = renderer.fogColor;
+    lighting.outlineWidth = renderer.outlineWidth;
+    lighting.outlineColor = renderer.outlineColor;
+    lighting.lineWidth = renderer.boxLineWidth;
+    lighting.haloColor = renderer.selectionColor;
     vkr::SceneFlags flags;
     flags.atoms = showAtoms;
     flags.bonds = showBonds;

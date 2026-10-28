@@ -2,6 +2,7 @@
 #include "graphics/GraphicsBackend.h"
 
 #include "Camera.h"
+#include "graphics/Renderer.h"
 #include "graphics/SceneBuffers.h"
 
 #include <GLFW/glfw3.h>
@@ -187,8 +188,31 @@ void buildFrameView(
         toLight = toLight.x * right + toLight.y * rolledUp - toLight.z * forward;
     toLight = glm::normalize(toLight);
     frame.lightPosition = sceneBuffers.orbitCenter + kLightDistance * toLight;
+    const float centreDistance = glm::length(frame.cameraPosition - sceneBuffers.orbitCenter);
+    frame.depthNear = std::max(0.0f, centreDistance - sceneRadius);
+    frame.depthFar = std::max(frame.depthNear + 1e-3f, centreDistance + sceneRadius);
     frame.lightMVP = lightProjection * glm::lookAt(
         frame.lightPosition,
         sceneBuffers.orbitCenter,
         std::abs(toLight.y) > 0.98f ? glm::vec3(0, 0, 1) : glm::vec3(0, 1, 0));
+}
+
+void applyDisplaySettings(Renderer& renderer, const atomforge::display::DisplaySettings& display,
+                          const FrameView& frame, const glm::vec3& background)
+{
+    renderer.lightAmbient = display.ambient;
+    renderer.lightSaturation = display.saturation;
+    renderer.lightContrast = display.contrast;
+    renderer.lightShadowStrength = display.shadowStrength;
+    renderer.materialSpecularIntensity = display.specularIntensity;
+    renderer.materialShininessScale = display.shininessScale;
+    renderer.materialShininessFloor = display.shininessFloor;
+    renderer.fogStrength = display.depthCueing;
+    renderer.fogNear = frame.depthNear;
+    renderer.fogFar = frame.depthFar;
+    renderer.fogColor = background;
+    renderer.outlineWidth = display.outlineWidth;
+    renderer.outlineColor = display.outlineColour;
+    renderer.boxLineWidth = display.cellLineWidth;
+    renderer.selectionColor = display.selectionColour;
 }

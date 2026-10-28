@@ -46,7 +46,27 @@ struct DisplaySettings
     glm::vec3 background = glm::vec3(1.0f);
     bool customCellColour = false;
     glm::vec3 cellColour = glm::vec3(0.15f);
+    float cellLineWidth = 3.5f;  // pixels (where the device draws wide lines)
 
+    // Depth cues: far atoms fade into the background (0 off, 1 fully), and
+    // atoms darken where neighbours hide the sky from them (0 off, 1 fully).
+    float depthCueing = 0.0f;
+    float ambientOcclusion = 0.0f;
+
+    // Outlines around atoms and bonds: width as the fraction of the silhouette
+    // where the surface turns away from the viewer (0 off), and their colour.
+    float outlineWidth = 0.0f;
+    glm::vec3 outlineColour = glm::vec3(0.0f);
+
+    // The ring drawn around selected atoms.
+    glm::vec3 selectionColour = glm::vec3(1.0f, 0.66f, 0.12f);
+
+    // Bond rules: atoms closer than tolerance x (sum of element radii) are
+    // bonded; bonds between two metals are left out unless metalBonds; no
+    // bonds are searched for structures of bondAtomLimit atoms or more.
+    float bondTolerance = 1.18f;
+    bool metalBonds = false;
+    float bondAtomLimit = 500000.0f;
 };
 
 bool operator==(const DisplaySettings& a, const DisplaySettings& b);
@@ -57,7 +77,8 @@ struct Range { float low, high; };
 inline constexpr Range kAmbient{0.0f, 1.0f}, kShadowStrength{0.0f, 1.0f}, kContrast{0.5f, 2.5f},
     kSaturation{0.0f, 3.0f}, kAzimuth{0.0f, 360.0f}, kElevation{-85.0f, 85.0f},
     kSpecularIntensity{0.0f, 2.0f}, kShininessScale{0.1f, 5.0f}, kShininessFloor{1.0f, 256.0f},
-    kAtomScale{0.2f, 3.0f}, kBondScale{0.2f, 4.0f};
+    kAtomScale{0.2f, 3.0f}, kBondScale{0.2f, 4.0f}, kCellLineWidth{1.0f, 8.0f}, kDepthCueing{0.0f, 1.0f},
+    kAmbientOcclusion{0.0f, 1.0f}, kOutlineWidth{0.0f, 0.6f}, kBondTolerance{0.8f, 1.6f}, kBondAtomLimit{0.0f, 5.0e6f};
 
 // Unit vector towards the light. In the scene's frame (y up) for a fixed
 // light; for one following the camera, in the camera's frame: x right, y up

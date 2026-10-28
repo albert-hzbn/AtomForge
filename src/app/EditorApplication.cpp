@@ -800,6 +800,14 @@ void drawSceneVulkan(const Renderer& renderer,
     lighting.specularIntensity = renderer.materialSpecularIntensity;
     lighting.shininessScale = renderer.materialShininessScale;
     lighting.shininessFloor = renderer.materialShininessFloor;
+    lighting.fogStrength = renderer.fogStrength;
+    lighting.fogNear = renderer.fogNear;
+    lighting.fogFar = renderer.fogFar;
+    lighting.fogColor = renderer.fogColor;
+    lighting.outlineWidth = renderer.outlineWidth;
+    lighting.outlineColor = renderer.outlineColor;
+    lighting.lineWidth = renderer.boxLineWidth;
+    lighting.haloColor = renderer.selectionColor;
     vkr::SceneFlags flags;
     flags.atoms = showAtoms;
     flags.bonds = showBonds;
@@ -1804,16 +1812,8 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
         ImGui::Render();
 
         // Apply per-tab lighting/material parameters to the renderer before drawing.
-        {
-            const atomforge::display::DisplaySettings& display = activeState.editMenuDialogs.display;
-            renderer.lightAmbient              = display.ambient;
-            renderer.lightSaturation           = display.saturation;
-            renderer.lightContrast             = display.contrast;
-            renderer.lightShadowStrength       = display.shadowStrength;
-            renderer.materialSpecularIntensity = display.specularIntensity;
-            renderer.materialShininessScale    = display.shininessScale;
-            renderer.materialShininessFloor    = display.shininessFloor;
-        }
+        applyDisplaySettings(renderer, activeState.editMenuDialogs.display, frame,
+                             glm::vec3(sceneColours(activeState).background));
 
         // Selection halos: drawn after atoms so nearer atoms hide them.
         std::vector<glm::vec3> selPos;

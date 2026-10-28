@@ -585,7 +585,7 @@ void SceneBuffers::upload(const StructureInstanceData& data,
     const std::vector<int>& bondSourceAtomicNumbers = data.atomicNumbers;
 
     // Disable bond detection for very large structures (>500k atoms)
-    constexpr size_t kBondDisableCutoff = 500000;
+    const size_t kBondDisableCutoff = bondStyle.atomLimit;
     if (atomPositions.size() >= 2 && atomCount < kBondDisableCutoff)
     {
         // Pre-allocate for expected bonds (not squared!)
@@ -648,7 +648,7 @@ void SceneBuffers::upload(const StructureInstanceData& data,
                                     const int zB = (j < bondSourceAtomicNumbers.size()) ? bondSourceAtomicNumbers[j] : 0;
 
                                     // Default mode is covalent-focused: suppress metal-metal bonds.
-                                    if (zA >= 1 && zA <= 118 && zB >= 1 && zB <= 118 &&
+                                    if (!bondStyle.metalBonds && zA >= 1 && zA <= 118 && zB >= 1 && zB <= 118 &&
                                         !isLikelyCovalentElement(zA) && !isLikelyCovalentElement(zB))
                                         continue;
                                 }
@@ -659,7 +659,7 @@ void SceneBuffers::upload(const StructureInstanceData& data,
                                     continue;
 
                                 float radiusB = (j < bondSourceRadii.size()) ? bondSourceRadii[j] : 1.0f;
-                                float maxBondDistance = (radiusA + radiusB) * kBondToleranceFactor;
+                                float maxBondDistance = (radiusA + radiusB) * bondStyle.tolerance;
                                 if (distance > maxBondDistance)
                                     continue;
 
@@ -711,8 +711,8 @@ void SceneBuffers::upload(const StructureInstanceData& data,
     }
     else if (atomCount >= kBondDisableCutoff)
     {
-        std::cerr << "Bond detection disabled for structure with " << atomCount 
-                  << " atoms (>500k cutoff). Bonds will not be rendered." << std::endl;
+        std::cerr << "Bond detection disabled for structure with " << atomCount
+                  << " atoms (limit " << kBondDisableCutoff << ", Display Settings > Atoms and Bonds). Bonds will not be rendered." << std::endl;
     }
 
     bondCount = bondStartPositions.size();

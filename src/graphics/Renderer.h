@@ -27,6 +27,18 @@ struct Renderer
     float materialShininessScale    = 1.5f;
     float materialShininessFloor    = 32.0f;
 
+    // Depth cueing: beyond fogNear the colour fades towards fogColor, fully
+    // (times fogStrength) at fogFar (distances from the camera; 0: off).
+    float fogStrength = 0.0f;
+    float fogNear = 0.0f, fogFar = 1.0f;
+    glm::vec3 fogColor = glm::vec3(1.0f);
+    // Outlines where surfaces turn away from the viewer (0: off).
+    float outlineWidth = 0.0f;
+    glm::vec3 outlineColor = glm::vec3(0.0f);
+    // Cell lines in pixels; the selection rings' colour.
+    float boxLineWidth = 3.5f;
+    glm::vec3 selectionColor = glm::vec3(1.0f, 0.66f, 0.12f);
+
     GLuint atomProgram   = 0;
     GLuint atomLowPolyProgram = 0;
     GLuint atomBillboardProgram = 0;
@@ -63,6 +75,8 @@ struct Renderer
 
     // Compile and link all shader programs.
     void init();
+    // The outline and depth-cueing uniforms of a scene program.
+    void setFinishUniforms(GLuint program) const;
 
     // Select the appropriate rendering mode based on atom count
     RenderingMode selectRenderingMode(size_t atomCount) const;

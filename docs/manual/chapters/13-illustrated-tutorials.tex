@@ -1462,13 +1462,13 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \clearpage
 
-\subsection{Choose a look, background and cell colour}\label{tutorial:display-style}
+\subsection{Choose a look, colours, depth cues and outlines}\label{tutorial:display-style}
 
 \textbf{Start here.} Open \ui{Settings > Display Settings > Style}.
 
 \begin{center}
 
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=451.5bp 189.75bp 451.5bp 211.5bp,clip]{figures/tutorials/display-style.jpg}
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=451.5bp 19.5bp 451.5bp 41.25bp,clip]{figures/tutorials/display-style.jpg}
 
 \par\small\textit{Style tab: seven ready-made looks, then the background and cell outline colours.}
 
@@ -1486,15 +1486,15 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \item Click Soft, Glossy, Matte, Dramatic, Flat or Publication and watch the view change; hover a look for its description. The highlighted button and the Current look line name the look in use.
 
-\item Under Background, choose Custom colour and click the White or Black swatch, or pick any colour. Do the same for Cell Outline.
+\item Under Background, choose Custom colour and click the White or Black swatch. Do the same for Cell Outline and raise its Line width.
 
-\item Change any slider in the Lighting tab: the current look becomes custom. Click Default to return.
+\item Raise Depth cueing to fade the far side of the structure, and Ambient occlusion to darken buried atoms; set Outline width to about 0.25 for drawn edges.
 
 \end{enumerate}
 
-\textbf{Check the result.} A look changes only lighting, highlights and the background and cell colours; atom sizes, bond colours and the light direction stay as they are.
+\textbf{Check the result.} A look changes only lighting, highlights and the background and cell colours; atom sizes, bond colours, depth cues, outlines and the light direction stay as they are.
 
-\textbf{Try the options.} Background and cell colours are also used in exported images. Theme colour follows View > Theme. Save as My Default keeps the look for new windows and the next start; Restore Factory Look returns every display setting to its default.
+\textbf{Try the options.} Background, cell, depth cues and outlines are also used in exported images and by AtomForge --render --display. Save as My Default keeps every setting, element colours and radii included, for new windows and the next start; Restore Factory Look returns them to their defaults.
 
 \clearpage
 
@@ -1504,7 +1504,7 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \begin{center}
 
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=451.5bp 42.75bp 451.5bp 211.5bp,clip]{figures/tutorials/display-lighting.jpg}
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=451.5bp 123bp 451.5bp 41.25bp,clip]{figures/tutorials/display-lighting.jpg}
 
 \par\small\textit{Lighting tab at its default values; each setting has its own Reset button.}
 
@@ -1526,13 +1526,13 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \clearpage
 
-\subsection{Size atoms and bonds and colour the bonds}\label{tutorial:display-atoms}
+\subsection{Choose the atom style, sizes and bond rules}\label{tutorial:display-atoms}
 
-\textbf{Start here.} Open \ui{Settings > Display Settings > Atoms and Bonds} with View > Atom Style set to Ball and Stick.
+\textbf{Start here.} Open \ui{Settings > Display Settings > Atoms and Bonds}.
 
 \begin{center}
 
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=451.5bp 1.5bp 242.25bp 72.75bp,clip]{figures/tutorials/display-atoms.jpg}
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=451.5bp 126bp 550.5bp 41.25bp,clip]{figures/tutorials/display-atoms.jpg}
 
 \par\small\textit{Atoms and Bonds tab: global atom and bond sizes, bond colouring and the element radii.}
 
@@ -1540,17 +1540,17 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \begin{enumerate}
 
-\item Lower Atom size to about 0.5\texttimes{} to see bonds and the inside of a structure; it multiplies every radius on top of the atom style.
+\item Choose Ball and Stick under Atom Style, then lower Atom size to about 0.5\texttimes{} to see the bonds and the inside of the structure.
 
 \item Raise Bond thickness, then choose One colour and pick a bond colour (Half of each atom's colour is the default).
 
-\item Pick an element in the table and set its radius; Reset Element or Reset All Radii restores the covalent radii.
+\item Tick Bonds between metals to show the bond network of a metal, and change Bond tolerance to bond stretched structures; open Element Radii to set one element's radius.
 
 \end{enumerate}
 
-\textbf{Check the result.} Sizes are drawing choices: which atoms are bonded does not depend on Atom size or Bond thickness.
+\textbf{Check the result.} Sizes are drawing choices: which atoms are bonded depends on the bond rules and element radii, not on Atom size or Bond thickness.
 
-\textbf{Try the options.} Bonds are drawn in the Ball and Stick and Polyhedral styles. With large structures, size changes are applied when the slider is released.
+\textbf{Try the options.} Bonds are drawn in the Ball and Stick and Polyhedral styles. No bonds are searched for structures of at least Bonds up to atoms (default 500 000). With large structures, size changes are applied when the slider is released.
 
 \clearpage
 
@@ -1560,7 +1560,7 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \begin{center}
 
-\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=451.5bp 171.75bp 242.25bp 72.75bp,clip]{figures/tutorials/display-colors.jpg}
+\includegraphics[width=\linewidth,height=.43\textheight,keepaspectratio,trim=451.5bp 1.5bp 242.25bp 39bp,clip]{figures/tutorials/display-colors.jpg}
 
 \par\small\textit{Colours tab with a selected element, its RGB controls and the reset actions.}
 
@@ -1568,9 +1568,9 @@ Screenshots are real Windows application captures. Cropping in LaTeX only isolat
 
 \begin{enumerate}
 
-\item Select Cu, then change its colour using the visible values or colour control.
+\item Under Colour Scheme, click Jmol, then RasMol CPK and Greyscale, and back to AtomForge; the highlighted button names the scheme in use.
 
-\item Select Ni and give it a distinguishable colour. Inspect the same alloy from a second view.
+\item Select Cu, then change its colour using the visible values or colour control; the scheme line then reports your own changes.
 
 \item Use Reset Element for one species, or Reset All Colours to restore the palette.
 
