@@ -4,6 +4,7 @@
 #include "EditMenuDialogs.h"
 
 #include "ElementData.h"
+#include "util/ElementColourSchemes.h"
 #include "PeriodicTableDialog.h"
 #include "io/StructureLoader.h"
 #include "math/StructureMath.h"
@@ -393,13 +394,37 @@ void EditMenuDialogs::drawDisplaySettings(Structure& structure, const std::funct
         // ==============================================================
         if (ImGui::BeginTabItem("Atoms and Bonds", nullptr, uiScript::selectTab("display.atoms")))
         {
+            if (atomStyle && setAtomStyle)
+            {
+                dialogLayout::section("Atom Style");
+                const char* styles[] = {"Balls", "Ball and Stick", "Space Filling", "Polyhedral"};
+                const char* styleHints[] = {"Spheres at the element radii, no bonds.",
+                                            "Smaller spheres joined by bonds.",
+                                            "Spheres 1.8 times the element radii, no bonds.",
+                                            "Coordination polyhedra with bonds (needs atoms)."};
+                const int style = atomStyle();
+                for (int k = 0; k < 4; ++k)
+                {
+                    if (k) ImGui::SameLine();
+                    const bool disabled = k == 3 && structure.atoms.empty();
+                    ImGui::BeginDisabled(disabled);
+                    if (ImGui::RadioButton(styles[k], style == k) && style != k)
+                        setAtomStyle(k);
+                    ImGui::EndDisabled();
+                    dialogLayout::hint(styleHints[k]);
+                }
+            }
+
             dialogLayout::section("Sizes");
             rebuild |= settingSlider("Atom size", d.atomScale, kAtomScale, factory.atomScale, "%.2f\xc3\x97",
                                      "Multiplies every atom's radius (on top of View > Atom Style). Smaller atoms show bonds and the inside of a structure.");
             rebuild |= settingSlider("Bond thickness", d.bondScale, kBondScale, factory.bondScale, "%.2f\xc3\x97",
                                      "Multiplies the radius of the bond cylinders.");
 
-            ImGui::TextDisabled("Bonds are drawn in the Ball and Stick and Polyhedral styles (View > Atom Style).");
+            if (atomStyle && atomStyle() != 1 && atomStyle() != 3)
+                dialogLayout::note(dialogLayout::Note::Info, "Bonds are drawn in the Ball and Stick and Polyhedral styles; choose one above to see them.");
+            else if (!atomStyle)
+                ImGui::TextDisabled("Bonds are drawn in the Ball and Stick and Polyhedral styles (View > Atom Style).");
 
             dialogLayout::section("Bond Colour");
             if (ImGui::RadioButton("Half of each atom's colour", !d.uniformBondColour)) { d.uniformBondColour = false; rebuild = true; }
@@ -429,7 +454,30 @@ void EditMenuDialogs::drawDisplaySettings(Structure& structure, const std::funct
         {
             ImGui::Spacing();
             ImGui::TextDisabled("The colour each element is drawn with (View > Colour Atoms By > Element).");
-            ImGui::Spacing();
+
+            dialogLayout::section("Colour Scheme");
+            const int scheme = matchingScheme(elementColors);
+            const auto& schemes = colourSchemes();
+            const float schemeWidth = ImGui::GetFontSize() * 9.0f;
+            for (std::size_t i = 0; i < schemes.size(); ++i)
+            {
+                if (i) ImGui::SameLine();
+                const bool selected = static_cast<int>(i) == scheme;
+                const bool pressed = selected ? dialogLayout::primaryButton(schemes[i].name, ImVec2(schemeWidth, 0))
+                                              : dialogLayout::secondaryButton(schemes[i].name, ImVec2(schemeWidth, 0));
+                dialogLayout::hint(schemes[i].description);
+                if (pressed)
+                {
+                    elementColors = schemeColours(static_cast<int>(i));
+                    updateBuffers(structure);
+                }
+            }
+            if (scheme < 0)
+                ImGui::TextDisabled("Current colours: a scheme with your own changes. Pick a scheme to replace every colour.");
+            else
+                ImGui::TextDisabled("Current colours: %s. Change single elements below.", schemes[static_cast<std::size_t>(scheme)].name);
+
+            dialogLayout::section("One Element");
 
             drawPeriodicTableInlineSelector(m_selectedColorElement);
 
@@ -486,19 +534,19 @@ void EditMenuDialogs::drawDisplaySettings(Structure& structure, const std::funct
     ImGui::Spacing();
     if (dialogLayout::secondaryButton("Save as My Default"))
     {
-        m_displayStatus = saveDefaults(d) ? "Saved: new windows and the next start use this look."
+        m_displayStatus = saveDefaults(look()) ? "Saved: new windows and the next start use this look."
                                           : "Could not write " + savedDefaultsPath().string() + ".";
     }
-    dialogLayout::hint("Keep the look, light, sizes, bond colour, background and cell colour for new windows and the next start.\n"
-                       "Element colours and radii are not part of it.");
+    dialogLayout::hint("Keep every setting of this dialog, element colours and radii included,\n"
+                       "for new windows and the next start.");
     ImGui::SameLine();
     if (dialogLayout::secondaryButton("Restore Factory Look"))
     {
-        d = DisplaySettings();
+        applyLook(defaultLook());
         rebuild = true;
         m_displayStatus = "Factory look restored for this window (Save as My Default keeps it).";
     }
-    dialogLayout::hint("Every setting in the Style, Lighting and Atoms and Bonds tabs back to its default.");
+    dialogLayout::hint("Every setting of this dialog, element colours and radii included, back to its default.");
     if (!m_displayStatus.empty())
         ImGui::TextDisabled("%s", m_displayStatus.c_str());
 

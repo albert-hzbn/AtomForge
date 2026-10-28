@@ -1,5 +1,7 @@
 #include "model/DisplaySettings.h"
 
+#include "util/ElementData.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -205,21 +207,85 @@ std::filesystem::path savedDefaultsPath()
     return std::filesystem::u8path(home && *home ? home : ".") / ".atomforge_display.txt";
 }
 
-bool saveDefaults(const DisplaySettings& settings, const std::filesystem::path& path)
+namespace
+{
+constexpr int kElements = 119;  // tables are indexed by atomic number, 0-118
+
+int elementNumber(const std::string& symbol)
+{
+    for (int z = 1; z < kElements; ++z)
+        if (symbol == elementSymbol(z)) return z;
+    return 0;
+}
+}  // namespace
+
+std::string elementText(const std::vector<glm::vec3>& colours, const std::vector<float>& radii)
+{
+    const std::vector<glm::vec3> defaultColours = makeDefaultElementColors();
+    const std::vector<float> defaultRadii = makeLiteratureCovalentRadii();
+    std::ostringstream out;
+    out.precision(9);
+    for (int z = 1; z < kElements; ++z) {
+        const auto k = static_cast<std::size_t>(z);
+        if (k < colours.size() && k < defaultColours.size() && colours[k] != defaultColours[k])
+            out << "colour." << elementSymbol(z) << '=' << colourText(colours[k]) << '\n';
+        if (k < radii.size() && k < defaultRadii.size() && radii[k] != defaultRadii[k])
+            out << "radius." << elementSymbol(z) << '=' << radii[k] << '\n';
+    }
+    return out.str();
+}
+
+void readElementText(const std::string& text, std::vector<glm::vec3>& colours, std::vector<float>& radii)
+{
+    std::istringstream in(text);
+    for (std::string line; std::getline(in, line);) {
+        const auto equals = line.find('=');
+        if (equals == std::string::npos) continue;
+        const std::string key = trimmed(line.substr(0, equals)), value = trimmed(line.substr(equals + 1));
+        const auto dot = key.find('.');
+        if (dot == std::string::npos) continue;
+        const std::string kind = key.substr(0, dot);
+        const int z = elementNumber(key.substr(dot + 1));
+        if (z == 0) continue;
+        const auto k = static_cast<std::size_t>(z);
+        if (kind == "colour" && k < colours.size()) readColour(value, colours[k]);
+        else if (kind == "radius" && k < radii.size()) readNumber(value, radii[k], {0.05f, 5.0f});
+    }
+}
+
+Look defaultLook()
+{
+    return Look{DisplaySettings(), makeDefaultElementColors(), makeLiteratureCovalentRadii()};
+}
+
+std::string lookText(const Look& look)
+{
+    return toText(look.display) + elementText(look.colours, look.radii);
+}
+
+Look readLook(const std::string& text)
+{
+    Look look = defaultLook();
+    look.display = fromText(text);
+    readElementText(text, look.colours, look.radii);
+    return look;
+}
+
+bool saveDefaults(const Look& look, const std::filesystem::path& path)
 {
     std::ofstream out(path, std::ios::trunc);
     if (!out) return false;
-    out << "# AtomForge display settings (View > Display Settings > Save as My Default)\n" << toText(settings);
+    out << "# AtomForge display settings (Settings > Display Settings > Save as My Default)\n" << lookText(look);
     return static_cast<bool>(out);
 }
 
-DisplaySettings loadDefaults(const std::filesystem::path& path)
+Look loadDefaults(const std::filesystem::path& path)
 {
     std::ifstream in(path);
-    if (!in) return DisplaySettings();
+    if (!in) return defaultLook();
     std::ostringstream text;
     text << in.rdbuf();
-    return fromText(text.str());
+    return readLook(text.str());
 }
 
 }  // namespace atomforge::display

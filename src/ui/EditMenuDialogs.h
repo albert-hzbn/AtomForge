@@ -20,6 +20,20 @@ struct EditMenuDialogs
 
     // Lighting, surface, sizes and colours of the view (Display Settings).
     atomforge::display::DisplaySettings display;
+    // Sets the display settings and element tables together.
+    void applyLook(const atomforge::display::Look& look)
+    {
+        display = look.display;
+        elementColors = look.colours;
+        elementRadii = look.radii;
+    }
+    atomforge::display::Look look() const { return {display, elementColors, elementRadii}; }
+
+    // The atom style (View > Atom Style: 0 balls, 1 ball and stick, 2 space
+    // filling, 3 polyhedral), offered in the Atoms and Bonds tab; set by the
+    // window before drawPopups. Unset: the tab leaves the style to the View menu.
+    std::function<int()> atomStyle;
+    std::function<void(int)> setAtomStyle;
 
     // Initialise radii and colours to literature / CPK defaults.
     EditMenuDialogs();

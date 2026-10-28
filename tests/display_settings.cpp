@@ -1,7 +1,10 @@
 // Display settings: light directions, presets, and the saved text form
 // (round trip, clamping, unknown keys and colours).
 #include "model/DisplaySettings.h"
+#include "util/ElementColourSchemes.h"
+#include "util/ElementData.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
@@ -116,12 +119,54 @@ int main()
         check(fromText("ambient=0.5\n", base).bondScale == 2.0f, "missing keys keep the base value");
         check(fromText("ambient=0.5\n", base).ambient == 0.5f, "present keys are read");
 
+        // Element tables: only changed elements are written, and they read back.
+        Look look = defaultLook();
+        check(elementText(look.colours, look.radii).empty(), "the built-in tables write nothing");
+        look.display = all;
+        look.colours[29] = {0.1f, 0.2f, 0.3f};
+        look.radii[8] = 0.9f;
+        look.radii[118] = 2.25f;
+        const std::string elements = elementText(look.colours, look.radii);
+        check(elements.find("colour.Cu=") != std::string::npos && elements.find("radius.O=") != std::string::npos &&
+              elements.find("radius.Og=") != std::string::npos, "changed elements written by symbol");
+        check(std::count(elements.begin(), elements.end(), '\n') == 3, "unchanged elements not written");
+        const Look back = readLook(lookText(look));
+        check(back.display == all && back.colours == look.colours && back.radii == look.radii, "a look round-trips through text");
+        check(fromText(lookText(look)) == all, "element lines do not disturb the settings");
+        std::vector<glm::vec3> colours = defaultLook().colours;
+        std::vector<float> radii = defaultLook().radii;
+        readElementText("colour.Xx=1 1 1\nradius.Fe=nonsense\nradius.Fe=99\ncolour.H=0.5 0.5\n", colours, radii);
+        check(colours == defaultLook().colours, "unknown elements and incomplete colours are skipped");
+        check(radii[26] == 5.0f, "a radius is clamped");
+
+        // Colour schemes: full tables, recognised, Jmol and RasMol values from their tables.
+        check(colourSchemes().size() == 4, "four colour schemes");
+        for (int i = 0; i < 4; ++i) {
+            const auto colours = schemeColours(i);
+            check(colours.size() == 119, "a scheme colours every element");
+            check(matchingScheme(colours) == i, std::string("scheme recognised: ") + colourSchemes()[static_cast<std::size_t>(i)].name);
+            for (const glm::vec3& c : colours)
+                check(c.r >= 0 && c.r <= 1 && c.g >= 0 && c.g <= 1 && c.b >= 0 && c.b <= 1, "scheme colours within 0-1");
+        }
+        check(schemeColours(0) == makeDefaultElementColors(), "the AtomForge scheme is the built-in table");
+        check(close(schemeColours(1)[6], {0.565f, 0.565f, 0.565f}, 1e-3f), "Jmol carbon is grey (0.565)");
+        check(close(schemeColours(1)[29], {0.784f, 0.502f, 0.2f}, 1e-3f), "Jmol copper");
+        check(schemeColours(1)[118] == makeDefaultElementColors()[118], "elements past the Jmol table keep the AtomForge colour");
+        check(close(schemeColours(2)[8], {0.941f, 0.0f, 0.0f}, 1e-3f), "RasMol oxygen");
+        const auto grey = schemeColours(3);
+        check(grey[29].r == grey[29].g && grey[29].g == grey[29].b && grey[1].r <= 0.9501f && grey[6].r >= 0.1499f, "greyscale levels within 0.15-0.95");
+        auto edited = schemeColours(1);
+        edited[26] = {0, 0, 0};
+        check(matchingScheme(edited) == -1, "an edited scheme is no scheme");
+
         // Saving and loading a file; a missing file gives the defaults.
         const auto path = std::filesystem::temp_directory_path() / "atomforge_display_settings_test.txt";
-        check(saveDefaults(all, path), "settings saved");
-        check(loadDefaults(path) == all, "saved settings load back");
+        check(saveDefaults(look, path), "settings saved");
+        const Look loaded = loadDefaults(path);
+        check(loaded.display == all && loaded.colours == look.colours && loaded.radii == look.radii, "saved look loads back");
         std::filesystem::remove(path);
-        check(loadDefaults(path) == DisplaySettings(), "a missing file gives the defaults");
+        const Look missingFile = loadDefaults(path);
+        check(missingFile.display == DisplaySettings() && missingFile.colours == defaultLook().colours, "a missing file gives the defaults");
     } catch (const std::exception& e) {
         std::cerr << "display_settings failed: " << e.what() << std::endl;
         return 1;

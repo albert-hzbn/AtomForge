@@ -7,6 +7,10 @@ import sys
 import tempfile
 import unittest
 
+import sys as _sys
+_sys.path.insert(0, __import__("os").path.dirname(__file__))
+from _optional import missing, requires
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import numpy as np
 from atomforge.science.workflows import TOOLS, json_result, run_tool, tool_catalog
@@ -66,6 +70,8 @@ class WorkflowTests(unittest.TestCase):
             root = Path(directory)
             for name, parameters in cases.items():
                 with self.subTest(tool=name):
+                    if name == "reciprocal-path" and missing("seekpath"):
+                        self.skipTest("needs seekpath (optional)")
                     source = root / (name + " request.json")
                     output = root / (name + " output.json")
                     report = root / (name + " report.txt")
@@ -90,6 +96,8 @@ class WorkflowTests(unittest.TestCase):
             self.assertAlmostEqual(gap["gap_eV"], 2.2)
             diffusion = json.loads((root / "diffusion output.json").read_text())["result"]
             self.assertAlmostEqual(diffusion["D_m2_per_s"], 1e-7)
+
+    @requires('seekpath')
 
     def test_data_references_and_invalid_parameters(self):
         with tempfile.TemporaryDirectory() as directory:

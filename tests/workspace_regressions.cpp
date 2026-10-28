@@ -176,6 +176,14 @@ int main()
             check(format5[0].structure.pbc==extra.structure.pbc && format5[0].pipelineInput.pbc==extra.pipelineInput.pbc,"Periodic axes changed");
             check(format5[0].structure.frozenProperty.size()==2 && format5[0].structure.frozenProperty[0]==2.5 &&
                   std::isnan(format5[0].structure.frozenProperty[1]) && format5[0].structure.frozenPropertyName=="CNA structure","Frozen property changed");
+            // Format 6: the look of the window (display settings and element tables, as text).
+            extra.display="ambient=0.5\nbackground=1 1 1\ncolour.Cu=0.1 0.2 0.3\nradius.Cu=1.5\n";
+            atomforge::saveWorkspace({extra},extraPath);
+            check(atomforge::loadWorkspace(extraPath)[0].display==extra.display,"Project look changed");
+            atomforge::saveWorkspace({extra},extraPath,5);
+            const auto format5Look=atomforge::loadWorkspace(extraPath);
+            check(format5Look[0].display.empty() && format5Look[0].structure.pbc==extra.structure.pbc,"Format 5 project did not load without a look");
+            extra.display.clear();
             atomforge::saveWorkspace({extra},extraPath,4);
             const auto format4=atomforge::loadWorkspace(extraPath);
             check(format4[0].structure.pbc==std::array<bool,3>{true,true,true} && format4[0].structure.frozenProperty.empty(),"Format 4 project did not load as periodic");

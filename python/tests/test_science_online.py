@@ -11,6 +11,10 @@ import json
 import sys
 import tempfile
 import unittest
+
+import sys as _sys
+_sys.path.insert(0, __import__("os").path.dirname(__file__))
+from _optional import missing, requires
 import warnings
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -31,6 +35,8 @@ class PublishedDataTests(unittest.TestCase):
                 data = (DATA / item["file"]).read_bytes()
                 self.assertEqual(hashlib.sha256(data).hexdigest(), item["sha256"])
                 self.assertEqual(len(data), item["bytes"])
+
+    @requires('pymatgen')
 
     def test_compressed_eigenval_against_pymatgen(self):
         from pymatgen.io.vasp.outputs import Eigenval
@@ -55,6 +61,8 @@ class PublishedDataTests(unittest.TestCase):
                 effective_mass(bands["kpoints"], next(iter(bands["energies_eV"].values()))[:, 0],
                                center_inv_A=[0, 0, 0])
 
+    @requires('pymatgen')
+
     def test_compressed_bands_through_desktop_entry(self):
         import subprocess
         from pymatgen.io.vasp.outputs import Eigenval
@@ -71,6 +79,8 @@ class PublishedDataTests(unittest.TestCase):
             result = json.loads((root/"result.json").read_text())["result"]
             self.assertAlmostEqual(result["gap_eV"], gap, places=10)
             self.assertIn("gap_eV", (root/"summary.txt").read_text())
+
+    @requires('pymatgen')
 
     def test_xdatcar_msd_diffusion_vacf_spectrum(self):
         from pymatgen.io.vasp.outputs import Xdatcar
@@ -130,6 +140,8 @@ class PublishedDataTests(unittest.TestCase):
                         [volume, energy, bulk*160.2176634], rtol=1e-7)
         self.assertLess(actual["rms_error_eV"], .0001)
 
+    @requires('pymatgen')
+
     def test_real_stress_strain_against_independent_elastic_fit(self):
         from pymatgen.analysis.elasticity.strain import Strain
         from pymatgen.analysis.elasticity.stress import Stress
@@ -152,6 +164,8 @@ class PublishedDataTests(unittest.TestCase):
         symmetric = ElasticTensor.from_voigt(matrix)
         self.assertAlmostEqual(actual["moduli"]["bulk_hill_GPa"], symmetric.k_vrh, places=9)
         self.assertAlmostEqual(actual["moduli"]["shear_hill_GPa"], symmetric.g_vrh, places=9)
+
+    @requires('ruamel')
 
     def test_published_phonon_mesh_dos_and_thermodynamics(self):
         from ruamel.yaml import YAML
@@ -181,6 +195,8 @@ class PublishedDataTests(unittest.TestCase):
             assert_allclose(thermal["internal_energy_eV"][i], np.sum(weights[:, None]*mean), rtol=1e-10)
             assert_allclose(thermal["heat_capacity_eV_per_K"][i], np.sum(weights[:, None]*variance)/(kb*temperature**2), rtol=1e-10)
 
+    @requires('pymatgen')
+
     def test_real_potential_profile_rejects_vacuum_assumption(self):
         from pymatgen.io.vasp.outputs import Locpot
         potential = Locpot.from_file(PMG / "LOCPOT.gz")
@@ -191,6 +207,8 @@ class PublishedDataTests(unittest.TestCase):
         result = work_function(distance, profile, 0, vacuum_range_A=distance[[0, 7]])
         self.assertAlmostEqual(result["work_function_eV"], profile[:8].mean(), places=12)
         self.assertFalse(result["flat_vacuum"])
+
+    @requires('seekpath')
 
     def test_real_structures_reciprocal_and_dynamics(self):
         from ase.io import read

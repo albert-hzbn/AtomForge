@@ -7,6 +7,10 @@ import sys
 import tempfile
 import unittest
 
+import sys as _sys
+_sys.path.insert(0, __import__("os").path.dirname(__file__))
+from _optional import missing, requires
+
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import numpy as np
 from ase.calculators.calculator import Calculator, all_changes
@@ -45,6 +49,8 @@ class ScienceTests(unittest.TestCase):
         with self.assertRaises(ValueError): grid.surface(7,100)
         path.write_text(path.read_text().replace("END_BANDGRID_3D",""))
         with self.assertRaises(ValueError): read_bandgrid(path)
+
+    @requires('gemmi')
 
     def test_symmetry_and_calculation_formats(self):
         path=self.root/"inversion.cif"
@@ -130,6 +136,8 @@ class ScienceTests(unittest.TestCase):
             load_calculator("atomforge_test_mlip_fixture_missing", "ScaledBond")
         with self.assertRaises(AttributeError):
             load_calculator("atomforge_test_mlip_fixture", "NotThere")
+
+    @requires('pymatgen')
 
     def test_diffraction_extinctions_and_bragg_angle(self):
         source=self.copper()

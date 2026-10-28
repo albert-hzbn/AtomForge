@@ -157,6 +157,7 @@ public:
             if (w.hasPipelineInput) periodicity(w.pipelineInput);
             frozenProperty(w.structure);
         }
+        if (version>=6) value(w.display,1ull<<24);
         if (!w.camera.empty() && w.camera.size()!=7) throw std::runtime_error("Invalid project camera");
         for (double coordinate:w.camera)
             if (std::abs(coordinate)>1e9) throw std::runtime_error("Project camera outside supported range");
@@ -173,7 +174,7 @@ private:
 void saveWorkspace(const std::vector<Workspace>& tabs,const std::string& filename,int formatVersion)
 {
     if (tabs.empty() || tabs.size()>1000) throw std::runtime_error("A project requires 1-1000 tabs");
-    if (formatVersion<1 || formatVersion>5) throw std::runtime_error("Unsupported project format");
+    if (formatVersion<1 || formatVersion>6) throw std::runtime_error("Unsupported project format");
     const auto path=std::filesystem::u8path(filename);
     auto temporary=path;
     temporary += ".tmp-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
@@ -211,6 +212,7 @@ std::vector<Workspace> loadWorkspace(const std::string& filename)
     else if (magic=="ATOMFORGE_PROJECT_3") archive.version=3;
     else if (magic=="ATOMFORGE_PROJECT_4") archive.version=4;
     else if (magic=="ATOMFORGE_PROJECT_5") archive.version=5;
+    else if (magic=="ATOMFORGE_PROJECT_6") archive.version=6;
     else throw std::runtime_error("Unsupported project version (saved by a newer AtomForge?)");
     std::uint64_t count=0; archive.value(count);
     if (count==0 || count>1000) throw std::runtime_error("Invalid project tab count");

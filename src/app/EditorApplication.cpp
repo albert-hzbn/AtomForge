@@ -994,14 +994,14 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
     initImGui(window);
     // The user's theme, interface size and saved display settings; the review
     // and capture modes keep the defaults so their screenshots do not depend on them.
-    atomforge::display::DisplaySettings savedDisplay;
+    atomforge::display::Look savedLook = atomforge::display::defaultLook();
     {
         bool harness = false;
         for (const char* mode : {"ATOMFORGE_UI_TOUR", "ATOMFORGE_TUTORIAL_CAPTURE", "ATOMFORGE_STEP_DIALOG_CHECK", "ATOMFORGE_CLOUD_BENCHMARK", "ATOMFORGE_SCENE_BENCHMARK"})
             if (const char* value = std::getenv(mode); value && *value) harness = true;
         if (!harness) {
             loadAppearancePreferences();
-            savedDisplay = atomforge::display::loadDefaults();
+            savedLook = atomforge::display::loadDefaults();
         }
         // Modes taking screenshots keep every frame (the cloud benchmark only
         // with ATOMFORGE_CLOUD_SHOTS, as copying them would skew its timings).
@@ -1032,7 +1032,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
     // Multi-tab state — unique_ptr because EditorState holds non-movable atomics/threads
     std::vector<std::unique_ptr<StructureTab>> tabs;
     tabs.push_back(std::make_unique<StructureTab>());
-    tabs[0]->state.editMenuDialogs.display = savedDisplay;
+    tabs[0]->state.editMenuDialogs.applyLook(savedLook);
     int activeTabIdx     = 0;
     int pendingTabSwitch = -1;
     int closePromptTab = -1;   // tab whose close waits for the unsaved-changes prompt
@@ -1071,6 +1071,8 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
     auto copyDisplaySettings = [](const EditorState& src, EditorState& dst)
     {
         dst.editMenuDialogs.display = src.editMenuDialogs.display;
+        dst.editMenuDialogs.elementColors = src.editMenuDialogs.elementColors;
+        dst.editMenuDialogs.elementRadii = src.editMenuDialogs.elementRadii;
     };
 
     atomforge::BackgroundTask<bool> autosaveTask;
@@ -1389,7 +1391,10 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                 auto item=tab->state.fileBrowser.workspace(tab->state.structure);
                 const auto& c=tab->cameraState;
                 item.camera={c.yaw,c.pitch,c.roll,c.distance,c.panOffset.x,c.panOffset.y,c.panOffset.z};
-                item.title=tab->title; saved.push_back(std::move(item));
+                item.title=tab->title;
+                const auto& dialogs=tab->state.editMenuDialogs;
+                item.display=atomforge::display::lookText({dialogs.display,dialogs.elementColors,dialogs.elementRadii});
+                saved.push_back(std::move(item));
             }
             return saved;
         };
@@ -1410,7 +1415,12 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
                     auto tab=std::make_unique<StructureTab>();
                     initTabResources(*tab,sphere,lowPolyMesh,billboardMesh,cylinder,renderer);
                     tab->state.fileBrowser.restoreWorkspace(item,tab->state.structure);
-                    tab->state.editMenuDialogs.display=tabs[activeTabIdx]->state.editMenuDialogs.display;
+                    // The project's look, or (older projects) the active window's.
+                    auto& dialogs=tab->state.editMenuDialogs;
+                    if (!item.display.empty()) {
+                        const auto look=atomforge::display::readLook(item.display);
+                        dialogs.display=look.display; dialogs.elementColors=look.colours; dialogs.elementRadii=look.radii;
+                    } else dialogs.display=tabs[activeTabIdx]->state.editMenuDialogs.display;
                     if (item.camera.size()==7) {
                         auto& c=tab->cameraState;
                         c.yaw=item.camera[0]; c.pitch=item.camera[1]; c.roll=item.camera[2];
@@ -1567,7 +1577,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             {
                 // Last tab closed: keep one empty tab instead of no tabs
                 tabs.push_back(std::make_unique<StructureTab>());
-                tabs[0]->state.editMenuDialogs.display = savedDisplay;
+                tabs[0]->state.editMenuDialogs.applyLook(savedLook);
                 initTabResources(*tabs[0], sphere, lowPolyMesh,
                                  billboardMesh, cylinder, renderer);
                 restoreCameraFromTab(camera, *tabs[0]);

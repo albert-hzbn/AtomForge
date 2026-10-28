@@ -6,13 +6,43 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Dict, Mapping, Optional, Sequence, Tuple, Union
 
 from .builders import _executable
 from ._io import save
 
 if TYPE_CHECKING:
     from ._structure import Structure
+
+
+def _display_text(settings: Mapping[str, object]) -> str:
+    """Display settings as the key=value text of a saved default."""
+    lines = []
+    for key, value in settings.items():
+        if isinstance(value, bool):
+            text = "true" if value else "false"
+        elif isinstance(value, (tuple, list)):
+            if len(value) != 3:
+                raise ValueError(f"display[{key!r}] needs three colour values (r, g, b)")
+            text = " ".join(repr(float(v)) for v in value)
+        else:
+            text = str(value)
+        if "\n" in key or "=" in key or "\n" in text:
+            raise ValueError(f"display[{key!r}] is not a single key=value line")
+        lines.append(f"{key}={text}")
+    return "\n".join(lines) + "\n"
+
+
+def _display_file(display, directory) -> str:
+    """The --display argument: "saved", an existing file, or a written mapping."""
+    if isinstance(display, Mapping):
+        path = Path(directory) / "display.txt"
+        path.write_text(_display_text(display), encoding="utf-8")
+        return str(path)
+    display = os.fspath(display)
+    if display != "saved" and not Path(display).is_file():
+        raise FileNotFoundError(f"display settings file not found: {display}")
+    return display
 
 
 def render(
@@ -26,7 +56,7 @@ def render(
     roll: float = 0.0,
     distance: Optional[float] = None,
     orthographic: bool = False,
-    background: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+    background: Optional[Tuple[float, float, float]] = None,
     show_bonds: bool = True,
     show_box: bool = True,
     colors: Optional[Dict[str, Tuple[float, float, float]]] = None,
@@ -35,6 +65,7 @@ def render(
     dpi: Optional[float] = None,
     frames: Optional[int] = None,
     yaw_step: Optional[float] = None,
+    display: Union[None, str, os.PathLike, Mapping[str, object]] = None,
     executable: Optional[str] = None,
     timeout: float = 120,
 ) -> str:
@@ -52,6 +83,16 @@ def render(
     PNG's metadata (a pHYs chunk); it does not change the pixel dimensions,
     only how image viewers/editors interpret the print size.
 
+    display applies the desktop's Display Settings: a file written by Save as
+    My Default, ``"saved"`` for that default, or a mapping of its keys, e.g.
+    ``{"ambient": 0.5, "light_azimuth": 200, "atom_scale": 0.6,
+    "bond_colour": (0.6, 0.6, 0.6), "background": (0, 0, 0),
+    "colour.Cu": (0.9, 0.5, 0.2), "radius.O": 0.8}`` (colours as r, g, b in
+    0-1; see the manual for every key). background, colors, radii and
+    radius_scale apply on top of it. With display, element colours come from
+    it rather than from the atoms, unless given in colors. background defaults
+    to white (or the display settings' background).
+
     frames + yaw_step render a turntable sequence instead of a single image;
     output is then used as a base name, and each frame is written to
     ``<output>-000.png``, ``<output>-001.png``, etc. (returned as the first
@@ -62,7 +103,7 @@ def render(
 
     resolved_colors: Dict[str, Tuple[float, float, float]] = {}
     seen_symbols = set()
-    for atom in structure.atoms:
+    for atom in structure.atoms if display is None else ():
         if atom.symbol not in seen_symbols:
             seen_symbols.add(atom.symbol)
             resolved_colors[atom.symbol] = (atom.r, atom.g, atom.b)
@@ -82,9 +123,12 @@ def render(
             "--yaw", str(yaw),
             "--pitch", str(pitch),
             "--roll", str(roll),
-            "--background", "{} {} {}".format(*background),
             "--radius-scale", str(radius_scale),
         ]
+        if background is not None:
+            command += ["--background", "{} {} {}".format(*background)]
+        if display is not None:
+            command += ["--display", _display_file(display, directory)]
         if dpi is not None:
             command += ["--dpi", str(dpi)]
         if distance is not None:

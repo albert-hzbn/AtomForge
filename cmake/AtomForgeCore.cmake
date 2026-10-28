@@ -28,6 +28,7 @@ add_library(atomforge_core STATIC
     ${PROJECT_SOURCE_DIR}/src/io/Trajectory.cpp
     ${PROJECT_SOURCE_DIR}/src/graphics/Picking.cpp
     ${PROJECT_SOURCE_DIR}/src/util/ElementData.cpp
+    ${PROJECT_SOURCE_DIR}/src/util/ElementColourSchemes.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/AmorphousBuilder.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/SubstitutionalSolidSolutionBuilder.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/CommonNeighbourAnalysis.cpp

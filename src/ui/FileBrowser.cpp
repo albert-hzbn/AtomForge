@@ -1647,7 +1647,15 @@ void FileBrowser::draw(Structure& structure,
     drawDockSpace();
 
     if (StepEdit request; pipelineDialog.consumeDialogRequest(request)) openStepDialog(std::move(request), editMenuDialogs);
+    editMenuDialogs.atomStyle = [this] { return static_cast<int>(atomDisplayMode); };
+    editMenuDialogs.setAtomStyle = [this, &structure, &updateBuffers](int style) {
+        atomDisplayMode = static_cast<AtomDisplayMode>(style);
+        updateBuffers(structure);
+    };
     editMenuDialogs.drawPopups(structure, updateBuffers);
+    // They refer to this frame's structure: not kept past it.
+    editMenuDialogs.atomStyle = nullptr;
+    editMenuDialogs.setAtomStyle = nullptr;
 
     transformDialog.drawDialog([&]() { updateBuffers(structure); });
 

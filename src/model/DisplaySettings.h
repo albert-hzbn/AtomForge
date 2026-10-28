@@ -85,9 +85,28 @@ int matchingPreset(const DisplaySettings& settings);
 std::string toText(const DisplaySettings& settings);
 DisplaySettings fromText(const std::string& text, const DisplaySettings& base = DisplaySettings());
 
+// Element colours and radii that differ from the built-in tables, one per
+// line: "colour.Cu=r g b" and "radius.Cu=1.32" (fromText ignores them).
+// Reading changes only the elements listed; unreadable lines are skipped.
+std::string elementText(const std::vector<glm::vec3>& colours, const std::vector<float>& radii);
+void readElementText(const std::string& text, std::vector<glm::vec3>& colours, std::vector<float>& radii);
+
+// The whole look of a window: display settings with element colours and radii.
+struct Look
+{
+    DisplaySettings display;
+    std::vector<glm::vec3> colours;  // by atomic number (0-118)
+    std::vector<float> radii;
+};
+Look defaultLook();
+std::string lookText(const Look& look);
+// Settings and element tables from text, starting from the defaults.
+Look readLook(const std::string& text);
+
 // The user's saved default (~/.atomforge_display.txt), used for new windows.
 std::filesystem::path savedDefaultsPath();
-bool saveDefaults(const DisplaySettings& settings, const std::filesystem::path& path = savedDefaultsPath());
-DisplaySettings loadDefaults(const std::filesystem::path& path = savedDefaultsPath());
+bool saveDefaults(const Look& look, const std::filesystem::path& path = savedDefaultsPath());
+// The defaults when the file is missing.
+Look loadDefaults(const std::filesystem::path& path = savedDefaultsPath());
 
 }  // namespace atomforge::display

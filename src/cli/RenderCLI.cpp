@@ -188,6 +188,12 @@ void printHelp()
 "  --color SYMBOL R G B   Override one element's color, 0..1 (repeatable)\n"
 "  --radius SYMBOL VALUE  Override one element's covalent radius, Angstrom (repeatable)\n"
 "  --radius-scale FACTOR  Global atom-size multiplier      (default: 1.0)\n"
+"  --display FILE         Display settings (lighting, light direction, sizes,\n"
+"                         bond, background and cell colours, element colours\n"
+"                         and radii) from a file written by Display Settings >\n"
+"                         Save as My Default, or 'saved' for that default.\n"
+"                         --background, --color, --radius and --radius-scale\n"
+"                         apply on top of it\n"
 "  --dpi N                Embed a physical resolution (dots per inch) in the\n"
 "                         saved PNG's metadata; does not change pixel size\n"
 "                         (default: none written, matching plain stb PNGs)\n"
@@ -273,7 +279,19 @@ int runRenderCLI(int argc, char* argv[])
         if (hasDpi && !(dpi > 0.0))
             throw std::invalid_argument("--dpi must be positive");
 
-        glm::vec4 background(1.0f, 1.0f, 1.0f, 1.0f);
+        // The look: display settings and element tables (factory defaults without --display).
+        atomforge::display::Look look = atomforge::display::defaultLook();
+        if (const char* displayPath = findArg(argc, argv, "--display"))
+        {
+            const std::filesystem::path path = std::string(displayPath) == "saved"
+                ? atomforge::display::savedDefaultsPath() : std::filesystem::u8path(displayPath);
+            if (!std::filesystem::exists(path))
+                throw std::invalid_argument("--display file not found: " + path.u8string());
+            look = atomforge::display::loadDefaults(path);
+        }
+        const atomforge::display::DisplaySettings& display = look.display;
+
+        glm::vec4 background = display.customBackground ? glm::vec4(display.background, 1.0f) : glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
         const auto backgrounds = multiWordArgs(argc, argv, "--background", 3);
         if (const char* bg = backgrounds.empty() ? nullptr : backgrounds.back().c_str())
         {
@@ -344,12 +362,13 @@ int runRenderCLI(int argc, char* argv[])
         const float yawStep = static_cast<float>(argDouble(argc, argv, "--yaw-step",
             gifOutput && !trajectoryGif ? 360.0 / frameCount : 0.0));
 
-        std::vector<glm::vec3> elementColors = makeDefaultElementColors();
-        std::vector<float> elementRadii = makeLiteratureCovalentRadii();
+        std::vector<glm::vec3> elementColors = look.colours;
+        std::vector<float> elementRadii = look.radii;
         applyColorOverrides(multiWordArgs(argc, argv, "--color", 4), elementColors);
         applyRadiusOverrides(multiWordArgs(argc, argv, "--radius", 2), elementRadii);
-        for (float& radius : elementRadii)
-            radius *= radiusScale;
+        // The drawn radius: the element radius times both size factors (bonds
+        // are found from the element radii alone, as in the desktop).
+        const float atomScale = radiusScale * display.atomScale;
 
         const auto applyColors = [&](Structure& target) {
             for (auto& atom : target.atoms)
@@ -391,6 +410,13 @@ int runRenderCLI(int argc, char* argv[])
 
             Renderer renderer;
             renderer.init();
+            renderer.lightAmbient = display.ambient;
+            renderer.lightSaturation = display.saturation;
+            renderer.lightContrast = display.contrast;
+            renderer.lightShadowStrength = display.shadowStrength;
+            renderer.materialSpecularIntensity = display.specularIntensity;
+            renderer.materialShininessScale = display.shininessScale;
+            renderer.materialShininessFloor = display.shininessFloor;
             ShadowMap shadow = createShadowMap(2048, 2048);
 
             SceneBuffers sceneBuffers;
@@ -402,9 +428,15 @@ int runRenderCLI(int argc, char* argv[])
 
             const int identity[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
             const std::vector<float> elementShininess(119, 32.0f);
-            const StructureInstanceData instanceData = buildStructureInstanceData(
-                structure, false, identity, elementRadii, elementShininess);
-            sceneBuffers.upload(instanceData, false, {});
+            sceneBuffers.bondStyle.thickness = display.bondScale;
+            sceneBuffers.bondStyle.uniformColour = display.uniformBondColour;
+            sceneBuffers.bondStyle.colour = display.bondColour;
+            const auto instances = [&](const Structure& source) {
+                StructureInstanceData data = buildStructureInstanceData(source, false, identity, elementRadii, elementShininess);
+                for (float& scale : data.scales) scale *= atomScale;
+                return data;
+            };
+            sceneBuffers.upload(instances(structure), false, {});
 
             Camera camera;
             camera.yaw = yaw;
@@ -433,14 +465,12 @@ int runRenderCLI(int argc, char* argv[])
                 {
                     Structure next = trajectory->frame(static_cast<std::size_t>(frame) * static_cast<std::size_t>(every)).structure;
                     applyColors(next);
-                    const StructureInstanceData frameData = buildStructureInstanceData(
-                        next, false, identity, elementRadii, elementShininess);
-                    sceneBuffers.upload(frameData, false, {});
+                    sceneBuffers.upload(instances(next), false, {});
                 }
                 FrameView frameView;
                 frameView.framebufferWidth = width;
                 frameView.framebufferHeight = height;
-                buildFrameView(camera, sceneBuffers, orthographic, frameView);
+                buildFrameView(camera, sceneBuffers, orthographic, frameView, display);
 
                 ImageExportView view;
                 view.width = width;
@@ -450,6 +480,7 @@ int runRenderCLI(int argc, char* argv[])
                 view.lightMVP = frameView.lightMVP;
                 view.lightPosition = frameView.lightPosition;
                 view.cameraPosition = frameView.cameraPosition;
+                if (display.customCellColour) view.boxColor = display.cellColour;
 
                 if (gif)
                 {

@@ -4,6 +4,10 @@ from pathlib import Path
 import sys
 import unittest
 
+import sys as _sys
+_sys.path.insert(0, __import__("os").path.dirname(__file__))
+from _optional import missing, requires
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import numpy as np
 from numpy.testing import assert_allclose
@@ -295,6 +299,8 @@ class AdvancedSimulationTests(unittest.TestCase):
         self.assertTrue(np.isfinite(result["temperature_K"]).all())
         self.assertLess(result["volume_A3"][-1], result["volume_A3"][0])
         self.assertEqual(len(result["frames"]), 7)
+
+    @requires('seekpath')
 
     def test_symmetry_path_basis_consistency(self):
         from ase.build import bulk
