@@ -51,4 +51,17 @@ void appendAtom(Structure& s, std::vector<char>& selected, const std::string& sy
 // forced). Returns the number of hydrogen atoms added.
 std::size_t saturateWithHydrogen(Structure& s, std::vector<char>& selected, const std::set<std::string>& elements,
                                  bool forceSp3 = false, double bondScale = 1.2, bool selectNew = true);
+
+// Saturation with another terminating atom (F, Cl, ...), an explicit bond
+// length (0: H from its table, other atoms from covalent radii), at most
+// `maxPerAtom` new atoms per atom, and only atoms with mask[i] (when given).
+struct SaturationOptions
+{
+    std::string terminator = "H";
+    double bondLength = 0;
+    int maxPerAtom = 4;
+    const std::vector<char>* mask = nullptr;
+};
+std::size_t saturate(Structure& s, std::vector<char>& selected, const std::set<std::string>& elements, bool forceSp3,
+                     double bondScale, bool selectNew, const SaturationOptions& options);
 }

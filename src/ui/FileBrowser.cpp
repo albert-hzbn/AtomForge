@@ -749,6 +749,7 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         customStructureDialog.drawMenuItem(true);
         polyCrystalDialog.drawMenuItem(true);
         amorphousBuilderDialog.drawMenuItem(true);
+        shapeModellerDialog.drawMenuItem(true);
         ImGui::Separator();
         operationDialog.drawMenuItems("Build", "", !structure.atoms.empty());
         for (const char* submenu : {"Low-Dimensional", "Clusters and Molecules"})
@@ -1778,6 +1779,12 @@ void FileBrowser::draw(Structure& structure,
     drawShortRangeOrderDialog(shortRangeOrderDialog, structure);
     angularDistributionDialog.drawDialog(structure);
     cellSculptorDialog.drawDialog(structure, updateBuffers);
+    ShapeModellerDialog::Callbacks shapeCallbacks;
+    shapeCallbacks.build = updateFromBuilderToNewTab;
+    shapeCallbacks.update = updateBuffers;
+    shapeCallbacks.select = operations.select;
+    shapeCallbacks.addToPipeline = operations.addToPipeline;
+    shapeModellerDialog.draw(structure, shapeCallbacks);
     runStepDialogCheck(editMenuDialogs);
     runUiTour(structure, editMenuDialogs, updateBuffers);
     runTutorialCapture(structure, editMenuDialogs, updateBuffers);
@@ -2864,6 +2871,7 @@ void FileBrowser::openStepDialog(StepEdit request, EditMenuDialogs& editMenuDial
     else if (step == "supercell") transformDialog.editStep(std::move(request));
     else if (step == "merge") mergeStructuresDialog.editStep(std::move(request));
     else if (step == "build-sculpt") cellSculptorDialog.editStep(std::move(request));
+    else if (step == "build-shape") shapeModellerDialog.editStep(std::move(request));
     else if (step == "relax" || step == "nvt-dynamics" || step == "npt-dynamics" || step == "standardize-cell")
         scientificToolsDialog.editStep(std::move(request));
     // Steps without a dialog of their own use the operation window of their menu entry.

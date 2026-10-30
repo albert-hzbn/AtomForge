@@ -16,6 +16,13 @@ const ModifierType& self(const char* id) { return *findModifierType(id); }
 double number(const Json& p, const char* id, const char* name) { return parameter(p, self(id), name).number(); }
 bool flag(const Json& p, const char* id, const char* name) { return parameter(p, self(id), name).boolean(); }
 std::string text(const Json& p, const char* id, const char* name) { return parameter(p, self(id), name).string(); }
+int integerOf(const Json& p, const char* id, const char* name, int minimum)
+{
+    const double value = number(p, id, name);
+    if (value != std::floor(value) || value < minimum)
+        throw std::runtime_error(std::string(id) + ": " + name + " must be an integer >= " + std::to_string(minimum));
+    return static_cast<int>(value);
+}
 Vec3 vector(const Json& p, const char* id, const char* name)
 {
     const Json v = parameter(p, self(id), name);

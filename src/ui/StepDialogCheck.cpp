@@ -89,6 +89,7 @@ void sample(atomforge::pipeline::Modifier& m, const std::filesystem::path& folde
     else if (t == "nvt-dynamics" || t == "npt-dynamics") { m.parameters["steps"] = 10; m.parameters["seed"] = 7; }
     else if (t == "replicate") m.parameters["counts"] = Json::array({1.0, 1.0, 2.0});
     else if (t == "select-expression") m.parameters["expression"] = std::string("fz > 0.5");
+    else if (t == "build-shape") m.parameters["script"] = std::string("R = 8;\ndifference() { sphere(r = R); cylinder(r = 2, h = 20); }\nregion(\"Au\") sphere(r = 4);\n");
 }
 
 // The last presented frame as a PNG (ATOMFORGE_STEP_DIALOG_SHOTS=FOLDER).
@@ -138,6 +139,7 @@ Json FileBrowser::stepDialogSettings(const std::string& step, const Json& parame
     if (step == "build-sss") return withOptions(substitutionalSolidSolutionDialog.stepOptions());
 #endif
     if (step == "build-sculpt") return withOptions(cellSculptorDialog.stepOptions());
+    if (step == "build-shape") return shapeModellerDialog.stepParameters();
     if (step == "add-atom" || step == "set-cell") return editMenuDialogs.stepParameters();
     if (step == "insert-interstitials") return interstitialAtomsDialog.stepParameters();
     if (step == "supercell") return transformDialog.stepParameters();
@@ -201,6 +203,7 @@ void FileBrowser::runStepDialogCheck(EditMenuDialogs& editMenuDialogs)
         request.commit = [](const Json&) {};
         operationDialog.close();
         scientificToolsDialog.close();
+        shapeModellerDialog.close();
         openStepDialog(std::move(request), editMenuDialogs);
     } else if (c.frame == 6) {
         // The dialog has been drawn: what is on screen, and what it would write back.
@@ -210,6 +213,7 @@ void FileBrowser::runStepDialogCheck(EditMenuDialogs& editMenuDialogs)
         else if (operationDialog.editingStep() && operationDialog.step() == step.type)
             shown = std::string("operation window: ") + atomforge::pipeline::findModifierType(step.type)->title;
         else if (scientificToolsDialog.isOpen()) shown = "scientific tool window";
+        else if (shapeModellerDialog.isOpen()) shown = "Shape Modeller window";
         if (const char* shots = std::getenv("ATOMFORGE_STEP_DIALOG_SHOTS"); shots && *shots)
             screenshot(std::filesystem::u8path(shots) / (std::to_string(c.index + 1) + "-" + step.type + ".png"));
         Json entry = Json::object();

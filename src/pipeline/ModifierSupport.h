@@ -20,6 +20,8 @@ using science::Vec3;
 double number(const Json& p, const char* id, const char* name);
 bool flag(const Json& p, const char* id, const char* name);
 std::string text(const Json& p, const char* id, const char* name);
+// An integer parameter of at least `minimum` (throws otherwise).
+int integerOf(const Json& p, const char* id, const char* name, int minimum);
 Vec3 vector(const Json& p, const char* id, const char* name);
 
 // How a selection step combines with the current selection.

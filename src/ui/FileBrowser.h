@@ -21,6 +21,7 @@
 #include "ui/TransformAtomsDialog.h"
 #include "ui/EditMenuDialogs.h"
 #include "ui/CellSculptorDialog.h"
+#include "ui/ShapeModellerDialog.h"
 #include "ui/ElectronicPostProcessing.h"
 #include "ui/WannierAnalysisDialog.h"
 #include "ui/LobsterAnalysisDialog.h"
@@ -645,6 +646,7 @@ private:
     AmorphousBuilderDialog amorphousBuilderDialog;
     InterstitialAtomsDialog interstitialAtomsDialog;
     CellSculptorDialog cellSculptorDialog;
+    ShapeModellerDialog shapeModellerDialog;
     CommonNeighbourAnalysisDialog cnaDialog;
     RadialDistributionAnalysisDialog rdfDialog;
     ElectronicPostProcessingDialog electronicDialog;

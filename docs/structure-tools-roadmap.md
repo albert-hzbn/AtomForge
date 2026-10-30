@@ -86,6 +86,53 @@ on MoS2 heterostructure, database downloads with the network mocked),
 `tests/simulation_formats.cpp`, `tests/workspace_regressions.cpp` (project format 7)
 and `tests/pipeline_regressions.cpp` (the new operator and variables).
 
+## Advanced options (third pass)
+
+A review of the same tools from a researcher's side (what a DFT, MD or
+surface-science study needs beyond the defaults) added these options.
+
+| # | Tool | Options added | Reference | Status |
+|---|------|---------------|-----------|--------|
+| F1 | Nanotube | finite tubes with dangling atoms removed and H/F/Cl end caps, length in Angstrom, bond length (C-C, B-N, covalent), commensurate multi-wall walls, axis x/y/z; notes: diameters, chiral angle, metallic/semiconducting | CNT builders, VMD nanotube | done |
+| F2 | Monolayer | silicene, germanene, stanene (buckled), phosphorene; rectangular cells; biaxial strain; multilayers with AA, AB, ABC, 2H stacking and interlayer distance; bulk-periodic c | `ase.build`, C2DB | done |
+| F3 | Nanoribbon | F/Cl/no termination, termination bond, finite flakes; notes: width and AGNR family | `graphene_nanoribbon` | done |
+| F4 | Twisted bilayer | heterobilayers (other hexagonal top layer, strained, mismatch reported), AA/AB registry; notes: moire period | twisted-bilayer builders | done |
+| F5 | Cluster | fcc octahedra (as `ase.cluster.Octahedron`); nanoalloys (random, core, shell, Janus) | `ase.cluster`, nanoalloy builders | done |
+| F6 | Molecule | molecules from structure files; principal-axes or random orientation; HCN, H2CO; periodic box | Avogadro, `ase.build.molecule` | done |
+| F7 | Packing | molecules from files; solvation around the input structure (solute distance, free volume on a grid); counts from the density; regions: box, sphere, outside a sphere, slab, cylinder; fixed orientation | Packmol | done |
+| F8 | Adsorbate | coverage: one, all sites, a random fraction at a minimum separation; top, bottom or both surfaces; anchor atom; tilt and azimuth; principal-axes alignment; notes: coverage per nm2 | `add_adsorbate`, CatKit, pymatgen `AdsorbateSiteFinder` | done |
+| F9 | Near-cubic supercell | target shapes sc, fcc, bcc, or the largest shortest image distance; an atom-count tolerance; notes: shortest image, inscribed sphere | `find_optimal_cell_shape` | done |
+| F10 | Interpolate | IDPP (image-dependent pair potential) | `ase.neb` `idpp`, pymatgen `IDPPSolver` | done |
+| F11 | Antisite / Frenkel pair | several antisites at a minimum separation; dumbbell (split) interstitials along a direction; a vacancy distance window | pymatgen defects, Atomsk | done |
+| F12 | Saturation | terminator element, bond length, selected atoms only, at most n per atom | Materials Studio | done |
+| F13 | Rotate / set-geometry / sort / scale-cell | Euler angles (zyz, zxz, xyz); moving both sides by half; species order and a second sort key with a tie tolerance; per-axis cell factors and scaling the cell without the atoms | Atomsk, Avogadro, VESTA | done |
+| F14 | Magnetic moments / charges / velocities | per-element moments, layered (A-type) and checkerboard (G-type) antiferromagnets, random zero-net spins; per-element charges with neutralising by shift or scale; removing rotation | pymatgen `MagOrderingTransformation`, LAMMPS `velocity ... rot yes` | done |
+| F15 | Stack layers | copies, lateral shift per copy, twist, a common lattice (layer, average or substrate) | heterostructure builders | done |
+| F16 | Databases | COD search by formula, elements (strict) or text; Materials Project search by formula, elements or chemical system with stability filters; conventional standard cells | COD REST, `MPRester` | done |
+
+Tests: `AdvancedBuilderOptions`, `AdvancedEditOptions` and `AdvancedDefects` in
+`python/tests/test_structure_tools.py` (octahedra against ASE, nanoalloy
+distributions, principal axes, regions, solvation distances, adsorbate
+coverages and tilts, Euler rotations against explicit matrices, IDPP keeping
+atoms apart, dumbbell geometry), and `AdvancedPerAtomData`, `test_stacking_options`
+and `test_searches` in `python/tests/test_structure_data.py`.
+
+## Shape Modeller (CAD)
+
+| # | Feature | Reference | Status |
+|---|---------|-----------|--------|
+| G1 | Constructive solid geometry on signed distance functions: sphere, box, cylinder, cone, torus, capsule, ellipsoid, regular prism, extruded polygon, half-space, slab, {hkl} facet polyhedra (reciprocal-lattice normals), octahedron | OpenSCAD, CAD kernels | done |
+| G2 | Booleans (union, intersection, difference) and smooth versions; translate, rotate, scale, mirror; shell, offset; linear, polar and grid arrays | OpenSCAD | done |
+| G3 | Script with variables, arithmetic and functions; errors with line numbers; templates and an insert menu | OpenSCAD | done |
+| G4 | Regions assigning elements (core-shell, inclusions, Janus; "none" removes) without adding volume | multi-material CAD | done |
+| G5 | Modes: carve the crystal (repeated over the shape), keep, delete (voids, notches, pores), select | Atomsk `-select`, LAMMPS regions | done |
+| G6 | Desktop dialog (Build > Shape Modeller) with live checking, atom estimate, section views; pipeline step `build-shape`; OBJ surface export (closed mesh) | | done |
+
+Tests: `ShapeModeller` in `python/tests/test_structure_tools.py` (every primitive,
+boolean, transform and pattern against independent numpy carving, facets and
+Miller normals in a hexagonal cell, regions, modes, error messages, a closed OBJ
+surface); the step-dialog check opens the dialog on the step.
+
 ## Not planned
 
 Desktop-side downloads would need an HTTP client in the C++ application; the

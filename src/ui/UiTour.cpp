@@ -111,6 +111,15 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
         t.steps.push_back({"operation-replicate", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { operationDialog.open("replicate"); }});
         t.steps.push_back({"operation-select", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { operationDialog.open("select-expression"); }});
         t.steps.push_back({"builder-bulk", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { bulkCrystalDialog.open(); }});
+        t.steps.push_back({"builder-shape", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            shapeModellerDialog.open();
+            shapeModellerDialog.setScript("// A core-shell particle with a cylindrical channel.\nR = 14;\ndifference() {\n    sphere(r = R);\n"
+                                          "    rotate([90, 0, 0]) cylinder(r = 3, h = 2 * R + 2);\n}\nregion(\"Au\") sphere(r = 0.6 * R);\n");
+        }});
+        t.steps.push_back({"builder-shape-error", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            shapeModellerDialog.open();
+            shapeModellerDialog.setScript("difference() {\n    box(size = [40, 40, 40]);\n    sphere(r = 10;\n}\n");
+        }});
         t.steps.push_back({"open-file", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { openStructurePopup = true; }});
         t.steps.push_back({"export-image", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
             exportImagePopup = true;
@@ -280,6 +289,7 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
     wannierDialog.close();
     lobsterDialog.close();
     dislocationAnalysisDialog.close();
+    shapeModellerDialog.close();
     ++t.index;
     t.frame = 0;
 }

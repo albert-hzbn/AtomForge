@@ -5,6 +5,7 @@
 
 #include "science/ScienceCore.h"
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -18,9 +19,14 @@ struct MoleculeAtom
 
 // The names of the library's molecules (formulas or common names).
 std::vector<std::string> moleculeNames();
-// A molecule by name (case-insensitive); a single element symbol gives one
-// atom. Throws for an unknown name, listing the known ones.
+// A molecule by name (case-insensitive), a structure file (XYZ, POSCAR, ...)
+// or a single element symbol (one atom). Throws for an unknown name, listing
+// the known ones.
 std::vector<MoleculeAtom> molecule(const std::string& name);
 // The mass of a molecule in atomic mass units.
 double moleculeMass(const std::vector<MoleculeAtom>& atoms);
+// Principal axes of inertia (unit vectors, smallest moment first, right-handed):
+// for a linear or long molecule the first is its long axis; for a planar one
+// the last is its plane normal.
+std::array<science::Vec3, 3> principalAxes(const std::vector<MoleculeAtom>& atoms);
 }

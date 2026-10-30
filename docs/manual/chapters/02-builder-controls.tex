@@ -69,6 +69,16 @@ Cuboctahedron & The currently named cut uses the three bounds $|x|+|y|\leq R$, $
 \item[Build Fill / Close.] Build Fill generates the atomic product from both inputs. Verify the count and thin sections before saving. Close dismisses the builder.
 \end{description}
 
+\subsection{Shape Modeller: script, sections, and modes}
+\begin{description}
+\item[Templates / Insert.] \ui{Templates} replaces the script with a ready-made shape (core--shell particle, nanoshell, tube, truncated octahedron, faceted rod, hexagonal wire, void, pore lattice, dumbbell, ring, Janus particle, probe tip, precipitate, notched beam, polar pattern, embedded particle array). \ui{Insert} adds a primitive, boolean, transform, modifier, pattern or region to the end of the script; its tooltip shows the command and its arguments.
+\item[Script and status.] The script is parsed as it is typed. A green status gives the number of primitives, the extent, the volume and the atoms of the open crystal the shape will hold; a red one gives the line and the problem; a warning says when the shape is unbounded (carving needs a finite shape, deleting and selecting do not). \ui{Command reference} lists every command; clicking one inserts it.
+\item[Settings.] \ui{Mode} (carve, keep, delete, select), \ui{Shape origin at} (automatic: the cell origin for carving, the cell centre otherwise), \ui{Shape offset}, \ui{Vacuum} around a carved shape, \ui{At most this many atoms} (a guard against a shape far larger than intended), \ui{Combine with the selection} for the select mode and the surface mesh spacing.
+\item[Section view.] A cut through the shape along $x$--$y$, $x$--$z$ or $y$--$z$, at a depth between the two sides of its bounds, with the shape in the crystal's colour and regions in their elements' colours; a cross marks the shape's origin and a bar gives the scale.
+\item[Surface mesh.] A path and \ui{Export Surface (OBJ)} write the shape's surface as a closed triangle mesh in \AA.
+\item[Add to Pipeline / Carve (Apply, Select).] \ui{Add to Pipeline} appends the \code{build-shape} step; the main button carves into a new tab, or changes the structure (deletes, keeps or selects) as one undoable edit. Opened on a pipeline step, the dialog's \ui{Update Step} writes the settings back to it.
+\end{description}
+
 \subsection{Polycrystal: dimensions, randomisation, and individual grains}
 \begin{description}
 \item[Reference and X/Y/Z.] Supply a periodic reference and the three target box lengths in \angstrom. The dimensions define the total specimen, not the size of every grain.

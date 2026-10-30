@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, os.path.dirname(__file__))
 from _optional import missing
 import atomforge as af
-from atomforge.databases import DatabaseError, fetch_cod, fetch_materials_project
+from atomforge.databases import DatabaseError, fetch_cod, fetch_materials_project, search_cod, search_materials_project
 from atomforge.pipeline import Pipeline, PipelineError
 
 try:
@@ -162,7 +162,7 @@ class Stacking(unittest.TestCase):
             self.assertLess(np.ptp(z[27:]), 1e-9)
             self.assertEqual(result.selected_indices, list(range(27, 59)))
             # Strained to the MoS2 cell: 3 x 3.18 against 4 x 2.4612.
-            self.assertIn("strained by", " ".join(result.stages[0]["notes"]))
+            self.assertIn("Strains: stacked layer", " ".join(result.stages[0]["notes"]))
             strain = 3 * 3.18 / (4 * 2.4612) - 1
             self.assertIn(f"{100 * strain:.4g}", " ".join(result.stages[0]["notes"]))
             # c holds the stack and 15 A of vacuum.
@@ -170,6 +170,33 @@ class Stacking(unittest.TestCase):
             # Unstrained: the graphene keeps its own in-plane coordinates.
             plain = run(f"stack-layers {path} gap=3.4 strain=false", mos2).structure
             np.testing.assert_allclose([a.x for a in plain.atoms[27:]], [a.x for a in graphene.atoms], atol=1e-9)
+
+    def test_stacking_options(self):
+        with tempfile.TemporaryDirectory() as folder:
+            graphene = run("build-monolayer graphene na=2 nb=2").structure
+            hbn = run("build-monolayer hbn na=2 nb=2").structure
+            path = str(Path(folder) / "hbn.xyz")
+            af.save(hbn, path)
+            a_g, a_h = graphene.cell[0][0], hbn.cell[0][0]
+            for match, expected in (("layer", a_g), ("substrate", a_h), ("average", (a_g + a_h) / 2)):
+                s = run(f"stack-layers {path} match={match}", graphene).structure
+                self.assertAlmostEqual(s.cell[0][0], expected, places=9)
+                # Both layers keep their fractional in-plane coordinates in the common cell.
+                inverse = np.linalg.inv(np.array(s.cell))
+                frac = np.array([[a.x, a.y, a.z] for a in s.atoms]) @ inverse
+                ref = np.array([[a.x, a.y, a.z] for a in graphene.atoms]) @ np.linalg.inv(np.array(graphene.cell))
+                np.testing.assert_allclose(frac[:8, :2] % 1, ref[:, :2] % 1, atol=1e-9)
+            stack = run(f"stack-layers {path} copies=3 gap=3.3 shift=0.5,0,0", graphene).structure
+            self.assertEqual(len(stack.atoms), 8 + 3 * 8)
+            z = sorted({round(a.z, 6) for a in stack.atoms})
+            np.testing.assert_allclose(np.diff(z), 3.3, atol=1e-6)
+            # Each copy is shifted by half a lattice vector along a relative to the previous one.
+            first = np.array([[a.x, a.y] for a in stack.atoms[8:16]])
+            second = np.array([[a.x, a.y] for a in stack.atoms[16:24]])
+            shift = (second - first) @ np.linalg.inv(np.array(stack.cell)[:2, :2])
+            np.testing.assert_allclose((shift[:, 0] - 0.5 + 0.5) % 1 - 0.5, 0, atol=1e-9)
+            twisted = run(f"stack-layers {path} twist=21.79 strain=false", graphene)
+            self.assertIn("not periodic", " ".join(twisted.stages[0]["notes"]))
 
 
 class Databases(unittest.TestCase):
@@ -239,6 +266,77 @@ Cu4 Cu 0.5 0.5 0
                 fetch_materials_project("mp-13", opener=opener)
         with self.assertRaises(DatabaseError):
             fetch_materials_project("mp-0", api_key="k", opener=lambda request, timeout: self.Response(b'{"data": []}'))
+
+
+    def test_searches(self):
+        seen = []
+
+        def cod(request, timeout):
+            seen.append(request.full_url)
+            return self.Response(json.dumps([{"file": "9015662", "formula": "- O2 Ti -", "sg": "P 42/m n m", "a": "4.594", "b": "4.594",
+                                              "c": "2.959", "alpha": "90", "beta": "90", "gamma": "90", "vol": "62.4",
+                                              "mineral": "Rutile", "title": "Rutile", "year": "2001"}]).encode())
+        hits = search_cod("TiO2", elements=["Ti", "O"], strict=True, opener=cod)
+        self.assertIn("formula=O2+Ti", seen[0])
+        self.assertIn("el1=Ti&el2=O&strictmin=2&strictmax=2", seen[0])
+        self.assertEqual(hits[0]["id"], 9015662)
+        self.assertEqual(hits[0]["formula"], "O2 Ti")
+        self.assertAlmostEqual(hits[0]["a"], 4.594)
+        with self.assertRaises(ValueError):
+            search_cod(opener=cod)
+        with self.assertRaises(ValueError):
+            search_cod("Ti$O2", opener=cod)
+
+        def mp(request, timeout):
+            seen.append(request.full_url)
+            return self.Response(json.dumps({"data": [
+                {"material_id": "mp-390", "formula_pretty": "TiO2", "symmetry": {"symbol": "I4_1/amd", "crystal_system": "Tetragonal"},
+                 "nsites": 6, "energy_above_hull": 0.006, "band_gap": 2.1, "is_stable": False, "is_magnetic": False},
+                {"material_id": "mp-2657", "formula_pretty": "TiO2", "symmetry": {"symbol": "P4_2/mnm", "crystal_system": "Tetragonal"},
+                 "nsites": 6, "energy_above_hull": 0.0, "band_gap": 1.8, "is_stable": True, "is_magnetic": False}]}).encode())
+        hits = search_materials_project(formula="TiO2", max_energy_above_hull=0.05, api_key="k", opener=mp)
+        self.assertIn("formula=TiO2", seen[-1])
+        self.assertIn("energy_above_hull_max=0.05", seen[-1])
+        self.assertEqual([h["id"] for h in hits], ["mp-2657", "mp-390"])  # most stable first
+        self.assertEqual(hits[0]["spacegroup"], "P4_2/mnm")
+
+
+class AdvancedPerAtomData(unittest.TestCase):
+    def test_magnetic_orders(self):
+        fe = iron(2)
+        layered = run("set-magnetic-moments mode=layered value=2.2 axis=z", fe).structure
+        for a in layered.atoms:
+            layer = round(a.z / 1.435)
+            self.assertEqual(a.magmom, 2.2 if layer % 2 == 0 else -2.2)
+        doubled = run("set-magnetic-moments mode=layered value=1 axis=z period=2", fe).structure
+        self.assertEqual(sorted({round(a.z / 1.435): a.magmom for a in doubled.atoms}.items())[:4], [(0, 1), (1, 1), (2, -1), (3, -1)])
+        g = run("set-magnetic-moments mode=checkerboard value=2", fe).structure
+        self.assertEqual(sum(a.magmom for a in g.atoms), 0)
+        corner = [a.magmom for a in g.atoms if round(a.x / 1.435) % 2 == 0]
+        self.assertEqual(len(set(corner)), 1)  # all corner atoms share a sign in bcc (G-type)
+        spins = run("set-magnetic-moments mode=random value=1 seed=3", fe).structure
+        self.assertEqual(sum(a.magmom for a in spins.atoms), 0)
+        per_element = run("set-magnetic-moments mode=elements moments=Fe,3", fe).structure
+        self.assertTrue(all(a.magmom == 3 for a in per_element.atoms))
+
+    def test_charges_per_element_and_neutralising(self):
+        salt = af.Structure()
+        for k, symbol in enumerate(["Na", "Cl"] * 4):
+            salt.add_atom(symbol, 2.8 * k, 0, 0)
+        scaled = run("set-charges mode=elements charges=Na,0.9,Cl,-0.8 neutralize=scale", salt).structure
+        self.assertAlmostEqual(sum(a.charge for a in scaled.atoms), 0, places=12)
+        self.assertEqual({a.symbol: round(a.charge, 9) for a in scaled.atoms}, {"Na": 0.8, "Cl": -0.8})
+        shifted = run("set-charges mode=elements charges=Na,0.9,Cl,-0.8 neutralize=shift", salt).structure
+        self.assertEqual({a.symbol: round(a.charge, 9) for a in shifted.atoms}, {"Na": 0.85, "Cl": -0.85})
+
+    def test_velocities_without_rotation(self):
+        cluster = run("build-cluster element=Cu shells=4 | set-velocities temperature=400 zero_rotation=true seed=2").structure
+        p = np.array([[a.x, a.y, a.z] for a in cluster.atoms])
+        v = np.array([a.velocity for a in cluster.atoms])
+        np.testing.assert_allclose(v.sum(axis=0), 0, atol=1e-12)
+        np.testing.assert_allclose(np.cross(p - p.mean(axis=0), v).sum(axis=0), 0, atol=1e-10)
+        kinetic = 0.5 * 63.546 * (v ** 2).sum() * 103.6427
+        self.assertAlmostEqual(2 * kinetic / ((3 * len(v) - 6) * 8.617333262e-5), 400, places=6)
 
 
 if __name__ == "__main__":

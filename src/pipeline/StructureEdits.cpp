@@ -142,6 +142,12 @@ void appendAtom(Structure& s, std::vector<char>& selected, const std::string& sy
 std::size_t saturateWithHydrogen(Structure& s, std::vector<char>& selected, const std::set<std::string>& elements,
                                  bool forceSp3, double bondScale, bool selectNew)
 {
+    return saturate(s, selected, elements, forceSp3, bondScale, selectNew, SaturationOptions());
+}
+
+std::size_t saturate(Structure& s, std::vector<char>& selected, const std::set<std::string>& elements, bool forceSp3,
+                     double bondScale, bool selectNew, const SaturationOptions& options)
+{
     static const std::map<std::string, int> valence = {{"C", 4}, {"Si", 4}, {"Ge", 4}, {"Sn", 4}, {"N", 3}, {"P", 3},
                                                        {"B", 3}, {"Al", 3}, {"O", 2}, {"S", 2}, {"Se", 2}};
     static const std::map<std::string, double> hydrogenBond = {{"C", 1.09}, {"Si", 1.48}, {"Ge", 1.53}, {"Sn", 1.71}, {"N", 1.01},
@@ -151,6 +157,7 @@ std::size_t saturateWithHydrogen(Structure& s, std::vector<char>& selected, cons
     for (std::size_t i = 0; i < s.atoms.size(); ++i) {
         const std::string& symbol = s.atoms[i].symbol;
         if (!elements.count(symbol)) continue;
+        if (options.mask && (i >= options.mask->size() || !(*options.mask)[i])) continue;
         const auto v = valence.find(symbol);
         if (v == valence.end()) continue;
         std::vector<Vec3> u;
@@ -162,9 +169,13 @@ std::size_t saturateWithHydrogen(Structure& s, std::vector<char>& selected, cons
         if (planarCapable && k == 3 && science::norm(science::add(science::add(u[0], u[1]), u[2])) < 0.5) missing = 0;
         const bool sp2Pair = planarCapable && k == 2 && science::dot(u[0], u[1]) < std::cos(115.0 * kDegree);
         if (sp2Pair) missing = std::min(missing, 1);
+        missing = std::min(missing, options.maxPerAtom);
         if (missing <= 0) continue;
         const auto length = hydrogenBond.find(symbol);
-        const double bond = length != hydrogenBond.end() ? length->second : covalentRadius(s.atoms[i].atomicNumber) + covalentRadius(1);
+        const int terminatorZ = science::atomicNumber(options.terminator);
+        const double bond = options.bondLength > 0 ? options.bondLength
+                          : options.terminator == "H" && length != hydrogenBond.end() ? length->second
+                          : covalentRadius(s.atoms[i].atomicNumber) + covalentRadius(terminatorZ);
         const Vec3 origin{s.atoms[i].x, s.atoms[i].y, s.atoms[i].z};
         std::vector<Vec3> directions;
         if (k == 0) {
@@ -208,7 +219,7 @@ std::size_t saturateWithHydrogen(Structure& s, std::vector<char>& selected, cons
         }
         for (const Vec3& d : directions) additions.push_back({i, science::add(origin, science::scale(unit(d), bond))});
     }
-    for (const auto& [atom, position] : additions) appendAtom(s, selected, "H", position, selectNew);
+    for (const auto& [atom, position] : additions) appendAtom(s, selected, options.terminator, position, selectNew);
     return additions.size();
 }
 }  // namespace atomforge::pipeline

@@ -150,6 +150,7 @@ set(ATOMFORGE_SOURCES
     src/ui/AmorphousBuilderDialog.cpp
     src/ui/InterstitialAtomsDialog.cpp
     src/ui/CellSculptorDialog.cpp
+    src/ui/ShapeModellerDialog.cpp
     src/util/PathUtils.cpp
     src/util/ApplicationPaths.cpp
     src/algorithms/CSLComputation.cpp

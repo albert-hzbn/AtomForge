@@ -42,6 +42,7 @@ add_library(atomforge_science STATIC
     ${PROJECT_SOURCE_DIR}/src/pipeline/StructureEdits.cpp
     ${PROJECT_SOURCE_DIR}/src/pipeline/GeneratorSteps.cpp
     ${PROJECT_SOURCE_DIR}/src/pipeline/EditSteps.cpp
+    ${PROJECT_SOURCE_DIR}/src/pipeline/ShapeSteps.cpp
     ${PROJECT_SOURCE_DIR}/src/pipeline/Expression.cpp
     ${PROJECT_SOURCE_DIR}/src/pipeline/PipelineEditor.cpp
     # Out-of-core atom clouds (billions of atoms) for the large-data renderer.

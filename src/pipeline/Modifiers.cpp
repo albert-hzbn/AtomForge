@@ -755,6 +755,7 @@ std::vector<ModifierType>& registry()
         for (auto& type : analysisStepTypes()) builtIn.push_back(std::move(type));
         for (auto& type : generatorStepTypes()) builtIn.push_back(std::move(type));
         for (auto& type : editStepTypes()) builtIn.push_back(std::move(type));
+        for (auto& type : shapeStepTypes()) builtIn.push_back(std::move(type));
         builtIn.push_back(pythonScriptStepType());
         for (auto& type : scienceStepTypes()) builtIn.push_back(std::move(type));
         // Menus list steps by category in this order, each category together.

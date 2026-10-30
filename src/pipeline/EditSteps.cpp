@@ -14,7 +14,9 @@
 #include <filesystem>
 #include <random>
 #include <cmath>
+#include <map>
 #include <numeric>
+#include <set>
 #include <queue>
 #include <sstream>
 
@@ -121,12 +123,27 @@ void invert(const Json& p, PipelineData& data)
     if (flag(p, id, "wrap")) wrapAll(data.structure);
 }
 
+// A rotation from Euler angles (degrees): intrinsic z-y-z or z-x-z (alpha, beta, gamma),
+// or extrinsic x-y-z (about the fixed x, then y, then z).
+Mat3 eulerRotation(const Vec3& angles, const std::string& convention)
+{
+    const Vec3 x{1, 0, 0}, y{0, 1, 0}, z{0, 0, 1};
+    const double a = angles[0] * kDegree, b = angles[1] * kDegree, c = angles[2] * kDegree;
+    if (convention == "zyz") return science::multiply(rotationAbout(z, a), science::multiply(rotationAbout(y, b), rotationAbout(z, c)));
+    if (convention == "zxz") return science::multiply(rotationAbout(z, a), science::multiply(rotationAbout(x, b), rotationAbout(z, c)));
+    if (convention == "xyz") return science::multiply(rotationAbout(z, c), science::multiply(rotationAbout(y, b), rotationAbout(x, a)));
+    throw std::runtime_error("Euler convention must be zyz, zxz or xyz");
+}
+
 void rotateStep(const Json& p, PipelineData& data)
 {
     const char* id = "rotate";
     const bool selectedOnly = text(p, id, "target") == "selected";
     const auto atoms = targets(data, selectedOnly, id);
-    const Mat3 r = rotationAbout(vector(p, id, "axis"), number(p, id, "angle") * kDegree);
+    const std::string mode = text(p, id, "mode");
+    if (mode != "axis" && mode != "euler") throw std::runtime_error("rotate: mode is axis or euler");
+    const Mat3 r = mode == "euler" ? eulerRotation(vector(p, id, "euler"), text(p, id, "convention"))
+                                   : rotationAbout(vector(p, id, "axis"), number(p, id, "angle") * kDegree);
     Structure& crystal = data.structure;
     const bool withCell = !selectedOnly && flag(p, id, "rotate_cell") && crystal.hasUnitCell;
     // A crystal turned with its cell turns about the cell origin: fractional coordinates stay.
@@ -135,6 +152,17 @@ void rotateStep(const Json& p, PipelineData& data)
         place(data.structure.atoms[i], science::add(point, rotate(r, science::sub(positionOf(data.structure.atoms[i]), point))));
     if (withCell)
         for (auto& row : crystal.cellVectors) row = rotate(r, row);
+    if (mode == "euler") {
+        // The equivalent single turn, for the record.
+        const double trace = r[0][0] + r[1][1] + r[2][2];
+        const double angle = std::acos(std::clamp((trace - 1) / 2, -1.0, 1.0)) / kDegree;
+        std::ostringstream note;
+        note.precision(6);
+        Vec3 axis{r[2][1] - r[1][2], r[0][2] - r[2][0], r[1][0] - r[0][1]};
+        if (science::norm(axis) > 1e-12) axis = science::scale(axis, 1 / science::norm(axis));
+        note << "Equivalent to a turn of " << angle << " degrees about (" << axis[0] << ", " << axis[1] << ", " << axis[2] << ")";
+        data.notes.push_back(note.str());
+    }
 }
 
 void alignDirection(const Json& p, PipelineData& data)
@@ -175,28 +203,50 @@ void alignDirection(const Json& p, PipelineData& data)
 void sortAtoms(const Json& p, PipelineData& data)
 {
     const char* id = "sort-atoms";
-    const std::string key = text(p, id, "key");
     const Structure& s = data.structure;
-    std::vector<double> value(s.atoms.size());
     const Vec3 c = centroid(s, targets(data, false, id));
-    for (std::size_t i = 0; i < s.atoms.size(); ++i) {
-        const auto& a = s.atoms[i];
-        if (key == "element") value[i] = a.atomicNumber;
-        else if (key == "x") value[i] = a.x;
-        else if (key == "y") value[i] = a.y;
-        else if (key == "z") value[i] = a.z;
-        else if (key == "distance") value[i] = science::norm(science::sub(positionOf(a), c));
-        else if (key == "property") {
-            if (s.atomProperty.size() != s.atoms.size()) throw std::runtime_error("sort-atoms by property needs a per-atom property");
-            value[i] = std::isnan(s.atomProperty[i]) ? HUGE_VAL : s.atomProperty[i];
-        } else
-            throw std::runtime_error("Unknown sort key " + key);
+    // Species order (VASP POSCAR blocks): listed elements first, in that order.
+    std::map<int, int> rank;
+    {
+        std::string order = text(p, id, "element_order");
+        std::replace(order.begin(), order.end(), ',', ' ');
+        std::istringstream in(order);
+        int k = 0;
+        for (std::string w; in >> w;) rank.emplace(science::atomicNumber(standardElement(w)), k++);
     }
+    const auto values = [&](const std::string& key) {
+        std::vector<double> value(s.atoms.size());
+        for (std::size_t i = 0; i < s.atoms.size(); ++i) {
+            const auto& a = s.atoms[i];
+            if (key == "none") value[i] = 0;
+            else if (key == "element") {
+                const auto it = rank.find(a.atomicNumber);
+                value[i] = it != rank.end() ? it->second - 1000.0 : a.atomicNumber;
+            } else if (key == "x") value[i] = a.x;
+            else if (key == "y") value[i] = a.y;
+            else if (key == "z") value[i] = a.z;
+            else if (key == "distance") value[i] = science::norm(science::sub(positionOf(a), c));
+            else if (key == "magmom") value[i] = a.magmom;
+            else if (key == "charge") value[i] = a.charge;
+            else if (key == "mass") value[i] = elementAtomicMass(a.atomicNumber);
+            else if (key == "selected") value[i] = i < data.selected.size() && data.selected[i] ? 0 : 1;
+            else if (key == "property") {
+                if (s.atomProperty.size() != s.atoms.size()) throw std::runtime_error("sort-atoms by property needs a per-atom property");
+                value[i] = std::isnan(s.atomProperty[i]) ? HUGE_VAL : s.atomProperty[i];
+            } else
+                throw std::runtime_error("Unknown sort key " + key);
+        }
+        return value;
+    };
+    const auto first = values(text(p, id, "key")), second = values(text(p, id, "then"));
+    const double tolerance = number(p, id, "tolerance");
     std::vector<std::size_t> order(s.atoms.size());
     std::iota(order.begin(), order.end(), 0);
     const bool descending = flag(p, id, "descending");
     std::stable_sort(order.begin(), order.end(), [&](std::size_t x, std::size_t y) {
-        return descending ? value[x] > value[y] : value[x] < value[y];
+        // Values within the tolerance tie on the first key (atoms of one layer), then the second decides.
+        if (std::abs(first[x] - first[y]) > tolerance) return descending ? first[x] > first[y] : first[x] < first[y];
+        return second[x] < second[y];
     });
     rebuild(data, order);
 }
@@ -209,10 +259,18 @@ void saturateHydrogen(const Json& p, PipelineData& data)
     std::istringstream in(text(p, id, "elements"));
     for (std::string w; in >> w;) elements.insert(standardElement(w));
     if (data.selected.size() != data.structure.atoms.size()) data.selected.assign(data.structure.atoms.size(), 0);
+    const std::vector<char> mask = data.selected;
+    if (text(p, id, "target") == "selected" && std::none_of(mask.begin(), mask.end(), [](char c) { return c; }))
+        throw std::runtime_error("saturate-hydrogen: nothing is selected");
+    SaturationOptions options;
+    options.terminator = standardElement(text(p, id, "terminator"));
+    options.bondLength = number(p, id, "bond_length");
+    options.maxPerAtom = integerOf(p, id, "max_per_atom", 1);
+    if (text(p, id, "target") == "selected") options.mask = &mask;
     if (flag(p, id, "select")) std::fill(data.selected.begin(), data.selected.end(), 0);
-    const std::size_t added = saturateWithHydrogen(data.structure, data.selected, elements, text(p, id, "hybridization") == "sp3",
-                                                   number(p, id, "bond_scale"), flag(p, id, "select"));
-    data.notes.push_back(std::to_string(added) + " hydrogen atoms added");
+    const std::size_t added = saturate(data.structure, data.selected, elements, text(p, id, "hybridization") == "sp3", number(p, id, "bond_scale"),
+                                       flag(p, id, "select"), options);
+    data.notes.push_back(std::to_string(added) + " " + (options.terminator == "H" ? std::string("hydrogen") : options.terminator) + " atoms added");
 }
 
 void swapElements(const Json& p, PipelineData& data)
@@ -327,20 +385,34 @@ void setGeometry(const Json& p, PipelineData& data)
     // The moving side: the last atom (distance, angle) or the third (dihedral), with its fragment.
     const std::size_t mover = atoms.size() == 4 ? atoms[2] : atoms.back();
     const std::size_t fixed = atoms.size() == 4 ? atoms[1] : atoms[atoms.size() - 2];
-    std::vector<std::pair<std::size_t, Vec3>> moving;
-    if (text(p, id, "move") == "fragment") moving = fragment(bondNeighbours(s, number(p, id, "bond_scale")), mover, fixed);
+    const std::string move = text(p, id, "move");
+    if (move != "fragment" && move != "atom" && move != "both") throw std::runtime_error("set-geometry: move is fragment, atom or both");
+    // Side B (moves forward) and, for move = both, side A (moves back by the other half).
+    std::vector<std::pair<std::size_t, Vec3>> moving, other;
+    const Neighbours nb = move == "atom" ? Neighbours{} : bondNeighbours(s, number(p, id, "bond_scale"));
+    if (move != "atom") moving = fragment(nb, mover, fixed);
     else moving = {{mover, {0, 0, 0}}};
-    if (atoms.size() == 4 && text(p, id, "move") == "atom") moving = {{atoms[3], science::sub(g.points[3], g.points[2])}};
+    if (atoms.size() == 4 && move == "atom") moving = {{atoms[3], science::sub(g.points[3], g.points[2])}};
     const Vec3 moverPoint = atoms.size() == 4 ? g.points[2] : g.points.back();
-    for (const auto& [atom, offset] : moving)
+    const std::size_t otherIndex = atoms.size() == 4 ? 1 : 0;
+    if (move == "both") other = fragment(nb, atoms[otherIndex], atoms.size() == 4 ? atoms[2] : atoms[1]);
+    const Vec3 otherPoint = g.points[otherIndex];
+    for (const auto& [atom, offset] : moving) {
         for (std::size_t k = 0; k < atoms.size(); ++k)
             if (atoms[k] == atom && atom != mover && !(atoms.size() == 4 && k == 3))
                 throw std::runtime_error("set-geometry: the moving side contains atom " + std::to_string(atom) + " of the fixed side");
+        for (const auto& o : other)
+            if (o.first == atom) throw std::runtime_error("set-geometry: the two sides are bonded to each other (a ring); use move = atom");
+    }
+    const double share = move == "both" ? 0.5 : 1.0;  // of the change made by side B
     std::vector<std::pair<std::size_t, Vec3>> result;  // atom -> new position
     if (atoms.size() == 2) {
         if (!(target > 0)) throw std::runtime_error("set-geometry: a distance must be positive");
-        const Vec3 shiftBy = science::scale(unit(science::sub(g.points[1], g.points[0])), target - current);
-        for (const auto& [atom, offset] : moving) result.push_back({atom, science::add(science::add(moverPoint, offset), shiftBy)});
+        const Vec3 direction = unit(science::sub(g.points[1], g.points[0]));
+        for (const auto& [atom, offset] : moving)
+            result.push_back({atom, science::add(science::add(moverPoint, offset), science::scale(direction, share * (target - current)))});
+        for (const auto& [atom, offset] : other)
+            result.push_back({atom, science::add(science::add(otherPoint, offset), science::scale(direction, -(1 - share) * (target - current)))});
     } else {
         Vec3 pivot, axis;
         if (atoms.size() == 3) {
@@ -355,10 +427,12 @@ void setGeometry(const Json& p, PipelineData& data)
         double delta = target - current;
         if (atoms.size() == 4) delta = std::remainder(delta, 360.0);
         const auto turned = [&](double degrees) {
-            const Mat3 r = rotationAbout(axis, degrees * kDegree);
+            const Mat3 forward = rotationAbout(axis, share * degrees * kDegree), back = rotationAbout(axis, -(1 - share) * degrees * kDegree);
             std::vector<std::pair<std::size_t, Vec3>> out;
             for (const auto& [atom, offset] : moving)
-                out.push_back({atom, science::add(pivot, rotate(r, science::sub(science::add(moverPoint, offset), pivot)))});
+                out.push_back({atom, science::add(pivot, rotate(forward, science::sub(science::add(moverPoint, offset), pivot)))});
+            for (const auto& [atom, offset] : other)
+                out.push_back({atom, science::add(pivot, rotate(back, science::sub(science::add(otherPoint, offset), pivot)))});
             return out;
         };
         const auto check = [&](const std::vector<std::pair<std::size_t, Vec3>>& moved) {
@@ -484,14 +558,36 @@ void scaleCell(const Json& p, PipelineData& data)
     const double volume = std::abs(science::determinant(cellOf(s)));
     double mass = 0;
     for (const auto& a : s.atoms) mass += elementAtomicMass(a.atomicNumber);
+    if (mode == "axes") {
+        // Lattice vectors scaled independently (uniaxial or biaxial strain); fractional coordinates kept.
+        const Vec3 f = vector(p, id, "factors");
+        if (!(f[0] > 0 && f[1] > 0 && f[2] > 0)) throw std::runtime_error("scale-cell: the factors must be positive");
+        const Mat3 inverse = science::inverse(cellOf(s));
+        if (flag(p, id, "scale_atoms"))
+            for (auto& a : s.atoms) {
+                Vec3 fr = science::rowTimes(science::sub(positionOf(a), s.cellOffset), inverse);
+                for (int k = 0; k < 3; ++k) fr[k] *= f[k];
+                place(a, science::add(s.cellOffset, science::rowTimes(fr, cellOf(s))));
+            }
+        for (int k = 0; k < 3; ++k) s.cellVectors[k] = science::scale(s.cellVectors[k], f[k]);
+        const double v = std::abs(science::determinant(cellOf(s)));
+        std::ostringstream note;
+        note.precision(6);
+        note << "a, b, c x " << f[0] << ", " << f[1] << ", " << f[2] << " (strains " << 100 * (f[0] - 1) << "%, " << 100 * (f[1] - 1) << "%, "
+             << 100 * (f[2] - 1) << "%); volume " << v << " Angstrom^3";
+        if (!s.atoms.empty()) note << ", density " << mass * 1.66053906660 / v << " g/cm3";
+        data.notes.push_back(note.str());
+        return;
+    }
     double factor = value;
     if (mode == "volume") factor = std::cbrt(value / volume);
     else if (mode == "density") {
         if (s.atoms.empty()) throw std::runtime_error("scale-cell to a density needs atoms");
         factor = std::cbrt(mass * 1.66053906660 / value / volume);
     } else if (mode != "factor")
-        throw std::runtime_error("scale-cell: mode is factor, volume or density");
-    for (auto& a : s.atoms) place(a, science::add(s.cellOffset, science::scale(science::sub(positionOf(a), s.cellOffset), factor)));
+        throw std::runtime_error("scale-cell: mode is factor, volume, density or axes");
+    if (flag(p, id, "scale_atoms"))
+        for (auto& a : s.atoms) place(a, science::add(s.cellOffset, science::scale(science::sub(positionOf(a), s.cellOffset), factor)));
     for (auto& row : s.cellVectors) row = science::scale(row, factor);
     std::ostringstream note;
     note.precision(6);
@@ -593,17 +689,87 @@ std::string magmomLine(const Structure& s)
     return out.str();
 }
 
+// "Fe 2.5 O 0": a value per element.
+std::map<int, double> elementValues(std::string list, const char* what)
+{
+    std::replace(list.begin(), list.end(), ',', ' ');
+    std::istringstream in(list);
+    std::map<int, double> out;
+    for (std::string symbol, value; in >> symbol;) {
+        if (!(in >> value)) throw std::runtime_error(std::string(what) + ": give pairs of an element and a value, e.g. Fe 2.5 O 0");
+        char* end = nullptr;
+        const double v = std::strtod(value.c_str(), &end);
+        if (*end) throw std::runtime_error(std::string(what) + ": '" + value + "' is not a number");
+        out[science::atomicNumber(standardElement(symbol))] = v;
+    }
+    if (out.empty()) throw std::runtime_error(std::string(what) + ": no element values given");
+    return out;
+}
+
+// Layer index of each atom along a Cartesian axis (layers: positions within the tolerance).
+std::vector<int> layersAlong(const Structure& s, const std::vector<std::size_t>& atoms, int axis, double tolerance)
+{
+    std::vector<std::size_t> order(atoms);
+    const auto coordinate = [&](std::size_t i) { return positionOf(s.atoms[i])[axis]; };
+    std::sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) { return coordinate(a) < coordinate(b); });
+    std::map<std::size_t, int> layer;
+    int current = -1;
+    double start = -HUGE_VAL;
+    for (std::size_t i : order) {
+        if (coordinate(i) > start + tolerance) { ++current; start = coordinate(i); }
+        layer[i] = current;
+    }
+    std::vector<int> out;
+    for (std::size_t i : atoms) out.push_back(layer[i]);
+    return out;
+}
+
+int axisIndex(const std::string& name) { return name == "x" ? 0 : name == "y" ? 1 : 2; }
+
 void setMagneticMoments(const Json& p, PipelineData& data)
 {
     const char* id = "set-magnetic-moments";
     const auto atoms = targets(data, text(p, id, "target") == "selected", id);
+    const std::string mode = text(p, id, "mode");
     const double value = number(p, id, "value");
-    for (std::size_t i : atoms) data.structure.atoms[i].magmom = value;
-    double total = 0;
-    for (const auto& a : data.structure.atoms) total += a.magmom;
+    Structure& s = data.structure;
+    std::ostringstream what;
+    what.precision(6);
+    if (mode == "value") {
+        for (std::size_t i : atoms) s.atoms[i].magmom = value;
+        what << "set to " << value << " Bohr magnetons";
+    } else if (mode == "elements") {
+        const auto values = elementValues(text(p, id, "moments"), id);
+        for (std::size_t i : atoms)
+            if (const auto it = values.find(s.atoms[i].atomicNumber); it != values.end()) s.atoms[i].magmom = it->second;
+        what << "set per element";
+    } else if (mode == "layered") {
+        // Layered antiferromagnet (A-type, ...): the sign alternates every `period` layers along the axis.
+        const auto layer = layersAlong(s, atoms, axisIndex(text(p, id, "axis")), number(p, id, "layer_tolerance"));
+        const int period = integerOf(p, id, "period", 1);
+        for (std::size_t k = 0; k < atoms.size(); ++k) s.atoms[atoms[k]].magmom = (layer[k] / period) % 2 ? -value : value;
+        what << "+-" << value << " alternating every " << period << " layer(s) along " << text(p, id, "axis") << " ("
+             << (atoms.empty() ? 0 : *std::max_element(layer.begin(), layer.end()) + 1) << " layers)";
+    } else if (mode == "checkerboard") {
+        // G-type: the sign of (-1)^(i+j+k) over layers along x, y and z.
+        const double tolerance = number(p, id, "layer_tolerance");
+        const auto lx = layersAlong(s, atoms, 0, tolerance), ly = layersAlong(s, atoms, 1, tolerance), lz = layersAlong(s, atoms, 2, tolerance);
+        for (std::size_t k = 0; k < atoms.size(); ++k) s.atoms[atoms[k]].magmom = (lx[k] + ly[k] + lz[k]) % 2 ? -value : value;
+        what << "+-" << value << " in a checkerboard (G-type)";
+    } else if (mode == "random") {
+        // Paramagnetic-like: random signs with zero net moment where possible (half up, half down).
+        std::vector<std::size_t> order(atoms);
+        std::mt19937_64 rng(static_cast<std::uint64_t>(number(p, id, "seed")));
+        std::shuffle(order.begin(), order.end(), rng);
+        for (std::size_t k = 0; k < order.size(); ++k) s.atoms[order[k]].magmom = k < order.size() / 2 ? -value : value;
+        what << "+-" << value << " at random (half up, half down)";
+    } else
+        throw std::runtime_error("set-magnetic-moments: mode is value, elements, layered, checkerboard or random");
+    double total = 0, absolute = 0;
+    for (const auto& a : s.atoms) { total += a.magmom; absolute += std::abs(a.magmom); }
     std::ostringstream note;
     note.precision(6);
-    note << atoms.size() << " atoms set to " << value << " Bohr magnetons; total " << total << "; MAGMOM = " << magmomLine(data.structure)
+    note << atoms.size() << " atoms " << what.str() << "; total " << total << ", absolute " << absolute << "; MAGMOM = " << magmomLine(s)
          << " (in this atom order)";
     data.notes.push_back(note.str());
 }
@@ -612,13 +778,48 @@ void setCharges(const Json& p, PipelineData& data)
 {
     const char* id = "set-charges";
     const auto atoms = targets(data, text(p, id, "target") == "selected", id);
-    const double value = number(p, id, "value");
-    for (std::size_t i : atoms) data.structure.atoms[i].charge = value;
+    Structure& s = data.structure;
+    const std::string mode = text(p, id, "mode");
+    if (mode == "value") {
+        const double value = number(p, id, "value");
+        for (std::size_t i : atoms) s.atoms[i].charge = value;
+    } else if (mode == "elements") {
+        const auto values = elementValues(text(p, id, "charges"), id);
+        for (std::size_t i : atoms)
+            if (const auto it = values.find(s.atoms[i].atomicNumber); it != values.end()) s.atoms[i].charge = it->second;
+    } else
+        throw std::runtime_error("set-charges: mode is value or elements");
     double total = 0;
-    for (const auto& a : data.structure.atoms) total += a.charge;
+    for (const auto& a : s.atoms) total += a.charge;
     std::ostringstream note;
     note.precision(6);
-    note << atoms.size() << " atoms set to " << value << " e; total charge " << total << " e" << (std::abs(total) > 1e-9 ? " (not neutral)" : " (neutral)");
+    // Neutralising: the excess spread equally over the target atoms, or the target charges scaled.
+    const std::string neutralize = text(p, id, "neutralize");
+    if (neutralize == "shift" && !atoms.empty() && std::abs(total) > 1e-12) {
+        const double shift = total / atoms.size();
+        for (std::size_t i : atoms) s.atoms[i].charge -= shift;
+        note << "shifted by " << -shift << " e to neutralise; ";
+    } else if (neutralize == "scale" && std::abs(total) > 1e-12) {
+        double positive = 0, negative = 0, other = total;
+        for (std::size_t i : atoms) {
+            (s.atoms[i].charge > 0 ? positive : negative) += s.atoms[i].charge;
+            other -= s.atoms[i].charge;
+        }
+        // Scale the side in excess so the whole is neutral.
+        if (total > 0 && positive > 0) {
+            const double f = (-negative - other) / positive;
+            for (std::size_t i : atoms) if (s.atoms[i].charge > 0) s.atoms[i].charge *= f;
+            note << "positive charges x " << f << " to neutralise; ";
+        } else if (total < 0 && negative < 0) {
+            const double f = (-positive - other) / negative;
+            for (std::size_t i : atoms) if (s.atoms[i].charge < 0) s.atoms[i].charge *= f;
+            note << "negative charges x " << f << " to neutralise; ";
+        }
+    } else if (neutralize != "none" && neutralize != "shift" && neutralize != "scale")
+        throw std::runtime_error("set-charges: neutralize is none, shift or scale");
+    total = 0;
+    for (const auto& a : s.atoms) total += a.charge;
+    note << atoms.size() << " atoms set; total charge " << total << " e" << (std::abs(total) > 1e-9 ? " (not neutral)" : " (neutral)");
     data.notes.push_back(note.str());
 }
 
@@ -650,9 +851,30 @@ void setVelocities(const Json& p, PipelineData& data)
         const Vec3 drift = science::scale(momentum, 1.0 / total);
         for (auto& vk : v) vk = science::sub(vk, drift);
     }
+    // No rotation (clusters, molecules in vacuum): the angular velocity w = I^-1 L about the centre of mass removed.
+    const bool zeroRotation = flag(p, id, "zero_rotation") && atoms.size() > 2;
+    if (zeroRotation) {
+        Vec3 com{0, 0, 0};
+        double total = 0;
+        for (std::size_t k = 0; k < atoms.size(); ++k) { com = science::add(com, science::scale(positionOf(s.atoms[atoms[k]]), mass[k])); total += mass[k]; }
+        com = science::scale(com, 1.0 / total);
+        Vec3 angular{0, 0, 0};
+        Mat3 inertia{};
+        for (std::size_t k = 0; k < atoms.size(); ++k) {
+            const Vec3 r = science::sub(positionOf(s.atoms[atoms[k]]), com);
+            angular = science::add(angular, science::scale(science::cross(r, v[k]), mass[k]));
+            for (int i = 0; i < 3; ++i)
+                for (int j = 0; j < 3; ++j) inertia[i][j] += mass[k] * ((i == j ? science::dot(r, r) : 0.0) - r[i] * r[j]);
+        }
+        if (std::abs(science::determinant(inertia)) > 1e-12) {
+            const Vec3 omega = rotate(science::inverse(inertia), angular);
+            for (std::size_t k = 0; k < atoms.size(); ++k)
+                v[k] = science::sub(v[k], science::cross(omega, science::sub(positionOf(s.atoms[atoms[k]]), com)));
+        }
+    }
     double kinetic = 0;  // eV
     for (std::size_t k = 0; k < atoms.size(); ++k) kinetic += 0.5 * mass[k] * science::dot(v[k], v[k]) * eVPerAmuA2fs2;
-    const double dof = 3.0 * atoms.size() - (zeroMomentum ? 3.0 : 0.0);
+    const double dof = 3.0 * atoms.size() - (zeroMomentum ? 3.0 : 0.0) - (zeroRotation ? 3.0 : 0.0);
     if (temperature > 0 && kinetic > 0 && dof > 0) {
         const double factor = std::sqrt(temperature / (2 * kinetic / (dof * kB)));
         for (auto& vk : v) vk = science::scale(vk, factor);
@@ -660,7 +882,8 @@ void setVelocities(const Json& p, PipelineData& data)
     for (std::size_t k = 0; k < atoms.size(); ++k) s.atoms[atoms[k]].velocity = v[k];
     std::ostringstream note;
     note.precision(6);
-    note << atoms.size() << " velocities at " << temperature << " K (Angstrom/fs" << (zeroMomentum ? ", no net momentum)" : ")");
+    note << atoms.size() << " velocities at " << temperature << " K (Angstrom/fs" << (zeroMomentum ? ", no net momentum" : "")
+         << (zeroRotation ? ", no rotation" : "") << ")";
     data.notes.push_back(note.str());
 }
 
@@ -681,20 +904,35 @@ void stackLayers(const Json& p, PipelineData& data)
     Structure& s = data.structure;
     const double gap = number(p, id, "gap"), vacuum = number(p, id, "vacuum");
     const bool strain = flag(p, id, "strain") && top.hasUnitCell;
-    const Mat3 cell = cellOf(s);
+    const std::string match = text(p, id, "match");
+    if (match != "layer" && match != "average" && match != "substrate") throw std::runtime_error("stack-layers: match is layer, average or substrate");
+    const int copies = integerOf(p, id, "copies", 1);
+    const Vec3 shift = vector(p, id, "shift");  // fractional in-plane offset per copy
+    const double twist = number(p, id, "twist");
+    Mat3 cell = cellOf(s);
     Vec3 normal = science::cross(cell[0], cell[1]);
     normal = science::scale(normal, 1.0 / science::norm(normal));
     if (science::dot(normal, cell[2]) < 0) normal = science::scale(normal, -1);
-    double high = -HUGE_VAL, low = HUGE_VAL;
-    for (const auto& a : s.atoms) high = std::max(high, science::dot(positionOf(a), normal));
-    if (s.atoms.empty()) high = 0;
-    // The other structure's atoms in this cell's frame.
-    std::vector<Vec3> placed;
+    std::vector<Vec3> placed;  // the other structure's atoms in this cell's frame, before lifting
     if (strain) {
-        // Fractional in-plane coordinates kept, heights kept: the layer is strained to this cell.
         const Mat3 otherCell{Vec3{top.cellVectors[0][0], top.cellVectors[0][1], top.cellVectors[0][2]},
                              Vec3{top.cellVectors[1][0], top.cellVectors[1][1], top.cellVectors[1][2]},
                              Vec3{top.cellVectors[2][0], top.cellVectors[2][1], top.cellVectors[2][2]}};
+        // The common in-plane lattice: this cell's (the layer strains), the layer's (this structure strains), or between.
+        const double la = science::norm(otherCell[0]) / science::norm(cell[0]), lb = science::norm(otherCell[1]) / science::norm(cell[1]);
+        const double fa = match == "layer" ? 1 : match == "substrate" ? la : 0.5 * (1 + la);
+        const double fb = match == "layer" ? 1 : match == "substrate" ? lb : 0.5 * (1 + lb);
+        if (fa != 1 || fb != 1) {
+            const Mat3 inverse = science::inverse(cell);
+            for (auto& a : s.atoms) {
+                Vec3 f = science::rowTimes(science::sub(positionOf(a), s.cellOffset), inverse);
+                place(a, science::add(s.cellOffset, science::add(science::add(science::scale(cell[0], f[0] * fa), science::scale(cell[1], f[1] * fb)),
+                                                                 science::scale(cell[2], f[2]))));
+            }
+            s.cellVectors[0] = science::scale(cell[0], fa);
+            s.cellVectors[1] = science::scale(cell[1], fb);
+            cell = cellOf(s);
+        }
         Vec3 otherNormal = science::cross(otherCell[0], otherCell[1]);
         otherNormal = science::scale(otherNormal, 1.0 / science::norm(otherNormal));
         const Mat3 inverse = science::inverse(otherCell);
@@ -703,24 +941,49 @@ void stackLayers(const Json& p, PipelineData& data)
             const Vec3 inPlane = science::add(science::scale(cell[0], f[0]), science::scale(cell[1], f[1]));
             placed.push_back(science::add(inPlane, science::scale(normal, science::dot(positionOf(a), otherNormal))));
         }
-        // Report the in-plane strain of the stacked layer.
-        const double sa = science::norm(cell[0]) / science::norm(otherCell[0]) - 1, sb = science::norm(cell[1]) / science::norm(otherCell[1]) - 1;
         std::ostringstream note;
         note.precision(4);
-        note << "Stacked layer strained by " << 100 * sa << "% along a and " << 100 * sb << "% along b";
+        note << "Strains: stacked layer " << 100 * (fa / la - 1) << "% along a and " << 100 * (fb / lb - 1) << "% along b; this structure "
+             << 100 * (fa - 1) << "% and " << 100 * (fb - 1) << "%";
         data.notes.push_back(note.str());
     } else
         for (const auto& a : top.atoms) placed.push_back(positionOf(a));
-    for (const Vec3& q : placed) low = std::min(low, science::dot(q, normal));
-    const double lift = high + gap - low;
+    if (twist != 0) {
+        // A turn about the normal through the layer's centroid (commensurate only for special angles).
+        Vec3 c{0, 0, 0};
+        for (const Vec3& q : placed) c = science::add(c, q);
+        c = science::scale(c, 1.0 / placed.size());
+        const Mat3 r = rotationAbout(normal, twist * kDegree);
+        for (Vec3& q : placed) q = science::add(c, rotate(r, science::sub(q, c)));
+        data.notes.push_back("The stacked layer is turned about the normal; unless the angle is commensurate with the cell, the stack is not periodic");
+    }
     const std::size_t before = s.atoms.size();
     if (data.selected.size() != before) data.selected.assign(before, 0);
     std::fill(data.selected.begin(), data.selected.end(), 0);
-    for (std::size_t k = 0; k < top.atoms.size(); ++k) {
-        appendAtom(s, data.selected, top.atoms[k].symbol, science::add(placed[k], science::scale(normal, lift)), flag(p, id, "select"));
-        s.atoms.back().magmom = top.atoms[k].magmom;
-        s.atoms.back().charge = top.atoms[k].charge;
-        s.atoms.back().fixed = top.atoms[k].fixed;
+    double low = HUGE_VAL;
+    for (const Vec3& q : placed) low = std::min(low, science::dot(q, normal));
+    for (int copy = 1; copy <= copies; ++copy) {
+        double high = -HUGE_VAL;
+        for (const auto& a : s.atoms) high = std::max(high, science::dot(positionOf(a), normal));
+        if (s.atoms.empty()) high = 0;
+        const Vec3 lateral = science::add(science::scale(cell[0], shift[0] * copy), science::scale(cell[1], shift[1] * copy));
+        const Vec3 lift = science::add(science::scale(normal, high + gap - low), lateral);
+        for (std::size_t k = 0; k < top.atoms.size(); ++k) {
+            appendAtom(s, data.selected, top.atoms[k].symbol, science::add(placed[k], lift), flag(p, id, "select"));
+            s.atoms.back().magmom = top.atoms[k].magmom;
+            s.atoms.back().charge = top.atoms[k].charge;
+            s.atoms.back().fixed = top.atoms[k].fixed;
+        }
+    }
+    if (shift[0] != 0 || shift[1] != 0) {
+        // The shifted copies back into the cell along a and b (not c, which is about to grow).
+        const Mat3 inverse = science::inverse(cell);
+        for (std::size_t i = before; i < s.atoms.size(); ++i) {
+            Vec3 f = science::rowTimes(science::sub(positionOf(s.atoms[i]), s.cellOffset), inverse);
+            f[0] -= std::floor(f[0]);
+            f[1] -= std::floor(f[1]);
+            place(s.atoms[i], science::add(science::rowTimes(f, cell), s.cellOffset));
+        }
     }
     // c grows (along its own direction) so the stack plus vacuum fits.
     double newHigh = -HUGE_VAL, newLow = HUGE_VAL;
@@ -733,7 +996,7 @@ void stackLayers(const Json& p, PipelineData& data)
     if (needed > along) s.cellVectors[2] = science::scale(cell[2], needed / along);
     std::ostringstream note;
     note.precision(6);
-    note << top.atoms.size() << " atoms stacked " << gap << " Angstrom above the top layer; c = " << science::norm(s.cellVectors[2]) << " Angstrom";
+    note << copies << " x " << top.atoms.size() << " atoms stacked " << gap << " Angstrom apart; c = " << science::norm(s.cellVectors[2]) << " Angstrom";
     data.notes.push_back(note.str());
 }
 }  // namespace
@@ -751,9 +1014,11 @@ std::vector<ModifierType> editStepTypes()
         {"invert", "Invert through a point", "Modification", "Inversion x -> 2p - x through the centroid, the cell centre, the origin or a point.",
          {centre, point, target, {"wrap", "Wrap into the cell", "bool", "false", ""}}, invert},
         {"rotate", "Rotate", "Modification",
-         "Turns atoms by an angle (degrees, right-handed) about an axis through the centroid, the cell centre, the origin or a point. "
-         "All atoms turn with the cell by default, about the cell origin, so a crystal keeps its periodicity and fractional coordinates.",
-         {{"axis", "Axis", "vector", "0 0 1", ""}, {"angle", "Angle (degrees)", "float", "90", ""}, centre, point, target,
+         "Turns atoms by an angle (degrees, right-handed) about an axis, or by Euler angles (intrinsic z-y-z or z-x-z, or extrinsic x-y-z), "
+         "about the centroid, the cell centre, the origin or a point. All atoms turn with the cell by default, about the cell origin, so a "
+         "crystal keeps its periodicity and fractional coordinates.",
+         {{"axis", "Axis", "vector", "0 0 1", ""}, {"angle", "Angle (degrees)", "float", "90", ""}, {"mode", "Rotation", "choice", "axis", "axis|euler"},
+          {"euler", "Euler angles (degrees)", "vector", "0 0 0", ""}, {"convention", "Euler convention", "choice", "zyz", "zyz|zxz|xyz"}, centre, point, target,
           {"rotate_cell", "Rotate the cell too (all atoms)", "bool", "true", ""}}, rotateStep},
         {"align-direction", "Align a direction with an axis", "Cell",
          "Turns the whole structure and its cell so that a direction (lattice [u v w] or Cartesian) lies along x, y or z, and optionally a second "
@@ -761,20 +1026,31 @@ std::vector<ModifierType> editStepTypes()
          {{"direction", "Direction", "vector", "1 1 1", ""}, {"lattice", "Lattice direction [u v w]", "bool", "true", ""},
           {"axis", "Along", "choice", "z", "x|y|z"}, {"second_direction", "Second direction", "vector", "1 -1 0", ""},
           {"second_axis", "Second direction towards", "choice", "none", "none|x|y|z"}}, alignDirection},
-        {"sort-atoms", "Sort atoms", "Modification", "Reorders the atoms by element (atomic number), a coordinate, distance from the centroid or the per-atom property.",
-         {{"key", "Sort by", "choice", "element", "element|x|y|z|distance|property"}, {"descending", "Descending", "bool", "false", ""}}, sortAtoms},
+        {"sort-atoms", "Sort atoms", "Modification",
+         "Reorders the atoms by element (atomic number, or a given species order such as O Ti for POSCAR blocks), a coordinate, distance from "
+         "the centroid, magnetic moment, charge, mass, selection or the per-atom property; ties (within the tolerance, e.g. one layer) are "
+         "broken by a second key.",
+         {{"key", "Sort by", "choice", "element", "element|x|y|z|distance|magmom|charge|mass|selected|property"},
+          {"then", "Then by", "choice", "none", "none|element|x|y|z|distance|magmom|charge|mass|selected|property"},
+          {"element_order", "Species order (elements first; empty = atomic number)", "string", "", ""},
+          {"tolerance", "Tie tolerance", "float", "0", ""}, {"descending", "Descending", "bool", "false", ""}}, sortAtoms},
         {"saturate-hydrogen", "Saturate with hydrogen", "Modification",
-         "Adds hydrogen to under-coordinated atoms (bonds from covalent radii): tetrahedral (sp3) directions, or in-plane for planar carbon, boron "
-         "and nitrogen with two bonds near 120 degrees; X-H lengths C 1.09, Si 1.48, N 1.01, O 0.97 Angstrom.",
+         "Adds hydrogen (or another terminator: F, Cl, OH-like O, ...) to under-coordinated atoms (bonds from covalent radii): tetrahedral "
+         "(sp3) directions, or in-plane for planar carbon, boron and nitrogen with two bonds near 120 degrees; X-H lengths C 1.09, Si 1.48, "
+         "N 1.01, O 0.97 Angstrom, other terminators at the sum of covalent radii unless a length is given. Only selected atoms, or at most "
+         "a number per atom, on request.",
          {{"elements", "Elements to saturate", "elements", "C Si Ge N O B P S", ""}, {"hybridization", "Geometry", "choice", "auto", "auto|sp3"},
-          {"bond_scale", "Bond cutoff (x sum of covalent radii)", "float", "1.2", ""}, {"select", "Select the hydrogen", "bool", "true", ""}}, saturateHydrogen},
+          {"terminator", "Terminating element", "element", "H", ""},
+          {"bond_length", "Bond length (Angstrom; 0 = table or covalent radii)", "float", "0", ""},
+          {"max_per_atom", "At most per atom", "int", "4", ""}, {"target", "Atoms to saturate", "choice", "all", "all|selected"},
+          {"bond_scale", "Bond cutoff (x sum of covalent radii)", "float", "1.2", ""}, {"select", "Select the added atoms", "bool", "true", ""}}, saturateHydrogen},
         {"swap-elements", "Swap elements", "Modification", "Exchanges two elements everywhere (A becomes B and B becomes A).",
          {{"first", "Element A", "element", "Ni", ""}, {"second", "Element B", "element", "Al", ""}}, swapElements},
         {"set-geometry", "Set distance, angle or dihedral", "Modification",
          "Sets the distance (2 atoms), angle (3) or dihedral (4; atom indices from 0) by moving the last atom, or the third and everything beyond the "
-         "middle bond of a dihedral, with its bonded fragment (as in Avogadro).",
+         "middle bond of a dihedral, with its bonded fragment (as in Avogadro); or both sides by half each.",
          {{"atoms", "Atom indices", "list", "0 1", ""}, {"value", "Value (Angstrom or degrees)", "float", "1.5", ""},
-          {"move", "Move", "choice", "fragment", "fragment|atom"}, {"bond_scale", "Bond cutoff (x sum of covalent radii)", "float", "1.2", ""}}, setGeometry},
+          {"move", "Move", "choice", "fragment", "fragment|atom|both"}, {"bond_scale", "Bond cutoff (x sum of covalent radii)", "float", "1.2", ""}}, setGeometry},
         {"measure-geometry", "Measure distance, angle or dihedral", "Analysis",
          "Reports the distance (2 atoms), angle (3) or dihedral angle (4) between atoms given by index (from 0), with minimum images in periodic cells.",
          {{"atoms", "Atom indices", "list", "0 1 2 3", ""}}, measureGeometry},
@@ -783,32 +1059,47 @@ std::vector<ModifierType> editStepTypes()
         {"niggli-reduce", "Niggli-reduced cell", "Cell",
          "Replaces the cell by its Niggli-reduced form (shortest, most orthogonal basis of the same lattice; Krivy-Gruber) and wraps the atoms into it.",
          {}, niggliReduce},
-        {"scale-cell", "Scale cell", "Cell", "Scales the cell and atom positions uniformly by a factor, or to a volume (Angstrom^3) or a density (g/cm3).",
-         {{"mode", "Scale to", "choice", "factor", "factor|volume|density"}, {"value", "Value", "float", "1.01", ""}}, scaleCell},
+        {"scale-cell", "Scale cell", "Cell",
+         "Scales the cell and atom positions uniformly by a factor, or to a volume (Angstrom^3) or a density (g/cm3); or a, b and c by separate "
+         "factors (uniaxial and biaxial strain). Without scaling the atoms, their Cartesian positions stay.",
+         {{"mode", "Scale to", "choice", "factor", "factor|volume|density|axes"}, {"value", "Value", "float", "1.01", ""},
+          {"factors", "Factors for a, b, c (axes mode)", "vector", "1 1 1", ""}, {"scale_atoms", "Scale the atom positions", "bool", "true", ""}}, scaleCell},
         {"unwrap-molecules", "Make molecules whole", "Modification",
          "Moves atoms across periodic boundaries so that bonded atoms sit next to each other (molecules split by the cell become whole).",
          {{"bond_scale", "Bond cutoff (x sum of covalent radii)", "float", "1.2", ""}}, unwrapMolecules},
         {"set-magnetic-moments", "Set magnetic moments", "Modification",
          "Sets the initial magnetic moment (Bohr magnetons) of the selected (or all) atoms, for spin-polarised calculations: written to "
          "extended XYZ (initial_magmoms), CASTEP (SPIN=) and Quantum ESPRESSO (species per moment, nspin = 2); the notes give VASP's MAGMOM line. "
-         "Antiferromagnetic orders: select one sublattice first.",
-         {{"value", "Moment (Bohr magnetons)", "float", "2", ""}, {"target", "Atoms", "choice", "all", "all|selected"}}, setMagneticMoments},
+         "Modes: one value; a value per element (Fe 2.5 O 0); layered antiferromagnets (sign alternating every `period` layers along an axis: "
+         "A-type); checkerboard (G-type); random signs with zero net moment. Other orders: select a sublattice and set it.",
+         {{"value", "Moment (Bohr magnetons)", "float", "2", ""}, {"mode", "Moments", "choice", "value", "value|elements|layered|checkerboard|random"},
+          {"moments", "Per element (e.g. Fe 2.5 O 0)", "string", "", ""}, {"axis", "Layer axis", "choice", "z", "x|y|z"},
+          {"period", "Layers per sign", "int", "1", ""}, {"layer_tolerance", "Layer tolerance (Angstrom)", "float", "0.5", ""},
+          {"seed", "Seed (random)", "int", "1", ""}, {"target", "Atoms", "choice", "all", "all|selected"}}, setMagneticMoments},
         {"set-charges", "Set charges", "Modification",
          "Sets the charge (e) of the selected (or all) atoms, e.g. formal ionic charges for a LAMMPS charge or full model; written to "
-         "LAMMPS data (atom style charge) and extended XYZ (initial_charges); the notes give the total charge.",
-         {{"value", "Charge (e)", "float", "1", ""}, {"target", "Atoms", "choice", "all", "all|selected"}}, setCharges},
+         "LAMMPS data (atom style charge) and extended XYZ (initial_charges); the notes give the total charge. One value, or a value per element; "
+         "neutralising shifts the target atoms' charges equally, or scales the side in excess.",
+         {{"value", "Charge (e)", "float", "1", ""}, {"mode", "Charges", "choice", "value", "value|elements"},
+          {"charges", "Per element (e.g. Ti 2.4 O -1.2)", "string", "", ""},
+          {"neutralize", "Neutralise", "choice", "none", "none|shift|scale"}, {"target", "Atoms", "choice", "all", "all|selected"}}, setCharges},
         {"set-velocities", "Set velocities (temperature)", "Modification",
          "Gives the selected (or all) atoms Maxwell-Boltzmann velocities at a temperature (Angstrom/fs), without net momentum and scaled to "
          "that temperature exactly, reproducibly for a seed; written to LAMMPS data (Velocities, Angstrom/ps) and extended XYZ (velo). "
          "A temperature of 0 sets them to zero.",
          {{"temperature", "Temperature (K)", "float", "300", ""}, {"seed", "Seed", "int", "1", ""},
-          {"zero_momentum", "Remove net momentum", "bool", "true", ""}, {"target", "Atoms", "choice", "all", "all|selected"}}, setVelocities},
+          {"zero_momentum", "Remove net momentum", "bool", "true", ""}, {"zero_rotation", "Remove rotation (clusters, molecules)", "bool", "false", ""},
+          {"target", "Atoms", "choice", "all", "all|selected"}}, setVelocities},
         {"stack-layers", "Stack a layer", "Modification",
          "Places the atoms of another structure file on top of this one along c, `gap` above the top atom (van der Waals heterostructures, "
-         "multilayers; repeat the step for more layers). With strain, the layer takes this cell's in-plane lattice (the strain is reported); "
-         "c grows to hold the stack and the vacuum.",
+         "multilayers), copies times. With strain, the two share one in-plane lattice: this cell's (the layer strains), the layer's (this "
+         "structure strains) or the average (both strain; the strains are reported). Each copy can be shifted laterally (fractional u v, "
+         "for AB stacking) and turned about the normal; c grows to hold the stack and the vacuum.",
          {{"file", "Structure file to stack", "string", "", ""}, {"gap", "Gap (Angstrom)", "float", "3.35", ""},
-          {"strain", "Strain the layer to this cell", "bool", "true", ""}, {"vacuum", "Vacuum (Angstrom)", "float", "15", ""},
+          {"copies", "Copies", "int", "1", ""}, {"shift", "Lateral shift per copy (fractional u v)", "vector", "0 0 0", ""},
+          {"twist", "Turn about the normal (degrees)", "float", "0", ""},
+          {"strain", "Strain to a common lattice", "bool", "true", ""}, {"match", "Common lattice", "choice", "layer", "layer|average|substrate"},
+          {"vacuum", "Vacuum (Angstrom)", "float", "15", ""},
           {"select", "Select the stacked atoms", "bool", "true", ""}}, stackLayers},
         {"select-fragment", "Select fragments", "Selection",
          "Selects whole bonded fragments (molecules, clusters): those touching the current selection, or those with a number of atoms in a range.",

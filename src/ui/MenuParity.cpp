@@ -37,6 +37,7 @@ const std::vector<MenuLocation>& menuLocations()
         {"supercell", "Edit", "", "Transform Structure", true},
         {"merge", "Edit", "", "Merge Structures", true},
         {"build-sculpt", "Edit", "", "Cell Sculptor", true},
+        {"build-shape", "Build", "", "Shape Modeller (CAD)", true},
         // Edit > Structure Operations (operation dialog).
         {"delete-selected", "Edit", "Structure Operations", "Delete Atoms", false},
         {"assign-element", "Edit", "Structure Operations", "Assign Element", false},

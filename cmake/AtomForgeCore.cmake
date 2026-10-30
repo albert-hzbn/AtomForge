@@ -42,6 +42,7 @@ add_library(atomforge_core STATIC
     ${PROJECT_SOURCE_DIR}/src/algorithms/VoronoiComputation.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/MeshLoader.cpp
     ${PROJECT_SOURCE_DIR}/src/algorithms/CellSculptorAlgo.cpp
+    ${PROJECT_SOURCE_DIR}/src/algorithms/ShapeModel.cpp
     ${PROJECT_SOURCE_DIR}/src/electronic/Volume.cpp
     ${PROJECT_SOURCE_DIR}/src/electronic/VolumeIO.cpp
     ${PROJECT_SOURCE_DIR}/src/electronic/FieldAnalysis.cpp

@@ -550,5 +550,401 @@ class GeometryEdits(unittest.TestCase):
             run("build-molecule H2O | set-geometry 0 0 value=1")
 
 
+
+def notes_of(result):
+    return [n for stage in result.stages for n in stage.get("notes", [])]
+
+
+@unittest.skipIf(np is None or missing("ase"), "numpy and ase are required")
+class AdvancedBuilderOptions(unittest.TestCase):
+    def test_octahedra_match_ase_and_nanoalloys(self):
+        from ase.cluster import Octahedron
+        for length in (2, 3, 4, 5):
+            ours = run(f"build-cluster kind=octahedron element=Au shells={length} distance=2.884").structure
+            theirs = Octahedron("Au", length, 0, latticeconstant=2.884 * math.sqrt(2))
+            self.assertEqual(len(ours.atoms), len(theirs))
+            a = np.sort(np.linalg.norm(positions(ours) - positions(ours).mean(axis=0), axis=1))
+            b = np.sort(np.linalg.norm(theirs.positions - theirs.positions.mean(axis=0), axis=1))
+            np.testing.assert_allclose(a, b, atol=1e-9)
+        radius = lambda s: np.linalg.norm(positions(s) - positions(s).mean(axis=0), axis=1)
+        for distribution in ("random", "core", "shell", "janus"):
+            s = run(f"build-cluster element=Pt shells=4 second_element=Au fraction=0.3 distribution={distribution} seed=2").structure
+            gold = np.array(symbols(s)) == "Au"
+            self.assertEqual(gold.sum(), round(0.3 * 147))
+            r = radius(s)
+            if distribution == "core":
+                self.assertLessEqual(r[gold].max(), r[~gold].min() + 1e-9)
+            if distribution == "shell":
+                self.assertGreaterEqual(r[gold].min(), r[~gold].max() - 1e-9)
+            if distribution == "janus":
+                z = positions(s)[:, 2]
+                self.assertGreaterEqual(z[gold].min(), z[~gold].max() - 1e-9)
+
+    def test_molecule_orientation_and_files(self):
+        co2 = positions(run("build-molecule CO2 orientation=principal vacuum=0").structure)
+        np.testing.assert_allclose(co2[:, :2], 0, atol=1e-9)  # the long axis on z
+        benzene = positions(run("build-molecule C6H6 orientation=principal vacuum=0").structure)
+        np.testing.assert_allclose(benzene[:, 1], 0, atol=1e-9)  # planar: in xz
+        shuffled = positions(run("build-molecule C6H6 orientation=random seed=5 vacuum=0").structure)
+        # A random orientation leaves the benzene plane (it lay in xz above).
+        self.assertGreater(np.ptp(shuffled[:, 1]), 0.1)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "ammonia.xyz"
+            path.write_text("4\nNH3\nN 0 0 0\nH 0 0.94 0.38\nH 0.81 -0.47 0.38\nH -0.81 -0.47 0.38\n", encoding="utf-8")
+            mol = run(f"build-molecule {path} vacuum=6 periodic=true").structure
+            self.assertEqual(symbols(mol), ["N", "H", "H", "H"])
+            self.assertTrue(all(mol.pbc))
+            packed = run(f"build-packing {path} 6 H2O 6 box=12,12,12 seed=3").structure
+            self.assertEqual(symbols(packed).count("N"), 6)
+
+    def test_packing_regions_and_solvation(self):
+        sphere = run("build-packing H2O 30 box=20,20,20 region=sphere region_center=10,10,10 region_radius=7").structure
+        self.assertLessEqual(np.linalg.norm(positions(sphere) - 10, axis=1).max(), 7 + 1e-9)
+        outside = run("build-packing H2O 20 box=16,16,16 region=outside-sphere region_center=8,8,8 region_radius=5").structure
+        self.assertGreaterEqual(np.linalg.norm(positions(outside) - 8, axis=1).min(), 5 - 1e-9)
+        slab = run("build-packing H2O 0 box=15,15,15 density=1.0 region=slab region_low=0,0,5 region_high=0,0,10").structure
+        z = positions(slab)[:, 2]
+        self.assertTrue(z.min() >= 5 - 1e-9 and z.max() <= 10 + 1e-9)
+        self.assertAlmostEqual(len(slab.atoms) // 3, 15 * 15 * 5 * 1.0 / (18.015 * 1.66053906660), delta=1)
+        tube = run("build-packing CH4 10 box=20,20,20 region=cylinder region_center=10,10,0 region_radius=4 region_axis=z").structure
+        self.assertLessEqual(np.linalg.norm(positions(tube)[:, :2] - 10, axis=1).max(), 4 + 1e-9)
+        solvated = run("build-molecule C60 vacuum=10 periodic=true | build-packing H2O 0 mode=solvate density=1.0 solute_distance=3")
+        s = solvated.structure
+        self.assertEqual(symbols(s)[:60], ["C"] * 60)
+        waters = (len(s.atoms) - 60) // 3
+        self.assertGreater(waters, 120)
+        carbon, rest = positions(s)[:60], positions(s)[60:]
+        cell = np.array(s.cell)
+        d = rest[:, None, :] - carbon[None, :, :]
+        frac = d @ np.linalg.inv(cell)
+        d = (frac - np.round(frac)) @ cell
+        self.assertGreaterEqual(np.linalg.norm(d, axis=2).min(), 3 - 1e-9)
+        self.assertEqual(len(solvated.selected_indices), len(s.atoms) - 60)
+        with self.assertRaises(PipelineError):
+            run("build-packing H2O 10 mode=solvate")  # no solute cell
+
+    def test_adsorbate_coverage_orientation_and_both_surfaces(self):
+        from ase.build import fcc111
+        slab = fcc111("Pt", size=(4, 4, 4), vacuum=10, a=3.92)
+        top, bottom = slab.positions[:, 2].max(), slab.positions[:, 2].min()
+        full = run("add-adsorbate O site=fcc coverage=all height=1.2", from_ase(slab)).structure
+        self.assertEqual(len(full.atoms) - len(slab), 16)  # one fcc hollow per surface atom
+        bridges = run("add-adsorbate O site=bridge coverage=all", from_ase(slab)).structure
+        self.assertEqual(len(bridges.atoms) - len(slab), 48)
+        both = run("add-adsorbate O site=top coverage=all surface=both height=2", from_ase(slab)).structure
+        z = positions(both)[len(slab):, 2]
+        self.assertEqual(sorted(set(np.round(z, 9))), [round(bottom - 2, 9), round(top + 2, 9)])
+        sparse = run("add-adsorbate O site=top coverage=fraction fraction=0.25 min_separation=5 seed=3", from_ase(slab)).structure
+        o = positions(sparse)[len(slab):]
+        self.assertEqual(len(o), 4)
+        cell = np.array(slab.cell)
+        for i in range(len(o)):
+            for j in range(i + 1, len(o)):
+                d = o[j] - o[i]
+                f = d @ np.linalg.inv(cell)
+                f[:2] -= np.round(f[:2])
+                self.assertGreaterEqual(np.linalg.norm((f @ cell)[:2]), 5 - 1e-9)
+        tilted = positions(run("add-adsorbate CO site=top height=1.85 tilt=30 azimuth=90", from_ase(slab)).structure)
+        axis = tilted[-1] - tilted[-2]
+        self.assertAlmostEqual(math.degrees(math.acos(axis[2] / np.linalg.norm(axis))), 30, places=6)
+        self.assertAlmostEqual(axis[0], 0, places=9)  # azimuth 90: tilted towards y
+        anchored = positions(run("add-adsorbate CO site=top height=2 anchor=1", from_ase(slab)).structure)
+        self.assertAlmostEqual(anchored[-1][2], top + 2, places=9)  # O (atom 1) at the height
+
+
+@unittest.skipIf(np is None or missing("ase"), "numpy and ase are required")
+class AdvancedEditOptions(unittest.TestCase):
+    def test_euler_rotation_and_sorting(self):
+        water = run("build-molecule H2O vacuum=0").structure
+        turned = run("rotate mode=euler euler=30,40,50 convention=zyz center=origin", water).structure
+        rz = lambda a: np.array([[math.cos(a), -math.sin(a), 0], [math.sin(a), math.cos(a), 0], [0, 0, 1]])
+        ry = lambda a: np.array([[math.cos(a), 0, math.sin(a)], [0, 1, 0], [-math.sin(a), 0, math.cos(a)]])
+        r = rz(math.radians(30)) @ ry(math.radians(40)) @ rz(math.radians(50))
+        np.testing.assert_allclose(positions(turned), positions(water) @ r.T, atol=1e-12)
+        mixed = run("build-packing H2O 4 CO2 2 box=10,10,10 | sort-atoms key=element element_order=O,C").structure
+        self.assertEqual("".join(symbols(mixed)), "O" * 8 + "C" * 2 + "H" * 8)
+        layered = run("build-packing H2O 6 box=10,10,10 | sort-atoms key=element then=z").structure
+        for block in ("H", "O"):
+            z = [p[2] for p, e in zip(positions(layered), symbols(layered)) if e == block]
+            self.assertEqual(z, sorted(z))
+
+    def test_saturation_options(self):
+        from ase.build import diamond100
+        slab = from_ase(diamond100("C", size=(2, 2, 4), vacuum=8))
+        fluorinated = run("saturate-hydrogen terminator=F", slab).structure
+        self.assertEqual(symbols(fluorinated).count("F"), 16)
+        p = positions(fluorinated)
+        f = p[np.array(symbols(fluorinated)) == "F"]
+        c = p[np.array(symbols(fluorinated)) == "C"]
+        self.assertAlmostEqual(np.linalg.norm(f[:, None] - c[None], axis=2).min(axis=1).max(), 0.76 + 0.57, delta=0.02)
+        one = run("saturate-hydrogen max_per_atom=1", slab).structure
+        self.assertEqual(symbols(one).count("H"), 8)
+        long = run("saturate-hydrogen bond_length=1.2", slab).structure
+        h = positions(long)[np.array(symbols(long)) == "H"]
+        np.testing.assert_allclose(np.linalg.norm(h[:, None] - c[None], axis=2).min(axis=1), 1.2, atol=1e-9)
+        top = max(a.z for a in slab.atoms)
+        only_top = run(f"select-expression z>{top - 0.1} | saturate-hydrogen target=selected", slab).structure
+        self.assertEqual(symbols(only_top).count("H"), 8)
+
+    def test_set_geometry_moving_both_sides(self):
+        from ase.build import molecule
+        ethane = from_ase(molecule("C2H6"))
+        stretched = run("set-geometry 0 1 value=1.7 move=both", ethane).structure
+        p, q = positions(stretched), positions(ethane)
+        self.assertAlmostEqual(np.linalg.norm(p[0] - p[1]), 1.7, places=9)
+        np.testing.assert_allclose((p[0] + p[1]) / 2, (q[0] + q[1]) / 2, atol=1e-12)
+        twisted = run("set-geometry 2 0 1 5 value=60 move=both | measure-geometry 2 0 1 5", ethane)
+        self.assertIn("60", notes_of(twisted)[-1])
+
+    def test_per_axis_scaling(self):
+        from ase.build import bulk
+        cu = from_ase(bulk("Cu", "fcc", a=3.6, cubic=True))
+        s = run("scale-cell mode=axes factors=1.02,1.02,0.97", cu).structure
+        np.testing.assert_allclose(np.diag(s.cell), [3.672, 3.672, 3.492], atol=1e-12)
+        frac = positions(s) @ np.linalg.inv(np.array(s.cell))
+        np.testing.assert_allclose(frac, positions(cu) / 3.6, atol=1e-12)
+        fixed = run("scale-cell mode=factor value=1.1 scale_atoms=false", cu).structure
+        np.testing.assert_allclose(positions(fixed), positions(cu))
+
+
+@unittest.skipIf(np is None or missing("ase"), "numpy and ase are required")
+class AdvancedDefects(unittest.TestCase):
+    def test_near_cubic_shapes_and_tolerance(self):
+        from ase.build import bulk
+        cu = from_ase(bulk("Cu", "fcc", a=3.6))
+        sc = run("near-cubic-supercell target_atoms=32 shape=sc", cu).structure
+        metric = np.array(sc.cell) @ np.array(sc.cell).T
+        np.testing.assert_allclose(metric, 7.2 ** 2 * np.eye(3), atol=1e-9)
+        image = run("near-cubic-supercell target_atoms=32 shape=image", cu)
+        self.assertIn("shortest image 7.2 ", notes_of(image)[0])
+        loose = run("near-cubic-supercell target_atoms=30 tolerance=20", cu).structure
+        self.assertEqual(len(loose.atoms), 32)  # 32 makes a perfect cube; 30 cannot
+
+    def test_idpp_keeps_atoms_apart(self):
+        from ase.build import bulk
+        from ase.io import write
+        start = bulk("Cu", "fcc", a=3.6, cubic=True) * (2, 2, 2)
+        del start[0]
+        end = start.copy()
+        end.positions[0] = [0, 0, 0]
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "end.xyz"
+            write(str(path), end, format="extxyz")
+            closest = {}
+            for method in ("linear", "idpp"):
+                p = positions(run(f"interpolate file={path} method={method} fraction=0.5", from_ase(start)).structure)
+                closest[method] = np.linalg.norm(p[0] - p[1:], axis=1).min()
+            self.assertGreater(closest["idpp"], closest["linear"] + 0.05)
+
+    def test_multiple_antisites_and_dumbbells(self):
+        from ase.build import bulk
+        nial = from_ase(bulk("NiAl", "cesiumchloride", a=2.88) * (4, 4, 4))
+        result = run("create-antisite Ni Al count=3 min_separation=6 seed=2", nial)
+        swapped = result.selected_indices
+        self.assertEqual(len(swapped), 6)
+        self.assertEqual(symbols(result.structure).count("Ni"), 64)
+        cu = from_ase(bulk("Cu", "fcc", a=3.6, cubic=True) * (3, 3, 3))
+        result = run("create-frenkel-pair element=Cu interstitial=dumbbell direction=1,0,0 min_distance=5 max_distance=8", cu)
+        s = result.structure
+        self.assertEqual(len(s.atoms), 108)
+        a, b = positions(s)[result.selected_indices]
+        np.testing.assert_allclose(np.abs(b - a), [0.9 * 3.6 / math.sqrt(2), 0, 0], atol=1e-9)
+        with self.assertRaises(PipelineError):
+            run("create-frenkel-pair element=Cu interstitial=dumbbell min_distance=0 max_distance=1", cu)
+
+
+
+def shape_step(script, structure, **parameters):
+    from atomforge.pipeline import Step
+    return Pipeline([Step("build-shape", {"script": script, **parameters})]).run(structure)
+
+
+@unittest.skipIf(np is None or missing("ase"), "numpy and ase are required")
+class ShapeModeller(unittest.TestCase):
+    """build-shape against the same carving done independently with numpy."""
+
+    @classmethod
+    def setUpClass(cls):
+        from ase.build import bulk
+        cls.cell = bulk("Cu", "fcc", a=3.615, cubic=True)
+        cls.crystal = from_ase(cls.cell)
+        # The lattice around the origin, far enough for every shape below.
+        big = cls.cell * (24, 24, 24)
+        big.translate(-12 * 3.615 * np.ones(3))
+        cls.points = big.positions
+
+    def carved(self, script, **parameters):
+        result = shape_step(script, self.crystal, **parameters)
+        s = result.structure
+        self.assertEqual(s.pbc, [False, False, False])
+        return result, positions(s)
+
+    def assertSameAtoms(self, script, inside, **parameters):
+        result, p = self.carved(script, vacuum=0, **parameters)
+        expected = self.points[inside(self.points)]
+        self.assertEqual(len(p), len(expected), script)
+        # Up to the box shift, the atoms are the same.
+        shift = expected.min(axis=0) - p.min(axis=0)
+        mine = np.round(p + shift, 6)
+        theirs = np.round(expected, 6)
+        self.assertEqual(sorted(map(tuple, mine)), sorted(map(tuple, theirs)), script)
+        return result, p
+
+    def test_primitives_match_independent_carving(self):
+        r = np.linalg.norm
+        self.assertSameAtoms("sphere(r = 14.9);", lambda q: r(q, axis=1) <= 14.9)
+        self.assertSameAtoms("sphere(d = 20.1);", lambda q: r(q, axis=1) <= 10.05)
+        self.assertSameAtoms("box(size = [20.1, 12.3, 8.7]);", lambda q: np.all(np.abs(q) <= [10.05, 6.15, 4.35], axis=1))
+        self.assertSameAtoms("box(size = [10.1, 10.1, 10.1], center = false);", lambda q: np.all((q >= 0) & (q <= 10.1), axis=1))
+        self.assertSameAtoms("cylinder(r = 9.1, h = 20.3);", lambda q: (r(q[:, :2], axis=1) <= 9.1) & (np.abs(q[:, 2]) <= 10.15))
+        self.assertSameAtoms("cone(r1 = 10.1, r2 = 2.1, h = 16.1);",
+                             lambda q: (np.abs(q[:, 2]) <= 8.05) & (r(q[:, :2], axis=1) <= 10.1 + (2.1 - 10.1) * (q[:, 2] + 8.05) / 16.1 + 1e-9))
+        self.assertSameAtoms("torus(R = 12.1, r = 4.1);", lambda q: np.hypot(r(q[:, :2], axis=1) - 12.1, q[:, 2]) <= 4.1)
+        self.assertSameAtoms("capsule(r = 5.1, h = 12.1);",
+                             lambda q: r(q - np.stack([0 * q[:, 0], 0 * q[:, 1], np.clip(q[:, 2], -6.05, 6.05)], axis=1), axis=1) <= 5.1)
+        self.assertSameAtoms("ellipsoid(r = [12.1, 8.1, 6.1]);", lambda q: r(q / [12.1, 8.1, 6.1], axis=1) <= 1)
+        # A regular hexagon of circumradius 10.1 (apothem 10.1 cos 30).
+        apothem = 10.1 * math.cos(math.pi / 6)
+        normals = np.array([[math.cos(math.pi / 6 + k * math.pi / 3), math.sin(math.pi / 6 + k * math.pi / 3)] for k in range(6)])
+        self.assertSameAtoms("prism(n = 6, r = 10.1, h = 12.1);",
+                             lambda q: np.all(q[:, :2] @ normals.T <= apothem + 1e-9, axis=1) & (np.abs(q[:, 2]) <= 6.05))
+        self.assertSameAtoms("polygon(points = [[0, 0], [12.1, 0], [0, 9.1]], h = 6.1);",
+                             lambda q: (q[:, 0] >= 0) & (q[:, 1] >= 0) & (q[:, 0] / 12.1 + q[:, 1] / 9.1 <= 1 + 1e-9) & (np.abs(q[:, 2]) <= 3.05))
+
+    def test_booleans_transforms_and_patterns(self):
+        r = np.linalg.norm
+        self.assertSameAtoms("difference() { cylinder(r = 12.1, h = 20.1); cylinder(r = 7.1, h = 22); }",
+                             lambda q: (r(q[:, :2], axis=1) <= 12.1) & (r(q[:, :2], axis=1) > 7.1) & (np.abs(q[:, 2]) <= 10.05))
+        self.assertSameAtoms("intersection() { sphere(r = 12.1); box(size = [30, 30, 10.1]); }",
+                             lambda q: (r(q, axis=1) <= 12.1) & (np.abs(q[:, 2]) <= 5.05))
+        self.assertSameAtoms("union() { translate([-8, 0, 0]) sphere(r = 6.1); translate([8, 0, 0]) sphere(r = 6.1); }",
+                             lambda q: (r(q - [-8, 0, 0], axis=1) <= 6.1) | (r(q - [8, 0, 0], axis=1) <= 6.1))
+        c, s_ = math.cos(math.radians(30)), math.sin(math.radians(30))
+        turn = np.array([[c, -s_, 0], [s_, c, 0], [0, 0, 1]])
+        self.assertSameAtoms("rotate([0, 0, 30]) box(size = [30.1, 8.1, 8.1]);",
+                             lambda q: np.all(np.abs(q @ turn) <= [15.05, 4.05, 4.05], axis=1))
+        self.assertSameAtoms("rotate(a = 30, v = [0, 0, 1]) box(size = [30.1, 8.1, 8.1]);",
+                             lambda q: np.all(np.abs(q @ turn) <= [15.05, 4.05, 4.05], axis=1))
+        self.assertSameAtoms("scale([2, 1, 1]) sphere(r = 6.1);", lambda q: r(q / [2, 1, 1], axis=1) <= 6.1)
+        self.assertSameAtoms("mirror([1, 0, 0]) translate([5, 0, 0]) sphere(r = 4.1);", lambda q: r(q - [-5, 0, 0], axis=1) <= 4.1)
+        self.assertSameAtoms("shell(t = 3) sphere(r = 12.1);", lambda q: (r(q, axis=1) <= 12.1) & (r(q, axis=1) >= 9.1))
+        self.assertSameAtoms("offset(r = 2) sphere(r = 8.1);", lambda q: r(q, axis=1) <= 10.1)
+        self.assertSameAtoms("linear_array(n = 3, step = [14, 0, 0]) sphere(r = 4.1);",
+                             lambda q: np.any([r(q - [14 * k, 0, 0], axis=1) <= 4.1 for k in range(3)], axis=0))
+        self.assertSameAtoms("grid_array(n = [3, 2, 1], step = [12, 12, 0]) sphere(r = 4.1);",
+                             lambda q: np.any([r(q - [12 * i, 12 * j, 0], axis=1) <= 4.1 for i in range(3) for j in range(2)], axis=0))
+        centres = [[16 * math.cos(2 * math.pi * k / 4), 16 * math.sin(2 * math.pi * k / 4), 0] for k in range(4)]
+        self.assertSameAtoms("polar_array(n = 4) translate([16, 0, 0]) sphere(r = 4.1);",
+                             lambda q: np.any([r(q - c_, axis=1) <= 4.1 for c_ in centres], axis=0))
+        # Smooth unions fill the neck between two spheres.
+        _, plain = self.carved("union() { translate([-7, 0, 0]) sphere(r = 6); translate([7, 0, 0]) sphere(r = 6); }")
+        _, smooth = self.carved("smooth_union(k = 4) { translate([-7, 0, 0]) sphere(r = 6); translate([7, 0, 0]) sphere(r = 6); }")
+        self.assertGreater(len(smooth), len(plain))
+        # Variables and arithmetic.
+        self.assertSameAtoms("R = 10; t = R / 5; shell(t = t) sphere(r = R + 0.1);",
+                             lambda q: (r(q, axis=1) <= 10.1) & (r(q, axis=1) >= 8.1))
+
+    def test_crystal_facets(self):
+        family = [np.array(v) / np.linalg.norm(v) for v in
+                  {tuple(s * np.array(p)) for p in [(1, 1, 1), (1, 1, -1), (1, -1, 1), (-1, 1, 1)] for s in (1, -1)}]
+        cube = [np.array(v) for v in [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]]
+        normals = np.array(family + cube)
+        offsets = np.array([12.1] * 8 + [14.1] * 6)
+        self.assertSameAtoms("facets(hkl = [[1, 1, 1], [1, 0, 0]], d = [12.1, 14.1]);",
+                             lambda q: np.all(q @ normals.T <= offsets + 1e-9, axis=1))
+        self.assertSameAtoms("octahedron(d = 10.1);", lambda q: np.abs(q).sum(axis=1) / math.sqrt(3) <= 10.1 + 1e-9)
+        # Miller indices use the reciprocal lattice: (100) of a hexagonal cell is perpendicular to b and c.
+        from ase.build import bulk
+        mg = from_ase(bulk("Mg", "hcp", a=3.21, c=5.21) * (4, 4, 3))
+        result = shape_step("halfspace(hkl = [1, 0, 0], d = 0);", mg, mode="select", anchor="origin")
+        cell = np.array(mg.cell)
+        astar = np.linalg.inv(cell)[:, 0]
+        expected = [i for i, p in enumerate(positions(mg)) if p @ astar / np.linalg.norm(astar) <= 1e-9]
+        self.assertEqual(result.selected_indices, expected)
+
+    def test_regions_assign_elements_without_volume(self):
+        r = np.linalg.norm
+        result, p = self.assertSameAtoms('sphere(r = 14.1); region("Au") sphere(r = 8.1);', lambda q: r(q, axis=1) <= 14.1)
+        s = result.structure
+        gold = np.array(symbols(s)) == "Au"
+        centre = p.mean(axis=0)
+        self.assertEqual(gold.sum(), int((r(self.points, axis=1) <= 8.1).sum()))
+        self.assertLessEqual(r(p[gold] - centre, axis=1).max(), 8.1 + 1e-6)
+        self.assertIn(f"{gold.sum()} Au in regions", notes_of(result)[0])
+        # A region adds no volume: a channel stays open.
+        _, open_channel = self.carved('difference() { sphere(r = 12); cylinder(r = 3, h = 30); } region("Au") sphere(r = 8);')
+        _, plain = self.carved('difference() { sphere(r = 12); cylinder(r = 3, h = 30); }')
+        self.assertEqual(len(open_channel), len(plain))
+        # Janus: an unbounded region; "none" regions remove atoms; nested regions win.
+        janus = shape_step('sphere(r = 12.1); region("Ag") halfspace(normal = [0, 0, -1], d = 0);', self.crystal, vacuum=0).structure
+        z = positions(janus)[:, 2] - positions(janus)[:, 2].mean()
+        silver = np.array(symbols(janus)) == "Ag"
+        self.assertTrue(np.all(z[silver] >= -1e-6) and np.all(z[~silver] <= 1e-6))
+        holed = shape_step('sphere(r = 12.1); region("none") sphere(r = 5.1);', self.crystal).structure
+        self.assertEqual(len(holed.atoms), int(((r(self.points, axis=1) <= 12.1) & (r(self.points, axis=1) > 5.1)).sum()))
+        nested = shape_step('sphere(r = 12.1); region("Ni") sphere(r = 9.1); region("Au") sphere(r = 5.1);', self.crystal).structure
+        counts = {e: symbols(nested).count(e) for e in ("Cu", "Ni", "Au")}
+        self.assertEqual(counts["Au"], int((r(self.points, axis=1) <= 5.1).sum()))
+        self.assertEqual(counts["Ni"], int(((r(self.points, axis=1) <= 9.1) & (r(self.points, axis=1) > 5.1)).sum()))
+
+    def test_modes_on_the_structure_itself(self):
+        from ase.build import bulk
+        block = from_ase(bulk("Cu", "fcc", a=3.615, cubic=True) * (6, 6, 6))
+        centre = np.array(block.cell).sum(axis=0) / 2
+        inside = np.linalg.norm(positions(block) - centre, axis=1) <= 5.1
+        void = shape_step("sphere(r = 5.1);", block, mode="delete").structure
+        self.assertEqual(len(void.atoms), len(block.atoms) - inside.sum())
+        self.assertEqual(void.cell, block.cell)  # still the periodic crystal
+        kept = shape_step('sphere(r = 5.1); region("Au") sphere(r = 2.6);', block, mode="keep").structure
+        self.assertEqual(len(kept.atoms), inside.sum())
+        self.assertEqual(symbols(kept).count("Au"), int((np.linalg.norm(positions(block) - centre, axis=1) <= 2.6).sum()))
+        selected = shape_step("sphere(r = 5.1);", block, mode="select").selected_indices
+        self.assertEqual(selected, list(np.flatnonzero(inside)))
+        moved = shape_step("sphere(r = 5.1);", block, mode="select", anchor="origin", position=list(centre)).selected_indices
+        self.assertEqual(moved, selected)
+
+    def test_errors_name_the_line(self):
+        cases = {
+            "sphere(r = 10;": "line 1",
+            "R = 5;\nfoo(1);": "line 2: unknown command 'foo'",
+            "sphere(radius = 3);": "no argument 'radius'",
+            "translate([1, 2, 3]);": "needs shapes",
+            "sphere(r = x);": "unknown variable 'x'",
+            'region("Au") sphere(r = 3);': "only regions",
+            "box(size = [1, -1, 1]);": "size must be positive",
+        }
+        for script, message in cases.items():
+            with self.assertRaises(PipelineError) as raised:
+                shape_step(script, self.crystal)
+            self.assertIn(message, str(raised.exception), script)
+        with self.assertRaises(PipelineError) as raised:
+            shape_step("halfspace(normal = [0, 0, 1], d = 0);", self.crystal)
+        self.assertIn("unbounded", str(raised.exception))
+        with self.assertRaises(PipelineError) as raised:
+            shape_step("sphere(r = 200);", self.crystal, max_atoms=1000)
+        self.assertIn("max_atoms", str(raised.exception))
+
+    def test_text_pipelines_and_surface_mesh(self):
+        result = run("build-shape script='R = 9; sphere(r = R); region(\"Au\") sphere(r = 5);'", self.crystal)
+        self.assertIn("Au", symbols(result.structure))
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "ball.obj"
+            shape_step("sphere(r = 10);", self.crystal, mesh_file=str(path), mesh_spacing=0.5)
+            lines = path.read_text().splitlines()
+            vertices = np.array([[float(x) for x in line.split()[1:4]] for line in lines if line.startswith("v ")])
+            faces = [line for line in lines if line.startswith("f ")]
+            self.assertGreater(len(faces), 1000)
+            radii = np.linalg.norm(vertices - vertices.mean(axis=0), axis=1)
+            self.assertLess(np.abs(radii - 10).max(), 0.3)
+            # A closed surface: every edge is shared by two triangles.
+            edges = {}
+            for f in faces:
+                a, b, c = (int(x) for x in f.split()[1:4])
+                for e in ((a, b), (b, c), (c, a)):
+                    key = tuple(sorted(e))
+                    edges[key] = edges.get(key, 0) + 1
+            self.assertTrue(all(n == 2 for n in edges.values()))
+
+
 if __name__ == "__main__":
     unittest.main()

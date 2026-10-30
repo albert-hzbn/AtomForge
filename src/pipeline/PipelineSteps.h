@@ -20,4 +20,6 @@ std::vector<ModifierType> generatorStepTypes();
 // Mirror, rotation, alignment, sorting, hydrogen saturation, bond geometry,
 // duplication, Niggli reduction, scaling, swaps, unwrapping, fragments (EditSteps.cpp).
 std::vector<ModifierType> editStepTypes();
+// The Shape Modeller: crystals carved into CAD-modelled shapes (ShapeSteps.cpp).
+std::vector<ModifierType> shapeStepTypes();
 }
