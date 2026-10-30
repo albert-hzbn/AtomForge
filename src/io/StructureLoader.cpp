@@ -1,3 +1,4 @@
+#include "io/SimulationFormats.h"
 #include "StructureLoader.h"
 #include "math/StructureMath.h"
 
@@ -1227,7 +1228,10 @@ bool isSupportedExtension(const std::string& extLower)
         ".gjf",
         ".extxyz",
         ".data",
-        ".lmp"
+        ".lmp",
+        ".xsf",
+        ".gen",
+        ".cell"
     };
 
     for (std::size_t i = 0; i < sizeof(kSupportedExtensions) / sizeof(kSupportedExtensions[0]); ++i)
@@ -1240,7 +1244,8 @@ bool isSupportedExtension(const std::string& extLower)
 
 std::string supportedExtensionsSummary()
 {
-    return ".cif, .xyz, .extxyz, .vasp (or POSCAR/CONTCAR), .data/.lmp (LAMMPS data), .pdb, .mol, .mol2, .sdf, .pwi, .gjf";
+    return ".cif, .xyz, .extxyz, .vasp (or POSCAR/CONTCAR), .data/.lmp (LAMMPS data), .pdb, .mol, .mol2, .sdf, .pwi, .gjf, "
+           ".xsf, .gen (DFTB+), .cell (CASTEP)";
 }
 
 bool filenameIsPoscarOrContcar(const std::string& filename)
@@ -2813,6 +2818,18 @@ bool loadStructureFromFile(const std::string& filename, Structure& structure, st
         return finishLoadedStructure(filename, structure, errorMessage);
     }
 
+    // Simulation-code inputs read natively (pw.x input with another ibrav falls back to Open Babel).
+    if (extLower == ".xsf" || extLower == ".gen" || extLower == ".cell" || extLower == ".pwi")
+    {
+        std::ifstream in(filename, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        if (atomforge::io::readSimulationFormat(text, extLower.substr(1), structure, errorMessage))
+            return finishLoadedStructure(filename, structure, errorMessage);
+        if (extLower != ".pwi") return false;
+        structure = Structure();
+        errorMessage.clear();
+    }
+
     ensureOpenBabelPlugins();
 
     ScopedObWarningSilencer silenceWarnings;
@@ -3005,6 +3022,25 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
     }
 
     if (formatLower == "extxyz") formatLower = "xyz";
+
+    // Inputs of simulation codes (Quantum ESPRESSO, CASTEP, DFTB+, XCrySDen, CP2K).
+    if (atomforge::io::isSimulationFormat(formatLower))
+    {
+        std::ofstream out(filename, std::ios::binary);
+        if (!out)
+        {
+            g_lastSaveError = "Could not open " + filename + " for writing.";
+            return false;
+        }
+        std::string error;
+        if (!atomforge::io::writeSimulationFormat(structure, formatLower, out, error))
+        {
+            g_lastSaveError = error;
+            return false;
+        }
+        g_lastSaveError.clear();
+        return true;
+    }
 
     // CIF is written here, in P1 with the cell as lengths and angles and
     // fractional coordinates to twelve decimals (Open Babel keeps five, which

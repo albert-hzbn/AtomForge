@@ -199,9 +199,23 @@ void assignElement(const Json& p, PipelineData& data)
 
 void displace(const Json& p, PipelineData& data)
 {
-    const Vec3 shift = vector(p, "displace", "vector");
+    Vec3 shift = vector(p, "displace", "vector");
+    Structure& s = data.structure;
+    if (flag(p, "displace", "fractional")) {
+        requireCell(data, "A fractional displacement");
+        shift = science::rowTimes(shift, cellOf(s));
+    }
     for (std::size_t i : targets(data, text(p, "displace", "target") == "selected", "displace"))
-        place(data.structure.atoms[i], science::add(positionOf(data.structure.atoms[i]), shift));
+        place(s.atoms[i], science::add(positionOf(s.atoms[i]), shift));
+    if (flag(p, "displace", "wrap") && s.hasUnitCell) {
+        const Mat3 cell = cellOf(s), inverse = science::inverse(cell);
+        for (auto& a : s.atoms) {
+            Vec3 f = science::rowTimes(science::sub(positionOf(a), s.cellOffset), inverse);
+            for (std::size_t k = 0; k < 3; ++k)
+                if (s.pbc[k]) f[k] -= std::floor(f[k]);
+            place(a, science::add(science::rowTimes(f, cell), s.cellOffset));
+        }
+    }
 }
 
 void randomDisplacement(const Json& p, PipelineData& data)
@@ -694,8 +708,10 @@ std::vector<ModifierType>& registry()
          {{"axes", "Fixed coordinates", "choice", "xyz", "xyz|xy|xz|yz|x|y|z"}, {"target", "Atoms", "choice", "selected", "selected|all"}}, fixAtoms},
         {"free-atoms", "Free atoms", "Modification", "Lets the selected (or all) atoms move along every coordinate again.",
          {{"target", "Atoms", "choice", "selected", "selected|all"}}, freeAtoms},
-        {"displace", "Displace", "Modification", "Moves atoms by a fixed vector.",
-         {{"vector", "Displacement (Angstrom)", "vector", "0 0 0", ""}, {"target", "Atoms", "choice", "all", "all|selected"}}, displace},
+        {"displace", "Displace", "Modification",
+         "Moves atoms by a fixed vector, in Angstrom or in fractions of the cell vectors (shifting the origin); optionally wraps them into the cell.",
+         {{"vector", "Displacement (Angstrom, or fractional)", "vector", "0 0 0", ""}, {"target", "Atoms", "choice", "all", "all|selected"},
+          {"fractional", "Fractional displacement", "bool", "false", ""}, {"wrap", "Wrap into the cell", "bool", "false", ""}}, displace},
         {"random-displacement", "Random displacement", "Modification", "Adds Gaussian displacements (standard deviation per component), reproducibly for a seed.",
          {{"amplitude", "Standard deviation (Angstrom)", "float", "0.05", ""}, {"seed", "Seed", "int", "1", ""}, {"target", "Atoms", "choice", "all", "all|selected"}}, randomDisplacement},
         {"add-atom", "Add atom", "Modification", "Adds one atom at a Cartesian (Angstrom) or fractional position.",
@@ -737,6 +753,8 @@ std::vector<ModifierType>& registry()
         // Analysis
         };
         for (auto& type : analysisStepTypes()) builtIn.push_back(std::move(type));
+        for (auto& type : generatorStepTypes()) builtIn.push_back(std::move(type));
+        for (auto& type : editStepTypes()) builtIn.push_back(std::move(type));
         builtIn.push_back(pythonScriptStepType());
         for (auto& type : scienceStepTypes()) builtIn.push_back(std::move(type));
         // Menus list steps by category in this order, each category together.

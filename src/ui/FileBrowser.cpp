@@ -54,6 +54,10 @@ static const SaveFormat kSaveFormats[] = {
     { "SDF (.sdf)",               ".sdf",  "sdf"   },
     { "Mol2 (.mol2)",             ".mol2", "mol2"  },
     { "Quantum ESPRESSO (.pwi)",  ".pwi",  "pwscf" },
+    { "CASTEP Cell (.cell)",      ".cell", "cell"  },
+    { "DFTB+ (.gen)",             ".gen",  "gen"   },
+    { "XCrySDen (.xsf)",          ".xsf",  "xsf"   },
+    { "CP2K SUBSYS (.cp2k)",      ".cp2k", "cp2k"  },
     { "Gaussian Input (.gjf)",    ".gjf",  "gjf"   },
 };
 static constexpr int kNumSaveFormats = (int)(sizeof(kSaveFormats) / sizeof(kSaveFormats[0]));
@@ -715,6 +719,11 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
             operationDialog.drawMenuItems("Edit", "Structure Operations", !structure.atoms.empty());
             ImGui::EndMenu();
         }
+        for (const char* submenu : {"Geometry", "Cell", "Chemistry and Defects"})
+            if (ImGui::BeginMenu(submenu)) {
+                operationDialog.drawMenuItems("Edit", submenu, !structure.atoms.empty());
+                ImGui::EndMenu();
+            }
         if (ImGui::BeginMenu("Select Atoms")) {
             operationDialog.drawMenuItems("Edit", "Select Atoms", !structure.atoms.empty());
             ImGui::EndMenu();
@@ -742,6 +751,11 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
         amorphousBuilderDialog.drawMenuItem(true);
         ImGui::Separator();
         operationDialog.drawMenuItems("Build", "", !structure.atoms.empty());
+        for (const char* submenu : {"Low-Dimensional", "Clusters and Molecules"})
+            if (ImGui::BeginMenu(submenu)) {
+                operationDialog.drawMenuItems("Build", submenu, !structure.atoms.empty());
+                ImGui::EndMenu();
+            }
         ImGui::EndMenu();
     }
 

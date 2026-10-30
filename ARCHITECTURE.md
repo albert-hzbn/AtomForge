@@ -10,6 +10,14 @@
   `EditMenuDialogs::display`. Both renderers and image export read it through
   `buildFrameView` (light direction), `SceneBuffers::bondStyle` and the scene
   colours; it is tested in `tests/display_settings.cpp`.
+- `src/pipeline/GeneratorSteps.cpp` (nanotubes, 2D layers, ribbons, twisted
+  bilayers, clusters, molecules, packings, adsorbates, point defects, near-cubic
+  supercells, interpolation) and `EditSteps.cpp` (mirror, rotation, alignment,
+  sorting, hydrogen saturation, bond geometry, Niggli reduction, scaling,
+  fragments) are pipeline step families; `MoleculeLibrary` and
+  `StructureEdits` (covalent bonds, hydrogen saturation, rotations) are shared
+  by them. `src/io/SimulationFormats.*` reads and writes the inputs of Quantum
+  ESPRESSO, CASTEP, DFTB+, XCrySDen and CP2K natively.
 - `src/util/ElementData.*` owns element names, radii, masses, and default colors.
 - `src/algorithms/` owns structure generation and scientific calculations.
   CNA and RDF expose typed parameter/result objects in `atomforge::analysis`.

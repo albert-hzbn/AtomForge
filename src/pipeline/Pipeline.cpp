@@ -282,7 +282,7 @@ Pipeline Pipeline::parse(const std::string& text)
         std::size_t positional = 0;
         std::vector<std::string> pending;  // positional tokens
         std::set<std::string> named;       // parameters given as name=value
-        const auto takesRest = [](const std::string& kind) { return kind == "expression" || kind == "elements" || kind == "options"; };
+        const auto takesRest = [](const std::string& kind) { return kind == "expression" || kind == "elements" || kind == "options" || kind == "list"; };
         // The rest of the step as one value; words that were quoted (they
         // contain spaces) keep their quotes (command-line options only: there
         // quotes group a flag's value).

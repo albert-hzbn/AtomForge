@@ -38,6 +38,10 @@ add_library(atomforge_science STATIC
     ${PROJECT_SOURCE_DIR}/src/pipeline/ModifierSupport.cpp
     ${PROJECT_SOURCE_DIR}/src/pipeline/AnalysisSteps.cpp
     ${PROJECT_SOURCE_DIR}/src/pipeline/PythonScriptStep.cpp
+    ${PROJECT_SOURCE_DIR}/src/pipeline/MoleculeLibrary.cpp
+    ${PROJECT_SOURCE_DIR}/src/pipeline/StructureEdits.cpp
+    ${PROJECT_SOURCE_DIR}/src/pipeline/GeneratorSteps.cpp
+    ${PROJECT_SOURCE_DIR}/src/pipeline/EditSteps.cpp
     ${PROJECT_SOURCE_DIR}/src/pipeline/Expression.cpp
     ${PROJECT_SOURCE_DIR}/src/pipeline/PipelineEditor.cpp
     # Out-of-core atom clouds (billions of atoms) for the large-data renderer.

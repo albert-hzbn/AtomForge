@@ -13,4 +13,11 @@ namespace atomforge::pipeline
 std::vector<ModifierType> analysisStepTypes();
 // Runs a user's Python script on the structure.
 ModifierType pythonScriptStepType();
+// Builders from parameters (nanotubes, 2D layers, ribbons, twisted bilayers,
+// clusters, molecules, packings), adsorbates, point defects, near-cubic
+// supercells and interpolation (GeneratorSteps.cpp).
+std::vector<ModifierType> generatorStepTypes();
+// Mirror, rotation, alignment, sorting, hydrogen saturation, bond geometry,
+// duplication, Niggli reduction, scaling, swaps, unwrapping, fragments (EditSteps.cpp).
+std::vector<ModifierType> editStepTypes();
 }

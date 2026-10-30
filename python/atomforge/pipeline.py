@@ -112,6 +112,12 @@ def _is_native(step_type: str) -> bool:
     return any(t["id"] == step_type for t in _native_modifiers())
 
 
+def _is_command_builder(step_type: str) -> bool:
+    """A Build or Edit step of the AtomForge executable, taking command-line flags
+    as one option text (the native builders such as build-nanotube take parameters)."""
+    return step_type.startswith("build-") and not _is_native(step_type)
+
+
 # ---------------------------------------------------------------- steps and pipelines
 class Step:
     """One pipeline step: modifier ``type``, ``parameters`` (dict), ``enabled`` and an optional ``label``."""
@@ -157,7 +163,7 @@ def _quote(word: str) -> str:
 def _make_step(step_type: str, args: Sequence[Any], params: Dict[str, Any]) -> Step:
     """A step from positional and keyword values, with the same rules as the text syntax."""
     params = {k: _values(v) for k, v in params.items()}
-    if step_type.startswith("build-"):
+    if _is_command_builder(step_type):
         # Build and Edit steps take their command-line flags as one option text.
         if args:
             params["options"] = " ".join(str(a) for a in args)
@@ -196,7 +202,7 @@ class Pipeline:
             if not words:
                 continue
             step_type, _, rest = words.partition(" ")
-            if step_type.startswith("build-"):
+            if _is_command_builder(step_type):
                 # "build-nano --radius 12" or "build-nano options=--radius 12" (or quoted).
                 options = rest.strip()
                 if options.startswith("options="):
@@ -305,7 +311,7 @@ class Pipeline:
         for step in self.steps:
             if not step.enabled:
                 continue
-            if step.type.startswith("build-"):
+            if _is_command_builder(step.type):
                 parts.append((step.type + " " + str(step.parameters.get("options", ""))).strip())
             else:
                 parts.append(_call("afs_pipeline_text", json.dumps({"modifiers": [step.to_json()]}).encode("utf-8")))

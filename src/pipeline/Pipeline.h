@@ -32,7 +32,8 @@ struct PipelineData
 
 // Parameter kinds: int, float, bool, vector (3 numbers), ivec3 (3 integers),
 // string, element (one symbol), elements (a list; takes the rest of its step in
-// the text syntax), expression (likewise), options (command-line flags; likewise),
+// the text syntax), list (words such as atom indices; likewise), expression
+// (likewise), options (command-line flags; likewise),
 // choice (one of `options`, '|'-separated).
 struct ModifierParameter
 {

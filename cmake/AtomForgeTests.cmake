@@ -17,6 +17,10 @@ add_executable(atomforge_display_settings_tests ${PROJECT_SOURCE_DIR}/tests/disp
 target_link_libraries(atomforge_display_settings_tests PRIVATE AtomForge::Core)
 add_test(NAME display_settings COMMAND atomforge_display_settings_tests)
 
+add_executable(atomforge_simulation_formats_tests ${PROJECT_SOURCE_DIR}/tests/simulation_formats.cpp)
+target_link_libraries(atomforge_simulation_formats_tests PRIVATE AtomForge::Core)
+add_test(NAME simulation_formats COMMAND atomforge_simulation_formats_tests)
+
 add_executable(atomforge_undo_history_tests ${PROJECT_SOURCE_DIR}/tests/undo_history.cpp)
 target_link_libraries(atomforge_undo_history_tests PRIVATE AtomForge::Core)
 add_test(NAME undo_history COMMAND atomforge_undo_history_tests)

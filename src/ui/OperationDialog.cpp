@@ -9,6 +9,7 @@
 #include <cfloat>
 #include <cstdio>
 #include <cstring>
+#include <set>
 #include <stdexcept>
 
 using atomforge::pipeline::Json;
@@ -21,7 +22,9 @@ void OperationDialog::drawMenuItems(const char* menu, const char* submenu, bool 
         const ModifierType* type = atomforge::pipeline::findModifierType(location.step);
         if (!type) continue;  // e.g. Build steps in a build without the command-line builders
         // Builders that make a structure need nothing loaded; the rest work on one.
-        const bool needsStructure = std::string(location.step) != "build-bulk";
+        static const std::set<std::string> fromNothing = {"build-bulk", "build-nanotube", "build-monolayer", "build-nanoribbon",
+                                                          "build-twisted-bilayer", "build-cluster", "build-molecule", "build-packing"};
+        const bool needsStructure = !fromNothing.count(location.step);
         if (ImGui::MenuItem(location.label, nullptr, m_open && m_step == location.step, hasStructure || !needsStructure)) open(location.step);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
             const std::string help = type->help;

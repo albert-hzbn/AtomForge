@@ -108,7 +108,10 @@ AFS_API char* afs_pipeline_run(const char* request, int* status)
         const Json& definition = input.at("pipeline");
         const auto pipeline = definition.isString() ? atomforge::pipeline::Pipeline::parse(definition.string())
                                                     : atomforge::pipeline::Pipeline::fromJson(definition);
-        Structure structure = atomforge::science::structureFromJson(input.at("structure"));
+        // An empty input (no atoms) is valid: builders start from nothing.
+        const Json& given = input.at("structure");
+        const Json* symbols = given.isObject() ? given.find("symbols") : nullptr;
+        Structure structure = symbols && symbols->isArray() && symbols->size() == 0 ? Structure() : atomforge::science::structureFromJson(given);
         if (const Json* property = input.find("property"); property && property->isArray() && property->size()) {
             if (property->size() != structure.atoms.size()) throw std::runtime_error("property needs one value per atom");
             for (const auto& value : property->items()) structure.atomProperty.push_back(value.isNumber() ? value.number() : std::nan(""));

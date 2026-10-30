@@ -268,7 +268,8 @@ void drawModifierParameters(const atomforge::pipeline::ModifierType& type, const
             std::snprintf(buffer, sizeof(buffer), "%s", value.string().c_str());
             const char* hint = kind == "expression" ? "e.g. fz > 0.5 && element == O"
                              : kind == "options" ? "command-line flags, e.g. --count 4"
-                             : kind == "elements" ? "e.g. Cu Ni" : "";
+                             : kind == "elements" ? "e.g. Cu Ni"
+                             : kind == "list" ? "words separated by spaces" : "";
             if (ImGui::InputTextWithHint("##value", hint, buffer, sizeof(buffer))) changed(p.name, Json(std::string(buffer)));
         }
         ImGui::PopID();
