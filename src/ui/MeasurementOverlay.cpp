@@ -394,7 +394,11 @@ int appendInfo(MeasurementOverlayState& state, int length, const char* format, A
 {
     const int room = static_cast<int>(sizeof(state.atomInfoMessage)) - length;
     if (room <= 1) return 0;
-    const int written = std::snprintf(state.atomInfoMessage + length, static_cast<std::size_t>(room), format, args...);
+    int written = 0;
+    if constexpr (sizeof...(Args) == 0)
+        written = std::snprintf(state.atomInfoMessage + length, static_cast<std::size_t>(room), "%s", format);  // plain text
+    else
+        written = std::snprintf(state.atomInfoMessage + length, static_cast<std::size_t>(room), format, args...);
     return written < 0 ? 0 : std::min(written, room - 1);
 }
 }
