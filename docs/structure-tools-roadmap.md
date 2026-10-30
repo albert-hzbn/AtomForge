@@ -64,8 +64,31 @@ near-cubic supercells; and against exact invariants) and
 | D4 | XCrySDen `.xsf` | done |
 | D5 | CP2K `&SUBSYS` (`.cp2k`) | done |
 
-## Beyond this round
+## Per-atom simulation data, stacking, measurement and databases
 
-Online structure databases (COD, Materials Project) need network access and
-accounts; per-atom magnetic moments and charges for input files need new
-per-atom data in projects. They are recorded here and left for a later round.
+A second pass over the same tools found these further gaps.
+
+| # | Feature | Reference | Status |
+|---|---------|-----------|--------|
+| E1 | Initial magnetic moments per atom: set by selection (antiferromagnetic orders), kept in projects and edits; extended XYZ `initial_magmoms`, CASTEP `SPIN=`, Quantum ESPRESSO species per moment with `nspin = 2`, VASP `MAGMOM` line in the notes | ASE, VESTA, pymatgen | done |
+| E2 | Charges per atom: LAMMPS data in the charge style (read and written), extended XYZ `initial_charges`, total charge reported | ASE, Atomsk | done |
+| E3 | Maxwell-Boltzmann velocities at a temperature (no net momentum, exact kinetic temperature): LAMMPS `Velocities` (read and written), extended XYZ `velo` | ASE `MaxwellBoltzmannDistribution`, LAMMPS `velocity create` | done |
+| E4 | Stacking layers into heterostructures and multilayers (gap, in-plane strain to the substrate reported) | Atomsk `-merge`, heterostructure builders | done |
+| E5 | Interactive dihedral measurement (View > Measure Dihedral, the atom context menu, the command palette) | VESTA, Avogadro | done |
+| E6 | Downloads from the Crystallography Open Database and the Materials Project (with its magnetic moments), as `atomforge.databases` and `python -m atomforge.databases` | ASE, pymatgen `MPRester` | done (Python; the desktop opens the downloaded file) |
+| E7 | Expressions: a remainder operator (`index % 2` for sublattices) and the variables `magmom`, `charge`, `vx`, `vy`, `vz` | OVITO expressions | done |
+| E8 | Fixes found on the way: Python's XYZ writer always wrote `pbc="T T T"`; the Python bridge dropped fixed (selective dynamics) flags; Atom Info could write past its text buffer | | done |
+
+Tests: `python/tests/test_structure_data.py` (antiferromagnetic orders, data through
+edits, neutrality, the Maxwell-Boltzmann distribution and temperature, Python and
+ASE extended XYZ, C++ LAMMPS and XYZ round trips, CASTEP and QE output, a graphene
+on MoS2 heterostructure, database downloads with the network mocked),
+`tests/simulation_formats.cpp`, `tests/workspace_regressions.cpp` (project format 7)
+and `tests/pipeline_regressions.cpp` (the new operator and variables).
+
+## Not planned
+
+Desktop-side downloads would need an HTTP client in the C++ application; the
+Python module covers them and the desktop opens the result. Polymer and
+protein builders, isotopes and per-atom masses are outside the scope of a
+crystal and nanostructure editor.

@@ -20,6 +20,10 @@ class Atom:
     grain_region: Optional[int] = field(default=None, repr=False)
     #: Coordinates held fixed in a relaxation (POSCAR selective dynamics), (x, y, z).
     fixed: tuple = field(default=(False, False, False), repr=False)
+    #: Initial magnetic moment (Bohr magnetons), charge (e) and velocity (Angstrom/fs).
+    magmom: float = field(default=0.0, repr=False)
+    charge: float = field(default=0.0, repr=False)
+    velocity: tuple = field(default=(0.0, 0.0, 0.0), repr=False)
 
     def __repr__(self) -> str:
         return f"Atom({self.symbol!r}, x={self.x:.4f}, y={self.y:.4f}, z={self.z:.4f})"

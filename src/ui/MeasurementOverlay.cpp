@@ -359,6 +359,18 @@ std::vector<int> nearestImages(const std::vector<int>& selected, const SceneBuff
                 if (const float d = glm::length(buffers.atomPositions[a] - buffers.atomPositions[b]); d < bestDistance) { bestDistance = d; best = {a, b}; }
         return best;
     }
+    if (count == 4) {
+        // A dihedral: a chain, each atom's image nearest the one before it.
+        std::vector<int> chain{images[0].front()};
+        for (std::size_t k = 1; k < count; ++k) {
+            int best = images[k].front();
+            float bestDistance = FLT_MAX;
+            for (int i : images[k])
+                if (const float d = glm::length(buffers.atomPositions[i] - buffers.atomPositions[chain.back()]); d < bestDistance) { bestDistance = d; best = i; }
+            chain.push_back(best);
+        }
+        return chain;
+    }
     const std::size_t anchor = count == 3 ? 1 : 0;  // an angle's vertex
     const glm::vec3 centre = buffers.atomPositions[images[anchor].front()];
     std::vector<int> result;
@@ -374,9 +386,23 @@ std::vector<int> nearestImages(const std::vector<int>& selected, const SceneBuff
 }
 } // namespace
 
+namespace
+{
+// Appends to the Atom Info text; the length stays within the buffer when a line is cut.
+template <typename... Args>
+int appendInfo(MeasurementOverlayState& state, int length, const char* format, Args... args)
+{
+    const int room = static_cast<int>(sizeof(state.atomInfoMessage)) - length;
+    if (room <= 1) return 0;
+    const int written = std::snprintf(state.atomInfoMessage + length, static_cast<std::size_t>(room), format, args...);
+    return written < 0 ? 0 : std::min(written, room - 1);
+}
+}
+
 void processMeasurementRequests(MeasurementOverlayState& state,
                                 bool requestMeasureDistance,
                                 bool requestMeasureAngle,
+                                bool requestMeasureDihedral,
                                 bool requestAtomInfo,
                                 const std::vector<int>& selectedInstanceIndices,
                                 const SceneBuffers& sceneBuffers,
@@ -494,6 +520,41 @@ void processMeasurementRequests(MeasurementOverlayState& state,
         state.showAnglePopup = true;
     }
 
+    if (requestMeasureDihedral)
+    {
+        const std::vector<int> four = nearestImages(selectedInstanceIndices, sceneBuffers, 4);
+        state.dihedralValue[0] = '\0';
+        bool ok = four.size() == 4;
+        for (int idx : four) ok = ok && idx >= 0 && idx < (int)sceneBuffers.atomPositions.size();
+        if (!ok)
+            std::snprintf(state.dihedralMessage, sizeof(state.dihedralMessage), "Select exactly 4 atoms (in order along the chain) to measure a dihedral.");
+        else
+        {
+            // In double precision: b1 = p1 - p0, b2 = p2 - p1, b3 = p3 - p2.
+            glm::dvec3 p[4];
+            for (int k = 0; k < 4; ++k) p[k] = glm::dvec3(sceneBuffers.atomPositions[four[(std::size_t)k]]);
+            const glm::dvec3 b1 = p[1] - p[0], b2 = p[2] - p[1], b3 = p[3] - p[2];
+            const glm::dvec3 n1 = glm::cross(b1, b2), n2 = glm::cross(b2, b3);
+            if (glm::length(n1) < 1e-9 || glm::length(n2) < 1e-9)
+                std::snprintf(state.dihedralMessage, sizeof(state.dihedralMessage), "Three of the atoms are on a line: the dihedral is undefined.");
+            else
+            {
+                const glm::dvec3 m = glm::cross(n1, glm::normalize(b2));
+                const double degrees = glm::degrees(std::atan2(glm::dot(m, n2), glm::dot(n1, n2)));
+                std::string atoms;
+                for (int k = 0; k < 4; ++k)
+                {
+                    const int base = four[(std::size_t)k] < (int)sceneBuffers.atomIndices.size() ? sceneBuffers.atomIndices[four[(std::size_t)k]] : -1;
+                    const char* symbol = base >= 0 && base < (int)structure.atoms.size() ? structure.atoms[(std::size_t)base].symbol.c_str() : "?";
+                    atoms += std::string(k ? ", " : "") + symbol + " #" + std::to_string(base);
+                }
+                std::snprintf(state.dihedralMessage, sizeof(state.dihedralMessage), "%s", atoms.c_str());
+                std::snprintf(state.dihedralValue, sizeof(state.dihedralValue), "%.2f\xc2\xb0", degrees);
+            }
+        }
+        state.showDihedralPopup = true;
+    }
+
     if (requestAtomInfo)
     {
         const std::vector<int> single = nearestImages(selectedInstanceIndices, sceneBuffers, 1);
@@ -521,23 +582,32 @@ void processMeasurementRequests(MeasurementOverlayState& state,
                 if (baseIdx >= 0 && baseIdx < (int)structure.atoms.size())
                 {
                     const AtomSite& atom = structure.atoms[baseIdx];
-                    len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                    len += appendInfo(state, len,
                                          "Element:  %s (%s)\n",
                                          elementName(atom.atomicNumber), atom.symbol.c_str());
-                    len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                    len += appendInfo(state, len,
                                          "Atomic number:  %d\n", atom.atomicNumber);
-                    len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                    len += appendInfo(state, len,
                                          "Index:  #%d\n", baseIdx);
                     if (atom.fixed)
-                        len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                        len += appendInfo(state, len,
                                              "Fixed:  %s%s%s (selective dynamics)\n",
                                              atom.fixed & 1 ? "x" : "", atom.fixed & 2 ? "y" : "", atom.fixed & 4 ? "z" : "");
+                    if (atom.magmom != 0)
+                        len += appendInfo(state, len,
+                                             "Magnetic moment:  %.4g \xce\xbc" "B\n", atom.magmom);
+                    if (atom.charge != 0)
+                        len += appendInfo(state, len,
+                                             "Charge:  %.4g e\n", atom.charge);
+                    if (atom.velocity[0] != 0 || atom.velocity[1] != 0 || atom.velocity[2] != 0)
+                        len += appendInfo(state, len,
+                                             "Velocity:  (%.5g, %.5g, %.5g) \xc3\x85/fs\n", atom.velocity[0], atom.velocity[1], atom.velocity[2]);
                 }
 
                 // Positions come from the float render buffers: five decimals,
                 // and rounding noise ("-0.00000") as zero.
                 const auto shown = [](float v) { return std::abs(v) < 5e-6f ? 0.0f : v; };
-                len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                len += appendInfo(state, len,
                                      "Cartesian:  (%.5f, %.5f, %.5f) \xc3\x85\n",
                                      shown(pos.x), shown(pos.y), shown(pos.z));
 
@@ -551,7 +621,7 @@ void processMeasurementRequests(MeasurementOverlayState& state,
                                          (float)structure.cellOffset[1],
                                          (float)structure.cellOffset[2]);
                         glm::vec3 frac = invCellMat * (pos - origin);
-                        std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                        appendInfo(state, len,
                                       "Direct:  (%.5f, %.5f, %.5f)",
                                       shown(frac.x), shown(frac.y), shown(frac.z));
                         len = (int)std::strlen(state.atomInfoMessage);
@@ -559,29 +629,29 @@ void processMeasurementRequests(MeasurementOverlayState& state,
                 }
 
                 BondStats stats = computeBondStatsForAtom(idx, baseIdx, sceneBuffers, structure, elementRadii);
-                len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                len += appendInfo(state, len,
                                      "\nCoordination number:  %d\n",
                                      stats.coordinationNumber);
 
                 if (stats.coordinationNumber > 0)
                 {
-                    len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                    len += appendInfo(state, len,
                                          "Avg bond length:  %.4f \xc3\x85\n",
                                          stats.averageDistance);
-                    len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                    len += appendInfo(state, len,
                                          "Min bond length:  %.4f \xc3\x85\n",
                                          stats.minDistance);
-                    len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                    len += appendInfo(state, len,
                                          "Max bond length:  %.4f \xc3\x85",
                                          stats.maxDistance);
                 }
                 else
                 {
-                    len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                    len += appendInfo(state, len,
                                          "Avg bond length:  N/A\n");
-                    len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                    len += appendInfo(state, len,
                                          "Min bond length:  N/A\n");
-                    len += std::snprintf(state.atomInfoMessage + len, sizeof(state.atomInfoMessage) - len,
+                    len += appendInfo(state, len,
                                          "Max bond length:  N/A");
                 }
             }
@@ -632,9 +702,12 @@ void drawMeasurementPopups(MeasurementOverlayState& state)
 {
     if (state.showDistancePopup) { state.distanceCardOpen = true; state.showDistancePopup = false; }
     if (state.showAnglePopup) { state.angleCardOpen = true; state.showAnglePopup = false; }
+    if (state.showDihedralPopup) { state.dihedralCardOpen = true; state.showDihedralPopup = false; }
     float top = ImGui::GetFrameHeight() * 4.5f + responsive::dp(16.0f);
     top = drawResultCard("Distance", "measureDistance", state.distanceCardOpen, state.showDistanceLine, state.distanceValue, state.distanceMessage, top);
-    drawResultCard("Angle", "measureAngle", state.angleCardOpen, state.showAngleLines, state.angleValue, state.angleMessage, top);
+    top = drawResultCard("Angle", "measureAngle", state.angleCardOpen, state.showAngleLines, state.angleValue, state.angleMessage, top);
+    bool noLines = false;
+    drawResultCard("Dihedral", "measureDihedral", state.dihedralCardOpen, noLines, state.dihedralValue, state.dihedralMessage, top);
 
     if (state.showAtomInfoPopup)
     {

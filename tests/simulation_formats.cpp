@@ -74,6 +74,27 @@ int main()
                 if (format == "pwi" || format == "cell") check(back.atoms[i].fixed == s.atoms[i].fixed, format + ": fixed coordinates");
             }
         }
+        // Magnetic moments: CASTEP SPIN= round trip; Quantum ESPRESSO species per moment.
+        {
+            Structure magnetic = sample();
+            magnetic.atoms[0].magmom = 2.5;
+            magnetic.atoms[2].magmom = -2.5;
+            const Structure back = roundTrip(magnetic, "cell");
+            check(back.atoms[0].magmom == 2.5 && back.atoms[2].magmom == -2.5 && back.atoms[1].magmom == 0, "cell SPIN= round trip");
+            Structure spaced;
+            std::string error;
+            check(readSimulationFormat("%BLOCK LATTICE_CART\n3 0 0\n0 3 0\n0 0 3\n%ENDBLOCK LATTICE_CART\n%BLOCK POSITIONS_ABS\nNi 0 0 0 SPIN = -1.5\n%ENDBLOCK POSITIONS_ABS\n",
+                                       "cell", spaced, error) && spaced.atoms[0].magmom == -1.5, "cell SPIN = x");
+            std::ostringstream out;
+            check(writeSimulationFormat(magnetic, "pwi", out, error), "pwi magnetic write");
+            const std::string text = out.str();
+            check(text.find("nspin = 2") != std::string::npos && text.find("ntyp = 4") != std::string::npos, "pwi species per moment: " + text);
+            check(text.find("starting_magnetization(1) = 0.5") != std::string::npos && text.find("starting_magnetization(3) = -0.5") != std::string::npos,
+                  "pwi starting magnetization");
+            check(text.find("Fe1 ") != std::string::npos && text.find("Fe2 ") != std::string::npos, "pwi numbered species labels");
+            Structure parsed;
+            check(readSimulationFormat(text, "pwi", parsed, error) && parsed.atoms[2].symbol == "Fe", "pwi labels read as elements: " + error);
+        }
         // Periodicity in XSF: slabs and polymers.
         Structure slab = sample();
         slab.pbc = {true, true, false};

@@ -107,21 +107,45 @@ void vectorLine(std::ostream& out, const Vec3& v, const char* indent = "  ")
 // ---------------------------------------------------------------- writers
 void writePwi(const Structure& s, std::ostream& out)
 {
-    const auto kinds = species(s);
+    // Species: one per element, or per element and moment when atoms of an
+    // element carry different magnetic moments (Fe1, Fe2, ...).
+    struct Kind { std::string label, element; double magmom; };
+    std::vector<Kind> kinds;
+    std::vector<std::size_t> kindOf;
+    bool magnetic = false;
+    for (const auto& a : s.atoms) magnetic = magnetic || a.magmom != 0;
+    for (const auto& a : s.atoms) {
+        std::size_t k = 0;
+        while (k < kinds.size() && !(kinds[k].element == a.symbol && (!magnetic || kinds[k].magmom == a.magmom))) ++k;
+        if (k == kinds.size()) kinds.push_back({a.symbol, a.symbol, magnetic ? a.magmom : 0.0});
+        kindOf.push_back(k);
+    }
+    std::map<std::string, int> perElement;
+    for (const auto& k : kinds) ++perElement[k.element];
+    std::map<std::string, int> numbered;
+    for (auto& k : kinds)
+        if (perElement[k.element] > 1) k.label = k.element + std::to_string(++numbered[k.element]);
     out << "&CONTROL\n  calculation = 'scf'\n  prefix = 'atomforge'\n  pseudo_dir = './'\n  outdir = './out'\n/\n"
-        << "&SYSTEM\n  ibrav = 0\n  nat = " << s.atoms.size() << "\n  ntyp = " << kinds.size() << "\n  ecutwfc = 40\n  ecutrho = 320\n/\n"
-        << "&ELECTRONS\n/\n";
+        << "&SYSTEM\n  ibrav = 0\n  nat = " << s.atoms.size() << "\n  ntyp = " << kinds.size() << "\n  ecutwfc = 40\n  ecutrho = 320\n";
+    if (magnetic) {
+        // A starting guess: the moment over 5 Bohr magnetons, within the allowed -1 ... 1.
+        out << "  nspin = 2\n";
+        for (std::size_t k = 0; k < kinds.size(); ++k)
+            out << "  starting_magnetization(" << k + 1 << ") = " << std::setprecision(4) << std::max(-1.0, std::min(1.0, kinds[k].magmom / 5.0)) << '\n';
+    }
+    out << "/\n&ELECTRONS\n/\n";
     bool fixed = false;
     for (const auto& a : s.atoms) fixed = fixed || a.fixed;
     if (fixed) out << "&IONS\n/\n";
     out << "ATOMIC_SPECIES\n";
-    for (const auto& k : kinds) out << "  " << std::left << std::setw(3) << k << std::right << ' ' << std::fixed << std::setprecision(4)
-                                    << elementAtomicMass(numberOf(k)) << ' ' << k << ".UPF\n";
+    for (const auto& k : kinds) out << "  " << std::left << std::setw(4) << k.label << std::right << ' ' << std::fixed << std::setprecision(4)
+                                    << elementAtomicMass(numberOf(k.element)) << ' ' << k.element << ".UPF\n";
     out << "CELL_PARAMETERS angstrom\n";
     for (const auto& row : s.cellVectors) vectorLine(out, {row[0], row[1], row[2]});
     out << "ATOMIC_POSITIONS angstrom\n";
-    for (const auto& a : s.atoms) {
-        out << "  " << std::left << std::setw(3) << a.symbol << std::right;
+    for (std::size_t i = 0; i < s.atoms.size(); ++i) {
+        const auto& a = s.atoms[i];
+        out << "  " << std::left << std::setw(4) << kinds[kindOf[i]].label << std::right;
         number(out, a.x); number(out, a.y); number(out, a.z);
         // if_pos: 0 keeps a coordinate fixed.
         if (fixed) out << ' ' << ((a.fixed & 1) ? 0 : 1) << ' ' << ((a.fixed & 2) ? 0 : 1) << ' ' << ((a.fixed & 4) ? 0 : 1);
@@ -141,9 +165,12 @@ void writeCell(const Structure& s, std::ostream& out)
     out << "%BLOCK LATTICE_CART\nANG\n";
     for (const auto& row : s.cellVectors) vectorLine(out, {row[0], row[1], row[2]});
     out << "%ENDBLOCK LATTICE_CART\n\n%BLOCK POSITIONS_ABS\nANG\n";
+    bool magnetic = false;
+    for (const auto& a : s.atoms) magnetic = magnetic || a.magmom != 0;
     for (const auto& a : s.atoms) {
         out << "  " << std::left << std::setw(3) << a.symbol << std::right;
         number(out, a.x); number(out, a.y); number(out, a.z);
+        if (magnetic) out << " SPIN=" << std::setprecision(6) << a.magmom;
         out << '\n';
     }
     out << "%ENDBLOCK POSITIONS_ABS\n";
@@ -374,6 +401,22 @@ double unitScale(std::vector<std::vector<std::string>>& rows)
     return 1.0;
 }
 
+// CASTEP's initial spin on a position line: SPIN=2.0, SPIN = 2.0 or SPIN : 2.0.
+double spinOf(const std::vector<std::string>& row)
+{
+    for (std::size_t k = 4; k < row.size(); ++k) {
+        std::string word = lower(row[k]);
+        if (word.rfind("spin", 0) != 0) continue;
+        std::string value = word.substr(4);
+        std::size_t next = k + 1;
+        if (!value.empty() && (value[0] == '=' || value[0] == ':')) value = value.substr(1);
+        else if (next < row.size() && (row[next] == "=" || row[next] == ":")) ++next;
+        if (value.empty() && next < row.size()) value = row[next];
+        if (!value.empty()) return toNumber(value);
+    }
+    return 0.0;
+}
+
 void readCell(const std::string& text, Structure& s)
 {
     const auto lines = linesOf(text);
@@ -401,11 +444,15 @@ void readCell(const std::string& text, Structure& s)
         for (const auto& row : positions) {
             const Vec3 x = vector3(row, 1);
             s.atoms.push_back(atom(row.at(0), {x[0] * scale, x[1] * scale, x[2] * scale}));
+            s.atoms.back().magmom = spinOf(row);
         }
     } else {
         positions = block(lines, "positions_frac", found);
         if (!found) throw std::runtime_error("No POSITIONS_ABS or POSITIONS_FRAC block");
-        for (const auto& row : positions) s.atoms.push_back(atom(row.at(0), fromFractional(s, vector3(row, 1))));
+        for (const auto& row : positions) {
+            s.atoms.push_back(atom(row.at(0), fromFractional(s, vector3(row, 1))));
+            s.atoms.back().magmom = spinOf(row);
+        }
     }
     // Ionic constraints fixing single Cartesian directions.
     const auto constraints = block(lines, "ionic_constraints", found);

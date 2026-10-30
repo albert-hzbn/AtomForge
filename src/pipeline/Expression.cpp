@@ -155,12 +155,13 @@ private:
         NodePtr left = parseUnary();
         while (true) {
             skip();
-            if (m_pos >= m_text.size() || (m_text[m_pos] != '*' && m_text[m_pos] != '/')) return left;
+            if (m_pos >= m_text.size() || (m_text[m_pos] != '*' && m_text[m_pos] != '/' && m_text[m_pos] != '%')) return left;
             const char op = m_text[m_pos++];
             std::shared_ptr<Expression::Node> a(left.release()), b(parseUnary().release());
             left = node([a, b, op](const AtomVariables& v) {
-                const double x = numberOf(a->evaluate(v), "* /"), y = numberOf(b->evaluate(v), "* /");
-                return Value{op == '*' ? x * y : x / y};
+                const double x = numberOf(a->evaluate(v), "* / %"), y = numberOf(b->evaluate(v), "* / %");
+                // % is the floored remainder (index % 2 is 0 or 1, also for negative values).
+                return Value{op == '*' ? x * y : op == '/' ? x / y : x - y * std::floor(x / y)};
             });
         }
     }
@@ -263,7 +264,8 @@ private:
         static const std::vector<std::pair<std::string, double V::*>> numbers = {
             {"x", &V::x}, {"y", &V::y}, {"z", &V::z}, {"fx", &V::fx}, {"fy", &V::fy}, {"fz", &V::fz},
             {"index", &V::index}, {"count", &V::count}, {"property", &V::property}, {"frozen", &V::frozen}, {"selected", &V::selected},
-            {"Z", &V::atomicNumber}, {"atomic_number", &V::atomicNumber}, {"fixed", &V::fixed}};
+            {"Z", &V::atomicNumber}, {"atomic_number", &V::atomicNumber}, {"fixed", &V::fixed},
+            {"magmom", &V::magmom}, {"charge", &V::charge}, {"vx", &V::vx}, {"vy", &V::vy}, {"vz", &V::vz}};
         for (const auto& [n, member] : numbers)
             if (name == n) return node([member](const AtomVariables& v) { return Value{v.*member}; });
         if (name == "element" || name == "type") return node([](const AtomVariables& v) { return Value::of(v.element); });

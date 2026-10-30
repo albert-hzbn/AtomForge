@@ -99,6 +99,15 @@ def _structure_json(structure: Structure) -> Dict[str, Any]:
     if structure.cell:
         data["cell"] = [list(map(float, row)) for row in structure.cell]
         data["pbc"] = [bool(p) for p in getattr(structure, "pbc", (True, True, True))]
+    atoms = structure.atoms
+    if any(getattr(a, "magmom", 0.0) for a in atoms):
+        data["magmoms"] = [float(getattr(a, "magmom", 0.0)) for a in atoms]
+    if any(getattr(a, "charge", 0.0) for a in atoms):
+        data["charges"] = [float(getattr(a, "charge", 0.0)) for a in atoms]
+    if any(any(getattr(a, "velocity", (0, 0, 0))) for a in atoms):
+        data["velocities"] = [[float(v) for v in getattr(a, "velocity", (0, 0, 0))] for a in atoms]
+    if any(any(getattr(a, "fixed", (False,) * 3)) for a in atoms):
+        data["fixed"] = [[bool(v) for v in getattr(a, "fixed", (False,) * 3)] for a in atoms]
     return data
 
 
@@ -110,6 +119,11 @@ def _from_json(data: Dict[str, Any]) -> Structure:
         structure.cell = [list(map(float, row)) for row in data["cell"]]
     if data.get("pbc"):
         structure.pbc = [bool(p) for p in data["pbc"]]
+    for key, name, convert in (("magmoms", "magmom", float), ("charges", "charge", float),
+                               ("velocities", "velocity", lambda v: tuple(float(x) for x in v)),
+                               ("fixed", "fixed", lambda v: tuple(bool(x) for x in v))):
+        for atom, value in zip(structure.atoms, data.get(key) or []):
+            setattr(atom, name, convert(value))
     return structure
 
 

@@ -684,7 +684,7 @@ std::vector<ModifierType>& registry()
         {"select-element", "Select by element", "Selection", "Selects atoms of the listed elements.",
          {{"elements", "Elements (e.g. Cu O)", "elements", "Cu", ""}, kModeParameter}, selectElement},
         {"select-expression", "Select by expression", "Selection",
-         "Selects atoms for which a condition holds, e.g. fz > 0.5 && element == O.\nVariables: x y z (Angstrom), fx fy fz (fractional), index, count, element,\nZ, property (per-atom property), selected. Operators + - * / ^, < <= > >= == !=,\n&& || ! (and or not), functions abs sqrt exp log sin cos tan floor ceil min max.",
+         "Selects atoms for which a condition holds, e.g. fz > 0.5 && element == O.\nVariables: x y z (Angstrom), fx fy fz (fractional), index, count, element,\nZ, property (per-atom property), frozen, selected, fixed, magmom, charge, vx vy vz.\nOperators + - * / % (floored remainder) ^, < <= > >= == !=,\n&& || ! (and or not), functions abs sqrt exp log sin cos tan floor ceil min max.",
          {{"expression", "Condition", "expression", "x > 0", ""}, kModeParameter}, selectExpression},
         {"select-slab", "Select a slab", "Selection", "Selects atoms between two coordinates along x, y or z (Angstrom) or along a, b or c (fractional, wrapped into [0, 1)).",
          {{"axis", "Axis", "choice", "z", "x|y|z|a|b|c"}, {"minimum", "From", "float", "0", ""}, {"maximum", "To", "float", "5", ""}, kModeParameter}, selectSlab},

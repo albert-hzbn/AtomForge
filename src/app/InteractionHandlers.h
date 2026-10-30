@@ -13,6 +13,7 @@ struct FrameActionRequests
     bool requestInsertMidpoint = false;
     bool requestMeasureDistance = false;
     bool requestMeasureAngle = false;
+    bool requestMeasureDihedral = false;
     bool requestAtomInfo = false;
     bool requestStructureInfo = false;
     bool requestUndo = false;

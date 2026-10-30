@@ -23,6 +23,7 @@ struct AtomRequests {
     bool doDelete        = false;
     bool measureDistance = false;
     bool measureAngle    = false;
+    bool measureDihedral = false;
     bool atomInfo        = false;
 };
 

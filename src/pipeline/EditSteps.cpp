@@ -7,9 +7,12 @@
 #include "pipeline/PipelineSteps.h"
 #include "pipeline/StructureEdits.h"
 #include "science/ScienceData.h"
+#include "science/ScienceData.h"
 #include "util/ElementData.h"
 
 #include <algorithm>
+#include <filesystem>
+#include <random>
 #include <cmath>
 #include <numeric>
 #include <queue>
@@ -575,6 +578,164 @@ void selectFragment(const Json& p, PipelineData& data)
     select(data, mask, text(p, id, "mode"));
     data.notes.push_back(std::to_string(fragments) + " of " + std::to_string(count) + " fragments");
 }
+// ---------------------------------------------------------------- per-atom simulation data
+// VASP's MAGMOM line: runs of equal moments as count*value.
+std::string magmomLine(const Structure& s)
+{
+    std::ostringstream out;
+    out.precision(6);
+    for (std::size_t i = 0; i < s.atoms.size();) {
+        std::size_t j = i;
+        while (j < s.atoms.size() && s.atoms[j].magmom == s.atoms[i].magmom) ++j;
+        out << (i ? " " : "") << (j - i) << "*" << s.atoms[i].magmom;
+        i = j;
+    }
+    return out.str();
+}
+
+void setMagneticMoments(const Json& p, PipelineData& data)
+{
+    const char* id = "set-magnetic-moments";
+    const auto atoms = targets(data, text(p, id, "target") == "selected", id);
+    const double value = number(p, id, "value");
+    for (std::size_t i : atoms) data.structure.atoms[i].magmom = value;
+    double total = 0;
+    for (const auto& a : data.structure.atoms) total += a.magmom;
+    std::ostringstream note;
+    note.precision(6);
+    note << atoms.size() << " atoms set to " << value << " Bohr magnetons; total " << total << "; MAGMOM = " << magmomLine(data.structure)
+         << " (in this atom order)";
+    data.notes.push_back(note.str());
+}
+
+void setCharges(const Json& p, PipelineData& data)
+{
+    const char* id = "set-charges";
+    const auto atoms = targets(data, text(p, id, "target") == "selected", id);
+    const double value = number(p, id, "value");
+    for (std::size_t i : atoms) data.structure.atoms[i].charge = value;
+    double total = 0;
+    for (const auto& a : data.structure.atoms) total += a.charge;
+    std::ostringstream note;
+    note.precision(6);
+    note << atoms.size() << " atoms set to " << value << " e; total charge " << total << " e" << (std::abs(total) > 1e-9 ? " (not neutral)" : " (neutral)");
+    data.notes.push_back(note.str());
+}
+
+// Maxwell-Boltzmann velocities at a temperature (Angstrom/fs), without net
+// momentum, scaled so the kinetic temperature (3N - 3 degrees of freedom) is exact.
+void setVelocities(const Json& p, PipelineData& data)
+{
+    const char* id = "set-velocities";
+    const auto atoms = targets(data, text(p, id, "target") == "selected", id);
+    const double temperature = number(p, id, "temperature");
+    if (temperature < 0) throw std::runtime_error("set-velocities: the temperature must not be negative");
+    constexpr double kB = 8.617333262e-5;          // eV/K
+    constexpr double eVPerAmuA2fs2 = 103.6427;     // 1 u Angstrom^2/fs^2 in eV
+    std::mt19937_64 rng(static_cast<std::uint64_t>(number(p, id, "seed")));
+    std::normal_distribution<double> gauss(0.0, 1.0);
+    Structure& s = data.structure;
+    std::vector<double> mass;
+    for (std::size_t i : atoms) mass.push_back(elementAtomicMass(s.atoms[i].atomicNumber));
+    std::vector<Vec3> v(atoms.size());
+    for (std::size_t k = 0; k < atoms.size(); ++k) {
+        const double sigma = std::sqrt(kB * temperature / (mass[k] * eVPerAmuA2fs2));
+        v[k] = {gauss(rng) * sigma, gauss(rng) * sigma, gauss(rng) * sigma};
+    }
+    const bool zeroMomentum = flag(p, id, "zero_momentum") && atoms.size() > 1;
+    if (zeroMomentum) {
+        Vec3 momentum{0, 0, 0};
+        double total = 0;
+        for (std::size_t k = 0; k < atoms.size(); ++k) { momentum = science::add(momentum, science::scale(v[k], mass[k])); total += mass[k]; }
+        const Vec3 drift = science::scale(momentum, 1.0 / total);
+        for (auto& vk : v) vk = science::sub(vk, drift);
+    }
+    double kinetic = 0;  // eV
+    for (std::size_t k = 0; k < atoms.size(); ++k) kinetic += 0.5 * mass[k] * science::dot(v[k], v[k]) * eVPerAmuA2fs2;
+    const double dof = 3.0 * atoms.size() - (zeroMomentum ? 3.0 : 0.0);
+    if (temperature > 0 && kinetic > 0 && dof > 0) {
+        const double factor = std::sqrt(temperature / (2 * kinetic / (dof * kB)));
+        for (auto& vk : v) vk = science::scale(vk, factor);
+    }
+    for (std::size_t k = 0; k < atoms.size(); ++k) s.atoms[atoms[k]].velocity = v[k];
+    std::ostringstream note;
+    note.precision(6);
+    note << atoms.size() << " velocities at " << temperature << " K (Angstrom/fs" << (zeroMomentum ? ", no net momentum)" : ")");
+    data.notes.push_back(note.str());
+}
+
+// ---------------------------------------------------------------- stacking
+// Places another structure's atoms on top of this one along c (a van der
+// Waals heterostructure, a multilayer): the gap is between the top of this
+// structure and the bottom of the other, c grows to hold both, and the
+// other's in-plane coordinates follow this cell (strained to it) or stay.
+void stackLayers(const Json& p, PipelineData& data)
+{
+    const char* id = "stack-layers";
+    requireCell(data, id);
+    const std::string file = text(p, id, "file");
+    if (file.empty()) throw std::runtime_error("Choose the structure file to stack");
+    const auto frames = science::readFrames(std::filesystem::u8path(file));
+    const Structure& top = frames.front().structure;
+    if (top.atoms.empty()) throw std::runtime_error("The structure to stack has no atoms");
+    Structure& s = data.structure;
+    const double gap = number(p, id, "gap"), vacuum = number(p, id, "vacuum");
+    const bool strain = flag(p, id, "strain") && top.hasUnitCell;
+    const Mat3 cell = cellOf(s);
+    Vec3 normal = science::cross(cell[0], cell[1]);
+    normal = science::scale(normal, 1.0 / science::norm(normal));
+    if (science::dot(normal, cell[2]) < 0) normal = science::scale(normal, -1);
+    double high = -HUGE_VAL, low = HUGE_VAL;
+    for (const auto& a : s.atoms) high = std::max(high, science::dot(positionOf(a), normal));
+    if (s.atoms.empty()) high = 0;
+    // The other structure's atoms in this cell's frame.
+    std::vector<Vec3> placed;
+    if (strain) {
+        // Fractional in-plane coordinates kept, heights kept: the layer is strained to this cell.
+        const Mat3 otherCell{Vec3{top.cellVectors[0][0], top.cellVectors[0][1], top.cellVectors[0][2]},
+                             Vec3{top.cellVectors[1][0], top.cellVectors[1][1], top.cellVectors[1][2]},
+                             Vec3{top.cellVectors[2][0], top.cellVectors[2][1], top.cellVectors[2][2]}};
+        Vec3 otherNormal = science::cross(otherCell[0], otherCell[1]);
+        otherNormal = science::scale(otherNormal, 1.0 / science::norm(otherNormal));
+        const Mat3 inverse = science::inverse(otherCell);
+        for (const auto& a : top.atoms) {
+            const Vec3 f = science::rowTimes(positionOf(a), inverse);
+            const Vec3 inPlane = science::add(science::scale(cell[0], f[0]), science::scale(cell[1], f[1]));
+            placed.push_back(science::add(inPlane, science::scale(normal, science::dot(positionOf(a), otherNormal))));
+        }
+        // Report the in-plane strain of the stacked layer.
+        const double sa = science::norm(cell[0]) / science::norm(otherCell[0]) - 1, sb = science::norm(cell[1]) / science::norm(otherCell[1]) - 1;
+        std::ostringstream note;
+        note.precision(4);
+        note << "Stacked layer strained by " << 100 * sa << "% along a and " << 100 * sb << "% along b";
+        data.notes.push_back(note.str());
+    } else
+        for (const auto& a : top.atoms) placed.push_back(positionOf(a));
+    for (const Vec3& q : placed) low = std::min(low, science::dot(q, normal));
+    const double lift = high + gap - low;
+    const std::size_t before = s.atoms.size();
+    if (data.selected.size() != before) data.selected.assign(before, 0);
+    std::fill(data.selected.begin(), data.selected.end(), 0);
+    for (std::size_t k = 0; k < top.atoms.size(); ++k) {
+        appendAtom(s, data.selected, top.atoms[k].symbol, science::add(placed[k], science::scale(normal, lift)), flag(p, id, "select"));
+        s.atoms.back().magmom = top.atoms[k].magmom;
+        s.atoms.back().charge = top.atoms[k].charge;
+        s.atoms.back().fixed = top.atoms[k].fixed;
+    }
+    // c grows (along its own direction) so the stack plus vacuum fits.
+    double newHigh = -HUGE_VAL, newLow = HUGE_VAL;
+    for (const auto& a : s.atoms) {
+        newHigh = std::max(newHigh, science::dot(positionOf(a), normal));
+        newLow = std::min(newLow, science::dot(positionOf(a), normal));
+    }
+    const double needed = newHigh - newLow + vacuum;
+    const double along = science::dot(cell[2], normal);
+    if (needed > along) s.cellVectors[2] = science::scale(cell[2], needed / along);
+    std::ostringstream note;
+    note.precision(6);
+    note << top.atoms.size() << " atoms stacked " << gap << " Angstrom above the top layer; c = " << science::norm(s.cellVectors[2]) << " Angstrom";
+    data.notes.push_back(note.str());
+}
 }  // namespace
 
 std::vector<ModifierType> editStepTypes()
@@ -627,6 +788,28 @@ std::vector<ModifierType> editStepTypes()
         {"unwrap-molecules", "Make molecules whole", "Modification",
          "Moves atoms across periodic boundaries so that bonded atoms sit next to each other (molecules split by the cell become whole).",
          {{"bond_scale", "Bond cutoff (x sum of covalent radii)", "float", "1.2", ""}}, unwrapMolecules},
+        {"set-magnetic-moments", "Set magnetic moments", "Modification",
+         "Sets the initial magnetic moment (Bohr magnetons) of the selected (or all) atoms, for spin-polarised calculations: written to "
+         "extended XYZ (initial_magmoms), CASTEP (SPIN=) and Quantum ESPRESSO (species per moment, nspin = 2); the notes give VASP's MAGMOM line. "
+         "Antiferromagnetic orders: select one sublattice first.",
+         {{"value", "Moment (Bohr magnetons)", "float", "2", ""}, {"target", "Atoms", "choice", "all", "all|selected"}}, setMagneticMoments},
+        {"set-charges", "Set charges", "Modification",
+         "Sets the charge (e) of the selected (or all) atoms, e.g. formal ionic charges for a LAMMPS charge or full model; written to "
+         "LAMMPS data (atom style charge) and extended XYZ (initial_charges); the notes give the total charge.",
+         {{"value", "Charge (e)", "float", "1", ""}, {"target", "Atoms", "choice", "all", "all|selected"}}, setCharges},
+        {"set-velocities", "Set velocities (temperature)", "Modification",
+         "Gives the selected (or all) atoms Maxwell-Boltzmann velocities at a temperature (Angstrom/fs), without net momentum and scaled to "
+         "that temperature exactly, reproducibly for a seed; written to LAMMPS data (Velocities, Angstrom/ps) and extended XYZ (velo). "
+         "A temperature of 0 sets them to zero.",
+         {{"temperature", "Temperature (K)", "float", "300", ""}, {"seed", "Seed", "int", "1", ""},
+          {"zero_momentum", "Remove net momentum", "bool", "true", ""}, {"target", "Atoms", "choice", "all", "all|selected"}}, setVelocities},
+        {"stack-layers", "Stack a layer", "Modification",
+         "Places the atoms of another structure file on top of this one along c, `gap` above the top atom (van der Waals heterostructures, "
+         "multilayers; repeat the step for more layers). With strain, the layer takes this cell's in-plane lattice (the strain is reported); "
+         "c grows to hold the stack and the vacuum.",
+         {{"file", "Structure file to stack", "string", "", ""}, {"gap", "Gap (Angstrom)", "float", "3.35", ""},
+          {"strain", "Strain the layer to this cell", "bool", "true", ""}, {"vacuum", "Vacuum (Angstrom)", "float", "15", ""},
+          {"select", "Select the stacked atoms", "bool", "true", ""}}, stackLayers},
         {"select-fragment", "Select fragments", "Selection",
          "Selects whole bonded fragments (molecules, clusters): those touching the current selection, or those with a number of atoms in a range.",
          {{"rule", "Fragments", "choice", "touching", "touching|size"}, {"min_atoms", "Minimum atoms (size rule)", "int", "1", ""},

@@ -1340,7 +1340,12 @@ static bool readExtendedXyzLattice(const std::string& comment, std::array<std::a
 // id:I:1:species:S:1:pos:R:3); an atomic-number column (Z:I:1) stands in
 // for a missing species column. 1 when found, 0 when the key is present but
 // names no species or positions, -1 without a Properties key.
-static int extendedXyzColumns(const std::string& comment, int& speciesColumn, int& positionColumn)
+struct ExtraXyzColumns
+{
+    int magmom = -1, charge = -1, velocity = -1;
+};
+
+static int extendedXyzColumns(const std::string& comment, int& speciesColumn, int& positionColumn, ExtraXyzColumns* extra = nullptr)
 {
     std::size_t key = std::string::npos;
     for (std::size_t at = comment.find("roperties="); at != std::string::npos; at = comment.find("roperties=", at + 1))
@@ -1361,6 +1366,12 @@ static int extendedXyzColumns(const std::string& comment, int& speciesColumn, in
         if (lower == "species" && n == 1) speciesColumn = column;
         if (name == "Z" && n == 1) numberColumn = column;
         if ((lower == "pos" || lower == "positions") && n == 3) positionColumn = column;
+        if (extra) {
+            // ASE's names (initial_magmoms, initial_charges), OVITO's velo, and plain ones.
+            if ((lower == "initial_magmoms" || lower == "magmoms" || lower == "magmom") && n == 1) extra->magmom = column;
+            if ((lower == "initial_charges" || lower == "charges" || lower == "charge") && n == 1) extra->charge = column;
+            if ((lower == "velo" || lower == "vel" || lower == "velocities") && n == 3) extra->velocity = column;
+        }
         column += n;
     }
     if (speciesColumn < 0) speciesColumn = numberColumn;
@@ -1601,7 +1612,8 @@ static bool readXyz(const std::string& text, Structure& structure, std::string& 
     nextLine(comment);
     const std::string commentText(comment);
     int speciesColumn = 0, positionColumn = 1;
-    const int columns = extendedXyzColumns(commentText, speciesColumn, positionColumn);
+    ExtraXyzColumns extra;
+    const int columns = extendedXyzColumns(commentText, speciesColumn, positionColumn, &extra);
     if (columns == 0)
     {
         errorMessage = "The extended XYZ Properties key names no species (or Z) and pos columns.";
@@ -1612,7 +1624,8 @@ static bool readXyz(const std::string& text, Structure& structure, std::string& 
         speciesColumn = 0;
         positionColumn = 1;
     }
-    const int needed = std::max(speciesColumn, positionColumn + 2) + 1;
+    if (columns < 0) extra = ExtraXyzColumns();
+    const int needed = std::max({speciesColumn, positionColumn + 2, extra.magmom, extra.charge, extra.velocity >= 0 ? extra.velocity + 2 : -1}) + 1;
 
     std::vector<std::string_view> words;
     structure.atoms.reserve(static_cast<std::size_t>(count));
@@ -1679,6 +1692,22 @@ static bool readXyz(const std::string& text, Structure& structure, std::string& 
         site.x = xyz[0];
         site.y = xyz[1];
         site.z = xyz[2];
+        const auto real = [&](int column, double& out) {
+            const std::string word(words[(std::size_t)column]);
+            char* parsed = nullptr;
+            out = std::strtod(word.c_str(), &parsed);
+            return parsed != word.c_str() && !*parsed && std::isfinite(out);
+        };
+        bool numbers = true;
+        if (extra.magmom >= 0) numbers = real(extra.magmom, site.magmom) && numbers;
+        if (extra.charge >= 0) numbers = real(extra.charge, site.charge) && numbers;
+        if (extra.velocity >= 0)
+            for (int k = 0; k < 3; ++k) numbers = real(extra.velocity + k, site.velocity[(std::size_t)k]) && numbers;
+        if (!numbers)
+        {
+            errorMessage = "XYZ atom " + std::to_string(n + 1) + " has an invalid magnetic moment, charge or velocity.";
+            return false;
+        }
         getDefaultElementColor(z, site.r, site.g, site.b);
         structure.atoms.push_back(std::move(site));
     }
@@ -1948,6 +1977,7 @@ static bool readLammpsData(const std::string& text, Structure& structure, std::s
         const std::size_t b = value.find_last_not_of(" \t\r\n");
         return a == std::string::npos ? std::string() : value.substr(a, b - a + 1);
     };
+    std::map<long long, std::array<double, 3>> velocityRows;  // atom id -> velocity
     while (std::getline(in, line))
     {
         std::string comment;
@@ -1982,6 +2012,8 @@ static bool readLammpsData(const std::string& text, Structure& structure, std::s
                 labels[std::stoi(w[0])] = w[1];
             else if (section == "Atoms")
                 atomRows.push_back(w);
+            else if (section == "Velocities" && w.size() >= 4)
+                velocityRows[std::stoll(w[0])] = {std::stod(w[1]), std::stod(w[2]), std::stod(w[3])};
         }
         catch (const std::exception&)
         {
@@ -2082,6 +2114,11 @@ static bool readLammpsData(const std::string& text, Structure& structure, std::s
             site.x = std::stod(row[(size_t)xColumn]);
             site.y = std::stod(row[(size_t)xColumn + 1]);
             site.z = std::stod(row[(size_t)xColumn + 2]);
+            if (kind == "charge" || (kind.empty() && xColumn == 3 && typeColumn == 1)) site.charge = std::stod(row[2]);
+            if (kind == "full" || (kind.empty() && xColumn == 4)) site.charge = std::stod(row[3]);
+            // Velocities in LAMMPS metal units (Angstrom/ps) -> Angstrom/fs.
+            if (const auto v = velocityRows.find(std::stoll(row[0])); v != velocityRows.end())
+                for (int k = 0; k < 3; ++k) site.velocity[(size_t)k] = v->second[(size_t)k] / 1000.0;
             getDefaultElementColor(site.atomicNumber, site.r, site.g, site.b);
             sites.push_back({std::stoll(row[0]), site});
         }
@@ -3176,15 +3213,38 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
             std::snprintf(buffer, sizeof(buffer), "%zu %.6g  # %s\n", t + 1, elementAtomicMass(elements[t]), elementSymbol(elements[t]));
             out << buffer;
         }
-        out << "\nAtoms  # atomic\n\n";
+        bool charges = false, velocities = false;
+        for (const auto& site : structure.atoms)
+        {
+            charges = charges || site.charge != 0;
+            velocities = velocities || site.velocity[0] != 0 || site.velocity[1] != 0 || site.velocity[2] != 0;
+        }
+        // Charges need the charge style (id type q x y z).
+        out << (charges ? "\nAtoms  # charge\n\n" : "\nAtoms  # atomic\n\n");
         for (std::size_t i = 0; i < structure.atoms.size(); ++i)
         {
             const auto& site = structure.atoms[i];
             const glm::dvec3 f = toFractional * (glm::dvec3(site.x, site.y, site.z) - origin);
             const glm::dvec3 q = lammps * f;
             const std::size_t type = static_cast<std::size_t>(std::find(elements.begin(), elements.end(), site.atomicNumber) - elements.begin()) + 1;
-            std::snprintf(buffer, sizeof(buffer), "%zu %zu %.10f %.10f %.10f\n", i + 1, type, clean(q.x), clean(q.y), clean(q.z));
+            if (charges)
+                std::snprintf(buffer, sizeof(buffer), "%zu %zu %.10g %.10f %.10f %.10f\n", i + 1, type, site.charge, clean(q.x), clean(q.y), clean(q.z));
+            else
+                std::snprintf(buffer, sizeof(buffer), "%zu %zu %.10f %.10f %.10f\n", i + 1, type, clean(q.x), clean(q.y), clean(q.z));
             out << buffer;
+        }
+        if (velocities)
+        {
+            // In the box frame (the same rotation as the positions), metal units: Angstrom/ps.
+            out << "\nVelocities\n\n";
+            const glm::dmat3 rotate = lammps * toFractional;
+            for (std::size_t i = 0; i < structure.atoms.size(); ++i)
+            {
+                const auto& site = structure.atoms[i];
+                const glm::dvec3 v = rotate * glm::dvec3(site.velocity[0], site.velocity[1], site.velocity[2]) * 1000.0;
+                std::snprintf(buffer, sizeof(buffer), "%zu %.10g %.10g %.10g\n", i + 1, clean(v.x), clean(v.y), clean(v.z));
+                out << buffer;
+            }
         }
         out.close();
         if (!out)
@@ -3207,6 +3267,18 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
         }
         const auto clean = [](double v) { return std::abs(v) < 5e-11 ? 0.0 : v; };
         char buffer[160];
+        // Magnetic moments, charges and velocities as extended XYZ columns (ASE and OVITO names).
+        bool moments = false, charges = false, velocities = false;
+        for (const auto& site : structure.atoms)
+        {
+            moments = moments || site.magmom != 0;
+            charges = charges || site.charge != 0;
+            velocities = velocities || site.velocity[0] != 0 || site.velocity[1] != 0 || site.velocity[2] != 0;
+        }
+        std::string properties = "species:S:1:pos:R:3";
+        if (moments) properties += ":initial_magmoms:R:1";
+        if (charges) properties += ":initial_charges:R:1";
+        if (velocities) properties += ":velo:R:3";
         out << structure.atoms.size() << "\n";
         if (structure.hasUnitCell)
         {
@@ -3217,16 +3289,26 @@ bool saveStructure(const Structure& structure, const std::string& filename, cons
                     std::snprintf(buffer, sizeof(buffer), "%s%.10g", r || c ? " " : "", clean(structure.cellVectors[r][c]));
                     out << buffer;
                 }
-            out << "\" Properties=species:S:1:pos:R:3 pbc=\"" << (structure.pbc[0] ? 'T' : 'F') << ' ' << (structure.pbc[1] ? 'T' : 'F') << ' '
+            out << "\" Properties=" << properties << " pbc=\"" << (structure.pbc[0] ? 'T' : 'F') << ' ' << (structure.pbc[1] ? 'T' : 'F') << ' '
                 << (structure.pbc[2] ? 'T' : 'F') << "\"\n";
         }
+        else if (moments || charges || velocities)
+            out << "Properties=" << properties << " pbc=\"F F F\"\n";
         else
             out << "AtomForge structure\n";
         for (const auto& site : structure.atoms)
         {
             const std::string symbol = site.symbol.empty() ? std::string(elementSymbol(site.atomicNumber)) : site.symbol;
-            std::snprintf(buffer, sizeof(buffer), "%-3s %16.10f %16.10f %16.10f\n", symbol.c_str(), clean(site.x), clean(site.y), clean(site.z));
+            std::snprintf(buffer, sizeof(buffer), "%-3s %16.10f %16.10f %16.10f", symbol.c_str(), clean(site.x), clean(site.y), clean(site.z));
             out << buffer;
+            if (moments) { std::snprintf(buffer, sizeof(buffer), " %.10g", site.magmom); out << buffer; }
+            if (charges) { std::snprintf(buffer, sizeof(buffer), " %.10g", site.charge); out << buffer; }
+            if (velocities)
+            {
+                std::snprintf(buffer, sizeof(buffer), " %.10g %.10g %.10g", site.velocity[0], site.velocity[1], site.velocity[2]);
+                out << buffer;
+            }
+            out << '\n';
         }
         out.close();
         if (!out)

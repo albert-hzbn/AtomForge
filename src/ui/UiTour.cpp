@@ -184,6 +184,11 @@ void FileBrowser::runUiTour(Structure& current, EditMenuDialogs& dialogs, const 
             selectionRequested = true;
             requestMeasureAngle = true;
         }});
+        t.steps.push_back({"measure-dihedral", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) {
+            requestedSelection = {0, 1, 2, 3};
+            selectionRequested = true;
+            requestMeasureDihedral = true;
+        }});
         t.steps.push_back({"menu-history", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { tourMenu = "Edit"; tourSubmenu = "History"; }});
         t.steps.push_back({"menu-open-recent", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { tourMenu = "File"; tourSubmenu = "Open Recent"; }});
         t.steps.push_back({"overlay-polyhedra", [this](Structure&, EditMenuDialogs&, const UiTour::Update&) { showPolyhedralViewer = true; }});

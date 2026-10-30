@@ -172,6 +172,7 @@ void FileBrowser::drawCommandPalette(Structure& structure, EditMenuDialogs& edit
     add("View", "Atom Info", [this] { requestAtomInfo = true; }, atoms);
     add("View", "Measure Distance", [this] { requestMeasureDistance = true; }, atoms);
     add("View", "Measure Angle", [this] { requestMeasureAngle = true; }, atoms);
+    add("View", "Measure Dihedral", [this] { requestMeasureDihedral = true; }, atoms);
     add("View > Theme", "Light theme", [] { setThemeMode(ThemeMode::Light); });
     add("View > Theme", "Dark theme", [] { setThemeMode(ThemeMode::Dark); });
     add("View > Theme", "Match the system theme", [] { setThemeMode(ThemeMode::System); });

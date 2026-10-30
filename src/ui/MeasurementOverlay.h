@@ -29,10 +29,15 @@ struct MeasurementOverlayState
     int angleLineIdx1 = -1; // vertex atom
     int angleLineIdx2 = -1; // third atom
 
-    bool showAtomInfoPopup = false;
-    char atomInfoMessage[512] = {0};
+    // Dihedral angle of four atoms in the order picked (IUPAC sign).
+    bool showDihedralPopup = false;
+    char dihedralMessage[256] = {0};
+    char dihedralValue[64] = {0};
 
-    bool distanceCardOpen = false, angleCardOpen = false;  // the result cards
+    bool showAtomInfoPopup = false;
+    char atomInfoMessage[1024] = {0};
+
+    bool distanceCardOpen = false, angleCardOpen = false, dihedralCardOpen = false;  // the result cards
     std::uint64_t revision = 0;  // the structure's content id when measured
     void clearVisuals();
 };
@@ -40,6 +45,7 @@ struct MeasurementOverlayState
 void processMeasurementRequests(MeasurementOverlayState& state,
                                 bool requestMeasureDistance,
                                 bool requestMeasureAngle,
+                                bool requestMeasureDihedral,
                                 bool requestAtomInfo,
                                 const std::vector<int>& selectedInstanceIndices,
                                 const SceneBuffers& sceneBuffers,

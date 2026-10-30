@@ -21,6 +21,12 @@ struct AtomSite
     // Coordinates held fixed in a relaxation (POSCAR selective dynamics):
     // bit 0 x, bit 1 y, bit 2 z. It travels with the atom through edits.
     std::uint8_t fixed = 0;
+
+    // Initial magnetic moment (Bohr magnetons), charge (e) and velocity
+    // (Angstrom/fs) for simulation inputs; they travel with the atom.
+    double magmom = 0.0;
+    double charge = 0.0;
+    std::array<double, 3> velocity = {0.0, 0.0, 0.0};
 };
 
 struct Structure

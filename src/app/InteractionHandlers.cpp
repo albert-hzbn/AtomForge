@@ -77,6 +77,7 @@ FrameActionRequests beginFrameActionRequests(EditorState& state)
     FrameActionRequests requests;
     requests.requestMeasureDistance = state.fileBrowser.consumeMeasureDistanceRequest();
     requests.requestMeasureAngle = state.fileBrowser.consumeMeasureAngleRequest();
+    requests.requestMeasureDihedral = state.fileBrowser.consumeMeasureDihedralRequest();
     requests.requestAtomInfo = state.fileBrowser.consumeAtomInfoRequest();
     requests.requestStructureInfo = state.fileBrowser.consumeStructureInfoRequest();
     return requests;

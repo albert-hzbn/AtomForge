@@ -107,6 +107,14 @@ int main()
         close(evaluate("1 + 2 * 3 ^ 2", v), 19, 0, "precedence");
         close(evaluate("-2 ^ 2"), -4, 0, "unary minus binds weaker than power");
         close(evaluate("(1 + 2) * 3"), 9, 0, "parentheses");
+        close(evaluate("7 % 3"), 1, 0, "remainder");
+        close(evaluate("-7 % 3"), 2, 0, "floored remainder of a negative value");
+        close(evaluate("2 * 7 % 4"), 2, 0, "remainder at the precedence of * and /");
+        {
+            AtomVariables data;
+            data.magmom = -2.2; data.charge = 1.5; data.vx = 0.01; data.vy = 0.02; data.vz = -0.03;
+            close(evaluate("magmom + charge + vx + vy + vz", data), -0.7, 1e-12, "per-atom simulation data variables");
+        }
         close(evaluate("x * y + z", v), 2, 0, "variables");
         check(evaluate("fz > 0.5 && element == O", v) == 1, "element without quotes");
         check(evaluate("element == \"O\" and Z == 8", v) == 1, "quoted element and keywords");

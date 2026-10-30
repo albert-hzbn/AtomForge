@@ -84,6 +84,10 @@ const std::vector<MenuLocation>& menuLocations()
         {"swap-elements", "Edit", "Chemistry and Defects", "Swap Elements", false},
         {"create-antisite", "Edit", "Chemistry and Defects", "Antisite Defect", false},
         {"create-frenkel-pair", "Edit", "Chemistry and Defects", "Frenkel Pair", false},
+        {"set-magnetic-moments", "Edit", "Chemistry and Defects", "Set Magnetic Moments", false},
+        {"set-charges", "Edit", "Chemistry and Defects", "Set Charges", false},
+        {"set-velocities", "Edit", "Chemistry and Defects", "Set Velocities (Temperature)", false},
+        {"stack-layers", "Edit", "Geometry", "Stack a Layer (Heterostructure)", false},
         // Edit > Select Atoms (sets the selection in the view).
         {"select-element", "Edit", "Select Atoms", "By Element", false},
         {"select-expression", "Edit", "Select Atoms", "By Expression", false},

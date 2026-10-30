@@ -309,8 +309,9 @@ Structure structureFromJson(const Json& value)
 {
     if (!value.isObject()) throw std::runtime_error("Structure requires a file reference or symbols, positions and optional cell");
     for (const auto& member : value.members())
-        if (member.first != "symbols" && member.first != "positions" && member.first != "cell" && member.first != "pbc")
-            throw std::runtime_error("Structure requires a file reference or symbols, positions, optional cell and pbc");
+        if (member.first != "symbols" && member.first != "positions" && member.first != "cell" && member.first != "pbc" &&
+            member.first != "magmoms" && member.first != "charges" && member.first != "velocities" && member.first != "fixed")
+            throw std::runtime_error("Structure requires a file reference or symbols, positions, optional cell, pbc, magmoms, charges, velocities and fixed");
     Structure structure;
     const auto& symbols = value.at("symbols").items();
     const auto positions = points(toArray(value.at("positions"), "positions"), "positions");
@@ -323,6 +324,25 @@ Structure structureFromJson(const Json& value)
     }
     // Periodic cell vectors (default: all of them).
     if (const Json* pbc = value.find("pbc"); pbc && !pbc->isNull()) structure.pbc = parsePbc(*pbc);
+    // Optional per-atom data: moments, charges, velocities, fixed coordinates.
+    const auto perAtom = [&](const char* key) -> const Json* {
+        const Json* list = value.find(key);
+        if (!list || list->isNull()) return nullptr;
+        if (!list->isArray() || list->size() != structure.atoms.size())
+            throw std::runtime_error(std::string("Structure ") + key + " needs one entry per atom");
+        return list;
+    };
+    if (const Json* list = perAtom("magmoms"))
+        for (std::size_t i = 0; i < structure.atoms.size(); ++i) structure.atoms[i].magmom = list->items()[i].number();
+    if (const Json* list = perAtom("charges"))
+        for (std::size_t i = 0; i < structure.atoms.size(); ++i) structure.atoms[i].charge = list->items()[i].number();
+    if (const Json* list = perAtom("velocities"))
+        for (std::size_t i = 0; i < structure.atoms.size(); ++i)
+            for (int k = 0; k < 3; ++k) structure.atoms[i].velocity[static_cast<std::size_t>(k)] = list->items()[i].items().at(static_cast<std::size_t>(k)).number();
+    if (const Json* list = perAtom("fixed"))
+        for (std::size_t i = 0; i < structure.atoms.size(); ++i)
+            for (int k = 0; k < 3; ++k)
+                if (list->items()[i].items().at(static_cast<std::size_t>(k)).boolean()) structure.atoms[i].fixed |= static_cast<std::uint8_t>(1 << k);
     return structure;
 }
 
@@ -996,6 +1016,26 @@ Json structureJson(const Structure& structure)
         result["cell"] = toJson(cell);
         result["pbc"] = Json::array({structure.pbc[0], structure.pbc[1], structure.pbc[2]});
     } else result["cell"] = Json();
+    // Per-atom data only when some atom has it.
+    bool moments = false, charges = false, velocities = false, fixed = false;
+    for (const auto& a : structure.atoms) {
+        moments = moments || a.magmom != 0;
+        charges = charges || a.charge != 0;
+        velocities = velocities || a.velocity[0] != 0 || a.velocity[1] != 0 || a.velocity[2] != 0;
+        fixed = fixed || a.fixed;
+    }
+    if (moments) { Json list = Json::array(); for (const auto& a : structure.atoms) list.push(a.magmom); result["magmoms"] = list; }
+    if (charges) { Json list = Json::array(); for (const auto& a : structure.atoms) list.push(a.charge); result["charges"] = list; }
+    if (velocities) {
+        Json list = Json::array();
+        for (const auto& a : structure.atoms) list.push(Json::array({a.velocity[0], a.velocity[1], a.velocity[2]}));
+        result["velocities"] = list;
+    }
+    if (fixed) {
+        Json list = Json::array();
+        for (const auto& a : structure.atoms) list.push(Json::array({(a.fixed & 1) != 0, (a.fixed & 2) != 0, (a.fixed & 4) != 0}));
+        result["fixed"] = list;
+    }
     return result;
 }
 }

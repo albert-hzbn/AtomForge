@@ -853,6 +853,10 @@ void FileBrowser::drawMainMenuBar(Structure& structure,
             requestMeasureDistance = true;
         if (ImGui::MenuItem("Measure Angle", nullptr, false, hasAtoms))
             requestMeasureAngle = true;
+        if (ImGui::MenuItem("Measure Dihedral", nullptr, false, hasAtoms))
+            requestMeasureDihedral = true;
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("The torsion angle of four selected atoms, in the order they were picked");
         ImGui::Separator();
         forceTourSubmenu("Theme");
         if (ImGui::BeginMenu("Theme"))

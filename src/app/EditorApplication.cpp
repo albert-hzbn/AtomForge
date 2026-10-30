@@ -403,6 +403,7 @@ void mergeFileBrowserRequests(EditorState& state,
     requests.requestStructureInfo = requests.requestStructureInfo || state.fileBrowser.consumeStructureInfoRequest();
     requests.requestMeasureDistance = requests.requestMeasureDistance || state.fileBrowser.consumeMeasureDistanceRequest();
     requests.requestMeasureAngle = requests.requestMeasureAngle || state.fileBrowser.consumeMeasureAngleRequest();
+    requests.requestMeasureDihedral = requests.requestMeasureDihedral || state.fileBrowser.consumeMeasureDihedralRequest();
     requests.requestViewAxisX = requests.requestViewAxisX || state.fileBrowser.consumeViewAxisXRequest();
     requests.requestViewAxisY = requests.requestViewAxisY || state.fileBrowser.consumeViewAxisYRequest();
     requests.requestViewAxisZ = requests.requestViewAxisZ || state.fileBrowser.consumeViewAxisZRequest();
@@ -504,6 +505,7 @@ void mergeContextRequests(FrameActionRequests& requests, const AtomRequests& con
     requests.doDeleteSelected = requests.doDeleteSelected || contextRequests.doDelete;
     requests.requestMeasureDistance = requests.requestMeasureDistance || contextRequests.measureDistance;
     requests.requestMeasureAngle = requests.requestMeasureAngle || contextRequests.measureAngle;
+    requests.requestMeasureDihedral = requests.requestMeasureDihedral || contextRequests.measureDihedral;
     requests.requestAtomInfo = requests.requestAtomInfo || contextRequests.atomInfo;
 }
 
@@ -1681,7 +1683,7 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
 
         processMeasurementRequests(
             activeState.measurementState,
-            requests.requestMeasureDistance, requests.requestMeasureAngle,
+            requests.requestMeasureDistance, requests.requestMeasureAngle, requests.requestMeasureDihedral,
             requests.requestAtomInfo,
             activeState.selectedInstanceIndices, activeState.sceneBuffers,
             activeState.structure, activeState.editMenuDialogs.elementRadii);
@@ -1689,10 +1691,10 @@ int runAtomsEditor(const std::vector<std::string>& startupPaths)
             // Results refer to the structure they were measured on: an edit of
             // its content (not a display change) closes them.
             auto& measurement = activeState.measurementState;
-            if (requests.requestMeasureDistance || requests.requestMeasureAngle)
+            if (requests.requestMeasureDistance || requests.requestMeasureAngle || requests.requestMeasureDihedral)
                 measurement.revision = activeState.undoRedo.currentId();
             else if (measurement.revision != activeState.undoRedo.currentId()) {
-                measurement.distanceCardOpen = measurement.angleCardOpen = false;
+                measurement.distanceCardOpen = measurement.angleCardOpen = measurement.dihedralCardOpen = false;
                 measurement.clearVisuals();
             }
         }

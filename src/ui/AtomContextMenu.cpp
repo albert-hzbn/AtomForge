@@ -245,6 +245,12 @@ void AtomContextMenu::draw(Structure& structure,
             requests.measureAngle = true;
         if (!canMeasureAngle) ImGui::EndDisabled();
 
+        bool canMeasureDihedral = selectedInstanceIndices.size() == 4;
+        if (!canMeasureDihedral) ImGui::BeginDisabled();
+        if (ImGui::MenuItem("Measure Dihedral"))
+            requests.measureDihedral = true;
+        if (!canMeasureDihedral) ImGui::EndDisabled();
+
         bool canShowInfo = selectedInstanceIndices.size() == 1;
         if (!canShowInfo) ImGui::BeginDisabled();
         if (ImGui::MenuItem("Atom Info"))

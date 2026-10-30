@@ -29,10 +29,16 @@ def _element_of(label: str) -> str:
     return label
 
 
-def _columns(comment: str) -> tuple[int, int]:
+_EXTRA = {"initial_magmoms": ("magmom", 1), "magmoms": ("magmom", 1), "magmom": ("magmom", 1),
+          "initial_charges": ("charge", 1), "charges": ("charge", 1), "charge": ("charge", 1),
+          "velo": ("velocity", 3), "vel": ("velocity", 3), "velocities": ("velocity", 3)}
+
+
+def _columns(comment: str, extra: dict | None = None) -> tuple[int, int]:
     """Species and position columns from an extended XYZ Properties key
     (e.g. id:I:1:species:S:1:pos:R:3; an atomic-number column Z:I:1 stands
-    in for a missing species column); plain XYZ is (0, 1)."""
+    in for a missing species column); plain XYZ is (0, 1). With ``extra``, the
+    columns of magnetic moments, charges and velocities are added to it."""
     m = re.search(r'[Pp]roperties=(\S+)', comment)
     if not m:
         return 0, 1
@@ -51,6 +57,8 @@ def _columns(comment: str) -> tuple[int, int]:
             number = column
         if name.lower() in ("pos", "positions") and width == 3:
             pos = column
+        if extra is not None and name.lower() in _EXTRA and _EXTRA[name.lower()][1] == width:
+            extra[_EXTRA[name.lower()][0]] = column
         column += width
     if species is None:
         species = number
@@ -77,27 +85,56 @@ def _load_xyz(path: str) -> "Structure":
         vals = list(map(float, (m.group(1) or m.group(2)).split()))
         if len(vals) == 9:
             s.cell = [vals[0:3], vals[3:6], vals[6:9]]
-    species_col, pos_col = _columns(comment)
+    flags = re.search(r"""pbc=(?:"([^"]+)"|'([^']+)')""", comment)
+    if flags and s.cell:
+        words = (flags.group(1) or flags.group(2)).split()
+        if len(words) == 3:
+            s.pbc = [w.upper() in ("T", "TRUE", "1") for w in words]
+    extra: dict = {}
+    species_col, pos_col = _columns(comment, extra)
+    width = max([species_col, pos_col + 2] + [c + (2 if k == "velocity" else 0) for k, c in extra.items()])
     for line in lines[2:2 + n]:
         parts = line.split()
-        if len(parts) <= max(species_col, pos_col + 2):
-            raise ValueError("invalid XYZ: atom needs a symbol and three coordinates")
+        if len(parts) <= width:
+            raise ValueError("invalid XYZ: atom needs a symbol and three coordinates (and the declared columns)")
         # Element symbols in any case ("CU", "cu" -> "Cu"); other labels as written.
         sym = _element_of(parts[species_col])
         x, y, z = (float(v) for v in parts[pos_col:pos_col + 3])
         cr, cg, cb = _default_color(sym)
-        s.atoms.append(Atom(sym, x, y, z, cr, cg, cb))
+        atom = Atom(sym, x, y, z, cr, cg, cb)
+        if "magmom" in extra:
+            atom.magmom = float(parts[extra["magmom"]])
+        if "charge" in extra:
+            atom.charge = float(parts[extra["charge"]])
+        if "velocity" in extra:
+            atom.velocity = tuple(float(v) for v in parts[extra["velocity"]:extra["velocity"] + 3])
+        s.atoms.append(atom)
     return s
 
 
 def _save_xyz(s: "Structure", path: str) -> None:
+    moments = any(getattr(a, "magmom", 0.0) for a in s.atoms)
+    charges = any(getattr(a, "charge", 0.0) for a in s.atoms)
+    velocities = any(any(getattr(a, "velocity", (0, 0, 0))) for a in s.atoms)
+    properties = "species:S:1:pos:R:3" + (":initial_magmoms:R:1" if moments else "") + \
+        (":initial_charges:R:1" if charges else "") + (":velo:R:3" if velocities else "")
     lines = [str(len(s.atoms)) + "\n"]
     if s.cell:
         lat = " ".join(f"{v:.10g}" for row in s.cell for v in row)
-        lines.append(f'Lattice="{lat}" Properties=species:S:1:pos:R:3 pbc="T T T"\n')
+        flags = " ".join("T" if p else "F" for p in getattr(s, "pbc", (True, True, True)))
+        lines.append(f'Lattice="{lat}" Properties={properties} pbc="{flags}"\n')
+    elif moments or charges or velocities:
+        lines.append(f'Properties={properties} pbc="F F F"\n')
     else:
         lines.append("AtomForge structure\n")
     for a in s.atoms:
-        lines.append(f"{a.symbol} {a.x:.10f} {a.y:.10f} {a.z:.10f}\n")
+        row = f"{a.symbol} {a.x:.10f} {a.y:.10f} {a.z:.10f}"
+        if moments:
+            row += f" {a.magmom:.10g}"
+        if charges:
+            row += f" {a.charge:.10g}"
+        if velocities:
+            row += " " + " ".join(f"{v:.10g}" for v in a.velocity)
+        lines.append(row + "\n")
     with open(path, "w", encoding="utf-8") as fh:
         fh.writelines(lines)

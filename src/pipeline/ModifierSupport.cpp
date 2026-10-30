@@ -118,6 +118,9 @@ std::vector<double> evaluateForAtoms(const Expression& expression, const Pipelin
         v.atomicNumber = a.atomicNumber;
         v.fixed = static_cast<double>((a.fixed & 1) + ((a.fixed >> 1) & 1) + ((a.fixed >> 2) & 1));
         v.element = a.symbol;
+        v.magmom = a.magmom;
+        v.charge = a.charge;
+        v.vx = a.velocity[0]; v.vy = a.velocity[1]; v.vz = a.velocity[2];
         values[i] = expression.evaluate(v);
     }
     return values;

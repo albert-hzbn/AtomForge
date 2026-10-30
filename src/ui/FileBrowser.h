@@ -225,6 +225,12 @@ struct FileBrowser
         requestMeasureAngle = false;
         return requested;
     }
+    bool consumeMeasureDihedralRequest()
+    {
+        bool requested = requestMeasureDihedral;
+        requestMeasureDihedral = false;
+        return requested;
+    }
     bool consumeAtomInfoRequest()
     {
         bool requested = requestAtomInfo;
@@ -536,6 +542,7 @@ private:
     bool lassoSelectMode;
     bool requestMeasureDistance;
     bool requestMeasureAngle;
+    bool requestMeasureDihedral = false;
     bool requestAtomInfo;
     bool requestViewAxisX;
     bool requestViewAxisY;

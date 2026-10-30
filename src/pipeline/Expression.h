@@ -11,6 +11,7 @@ struct AtomVariables
     double x = 0, y = 0, z = 0;     // Cartesian position (Angstrom)
     double fx = 0, fy = 0, fz = 0;  // fractional position (0 without a cell)
     double index = 0;               // zero-based atom index
+    double magmom = 0, charge = 0, vx = 0, vy = 0, vz = 0;  // per-atom simulation data
     double count = 0;               // number of atoms
     double property = 0;            // per-atom property (NaN when absent)
     double frozen = 0;              // the property kept by freeze-property (NaN when absent)

@@ -176,6 +176,19 @@ int main()
             check(format5[0].structure.pbc==extra.structure.pbc && format5[0].pipelineInput.pbc==extra.pipelineInput.pbc,"Periodic axes changed");
             check(format5[0].structure.frozenProperty.size()==2 && format5[0].structure.frozenProperty[0]==2.5 &&
                   std::isnan(format5[0].structure.frozenProperty[1]) && format5[0].structure.frozenPropertyName=="CNA structure","Frozen property changed");
+            // Format 7: magnetic moments, charges and velocities, bit-exact; older formats drop them.
+            extra.structure.atoms[0].magmom = -2.2;
+            extra.structure.atoms[1].charge = 0.1;
+            extra.structure.atoms[1].velocity = {1e-3, -2e-3, 3.0000000000000004e-3};
+            atomforge::saveWorkspace({extra},extraPath);
+            {
+                const auto format7=atomforge::loadWorkspace(extraPath);
+                const auto& atoms=format7[0].structure.atoms;
+                check(atoms[0].magmom==-2.2 && atoms[1].charge==0.1 && atoms[1].velocity==extra.structure.atoms[1].velocity,"Atom data changed");
+            }
+            atomforge::saveWorkspace({extra},extraPath,6);
+            check(atomforge::loadWorkspace(extraPath)[0].structure.atoms[0].magmom==0.0,"Format 6 project must not carry moments");
+            for (auto& atom:extra.structure.atoms) { atom.magmom=0; atom.charge=0; atom.velocity={0,0,0}; }
             // Format 6: the look of the window (display settings and element tables, as text).
             extra.display="ambient=0.5\nbackground=1 1 1\ncolour.Cu=0.1 0.2 0.3\nradius.Cu=1.5\n";
             atomforge::saveWorkspace({extra},extraPath);
