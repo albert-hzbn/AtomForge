@@ -302,10 +302,11 @@ pub fn check_box(ui: &mut egui::Ui, value: &mut bool) -> egui::Response {
 pub fn labelled_check(ui: &mut egui::Ui, value: &mut bool, label: &str) -> egui::Response {
     let font = egui::TextStyle::Body.resolve(ui.style());
     let colour = if ui.is_enabled() { ui.visuals().text_color() } else { ui.visuals().weak_text_color() };
-    let galley = ui.painter().layout_no_wrap(label.to_string(), font, colour);
     let gap = 7.0;
+    let wrap = (ui.available_width() - FRAME_HEIGHT - gap).max(60.0);
+    let galley = ui.painter().layout(label.to_string(), font, colour, wrap);
     let sense = if ui.is_enabled() { egui::Sense::click() } else { egui::Sense::hover() };
-    let (rect, mut response) = ui.allocate_exact_size(egui::vec2(FRAME_HEIGHT + gap + galley.size().x, FRAME_HEIGHT), sense);
+    let (rect, mut response) = ui.allocate_exact_size(egui::vec2(FRAME_HEIGHT + gap + galley.size().x, FRAME_HEIGHT.max(galley.size().y + 4.0)), sense);
     if response.clicked() {
         *value = !*value;
         response.mark_changed();
@@ -582,11 +583,13 @@ pub fn radio(ui: &mut egui::Ui, selected: bool, label: &str) -> egui::Response {
     let p = theme::palette(ui.visuals().dark_mode);
     let font = egui::TextStyle::Body.resolve(ui.style());
     let colour = if ui.is_enabled() { p.text } else { p.text_muted };
-    let galley = ui.painter().layout_no_wrap(label.to_string(), font, colour);
     let size = FRAME_HEIGHT - 6.0;
+    // A label longer than the room left wraps instead of widening the window.
+    let wrap = (ui.available_width() - size - ui.spacing().item_spacing.x).max(60.0);
+    let galley = ui.painter().layout(label.to_string(), font, colour, wrap);
     let width = size + ui.spacing().item_spacing.x + galley.size().x;
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, FRAME_HEIGHT), egui::Sense::click());
-    let centre = egui::pos2(rect.left() + size / 2.0, rect.center().y);
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, FRAME_HEIGHT.max(galley.size().y + 4.0)), egui::Sense::click());
+    let centre = egui::pos2(rect.left() + size / 2.0, rect.top() + FRAME_HEIGHT / 2.0);
     let fill = if response.hovered() && ui.is_enabled() { p.frame_hover } else { p.frame };
     ui.painter().circle(centre, size / 2.0, fill, egui::Stroke::new(1.0, p.border));
     if selected {

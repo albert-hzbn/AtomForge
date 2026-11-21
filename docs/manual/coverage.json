@@ -775,7 +775,7 @@
     },
     {
       "source": "rust/crates/af-app/src/app.rs",
-      "sha256": "018e792ee0f94f7aca9d3e7118b2ab8061e3159609683a3ad129f24edcd2105d",
+      "sha256": "f1105a12f0b4c9ec77ced14fe567d30f28beb65d3912327bd0d0b247ef659b89",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -1068,11 +1068,11 @@
           "declaration_label": "Manual"
         },
         {
-          "line": 2910,
+          "line": 2913,
           "declaration_label": "Save"
         },
         {
-          "line": 2913,
+          "line": 2916,
           "declaration_label": "Cancel"
         }
       ]
@@ -1107,38 +1107,38 @@
     },
     {
       "source": "rust/crates/af-app/src/bulk_dialog.rs",
-      "sha256": "b3945090b5b6f39f5f023b31df9e0bc88432c153a538afd86b2ac5bccc7d28db",
+      "sha256": "a18144278ccda3e335843fdeb6c6188b72ee03d5cdbcde411e0e11d715f1c30f",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
       ],
       "literal_controls": [
         {
-          "line": 221,
+          "line": 224,
           "declaration_label": "Crystal symmetry"
         },
         {
-          "line": 248,
+          "line": 265,
           "declaration_label": "1"
         },
         {
-          "line": 249,
+          "line": 266,
           "declaration_label": "2"
         },
         {
-          "line": 254,
+          "line": 271,
           "declaration_label": "Lattice parameters (\u00c5, \u00b0)"
         },
         {
-          "line": 256,
+          "line": 273,
           "declaration_label": "Asymmetric unit"
         },
         {
-          "line": 260,
+          "line": 277,
           "declaration_label": "Reset"
         },
         {
-          "line": 264,
+          "line": 281,
           "declaration_label": "Add Site"
         }
       ]
@@ -1196,7 +1196,7 @@
     },
     {
       "source": "rust/crates/af-app/src/custom_dialog.rs",
-      "sha256": "05ffb261b0afc61b54354b699eccc389fa787099f7ed6013a7f228fe52b32db5",
+      "sha256": "cb3c5db9c50016ddf5b9019a9276e0d59a7185147d6002a36c187b4e47837df5",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -1250,7 +1250,7 @@
     },
     {
       "source": "rust/crates/af-app/src/dialog_layout.rs",
-      "sha256": "fd3cbe27caea104c67d58adff5918125ae1015b2b2e9aa81f705e875c5e6154c",
+      "sha256": "70e181f76a6c12b7f10b0a738fd215b1e241691de4dbbe0ea0a121507673aed9",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -1267,14 +1267,14 @@
           "declaration_label": "+"
         },
         {
-          "line": 320,
+          "line": 321,
           "declaration_label": ""
         }
       ]
     },
     {
       "source": "rust/crates/af-app/src/dialog_widgets.rs",
-      "sha256": "bd2e285b8762e17bfa26a88d7d8423fa748cef163579733a40c14c0d55ce0fa6",
+      "sha256": "36534a6e4fd15ea32a525caa1c86ea3ff6ad1d9769bef71c1f8461c410cbbbb2",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -1283,19 +1283,19 @@
       ],
       "literal_controls": [
         {
-          "line": 322,
+          "line": 324,
           "declaration_label": "-"
         },
         {
-          "line": 325,
+          "line": 327,
           "declaration_label": "+"
         },
         {
-          "line": 346,
+          "line": 348,
           "declaration_label": "-"
         },
         {
-          "line": 349,
+          "line": 351,
           "declaration_label": "+"
         }
       ]
@@ -1842,7 +1842,7 @@
     },
     {
       "source": "rust/crates/af-app/src/interface_dialog.rs",
-      "sha256": "1f4be08e0f7f369a5d448c26f535b6185eb4525c3c8ee224eed050611acb2ae7",
+      "sha256": "60f72a406599033dac5afb3bd91ead92f2a671b81f64db1712252fe367c1024f",
       "documentation": [
         "11-coverage.tex"
       ],
@@ -2389,7 +2389,7 @@
     },
     {
       "source": "rust/crates/af-app/src/preview3d.rs",
-      "sha256": "0c385a26d1099148d92bc1501bfa050fa3defa9d3b3919e6be95f25b285e98f3",
+      "sha256": "219766592dd6eb3b1e3545dbd41481a4ac891e8aa56448e7b9d69ad6792b1723",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

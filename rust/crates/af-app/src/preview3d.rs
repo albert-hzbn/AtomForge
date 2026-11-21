@@ -102,9 +102,10 @@ pub fn show(ui: &mut egui::Ui, size: egui::Vec2, s: &Structure, hint: &[&str]) -
     let print = fingerprint(s);
     let known = TEXTURES.with(|t| t.borrow().get(&id).copied());
     let changed = known.is_none_or(|(_, f)| f != print);
-    let bg = egui::Rgba::from(background);
+    // The renderer takes the background as the main view's are given: sRGB components.
+    let srgb = |c: u8| c as f32 / 255.0;
     REQUESTS.with(|r| {
-        r.borrow_mut().push(Request { id, structure: changed.then(|| s.clone()), fingerprint: print, size: px, view, background: [bg.r(), bg.g(), bg.b(), 1.0] })
+        r.borrow_mut().push(Request { id, structure: changed.then(|| s.clone()), fingerprint: print, size: px, view, background: [srgb(background.r()), srgb(background.g()), srgb(background.b()), 1.0] })
     });
     if let Some((texture, _)) = known {
         painter.image(texture, rect, egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), egui::Color32::WHITE);

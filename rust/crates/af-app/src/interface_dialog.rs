@@ -899,7 +899,11 @@ impl InterfaceDialog {
                     return Err(format!("options: {}", self.step_options()));
                 }
             }
-            "example" => self.example(a == "cube"),
+            "example" => {
+                // The example pair, shown in the open dialog.
+                self.example(a == "cube");
+                self.open = true;
+            }
             "load" => {
                 let s = slot()?;
                 let path = a[1..].trim().to_string();

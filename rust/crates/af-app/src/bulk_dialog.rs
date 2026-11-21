@@ -23,6 +23,8 @@ const SYSTEM_NAMES: [&str; 7] = ["triclinic", "monoclinic", "orthorhombic", "tet
 
 pub struct BulkDialog {
     pub open: bool,
+    /// Holds the crystal-system list open (manual screenshots; cleared with the dialog).
+    pub show_systems: bool,
     system: usize,
     space_group: i32,
     origin: i32,
@@ -44,6 +46,7 @@ impl Default for BulkDialog {
     fn default() -> Self {
         Self {
             open: false,
+            show_systems: false,
             system: 6,
             space_group: 225,
             origin: 1,
@@ -226,11 +229,25 @@ impl BulkDialog {
             });
             ui.horizontal(|ui| {
                 let previous = self.system;
-                egui::ComboBox::from_id_salt("bulk system").width(half - 8.0).selected_text(SYSTEM_LABELS[self.system]).show_ui(ui, |ui| {
+                let combo = egui::ComboBox::from_id_salt("bulk system").width(half - 8.0).selected_text(SYSTEM_LABELS[self.system]).show_ui(ui, |ui| {
                     for (k, label) in SYSTEM_LABELS.iter().enumerate() {
                         ui.selectable_value(&mut self.system, k, *label);
                     }
                 });
+                if self.show_systems {
+                    // Scripts have no pointer to open the list with: the same list, held open.
+                    let rect = combo.response.rect;
+                    egui::Area::new(egui::Id::unique("bulk systems list")).order(egui::Order::Tooltip).fixed_pos(rect.left_bottom() + egui::vec2(0.0, 2.0)).show(ui.ctx(), |ui| {
+                        egui::Frame::menu(ui.style()).show(ui, |ui| {
+                            ui.set_width(rect.width() - 12.0);
+                            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Min), |ui| {
+                                for (k, label) in SYSTEM_LABELS.iter().enumerate() {
+                                    ui.add(egui::Button::selectable(k == self.system, *label).frame_when_inactive(false).min_size(egui::vec2(rect.width() - 12.0, crate::theme::FRAME_HEIGHT - 6.0)));
+                                }
+                            });
+                        });
+                    });
+                }
                 if self.system != previous {
                     self.space_group = current_range(SYSTEMS[self.system]).first;
                     apply_system_constraints(SYSTEMS[self.system], &mut self.lattice);

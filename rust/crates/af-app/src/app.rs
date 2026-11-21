@@ -2887,7 +2887,10 @@ impl AtomForgeApp {
                 };
                 let title = if closing.is_some() { "Unsaved Changes##close" } else { "Unsaved Changes##quit" };
                 let mut choice = 0;
-                crate::theme::modal_window(title.split("##").next().unwrap_or(title)).id(egui::Id::unique(title)).resizable(false).auto_sized().show(ctx, |ui| {
+                crate::theme::modal_window(title.split("##").next().unwrap_or(title)).id(egui::Id::unique(title)).resizable(false).show(ctx, |ui| {
+                    // A fixed width: the right-aligned buttons would otherwise
+                    // stretch the window across the screen.
+                    ui.set_width(if closing.is_some() { 460.0 } else { 520.0 });
                     let p = crate::theme::palette(ui.visuals().dark_mode);
                     match closing {
                         Some(_) => {
@@ -2906,7 +2909,7 @@ impl AtomForgeApp {
                         let text = ui.painter().layout_no_wrap(label.to_string(), egui::TextStyle::Button.resolve(ui.style()), p.text).size().x;
                         egui::vec2((crate::theme::BASE_FONT * 5.5 * 18.0 / 13.5).max(text + 20.0), crate::theme::FRAME_HEIGHT)
                     };
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), crate::theme::FRAME_HEIGHT), egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if closing.is_some() && crate::theme::primary_button(ui, "Save", Some(width(ui, "Save"))).clicked() {
                             choice = 3;
                         }
@@ -3810,6 +3813,8 @@ impl AtomForgeApp {
                 let colours = self.doc().map(|d| d.element_colours.clone()).unwrap_or_else(|| self.look.colours.clone());
                 match what {
                     "open" => self.bulk.open = true,
+                    // bulk systems: the crystal-system list held open.
+                    "systems" => self.bulk.show_systems = true,
                     "set" => {
                         let (name, text) = split(value);
                         self.bulk.set(name, text, &colours)?;
@@ -3914,8 +3919,11 @@ impl AtomForgeApp {
                 self.palette.set_query(rest.trim());
             }
             "notify" => {
-                // notify TEXT: a notice, as an operation's message.
+                // notify TEXT: a notice, as an operation's message; notify alone clears them.
                 self.status = rest.trim().to_string();
+                if self.status.is_empty() {
+                    self.notifications.clear();
+                }
             }
             "select-atoms" => {
                 // select-atoms I J ...: selects these atoms (0-based).
@@ -3946,6 +3954,7 @@ impl AtomForgeApp {
                 self.about = false;
                 self.trajectory.open = false;
                 self.bulk.open = false;
+                self.bulk.show_systems = false;
                 self.dislocation.open = false;
                 self.cna.open = false;
                 self.rdf.open = false;

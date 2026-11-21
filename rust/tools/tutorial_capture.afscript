@@ -52,10 +52,9 @@ bulk open
 wait 12
 capture tutorials/bulk-controls.jpg popups
 capture bulk-dialog.png popups
-bulk set system hexagonal
+bulk systems
 wait 12
 capture tutorials/bulk-systems.jpg popups
-bulk set system cubic
 close-windows
 dialog build-sss open
 dialog build-sss use-scene
@@ -116,6 +115,8 @@ try dialog build-custom build
 close-windows
 reset-view
 wait 40
+notify
+wait 2
 capture tutorials/custom-result.jpg viewport
 close-all
 open cu_host.cif
@@ -166,6 +167,8 @@ capture tutorials/wulff-built.jpg popups
 close-windows
 reset-view
 wait 30
+notify
+wait 2
 capture tutorials/wulff-result.jpg viewport
 dialog merge open
 wait 20
@@ -277,16 +280,22 @@ tool ptm
 run
 colour-by-tool 1
 wait 30
+notify
+wait 2
 capture analysis/ptm.jpg full
 tool grain-segmentation
 run
 try colour-by-tool 1
 wait 30
+notify
+wait 2
 capture analysis/grain-segmentation.jpg full
 tool voronoi
 run
 try colour-by-tool 1
 wait 30
+notify
+wait 2
 capture analysis/voronoi.jpg full
 close-windows
 close-all
@@ -298,6 +307,8 @@ trajectory lines whole
 wait 30
 close-windows
 wait 12
+notify
+wait 2
 capture analysis/trajectory-lines.jpg full
 close-all
 open cu_sphere.xyz
@@ -306,6 +317,8 @@ tool surface-mesh
 run
 toolwin surface on
 wait 30
+notify
+wait 2
 capture analysis/surface-mesh.jpg full
 close-windows
 # Electronic structure (the demonstration CHGCAR).

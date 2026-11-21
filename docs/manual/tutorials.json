@@ -1,6 +1,6 @@
 {
   "capture_date": "2026-11-21",
-  "application_source_baseline": "685b11e",
+  "application_source_baseline": "cf7bab3",
   "notes": "Real AtomForge screenshots and native shape examples. Captions distinguish input previews and completed results; paired scientific 3D/projection plots have been removed.",
   "required_tutorials": [
     "build-menu",
@@ -462,9 +462,9 @@
               "caption": "Immediately before Build Fill: copper reference and octahedron mesh previews, automatic repetition, scale 12 \\angstrom/model unit, orientation disabled, and a rectangular output cell with 5 \\angstrom\\ vacuum. Scroll upward for the source picker.",
               "bounds": [
                 594,
-                239,
+                149,
                 1326,
-                891
+                981
               ]
             }
           ],
@@ -497,9 +497,9 @@
               "file": "tutorials/custom-euler.jpg",
               "bounds": [
                 594,
-                239,
+                98,
                 1326,
-                891
+                1032
               ],
               "caption": "The orientation portion of Custom Structure with Type 1 (rotations about X, Y and Z) enabled, above Build Fill."
             }
@@ -517,9 +517,9 @@
               "caption": "Loaded source and model previews before enabling the orientation controls illustrated on the preceding page. The reference preview is not a regenerated, oriented atomic fill.",
               "bounds": [
                 594,
-                239,
+                149,
                 1326,
-                891
+                981
               ]
             }
           ]
@@ -533,9 +533,9 @@
               "file": "tutorials/custom-miller.jpg",
               "bounds": [
                 594,
-                239,
+                98,
                 1326,
-                891
+                1032
               ],
               "caption": "Type 2 exposes the crystallographic direction triplet instead of Euler-angle inputs."
             }
@@ -553,9 +553,9 @@
               "caption": "Loaded source and model previews before enabling the orientation controls illustrated on the preceding page. The reference preview is not a regenerated, oriented atomic fill.",
               "bounds": [
                 594,
-                239,
+                149,
                 1326,
-                891
+                981
               ]
             }
           ]

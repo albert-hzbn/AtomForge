@@ -494,7 +494,7 @@ impl StructureDialog for CustomDialog {
         let mut out = None;
         let mut open = self.open;
         let editing = self.step.as_ref().map(|e| e.step.clone());
-        crate::theme::modal_window("Custom Structure").open(&mut open).default_size([720.0, 640.0]).min_width(640.0).show(ctx, |ui| {
+        crate::theme::modal_window("Custom Structure").open(&mut open).default_size([720.0, 940.0]).min_width(640.0).show(ctx, |ui| {
             if let Some(step) = &editing {
                 ui.colored_label(INFO, format!("Editing pipeline step: {step}"));
             }

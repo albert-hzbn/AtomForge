@@ -105,17 +105,19 @@ pub fn checkbox(ui: &mut egui::Ui, value: &mut bool, label: impl AsRef<str>) -> 
     let label = label.as_ref();
     let p = palette(ui);
     let font = egui::TextStyle::Body.resolve(ui.style());
-    let galley = ui.painter().layout_no_wrap(label.to_string(), font, p.text);
     let side = FRAME_HEIGHT - 4.0;
+    // A label longer than the room left wraps instead of widening the window.
+    let wrap = (ui.available_width() - side - 7.0).max(60.0);
+    let galley = ui.painter().layout(label.to_string(), font, p.text, wrap);
     let width = side + if label.is_empty() { 0.0 } else { 7.0 + galley.size().x };
-    let (rect, mut response) = ui.allocate_exact_size(egui::vec2(width, FRAME_HEIGHT), egui::Sense::click());
+    let (rect, mut response) = ui.allocate_exact_size(egui::vec2(width, FRAME_HEIGHT.max(galley.size().y + 4.0)), egui::Sense::click());
     if response.clicked() {
         *value = !*value;
         response.mark_changed();
     }
     let enabled = ui.is_enabled();
     let fade = |c: Color32| if enabled { c } else { c.gamma_multiply(0.5) };
-    let b = egui::Rect::from_min_size(egui::pos2(rect.left(), rect.center().y - side / 2.0), egui::vec2(side, side));
+    let b = egui::Rect::from_min_size(egui::pos2(rect.left(), rect.top() + (FRAME_HEIGHT - side) / 2.0), egui::vec2(side, side));
     let fill = if response.hovered() { p.frame_hover } else { p.frame };
     ui.painter().rect(b, CornerRadius::same(6), fade(fill), Stroke::new(1.0, fade(p.border)), egui::StrokeKind::Inside);
     if *value {
@@ -414,11 +416,13 @@ impl CollapsingHeader {
 pub fn radio(ui: &mut egui::Ui, selected: bool, label: impl AsRef<str>) -> egui::Response {
     let p = palette(ui);
     let font = egui::TextStyle::Body.resolve(ui.style());
-    let galley = ui.painter().layout_no_wrap(label.as_ref().to_string(), font, p.text);
     let side = FRAME_HEIGHT - 4.0;
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(side + 7.0 + galley.size().x, FRAME_HEIGHT), egui::Sense::click());
+    // A label longer than the room left wraps instead of widening the window.
+    let wrap = (ui.available_width() - side - 7.0).max(60.0);
+    let galley = ui.painter().layout(label.as_ref().to_string(), font, p.text, wrap);
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(side + 7.0 + galley.size().x, FRAME_HEIGHT.max(galley.size().y + 4.0)), egui::Sense::click());
     let fade = |c: Color32| if ui.is_enabled() { c } else { c.gamma_multiply(0.5) };
-    let centre = egui::pos2(rect.left() + side / 2.0, rect.center().y);
+    let centre = egui::pos2(rect.left() + side / 2.0, rect.top() + FRAME_HEIGHT / 2.0);
     let fill = if response.hovered() { p.frame_hover } else { p.frame };
     ui.painter().circle(centre, side / 2.0, fade(fill), Stroke::new(1.0, fade(p.border)));
     if selected {
