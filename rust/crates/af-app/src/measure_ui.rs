@@ -66,7 +66,7 @@ impl MeasureCards {
     /// A result card beside the view (drawResultCard: not modal, so the
     /// measured atoms stay in sight): the value large, the atoms below, Copy
     /// and Close. Cards stack downwards from `top`; returns the next top.
-    fn card(ctx: &egui::Context, kind: Kind, slot: &mut Option<Measurement>, top: f32) -> f32 {
+    fn card(ctx: &egui::Context, kind: Kind, slot: &mut Option<Measurement>, top: f32, right: f32) -> f32 {
         let Some(m) = slot.as_ref() else { return top };
         let mut open = true;
         let mut close = false;
@@ -76,7 +76,7 @@ impl MeasureCards {
             .id(egui::Id::unique(("measurement", kind.title())))
             .open(&mut open)
             .resizable(false)
-            .fixed_pos(egui::pos2(screen.max.x - margin, top))
+            .fixed_pos(egui::pos2(right.min(screen.max.x) - margin, top))
             .pivot(egui::Align2::RIGHT_TOP)
             .resizable(false)
             .show(ctx, |ui| {
@@ -106,11 +106,12 @@ impl MeasureCards {
         response.map(|r| r.response.rect.max.y + margin * 0.5).unwrap_or(top)
     }
 
-    pub fn show(&mut self, ctx: &egui::Context) {
+    /// `right`: the right edge of the 3D view (the cards stay beside a docked panel).
+    pub fn show(&mut self, ctx: &egui::Context, right: f32) {
         let mut top = ctx.content_rect().top() + crate::theme::FRAME_HEIGHT * 4.5 + 16.0;
-        top = Self::card(ctx, Kind::Distance, &mut self.distance, top);
-        top = Self::card(ctx, Kind::Angle, &mut self.angle, top);
-        Self::card(ctx, Kind::Dihedral, &mut self.dihedral, top);
+        top = Self::card(ctx, Kind::Distance, &mut self.distance, top, right);
+        top = Self::card(ctx, Kind::Angle, &mut self.angle, top, right);
+        Self::card(ctx, Kind::Dihedral, &mut self.dihedral, top, right);
         if let Some(text) = self.atom_info.clone() {
             let mut open = true;
             let mut close = false;

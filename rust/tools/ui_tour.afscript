@@ -54,7 +54,6 @@ pipeline undock
 wait 12
 screenshot tmp/rust-tour/12-pipeline-undocked.png
 close-windows
-pipeline discard
 dialog build-interface example
 try dialog build-interface find
 wait 60
@@ -288,13 +287,13 @@ menu View
 wait 12
 screenshot tmp/rust-tour/68-dark-menu-View.png
 close-windows
+# The pipeline of shot 10 is still the tab's, as in the C++ tour.
 pipeline open
-pipeline text replicate 2 1 1 | select-expression fz > 0.5 | assign-element Al | wrap
-pipeline disable 4
+pipeline dock
 wait 12
 screenshot tmp/rust-tour/69-dark-pipeline-panel.png
+pipeline undock
 close-windows
-pipeline discard
 bulk open
 wait 12
 screenshot tmp/rust-tour/70-dark-builder-bulk.png
@@ -317,6 +316,7 @@ try dialog build-interface find
 wait 60
 screenshot tmp/rust-tour/74-dark-builder-interface.png
 close-windows
+try pipeline discard
 close-all
 wait 12
 screenshot tmp/rust-tour/75-dark-welcome.png

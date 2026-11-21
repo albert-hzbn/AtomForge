@@ -2753,7 +2753,8 @@ impl AtomForgeApp {
         } else {
             self.info.open = false;
         }
-        self.measure.show(ctx);
+        let view_right = if self.viewport_size.0 > 0 { self.viewport_origin.x + self.viewport_size.0 as f32 / ctx.pixels_per_point() } else { f32::INFINITY };
+        self.measure.show(ctx, view_right);
         let colours = self.doc().map(|d| d.element_colours.clone()).unwrap_or_else(|| self.look.colours.clone());
         if let Some((pick, z)) = self.picker.show(ctx, &colours) {
             self.apply_pick(pick, z);
@@ -3095,6 +3096,9 @@ impl AtomForgeApp {
                 }
                 self.pipeline.load_file(&mut d.pipeline, value.trim());
             }
+            // Showing the panel changes nothing: a structure edited outside the
+            // pipeline stays, with the panel's warning (as when opened by hand).
+            "open" | "dock" | "undock" => {}
             _ => {
                 // The output as after a frame (update follows every edit).
                 let requests = self.pipeline.update(&mut d.pipeline, true);

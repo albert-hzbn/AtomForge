@@ -1,6 +1,6 @@
 {
   "capture_date": "2026-11-21",
-  "application_source_baseline": "cf7bab3",
+  "application_source_baseline": "eef4b04",
   "notes": "Real AtomForge screenshots and native shape examples. Captions distinguish input previews and completed results; paired scientific 3D/projection plots have been removed.",
   "required_tutorials": [
     "build-menu",

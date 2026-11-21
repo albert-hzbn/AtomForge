@@ -775,7 +775,7 @@
     },
     {
       "source": "rust/crates/af-app/src/app.rs",
-      "sha256": "f1105a12f0b4c9ec77ced14fe567d30f28beb65d3912327bd0d0b247ef659b89",
+      "sha256": "ad3684b8fc372499dd41c666dc7a0b27986eadda31e11ec64c9f569f2ac08321",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -1036,43 +1036,43 @@
           "declaration_label": "About AtomForge"
         },
         {
-          "line": 2811,
+          "line": 2812,
           "declaration_label": "Creator"
         },
         {
-          "line": 2813,
+          "line": 2814,
           "declaration_label": "Core Libraries"
         },
         {
-          "line": 2818,
+          "line": 2819,
           "declaration_label": "Chemistry Libraries"
         },
         {
-          "line": 2821,
+          "line": 2822,
           "declaration_label": "Data & References"
         },
         {
-          "line": 2825,
+          "line": 2826,
           "declaration_label": "Algorithm References"
         },
         {
-          "line": 2829,
+          "line": 2830,
           "declaration_label": "Features"
         },
         {
-          "line": 2852,
+          "line": 2853,
           "declaration_label": "Close"
         },
         {
-          "line": 2855,
+          "line": 2856,
           "declaration_label": "Manual"
         },
         {
-          "line": 2913,
+          "line": 2914,
           "declaration_label": "Save"
         },
         {
-          "line": 2916,
+          "line": 2917,
           "declaration_label": "Cancel"
         }
       ]
@@ -1107,7 +1107,7 @@
     },
     {
       "source": "rust/crates/af-app/src/bulk_dialog.rs",
-      "sha256": "a18144278ccda3e335843fdeb6c6188b72ee03d5cdbcde411e0e11d715f1c30f",
+      "sha256": "45ec2b4d5651f0edbcb78a3a57919e7fbeeb5ed613fd8977d2fcd56c552c7504",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -1118,27 +1118,27 @@
           "declaration_label": "Crystal symmetry"
         },
         {
-          "line": 265,
+          "line": 267,
           "declaration_label": "1"
         },
         {
-          "line": 266,
+          "line": 268,
           "declaration_label": "2"
         },
         {
-          "line": 271,
+          "line": 273,
           "declaration_label": "Lattice parameters (\u00c5, \u00b0)"
         },
         {
-          "line": 273,
+          "line": 275,
           "declaration_label": "Asymmetric unit"
         },
         {
-          "line": 277,
+          "line": 279,
           "declaration_label": "Reset"
         },
         {
-          "line": 281,
+          "line": 283,
           "declaration_label": "Add Site"
         }
       ]
@@ -2029,7 +2029,7 @@
     },
     {
       "source": "rust/crates/af-app/src/measure_ui.rs",
-      "sha256": "d7fd1b490577b87cea1fc138ce936ee717913be9f39d6bb143ab9817ad60f8f5",
+      "sha256": "ffac87c686198dcde983e905703343fed1363b45fa02a48a6f180516c9a98e30",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",

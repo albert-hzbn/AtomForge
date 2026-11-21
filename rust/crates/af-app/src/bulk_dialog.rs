@@ -240,9 +240,11 @@ impl BulkDialog {
                     egui::Area::new(egui::Id::unique("bulk systems list")).order(egui::Order::Tooltip).fixed_pos(rect.left_bottom() + egui::vec2(0.0, 2.0)).show(ui.ctx(), |ui| {
                         egui::Frame::menu(ui.style()).show(ui, |ui| {
                             ui.set_width(rect.width() - 12.0);
+                            // The C++ combo list: 24-pixel rows, no gaps between them.
+                            crate::theme::menu_style(ui.style_mut());
                             ui.with_layout(egui::Layout::top_down_justified(egui::Align::Min), |ui| {
                                 for (k, label) in SYSTEM_LABELS.iter().enumerate() {
-                                    ui.add(egui::Button::selectable(k == self.system, *label).frame_when_inactive(false).min_size(egui::vec2(rect.width() - 12.0, crate::theme::FRAME_HEIGHT - 6.0)));
+                                    ui.add(egui::Button::selectable(k == self.system, *label).frame_when_inactive(false).min_size(egui::vec2(rect.width() - 12.0, 24.0)));
                                 }
                             });
                         });
