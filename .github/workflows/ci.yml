@@ -24,7 +24,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential pkg-config libsymspg-dev \
-            libx11-dev libxkbcommon-dev libwayland-dev
+            libx11-dev libxkbcommon-dev libwayland-dev mesa-vulkan-drivers
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -34,6 +34,10 @@ jobs:
 
       - name: Test
         working-directory: rust
+        env:
+          # The golden outputs were recorded with 24 hardware threads, on
+          # which the order of interstitial void candidates depends.
+          ATOMFORGE_VOID_THREADS: 24
         run: cargo test --workspace --release
 
       - uses: actions/setup-python@v5
@@ -72,6 +76,8 @@ jobs:
 
       - name: Test
         working-directory: rust
+        env:
+          ATOMFORGE_VOID_THREADS: 24
         run: cargo test --workspace --release
 
       - uses: actions/setup-python@v5

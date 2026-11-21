@@ -395,9 +395,12 @@ struct Candidate {
 
 /// The C++ worker count: std::thread::hardware_concurrency (8 when unknown).
 /// The result depends on it (the per-worker candidates are concatenated in
-/// worker order), so `threads` overrides it for reproducible output.
+/// worker order), so `threads`, else the ATOMFORGE_VOID_THREADS environment
+/// variable, overrides it for output that is the same on every machine.
 fn worker_count(atoms: usize, threads: Option<usize>) -> usize {
-    let hw = threads.unwrap_or_else(|| std::thread::available_parallelism().map(|n| n.get()).unwrap_or(8));
+    let hw = threads
+        .or_else(|| std::env::var("ATOMFORGE_VOID_THREADS").ok().and_then(|v| v.trim().parse().ok()).filter(|&n: &usize| n > 0))
+        .unwrap_or_else(|| std::thread::available_parallelism().map(|n| n.get()).unwrap_or(8));
     hw.min(atoms).max(1)
 }
 
