@@ -299,7 +299,7 @@ pub fn cloud_panel(ctx: &egui::Context, cloud: &mut CloudRenderer, frame_millise
             {
                 s.memory_budget_mb = memory as f64;
             }
-            ui.checkbox(&mut s.level_of_detail, "Level of detail").on_hover_text("Draw distant regions with a random subsample of their atoms (as many as the screen resolves).");
+            crate::dialog_widgets::checkbox(ui, &mut s.level_of_detail, "Level of detail").on_hover_text("Draw distant regions with a random subsample of their atoms (as many as the screen resolves).");
             ui.add_enabled(s.level_of_detail, egui::Slider::new(&mut s.density, 0.5..=20.0).logarithmic(true).fixed_decimals(1).text("Detail"))
                 .on_hover_text("Atoms drawn per screen area at a distance; higher is denser and slower.");
             ui.add(egui::Slider::new(&mut s.radius_scale, 0.2..=3.0).fixed_decimals(2).text("Atom size")).on_hover_text("Scales the drawn atom radius.");
@@ -311,8 +311,8 @@ pub fn cloud_panel(ctx: &egui::Context, cloud: &mut CloudRenderer, frame_millise
             });
             let s = &mut cloud.settings;
             ui.horizontal(|ui| {
-                ui.checkbox(&mut s.show_box, "Show box");
-                ui.checkbox(&mut s.occlusion_culling, "Occlusion culling").on_hover_text("Skip chunks hidden behind nearer ones.");
+                crate::dialog_widgets::checkbox(ui, &mut s.show_box, "Show box");
+                crate::dialog_widgets::checkbox(ui, &mut s.occlusion_culling, "Occlusion culling").on_hover_text("Skip chunks hidden behind nearer ones.");
             });
             ui.add_space(4.0);
             ui.weak("Large datasets are view-only; File > Open a smaller file to edit.");

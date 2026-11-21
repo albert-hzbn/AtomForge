@@ -341,6 +341,7 @@ impl SculptorDialog {
             self.source_view.fit(&points, rect);
             self.source_view.fit_pending = false;
         }
+        self.source_view.draw_cell(&painter, rect, &self.supercell, ui);
         self.source_view.draw_atoms(&painter, rect, &atoms);
         for (poly, c) in &self.faces {
             let points: Vec<egui::Pos2> = poly.iter().map(|&p| self.source_view.project(p, rect).0).collect();
@@ -438,7 +439,7 @@ impl SculptorDialog {
                         slab.use_periodic = false;
                     }
                     ui.horizontal(|ui| {
-                        let r = ui.add_enabled(has_periodic, egui::Checkbox::new(&mut slab.use_periodic, "Periodic")).on_hover_text(PERIODIC_HINT).on_disabled_hover_text("Load a crystal with a unit cell to enable periodic mode.");
+                        let r = ui.add_enabled_ui(has_periodic, |ui| crate::dialog_widgets::checkbox(ui, &mut slab.use_periodic, "Periodic")).inner.on_hover_text(PERIODIC_HINT).on_disabled_hover_text("Load a crystal with a unit cell to enable periodic mode.");
                         changed |= r.changed();
                         if slab.use_periodic && has_periodic {
                             let d_rep = csc_structural_dhkl(slab, &source);

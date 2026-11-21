@@ -1,6 +1,6 @@
 {
   "capture_date": "2026-11-21",
-  "application_source_baseline": "36a61b1",
+  "application_source_baseline": "685b11e",
   "notes": "Real AtomForge screenshots and native shape examples. Captions distinguish input previews and completed results; paired scientific 3D/projection plots have been removed.",
   "required_tutorials": [
     "build-menu",
@@ -175,10 +175,10 @@
             {
               "file": "tutorials/alloy-controls.jpg",
               "bounds": [
-                674,
-                285,
-                1246,
-                845
+                507,
+                273,
+                1413,
+                857
               ],
               "caption": "The 500-site copper source loaded, with the target composition starting as pure Cu. Add Ni and set the rows to 70 / 30 for this tutorial."
             }
@@ -907,10 +907,10 @@
             {
               "file": "tutorials/dislocation-controls.jpg",
               "bounds": [
-                674,
-                199,
-                1246,
-                931
+                427,
+                175,
+                1493,
+                955
               ],
               "caption": "The copper host has been copied and detected as FCC-like. Upper settings define character, line position, and elastic inputs."
             }
@@ -931,10 +931,10 @@
             {
               "file": "tutorials/dislocation-preview.jpg",
               "bounds": [
-                674,
-                177,
-                1246,
-                953
+                427,
+                175,
+                1493,
+                955
               ],
               "caption": "Generated half-plane preview. The status line reports the validation (family preserved, coordinates finite, minimum distance); a warning there must not be ignored."
             }
@@ -955,10 +955,10 @@
             {
               "file": "tutorials/dislocation-summary.jpg",
               "bounds": [
-                674,
-                177,
-                1246,
-                953
+                427,
+                175,
+                1493,
+                955
               ],
               "caption": "Validation and Replace Main Scene are below Generate in the settings panel."
             }
@@ -1105,9 +1105,9 @@
               "file": "tutorials/file-browser.jpg",
               "bounds": [
                 594,
-                244,
+                231,
                 1326,
-                886
+                899
               ],
               "caption": "The real structure browser with a generated example selected. The filename can be selected from the listing."
             }
@@ -1404,7 +1404,7 @@
               "bounds": [
                 74,
                 0,
-                518,
+                534,
                 465
               ],
               "caption": "Theme selection under View. Light is selected in these captures."

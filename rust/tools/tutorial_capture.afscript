@@ -76,6 +76,8 @@ capture tutorials/amorphous-controls.jpg popups
 dialog build-amorphous mindist O Si 1.5
 wait 12
 capture tutorials/amorphous-advanced.jpg popups
+dialog build-amorphous box 20 20 20
+wait 12
 capture tutorials/amorphous-manual.jpg popups
 close-windows
 dialog build-poly open
@@ -103,13 +105,13 @@ dialog build-custom load octahedron.obj
 dialog build-custom scale 12
 wait 30
 capture tutorials/custom-loaded.jpg popups
-try dialog build-custom orientation euler
+try dialog build-custom orientation euler 0 0 0
 wait 12
 capture tutorials/custom-euler.jpg popups
-try dialog build-custom orientation miller
+try dialog build-custom orientation miller 1 0 0
 wait 12
 capture tutorials/custom-miller.jpg popups
-try dialog build-custom orientation none
+try dialog build-custom orientation off
 try dialog build-custom build
 close-windows
 reset-view
@@ -139,7 +141,7 @@ capture tutorials/interstitial-mesh.jpg popups
 close-windows
 dialog build-sculpt open
 dialog build-sculpt use-scene
-dialog build-sculpt add 1 1 1
+dialog build-sculpt add 1 0 0
 dialog build-sculpt slab 1 periodic on
 wait 30
 capture tutorials/sculptor-periodic.jpg popups
@@ -225,6 +227,7 @@ wait 12
 capture tutorials/export-image.jpg popups
 close-windows
 command file open
+browser-name cu_ni_alloy.cif
 wait 12
 capture tutorials/file-browser.jpg popups
 close-windows
@@ -244,7 +247,7 @@ command Atom Info
 wait 20
 capture tutorials/atom-info.jpg top
 close-windows
-select-atoms 13
+pick-atom 13
 context-menu
 wait 12
 capture tutorials/atom-context.jpg top
@@ -262,6 +265,8 @@ sro open
 try sro run
 wait 40
 capture tutorials/sro-warren.jpg popups
+sro tab 1
+wait 12
 capture tutorials/sro-rao.jpg popups
 close-windows
 # OVITO-style analyses: run in the scientific tool window, atoms coloured by the result.
@@ -305,11 +310,12 @@ capture analysis/surface-mesh.jpg full
 close-windows
 # Electronic structure (the demonstration CHGCAR).
 close-all
+notify
 dialog electronic open
 dialog electronic load ../../../tmp/CHGCAR-electronic-demo
 wait 120
 capture electronic-volume.png tools
-dialog electronic slice-arbitrary 0.5 0.5 0.5 1 1 0
+dialog electronic slice-arbitrary 0.5 0.5 0.5 1 1 1
 wait 60
 capture electronic-arbitrary.png tools
 capture-done rust

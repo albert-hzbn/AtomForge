@@ -303,7 +303,7 @@ impl NanoDialog {
                 length(ui, "Height (Å)", &mut p.cyl_height, 1000.0);
                 ui.horizontal(|ui| {
                     for (i, axis) in ["X", "Y", "Z"].into_iter().enumerate() {
-                        ui.radio_value(&mut p.cyl_axis, i as i32, axis);
+                        crate::dialog_widgets::radio_value(ui, &mut p.cyl_axis, i as i32, axis);
                     }
                     ui.label("Axis");
                 });
@@ -476,7 +476,7 @@ impl NanoDialog {
             ui.separator();
             ui.label("Carving center");
             let p = &mut self.params;
-            ui.checkbox(&mut p.auto_center_from_atoms, "Auto-center from atoms").on_hover_text(CENTRE_HINT);
+            crate::dialog_widgets::checkbox(ui, &mut p.auto_center_from_atoms, "Auto-center from atoms").on_hover_text(CENTRE_HINT);
             if !p.auto_center_from_atoms {
                 for (v, l) in [(&mut p.cx, "X (Å)"), (&mut p.cy, "Y (Å)"), (&mut p.cz, "Z (Å)")] {
                     ui.horizontal(|ui| {
@@ -491,7 +491,7 @@ impl NanoDialog {
                 ui.separator();
                 ui.label("Supercell replication");
                 let p = &mut self.params;
-                ui.checkbox(&mut p.auto_replicate, "Auto-replicate").on_hover_text(format!("{REPLICATE_HINT}\nAutomatically tile the unit cell to fully cover the generated shape"));
+                crate::dialog_widgets::checkbox(ui, &mut p.auto_replicate, "Auto-replicate").on_hover_text(format!("{REPLICATE_HINT}\nAutomatically tile the unit cell to fully cover the generated shape"));
                 if !p.auto_replicate {
                     for (v, l) in [(&mut p.rep_a, "Along a"), (&mut p.rep_b, "Along b"), (&mut p.rep_c, "Along c")] {
                         ui.horizontal(|ui| {
@@ -505,7 +505,7 @@ impl NanoDialog {
             ui.separator();
             ui.label("Output cell");
             let p = &mut self.params;
-            ui.checkbox(&mut p.set_output_cell, "Rectangular cell").on_hover_text(CELL_HINT);
+            crate::dialog_widgets::checkbox(ui, &mut p.set_output_cell, "Rectangular cell").on_hover_text(CELL_HINT);
             if p.set_output_cell {
                 ui.horizontal(|ui| {
                     ui.add(egui::DragValue::new(&mut p.vacuum_padding).speed(0.1).range(0.0..=f32::MAX).fixed_decimals(2));

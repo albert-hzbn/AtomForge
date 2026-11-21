@@ -262,7 +262,7 @@ pub fn property_panel(ctx: &egui::Context, name: &str, values: &[f64], display: 
             egui::RichText::new(format!("{valid} valid of {} atoms; data range {} to {}", values.len(), af_core::format::format_g(range.low, 4), af_core::format::format_g(range.high, 4)))
                 .color(p.text_muted),
         );
-        events.changed |= ui.checkbox(&mut display.auto_range, "Automatic colour range").changed();
+        events.changed |= crate::dialog_widgets::checkbox(ui, &mut display.auto_range, "Automatic colour range").changed();
         if display.auto_range {
             display.range = range;
         }
@@ -274,8 +274,8 @@ pub fn property_panel(ctx: &egui::Context, name: &str, values: &[f64], display: 
                 });
             }
         });
-        events.changed |= ui.checkbox(&mut display.hide_outside, "Hide atoms outside the range").changed();
-        events.changed |= ui.checkbox(&mut display.hide_invalid, "Hide atoms without a value").changed();
+        events.changed |= crate::dialog_widgets::checkbox(ui, &mut display.hide_outside, "Hide atoms outside the range").changed();
+        events.changed |= crate::dialog_widgets::checkbox(ui, &mut display.hide_invalid, "Hide atoms without a value").changed();
         if ui.button("Show Element Colours").clicked() {
             events.show_elements = true;
         }

@@ -366,7 +366,7 @@ impl SssDialog {
             if ui.add(egui::Button::new(egui::RichText::new("Update Step").strong()).min_size(egui::vec2(ui.available_width(), 0.0))).clicked() {
                 built = self.update_step();
             }
-        } else if ui.add(egui::Button::new(egui::RichText::new("Build Solid Solution").strong()).min_size(egui::vec2(ui.available_width(), 0.0))).clicked() {
+        } else if crate::theme::primary_button(ui, "Build Solid Solution", Some(egui::vec2(ui.available_width(), crate::theme::FRAME_HEIGHT))).clicked() {
             built = self.build();
         }
         built
@@ -454,22 +454,50 @@ impl StructureDialog for SssDialog {
         let mut out = None;
         let mut open = self.open;
         let editing = self.step.as_ref().map(|e| e.step.clone());
-        crate::theme::modal_window("Substitutional Solid Solution").open(&mut open).default_size([560.0, 560.0]).min_width(480.0).show(ctx, |ui| {
+        let mut close = false;
+        // The C++ layout: the host and its preview at the left, the composition
+        // at the right, the status and Close below.
+        crate::theme::modal_window("Substitutional Solid Solution").open(&mut open).resizable(false).show(ctx, |ui| {
+            ui.set_width(860.0);
             if let Some(step) = &editing {
                 ui.colored_label(egui::Color32::from_rgb(110, 170, 230), format!("Editing pipeline step: {step}"));
             }
             ui.weak("Substitute elements on host lattice sites to match a target composition.  Positions and unit cell are preserved.");
             ui.separator();
-            self.host_panel(ui, input.source);
-            ui.separator();
-            egui::ScrollArea::vertical().max_height(420.0).min_scrolled_height(260.0).show(ui, |ui| {
-                out = self.composition_panel(ui, input.colours);
+            let height = 420.0;
+            ui.horizontal_top(|ui| {
+                let left = (ui.available_width() * 0.48).floor();
+                ui.allocate_ui_with_layout(egui::vec2(left, height), egui::Layout::top_down(egui::Align::Min), |ui| {
+                    ui.set_width(left);
+                    let top = ui.cursor().top();
+                    self.host_panel(ui, input.source);
+                    let used = ui.cursor().top() - top;
+                    let room = egui::vec2(left, (height - used - 30.0).max(160.0));
+                    crate::preview3d::show(ui, room, &self.source, &["Use the current scene or load a file", "to preview the host lattice"]);
+                    ui.vertical_centered(|ui| ui.weak("Left-drag = orbit   Scroll = zoom"));
+                });
+                ui.add_sized([9.0, height], egui::Separator::default().vertical());
+                ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), height), egui::Layout::top_down(egui::Align::Min), |ui| {
+                    egui::ScrollArea::vertical().max_height(height).show(ui, |ui| {
+                        out = self.composition_panel(ui, input.colours);
+                    });
+                });
             });
             ui.separator();
-            if !self.status.0.is_empty() {
-                ui.colored_label(if self.status.1 { BAD } else { GOOD }, &self.status.0);
-            }
+            ui.horizontal(|ui| {
+                if !self.status.0.is_empty() {
+                    ui.colored_label(if self.status.1 { BAD } else { GOOD }, &self.status.0);
+                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if crate::theme::secondary_button(ui, "Close", Some(egui::vec2(crate::dialog_layout::footer_button_width(), crate::theme::FRAME_HEIGHT))).clicked() {
+                        close = true;
+                    }
+                });
+            });
         });
+        if close {
+            open = false;
+        }
         self.open = open && self.open;
         if out.is_some() {
             self.open = false;

@@ -361,9 +361,9 @@ impl ShapeDialog {
     fn side_panel(&mut self, ui: &mut egui::Ui, crystal: &Structure) {
         crate::dialog_layout::section(ui, "Section view");
         ui.horizontal(|ui| {
-            ui.radio_value(&mut self.plane, 0, "x-y");
-            ui.radio_value(&mut self.plane, 1, "x-z");
-            ui.radio_value(&mut self.plane, 2, "y-z");
+            crate::dialog_widgets::radio_value(ui, &mut self.plane, 0, "x-y");
+            crate::dialog_widgets::radio_value(ui, &mut self.plane, 1, "x-z");
+            crate::dialog_widgets::radio_value(ui, &mut self.plane, 2, "y-z");
             ui.spacing_mut().slider_width = (ui.available_width() - 120.0).max(60.0);
             ui.add(egui::Slider::new(&mut self.section_at, 0.0..=1.0).text("depth").fixed_decimals(2)).on_hover_text("Where the section cuts through the shape (0: one side of its bounds, 1: the other)");
         });

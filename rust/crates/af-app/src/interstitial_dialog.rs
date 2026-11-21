@@ -85,6 +85,22 @@ impl OrbitPreview {
         (response, painter)
     }
 
+    /// The cell's twelve edges, dashed (the C++ preview's box lines); drawn
+    /// before the atoms, which hide the edges behind them.
+    pub fn draw_cell(&self, painter: &egui::Painter, rect: egui::Rect, s: &Structure, ui: &egui::Ui) {
+        if !s.has_unit_cell {
+            return;
+        }
+        let v = |i: usize| Vec3::new(s.cell_vectors[i][0] as f32, s.cell_vectors[i][1] as f32, s.cell_vectors[i][2] as f32);
+        let o = Vec3::new(s.cell_offset[0] as f32, s.cell_offset[1] as f32, s.cell_offset[2] as f32);
+        let corner = |k: usize| o + v(0) * (k & 1) as f32 + v(1) * ((k >> 1) & 1) as f32 + v(2) * ((k >> 2) & 1) as f32;
+        let colour = if ui.visuals().dark_mode { egui::Color32::from_gray(200) } else { egui::Color32::from_gray(60) };
+        for (i, j) in [(0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7), (0, 4), (1, 5), (2, 6), (3, 7)] {
+            let (a, b) = (self.project(corner(i), rect).0, self.project(corner(j), rect).0);
+            painter.extend(egui::Shape::dashed_line(&[a, b], egui::Stroke::new(1.4, colour), 7.0, 4.0));
+        }
+    }
+
     /// Atoms as shaded discs, back to front: (position, colour, radius Å, alpha).
     pub fn draw_atoms(&self, painter: &egui::Painter, rect: egui::Rect, atoms: &[(Vec3, [f32; 3], f32, f32)]) {
         let mut items: Vec<(f32, egui::Pos2, [f32; 3], f32, f32)> = atoms
@@ -108,7 +124,7 @@ impl OrbitPreview {
 
 /// The preview atoms of a structure: (position, colour, radius, alpha).
 pub(crate) fn preview_atoms(s: &Structure, alpha: f32) -> Vec<(Vec3, [f32; 3], f32, f32)> {
-    s.atoms.iter().map(|a| (Vec3::new(a.x as f32, a.y as f32, a.z as f32), [a.r, a.g, a.b], af_core::elements::covalent_radius(a.atomic_number) * 0.6, alpha)).collect()
+    s.atoms.iter().map(|a| (Vec3::new(a.x as f32, a.y as f32, a.z as f32), [a.r * 0.8, a.g * 0.8, a.b * 0.8], af_core::elements::covalent_radius(a.atomic_number) * 0.6, alpha)).collect()
 }
 
 /// A hint shown centred in an empty canvas.
@@ -545,6 +561,7 @@ impl InterstitialDialog {
             self.preview.fit(&points, rect);
             self.preview.fit_pending = false;
         }
+        self.preview.draw_cell(&painter, rect, source, ui);
         self.preview.draw_atoms(&painter, rect, &atoms);
         // The mesh region as a translucent wireframe.
         if let Some(mesh) = self.mesh.as_ref().filter(|_| self.placement == Placement::MeshRegion) {
@@ -703,13 +720,13 @@ impl InterstitialDialog {
             });
             ui.weak("Use checkboxes to choose one or multiple void types.");
             for g in self.groups.iter_mut() {
-                ui.checkbox(&mut g.enabled, g.label.as_str());
+                crate::dialog_widgets::checkbox(ui, &mut g.enabled, g.label.as_str());
             }
             if !self.groups.iter().any(|g| g.enabled) {
                 ui.colored_label(egui::Color32::from_rgb(220, 80, 60), "No void type selected. Placement pool will be empty.");
             }
         }
-        ui.checkbox(&mut self.show_polyhedra, "Show Void Polyhedra in Scene");
+        crate::dialog_widgets::checkbox(ui, &mut self.show_polyhedra, "Show Void Polyhedra in Scene");
         ui.horizontal(|ui| {
             if ui.button("Select Element").clicked() {
                 self.picking_element = !self.picking_element;
@@ -796,7 +813,7 @@ impl InterstitialDialog {
 
     /// The step-mode placement controls (element, void kind, site order, count, seed).
     fn step_controls(&mut self, ui: &mut egui::Ui, input: &Input) {
-        ui.checkbox(&mut self.show_polyhedra, "Show Void Polyhedra in Scene");
+        crate::dialog_widgets::checkbox(ui, &mut self.show_polyhedra, "Show Void Polyhedra in Scene");
         ui.horizontal(|ui| {
             if ui.button("Select Element").clicked() {
                 self.picking_element = !self.picking_element;

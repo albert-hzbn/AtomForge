@@ -9,7 +9,7 @@ use af_core::structure::Structure;
 use eframe::egui;
 
 /// The structure files a reference can be loaded from (as File > Open).
-const STRUCTURE_EXTENSIONS: &[&str] = &["cif", "xyz", "extxyz", "vasp", "poscar", "contcar", "pdb", "mol", "sdf", "mol2", "gjf", "xsf", "pwi", "in", "lmp", "data", "cell", "gen", "json"];
+const STRUCTURE_EXTENSIONS: &[&str] = &["cif", "xyz", "extxyz", "vasp", "poscar", "contcar", "pdb", "mol", "sdf", "mol2", "gjf", "xsf", "pwi", "in", "lmp", "data", "cell", "gen"];
 
 use crate::structure_dialog::{Input, Outcome, StepEdit, StructureDialog};
 

@@ -34,7 +34,7 @@ const LIGHT_BACKGROUND: [f32; 4] = [0.92, 0.93, 0.94, 1.0];
 /// Settings > Interface Size.
 const INTERFACE_SIZES: [(&str, f32); 5] = [("Automatic (display scaling)", 1.0), ("Compact (85%)", 0.85), ("Larger (125%)", 1.25), ("Large (150%)", 1.5), ("Extra Large (200%)", 2.0)];
 const STRUCTURE_EXTENSIONS: &[&str] =
-    &["cif", "xyz", "extxyz", "vasp", "poscar", "contcar", "pdb", "mol", "sdf", "mol2", "gjf", "xsf", "pwi", "in", "lmp", "data", "cell", "gen", "json"];
+    &["cif", "xyz", "extxyz", "vasp", "poscar", "contcar", "pdb", "mol", "sdf", "mol2", "gjf", "xsf", "pwi", "in", "lmp", "data", "cell", "gen"];
 
 /// Edit > Box Select Mode / Lasso Select Mode: right drags select.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -100,6 +100,8 @@ pub struct AtomForgeApp {
     about: bool,
     /// UI tour: menus held open for a screenshot (menu, then submenu).
     tour_menus: Vec<String>,
+    /// The dialogs' 3D previews, drawn by the structure renderer.
+    previews: crate::preview3d::Previews,
     /// The selection's context menu held open at this point (manual screenshots).
     tour_context_menu: Option<egui::Pos2>,
     /// Manual screenshots: the folder and each image's crop bounds.
@@ -203,6 +205,7 @@ impl AtomForgeApp {
             pending: Pending::None,
             about: false,
             tour_menus: Vec::new(),
+            previews: Default::default(),
             tour_context_menu: None,
             capture: Capture::default(),
             close_after_save: None,
@@ -1683,7 +1686,7 @@ impl AtomForgeApp {
         let tour_submenu_0 = ui.menu_button("Theme", |ui| {
             let current = ui.ctx().options(|o| o.theme_preference);
             for (label, preference) in [("Light", egui::ThemePreference::Light), ("Dark", egui::ThemePreference::Dark), ("Match the system", egui::ThemePreference::System)] {
-                if ui.radio(current == preference, label).clicked() {
+                if crate::theme::menu_radio(ui, true, current == preference, label).clicked() {
                     ui.ctx().set_theme(preference);
                     ui.close();
                 }
@@ -2991,6 +2994,12 @@ impl eframe::App for AtomForgeApp {
         self.dialogs(&ctx);
         self.notices(&ctx);
         crate::theme::modal_backdrop(&ctx);
+        // The previews the dialogs laid out this frame.
+        let (colours, radii) = match self.doc() {
+            Some(d) => (d.element_colours.clone(), d.element_radii.clone()),
+            None => (self.look.colours.clone(), self.look.radii.clone()),
+        };
+        self.previews.render(&self.render_state, &self.display, &colours, &radii);
         self.autosave();
         self.capture(&ctx);
     }
@@ -3915,6 +3924,10 @@ impl AtomForgeApp {
                 d.selection = d.scene.instances.atom_indices.iter().enumerate().filter(|(_, &a)| a >= 0 && wanted.contains(&(a as usize))).map(|(i, _)| i).collect();
                 d.scene_dirty = true;
             }
+            "browser-name" => {
+                // browser-name NAME: the file name typed in the open file browser.
+                self.browser.name = rest.trim().to_string();
+            }
             "context-menu" => {
                 // context-menu: the selected atoms' right-click menu (at the view's centre).
                 let k = ctx.pixels_per_point();
@@ -4044,6 +4057,7 @@ impl AtomForgeApp {
                 let parse = |v: &str| v.trim().parse::<f64>().map_err(|e| format!("sro {what}: {e}"));
                 match what {
                     "open" => self.sro.open = true,
+                    "tab" => self.sro.tab = (parse(value)? as usize).min(3),
                     "shells" => self.sro.shells = parse(value)? as i32,
                     "tolerance" => self.sro.tolerance = parse(value)?,
                     "run" => {

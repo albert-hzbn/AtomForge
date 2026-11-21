@@ -14,7 +14,7 @@ use eframe::egui;
 use crate::structure_dialog::{Input, Outcome, StepEdit, StructureDialog};
 
 /// The structure files a crystal can be loaded from (as File > Open).
-const STRUCTURE_EXTENSIONS: &[&str] = &["cif", "xyz", "extxyz", "vasp", "poscar", "contcar", "pdb", "mol", "sdf", "mol2", "gjf", "xsf", "pwi", "in", "lmp", "data", "cell", "gen", "json"];
+const STRUCTURE_EXTENSIONS: &[&str] = &["cif", "xyz", "extxyz", "vasp", "poscar", "contcar", "pdb", "mol", "sdf", "mol2", "gjf", "xsf", "pwi", "in", "lmp", "data", "cell", "gen"];
 
 /// One crystal of the interface.
 struct Crystal {
@@ -413,7 +413,7 @@ impl InterfaceDialog {
         let c = if slot == 1 { &mut self.a } else { &mut self.b };
         let mut stale = false;
         dl::row_hint(ui, "Interface plane", "Cut the crystal along a plane with the surface builder. Untick for a structure that is already a slab: its a and b vectors span the interface.", label_width, |ui| {
-            stale |= ui.checkbox(&mut c.cleave, "Cut along (h k l)").changed();
+            stale |= crate::dialog_widgets::checkbox(ui, &mut c.cleave, "Cut along (h k l)").changed();
         });
         if c.cleave {
             dl::row(ui, "(h k l)", label_width, |ui| {

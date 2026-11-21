@@ -325,7 +325,7 @@ pub fn parameter_form(ui: &mut egui::Ui, id: &str, t: &ModifierType, parameters:
                             row(ui, &flags::label(&flag.name), &format!("--{} {}", flag.name, flag.value), |ui, w| {
                                 if flag.value.is_empty() {
                                     let mut on = values[k] == "1";
-                                    if ui.checkbox(&mut on, "").changed() {
+                                    if crate::dialog_widgets::checkbox(ui, &mut on, "").changed() {
                                         values[k] = if on { "1".into() } else { String::new() };
                                         edited = true;
                                     }
@@ -359,7 +359,7 @@ pub fn parameter_form(ui: &mut egui::Ui, id: &str, t: &ModifierType, parameters:
                 row(ui, &p.label, &p.name, |ui, width| match kind {
                     "bool" => {
                         let mut on = current.boolean().unwrap_or(false);
-                        if ui.checkbox(&mut on, "").changed() {
+                        if crate::dialog_widgets::checkbox(ui, &mut on, "").changed() {
                             changed.push((p.name.clone(), Json::from(on)));
                         }
                     }

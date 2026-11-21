@@ -20,7 +20,7 @@ REFERENCE = MANUAL / "chapters/12-api-signatures.tex"
 WIDGET = re.compile(
     r'(?:Button::new|Checkbox::new|RadioButton::new|SelectableLabel::new|CollapsingHeader::new|'
     r'\bui\.(?:button|small_button|checkbox|radio|radio_value|selectable_label|selectable_value|menu_button|collapsing)|'
-    r'primary_button|secondary_button|menu_toggle|menu_radio|section|separator_text|labelled_check)'
+    r'primary_button|secondary_button|menu_toggle|menu_radio|section|separator_text|labelled_check|dialog_widgets::checkbox|dialog_widgets::radio_value|dialog_widgets::radio)'
     r'\(\s*(?:ui,\s*)?(?:(?:&mut\s+)?[A-Za-z_][\w.\[\]()]*\s*,\s*)?(?:[^,"()]*,\s*)?"((?:\\.|[^"\\])*)"'
 )
 HELP_NAMES = {

@@ -245,8 +245,8 @@ impl BulkDialog {
             if has_two_origins(self.space_group) {
                 ui.horizontal(|ui| {
                     ui.label("Origin choice");
-                    ui.radio_value(&mut self.origin, 1, "1");
-                    ui.radio_value(&mut self.origin, 2, "2");
+                    crate::dialog_widgets::radio_value(ui, &mut self.origin, 1, "1");
+                    crate::dialog_widgets::radio_value(ui, &mut self.origin, 2, "2");
                 })
                 .response
                 .on_hover_text("The International Tables give this group two origins; site coordinates differ between them\n(Si in Fd-3m: 0 0 0 in choice 1, 1/8 1/8 1/8 in choice 2). Match the source of your coordinates.");

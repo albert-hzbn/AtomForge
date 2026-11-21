@@ -76,8 +76,8 @@ fn setting(ui: &mut egui::Ui, label: &str, value: &mut f32, range: Range, factor
 fn colour_choice(ui: &mut egui::Ui, id: &str, custom: &mut bool, colour: &mut [f32; 3]) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
-        changed |= ui.radio_value(custom, false, "Theme colour").changed();
-        changed |= ui.radio_value(custom, true, "Custom colour").changed();
+        changed |= crate::dialog_widgets::radio_value(ui, custom, false, "Theme colour").changed();
+        changed |= crate::dialog_widgets::radio_value(ui, custom, true, "Custom colour").changed();
     });
     if *custom {
         ui.horizontal(|ui| {
@@ -397,7 +397,7 @@ impl DisplaySettingsWindow {
 
     fn lighting_tab(&mut self, ui: &mut egui::Ui, s: &mut DisplaySettings, f: &DisplaySettings) {
         dl::section(ui, "Light Direction");
-        ui.checkbox(&mut s.light_follows_camera, "Light follows the camera")
+        crate::dialog_widgets::checkbox(ui, &mut s.light_follows_camera, "Light follows the camera")
             .on_hover_text("On: the light turns with the view, so the side facing you stays lit as you rotate.\nOff: the light is fixed in the scene, like a lamp in a room.");
         let azimuth_help = if s.light_follows_camera {
             "Where the light comes from around you: 0° from the camera, 90° from the right, 270° from the left."
@@ -450,15 +450,15 @@ impl DisplaySettingsWindow {
         }
         dl::section(ui, "Bond Colour");
         ui.horizontal(|ui| {
-            rebuild |= ui.radio_value(&mut s.uniform_bond_colour, false, "Half of each atom's colour").changed();
-            rebuild |= ui.radio_value(&mut s.uniform_bond_colour, true, "One colour").changed();
+            rebuild |= crate::dialog_widgets::radio_value(ui, &mut s.uniform_bond_colour, false, "Half of each atom's colour").changed();
+            rebuild |= crate::dialog_widgets::radio_value(ui, &mut s.uniform_bond_colour, true, "One colour").changed();
         });
         if s.uniform_bond_colour {
             rebuild |= dl::colour_edit3(ui, "bond colour", &mut s.bond_colour, SLIDER_WIDTH, "Bond colour");
         }
         dl::section(ui, "Bond Rules");
         rebuild |= setting(ui, "Bond tolerance", &mut s.bond_tolerance, d::BOND_TOLERANCE, f.bond_tolerance, 2, "", "Atoms closer than this times the sum of their element radii are bonded. Raise it to bond stretched or distorted structures.");
-        rebuild |= ui.checkbox(&mut s.metal_bonds, "Bonds between metals").on_hover_text("Off: bonds between two metal atoms are left out, so metallic crystals show no bond network.").changed();
+        rebuild |= crate::dialog_widgets::checkbox(ui, &mut s.metal_bonds, "Bonds between metals").on_hover_text("Off: bonds between two metal atoms are left out, so metallic crystals show no bond network.").changed();
         ui.horizontal(|ui| {
             let hint = "No bonds are searched for structures with at least this many atoms (bond search takes time and memory).";
             field_label(ui, "Bonds up to").on_hover_text(hint);

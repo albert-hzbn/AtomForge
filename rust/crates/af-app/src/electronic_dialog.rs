@@ -1025,6 +1025,15 @@ fn combo(ui: &mut egui::Ui, label: &str, selected: &mut i32, items: &[&str]) -> 
     changed
 }
 
+/// A slider as wide as the column (the C++ fields fill their panel).
+fn wide(ui: &mut egui::Ui, slider: crate::dialog_widgets::Slider<'_>) -> egui::Response {
+    ui.scope(|ui| {
+        ui.spacing_mut().slider_width = ui.available_width();
+        ui.add(slider)
+    })
+    .inner
+}
+
 fn input_float(ui: &mut egui::Ui, label: &str, value: &mut f32, decimals: Option<usize>) {
     field(ui, label, |ui| {
         let mut d = egui::DragValue::new(value).speed(0.01);
@@ -1724,8 +1733,8 @@ impl ElectronicDialog {
                 input_float(ui, "Maximum", &mut self.colour_high, None);
             }
             crate::dialog_widgets::CollapsingHeader::new("Lighting").show(ui, |ui| {
-                field(ui, "Specular", |ui| ui.add(crate::dialog_widgets::Slider::new(&mut self.specular, 0.0..=1.0).fixed_decimals(2)));
-                field(ui, "Shininess", |ui| ui.add(crate::dialog_widgets::Slider::new(&mut self.shininess, 4.0..=128.0).fixed_decimals(0)));
+                field(ui, "Specular", |ui| wide(ui, crate::dialog_widgets::Slider::new(&mut self.specular, 0.0..=1.0).fixed_decimals(2)));
+                field(ui, "Shininess", |ui| wide(ui, crate::dialog_widgets::Slider::new(&mut self.shininess, 4.0..=128.0).fixed_decimals(0)));
             });
         });
     }
@@ -1972,7 +1981,7 @@ impl ElectronicDialog {
         });
         ui.label("Transparency");
         let mut transparency = 1.0 - self.opacity;
-        if ui.add(crate::dialog_widgets::Slider::new(&mut transparency, 0.0..=1.0).fixed_decimals(2)).changed() {
+        if wide(ui, crate::dialog_widgets::Slider::new(&mut transparency, 0.0..=1.0).fixed_decimals(2)).changed() {
             self.opacity = 1.0 - transparency;
         }
         crate::dialog_widgets::checkbox(ui, &mut self.show_slice_plane, "Show slice plane");
@@ -2095,19 +2104,21 @@ impl ElectronicDialog {
         if s.axis == 3 {
             ui.label("Point (fractional a, b, c)");
             ui.horizontal(|ui| {
+                let w = (ui.available_width() - 2.0 * ui.spacing().item_spacing.x) / 3.0;
                 for c in &mut s.point {
-                    s.dirty |= ui.add(egui::DragValue::new(c).speed(0.01).custom_formatter(|v, _| format_g(v, 4))).changed();
+                    s.dirty |= ui.add_sized([w, crate::theme::FRAME_HEIGHT], egui::DragValue::new(c).speed(0.01).custom_formatter(|v, _| format_g(v, 4))).changed();
                 }
             });
             ui.label("Normal (Cartesian x, y, z)");
             ui.horizontal(|ui| {
+                let w = (ui.available_width() - 2.0 * ui.spacing().item_spacing.x) / 3.0;
                 for c in &mut s.normal {
-                    s.dirty |= ui.add(egui::DragValue::new(c).speed(0.01).custom_formatter(|v, _| format_g(v, 4))).changed();
+                    s.dirty |= ui.add_sized([w, crate::theme::FRAME_HEIGHT], egui::DragValue::new(c).speed(0.01).custom_formatter(|v, _| format_g(v, 4))).changed();
                 }
             });
         } else {
             ui.label("Slice position (fraction of cell)");
-            s.dirty |= ui.add(crate::dialog_widgets::Slider::new(&mut s.position, 0.0..=1.0).fixed_decimals(3)).changed();
+            s.dirty |= wide(ui, crate::dialog_widgets::Slider::new(&mut s.position, 0.0..=1.0).fixed_decimals(3)).changed();
         }
         let geometry = match s.update(&grid) {
             Ok(g) => g,
@@ -2133,7 +2144,7 @@ impl ElectronicDialog {
             if ui.button("Reset 2D").clicked() {
                 s.reset();
             }
-            ui.add(crate::dialog_widgets::Slider::new(&mut s.angle, -180.0..=180.0).fixed_decimals(0).suffix("°"));
+            wide(ui, crate::dialog_widgets::Slider::new(&mut s.angle, -180.0..=180.0).fixed_decimals(0).suffix("°"));
         });
         ui.label("Drag: rotate in plane | Right drag: pan | Wheel: zoom");
         if !s.level.is_finite() {

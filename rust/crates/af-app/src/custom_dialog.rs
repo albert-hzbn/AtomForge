@@ -25,6 +25,8 @@ pub struct CustomDialog {
     indices: Vec<u32>,
     model_name: String,
     half_extents: Vec3,
+    /// The camera of the model preview.
+    mesh_orbit: crate::builder_preview::Orbit,
     /// 1: rotation angles, 2: Miller direction along +z.
     orientation_type: i32,
     rotation: [f32; 3],
@@ -51,6 +53,7 @@ impl Default for CustomDialog {
             indices: Vec::new(),
             model_name: String::new(),
             half_extents: Vec3::ZERO,
+            mesh_orbit: Default::default(),
             orientation_type: 1,
             rotation: [0.0; 3],
             miller: [0, 0, 1],
@@ -239,10 +242,10 @@ impl CustomDialog {
         ui.columns(2, |cols| {
             let ui = &mut cols[0];
             ui.strong("Crystal Structure");
-            if self.reference.atoms.is_empty() {
-                ui.weak("Load a crystal structure file");
-                ui.weak("(CIF, XYZ, PDB, VASP, ...)");
-            } else {
+            // The C++ panels: a preview of the crystal and of the model above their details.
+            let size = egui::vec2(ui.available_width(), 170.0);
+            crate::preview3d::show(ui, size, &self.reference, &["Load a crystal structure file", "(CIF, XYZ, PDB, VASP, ...)"]);
+            if !self.reference.atoms.is_empty() {
                 ui.colored_label(GOOD, &self.reference_name);
                 ui.weak(format!("{} atoms  |  cell: {}", self.reference.atoms.len(), if self.reference.has_unit_cell { "yes" } else { "no" }));
                 if self.reference.has_unit_cell {
@@ -270,10 +273,25 @@ impl CustomDialog {
             });
             let ui = &mut cols[1];
             ui.strong("3D Object");
+            let size = egui::vec2(ui.available_width(), 170.0);
             if self.vertices.is_empty() {
-                ui.weak("Load a 3D model file");
-                ui.weak("(OBJ or STL)");
+                let (rect, _) = ui.allocate_exact_size(size, egui::Sense::hover());
+                let p = crate::theme::palette(ui.visuals().dark_mode);
+                ui.painter().rect(rect, 4.0, p.surface, egui::Stroke::new(1.0, p.border), egui::StrokeKind::Inside);
+                ui.painter().text(rect.center() - egui::vec2(0.0, 9.0), egui::Align2::CENTER_CENTER, "Load a 3D model file", egui::FontId::proportional(13.0), p.text_muted);
+                ui.painter().text(rect.center() + egui::vec2(0.0, 9.0), egui::Align2::CENTER_CENTER, "(OBJ or STL)", egui::FontId::proportional(13.0), p.text_muted);
             } else {
+                let faces: Vec<crate::builder_preview::Face> = self
+                    .indices
+                    .chunks_exact(3)
+                    .take(40_000)
+                    .filter_map(|t| {
+                        let v = [self.vertices.get(t[0] as usize)?, self.vertices.get(t[1] as usize)?, self.vertices.get(t[2] as usize)?];
+                        let normal = (*v[1] - *v[0]).cross(*v[2] - *v[0]).normalize_or_zero();
+                        Some(crate::builder_preview::Face { vertices: vec![*v[0], *v[1], *v[2]], normal, colour: [0.55, 0.78, 0.98] })
+                    })
+                    .collect();
+                crate::builder_preview::polyhedron(ui, size, &faces, &mut self.mesh_orbit);
                 let h = self.half_extents;
                 let s = self.params.model_scale;
                 ui.colored_label(GOOD, &self.model_name);
@@ -302,7 +320,7 @@ impl CustomDialog {
             }
         });
         let centre_hint = "Automatic centring derives placement from the reference; manual values specify the centre. Inspect reference and mesh together to avoid filling an unintended region.";
-        ui.checkbox(&mut p.auto_center_from_atoms, "Auto-center from reference atoms").on_hover_text(centre_hint);
+        crate::dialog_widgets::checkbox(ui, &mut p.auto_center_from_atoms, "Auto-center from reference atoms").on_hover_text(centre_hint);
         if !p.auto_center_from_atoms {
             ui.horizontal(|ui| {
                 for (v, l) in [(&mut p.cx, "Center X"), (&mut p.cy, "Center Y"), (&mut p.cz, "Center Z")] {
@@ -313,12 +331,12 @@ impl CustomDialog {
         }
         ui.separator();
         ui.strong("Crystal Orientation");
-        ui.checkbox(&mut p.apply_crystal_orientation, "Apply crystal orientation").on_hover_text("Enables the orientation controls. The current radio labels 1 and 2 select Euler-angle and Miller-direction modes respectively. In mode 1 enter Rot X/Y/Z in degrees. In mode 2 enter h,k,l for direction alignment.");
+        crate::dialog_widgets::checkbox(ui, &mut p.apply_crystal_orientation, "Apply crystal orientation").on_hover_text("Enables the orientation controls. The current radio labels 1 and 2 select Euler-angle and Miller-direction modes respectively. In mode 1 enter Rot X/Y/Z in degrees. In mode 2 enter h,k,l for direction alignment.");
         if p.apply_crystal_orientation {
             ui.horizontal(|ui| {
                 ui.label("Orientation Type");
-                ui.radio_value(&mut self.orientation_type, 1, "1");
-                ui.radio_value(&mut self.orientation_type, 2, "2");
+                crate::dialog_widgets::radio_value(ui, &mut self.orientation_type, 1, "1");
+                crate::dialog_widgets::radio_value(ui, &mut self.orientation_type, 2, "2");
             });
             if self.orientation_type == 1 {
                 ui.horizontal(|ui| {
@@ -339,7 +357,7 @@ impl CustomDialog {
             }
         }
         if self.reference.has_unit_cell {
-            ui.checkbox(&mut p.auto_replicate, "Auto-replicate reference cell").on_hover_text("Ensure enough periodic sites to cover the whole mesh. Manual undercoverage can look like a broken mesh cut.");
+            crate::dialog_widgets::checkbox(ui, &mut p.auto_replicate, "Auto-replicate reference cell").on_hover_text("Ensure enough periodic sites to cover the whole mesh. Manual undercoverage can look like a broken mesh cut.");
             if !p.auto_replicate {
                 ui.horizontal(|ui| {
                     for (v, l) in [(&mut p.rep_a, "Reps a"), (&mut p.rep_b, "Reps b"), (&mut p.rep_c, "Reps c")] {
@@ -350,7 +368,7 @@ impl CustomDialog {
             }
         }
         ui.horizontal(|ui| {
-            ui.checkbox(&mut p.set_output_cell, "Set rectangular output cell");
+            crate::dialog_widgets::checkbox(ui, &mut p.set_output_cell, "Set rectangular output cell");
             if p.set_output_cell {
                 ui.add(egui::DragValue::new(&mut p.vacuum_padding).speed(0.1).range(0.0..=1e4).fixed_decimals(2));
                 ui.label("Vacuum (Å)");

@@ -355,18 +355,73 @@ impl DislocationDialog {
         }
         let mut replace = None;
         let mut open = self.open;
-        crate::theme::modal_window("Insert Dislocation").open(&mut open).default_size([560.0, 760.0]).show(ctx, |ui| {
+        let mut close = false;
+        // The C++ layout: input and output previews at the left, the options at
+        // the right, the status and Close below.
+        crate::theme::modal_window("Insert Dislocation").open(&mut open).resizable(false).show(ctx, |ui| {
+            ui.set_width(1020.0);
             if let Some(edit) = &self.step_edit {
                 crate::structure_dialog::step_banner(ui, &edit.step);
             }
-            ui.weak(if source.atoms.is_empty() { "Open or build a crystal first: the dislocation is inserted into the structure in the view.".to_string() } else { format!("Source: the structure in the view ({} atoms)", source.atoms.len()) });
-            egui::ScrollArea::vertical().max_height(620.0).show(ui, |ui| self.controls(ui, source, &mut replace));
+            let validated = self.result.as_ref().is_some_and(|r| r.success);
+            let good = egui::Color32::from_rgb(70, 170, 90);
+            ui.horizontal(|ui| {
+                ui.weak("Isotropic-elastic dislocation insertion with automatic FCC/HCP/BCC detection and shape-controlled application region.");
+                if validated {
+                    ui.colored_label(good, "Validated");
+                } else {
+                    ui.weak("Not Generated");
+                }
+            });
             ui.separator();
-            if !self.status.0.is_empty() {
-                let colour = if self.status.1 { egui::Color32::from_rgb(220, 80, 60) } else { egui::Color32::from_rgb(70, 170, 90) };
-                ui.colored_label(colour, &self.status.0);
-            }
+            let height = 600.0;
+            ui.horizontal_top(|ui| {
+                let left = 560.0;
+                ui.allocate_ui_with_layout(egui::vec2(left, height), egui::Layout::top_down(egui::Align::Min), |ui| {
+                    ui.set_width(left);
+                    let half = (height - 2.0 * 34.0 - 12.0) * 0.5;
+                    ui.horizontal(|ui| {
+                        ui.label("Input Preview");
+                        if source.atoms.is_empty() {
+                            ui.weak("(open or build a crystal first)");
+                        } else {
+                            ui.weak(format!("the structure in the view ({} atoms)", source.atoms.len()));
+                        }
+                    });
+                    crate::preview3d::show(ui, egui::vec2(left, half), source, &["Open or build a crystal first:", "the dislocation is inserted into the structure in the view"]);
+                    ui.horizontal(|ui| {
+                        ui.label("Output Preview");
+                        if validated {
+                            ui.colored_label(good, "Validated");
+                        }
+                    });
+                    let empty = Structure::default();
+                    let output = self.result.as_ref().filter(|r| r.success).map(|r| &r.output).unwrap_or(&empty);
+                    crate::preview3d::show(ui, egui::vec2(left, half), output, &["Generate dislocation structure", "to preview and validate"]);
+                });
+                ui.add_sized([9.0, height], egui::Separator::default().vertical());
+                ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), height), egui::Layout::top_down(egui::Align::Min), |ui| {
+                    egui::ScrollArea::vertical().max_height(height).show(ui, |ui| self.controls(ui, source, &mut replace));
+                });
+            });
+            ui.separator();
+            ui.horizontal(|ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if crate::theme::secondary_button(ui, "Close", Some(egui::vec2(crate::dialog_layout::footer_button_width(), crate::theme::FRAME_HEIGHT))).clicked() {
+                        close = true;
+                    }
+                    if !self.status.0.is_empty() {
+                        let colour = if self.status.1 { egui::Color32::from_rgb(220, 80, 60) } else { good };
+                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                            ui.add(egui::Label::new(egui::RichText::new(&self.status.0).color(colour)).truncate());
+                        });
+                    }
+                });
+            });
         });
+        if close {
+            open = false;
+        }
         if !open {
             self.step_edit = None;
             self.step_source = None;
@@ -413,13 +468,13 @@ impl DislocationDialog {
         });
         ui.separator();
         ui.weak("Crystallographic Directions");
-        ui.checkbox(&mut p.auto_directions, "Auto lattice vectors").on_hover_text("Derives the construction directions. Disable it to enter integer Plane (hkl), Burgers [uvw], and Line [uvw] triplets. A direction and a plane normal are different objects in a general lattice.");
+        crate::dialog_widgets::checkbox(ui, &mut p.auto_directions, "Auto lattice vectors").on_hover_text("Derives the construction directions. Disable it to enter integer Plane (hkl), Burgers [uvw], and Line [uvw] triplets. A direction and a plane normal are different objects in a general lattice.");
         if !p.auto_directions {
             ivec(ui, "Plane hkl", &mut p.plane_hkl);
             ivec(ui, "Burgers uvw", &mut p.burgers_uvw);
             ivec(ui, "Line uvw", &mut p.line_uvw);
         }
-        ui.checkbox(&mut p.use_fractional_line_point, "Line point in fractional coordinates").on_hover_text("Enables Line point frac, a position relative to the cell. Line point offset adds a Cartesian offset in Å.");
+        crate::dialog_widgets::checkbox(ui, &mut p.use_fractional_line_point, "Line point in fractional coordinates").on_hover_text("Enables Line point frac, a position relative to the cell. Line point offset adds a Cartesian offset in Å.");
         if p.use_fractional_line_point {
             vec3(ui, "Line point frac", &mut p.line_point_fractional, 0.01, -1.0..=2.0);
         }
@@ -438,12 +493,12 @@ impl DislocationDialog {
         }
         ui.separator();
         ui.weak("Anisotropic Elasticity (Stroh formalism)");
-        ui.checkbox(&mut p.anisotropic_elasticity, "Use anisotropic elasticity").on_hover_text("Replaces the isotropic Poisson-ratio displacement field with the Stroh sextic formalism, given the crystal's elastic constants.");
+        crate::dialog_widgets::checkbox(ui, &mut p.anisotropic_elasticity, "Use anisotropic elasticity").on_hover_text("Replaces the isotropic Poisson-ratio displacement field with the Stroh sextic formalism, given the crystal's elastic constants.");
         if p.anisotropic_elasticity {
             ui.horizontal(|ui| {
                 ui.label("Elastic symmetry");
-                ui.radio_value(&mut p.elastic_symmetry, ElasticSymmetry::Cubic, "Cubic");
-                ui.radio_value(&mut p.elastic_symmetry, ElasticSymmetry::Hexagonal, "Hexagonal");
+                crate::dialog_widgets::radio_value(ui, &mut p.elastic_symmetry, ElasticSymmetry::Cubic, "Cubic");
+                crate::dialog_widgets::radio_value(ui, &mut p.elastic_symmetry, ElasticSymmetry::Hexagonal, "Hexagonal");
             });
             let constant = |ui: &mut egui::Ui, label: &str, v: &mut f64| {
                 ui.horizontal(|ui| {
@@ -470,7 +525,7 @@ impl DislocationDialog {
         }
         ui.separator();
         ui.weak("Dipole");
-        ui.checkbox(&mut p.dipole, "Insert as dipole (adds an opposite-Burgers-vector partner)");
+        crate::dialog_widgets::checkbox(ui, &mut p.dipole, "Insert as dipole (adds an opposite-Burgers-vector partner)");
         if p.dipole {
             ui.horizontal(|ui| {
                 ui.add(egui::DragValue::new(&mut p.dipole_offset.x).speed(0.2).range(-500.0..=500.0).fixed_decimals(2));
@@ -514,7 +569,7 @@ impl DislocationDialog {
             return;
         }
         let can = has && self.running.is_none() && (!p.anisotropic_elasticity || (p.elastic_c11 > 0.0 && p.elastic_c44 > 0.0));
-        if ui.add_enabled(can, egui::Button::new(egui::RichText::new("Generate Dislocation").strong()).min_size(egui::vec2(ui.available_width(), 0.0))).clicked() {
+        if ui.add_enabled_ui(can, |ui| crate::theme::primary_button(ui, "Generate Dislocation", Some(egui::vec2(ui.available_width(), crate::theme::FRAME_HEIGHT)))).inner.clicked() {
             let (snapshot, params) = (source.clone(), self.params.clone());
             let (tx, rx) = channel();
             std::thread::spawn(move || {

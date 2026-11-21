@@ -63,60 +63,10 @@ fn bounds(points: impl Iterator<Item = Vec3> + Clone) -> (Vec3, f32) {
     (centre, radius)
 }
 
-/// A reference structure: atoms as shaded discs (back to front) and the cell edges.
-pub fn structure(ui: &mut egui::Ui, size: egui::Vec2, s: &Structure, colours: &[[f32; 3]], orbit: &mut Orbit, empty_hint: &[&str]) -> egui::Response {
-    let (response, painter) = frame(ui, size);
-    let rect = response.rect;
-    if s.atoms.is_empty() {
-        let line = ui.text_style_height(&egui::TextStyle::Body);
-        for (i, hint) in empty_hint.iter().enumerate() {
-            let y = rect.center().y + (i as f32 - (empty_hint.len() as f32 - 1.0) * 0.5) * line * 1.2;
-            painter.text(egui::pos2(rect.center().x, y), egui::Align2::CENTER_CENTER, *hint, egui::FontId::proportional(13.0), ui.visuals().weak_text_color());
-        }
-        return response;
-    }
-    orbit.interact(ui, &response);
-    let painter = painter.with_clip_rect(rect.shrink(2.0));
-    let atoms: Vec<Vec3> = s.atoms.iter().take(20_000).map(|a| Vec3::new(a.x as f32, a.y as f32, a.z as f32)).collect();
-    let corners: Vec<Vec3> = if s.has_unit_cell {
-        let v = |i: usize| Vec3::new(s.cell_vectors[i][0] as f32, s.cell_vectors[i][1] as f32, s.cell_vectors[i][2] as f32);
-        let o = Vec3::new(s.cell_offset[0] as f32, s.cell_offset[1] as f32, s.cell_offset[2] as f32);
-        (0..8).map(|k| o + v(0) * (k & 1) as f32 + v(1) * ((k >> 1) & 1) as f32 + v(2) * ((k >> 2) & 1) as f32).collect()
-    } else {
-        Vec::new()
-    };
-    let (centre, radius) = bounds(atoms.iter().chain(corners.iter()).copied());
-    let r = orbit.rotation();
-    let scale = rect.width().min(rect.height()) * 0.45 / radius * orbit.zoom;
-    let project = |p: Vec3| {
-        let q = r * (p - centre);
-        (egui::pos2(rect.center().x + q.x * scale, rect.center().y - q.y * scale), q.z)
-    };
-    let edge = egui::Stroke::new(1.0, ui.visuals().weak_text_color());
-    for (i, j) in [(0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7), (0, 4), (1, 5), (2, 6), (3, 7)] {
-        if corners.len() == 8 {
-            painter.line_segment([project(corners[i]).0, project(corners[j]).0], edge);
-        }
-    }
-    let mut discs: Vec<(f32, egui::Pos2, f32, [f32; 3])> = s
-        .atoms
-        .iter()
-        .zip(&atoms)
-        .map(|(a, p)| {
-            let (at, depth) = project(*p);
-            let z = a.atomic_number;
-            let c = if z >= 1 && (z as usize) < colours.len() { colours[z as usize] } else { [0.7; 3] };
-            (depth, at, (af_core::elements::covalent_radius(z) * 0.7 * scale).clamp(1.5, 40.0), c)
-        })
-        .collect();
-    af_core::cxx::sort_by(&mut discs, |a, b| a.0 < b.0);
-    for (_, at, rad, c) in discs {
-        let rgb = |k: f32, add: f32| egui::Color32::from(crate::theme::srgb((c[0] * k + add).min(1.0), (c[1] * k + add).min(1.0), (c[2] * k + add).min(1.0)));
-        painter.circle_filled(at, rad, rgb(0.55, 0.0));
-        painter.circle_filled(at - egui::vec2(rad * 0.12, rad * 0.12), rad * 0.82, rgb(1.0, 0.0));
-        painter.circle_filled(at - egui::vec2(rad * 0.3, rad * 0.3), rad * 0.3, rgb(0.5, 0.45));
-    }
-    response
+/// A reference structure, drawn by the structure renderer with its periodic
+/// images, bonds and cell (crate::preview3d; the preview keeps its own camera).
+pub fn structure(ui: &mut egui::Ui, size: egui::Vec2, s: &Structure, _colours: &[[f32; 3]], _orbit: &mut Orbit, empty_hint: &[&str]) -> egui::Response {
+    crate::preview3d::show(ui, size, s, empty_hint)
 }
 
 /// One face of a convex polyhedron: its vertices (in order), outward normal and colour.
@@ -159,7 +109,7 @@ pub fn polyhedron(ui: &mut egui::Ui, size: egui::Vec2, faces: &[Face], orbit: &m
 }
 
 /// The structure files a reference can be loaded from (as File > Open).
-const STRUCTURE_EXTENSIONS: &[&str] = &["cif", "xyz", "extxyz", "vasp", "poscar", "contcar", "pdb", "mol", "sdf", "mol2", "gjf", "xsf", "pwi", "in", "lmp", "data", "cell", "gen", "json"];
+const STRUCTURE_EXTENSIONS: &[&str] = &["cif", "xyz", "extxyz", "vasp", "poscar", "contcar", "pdb", "mol", "sdf", "mol2", "gjf", "xsf", "pwi", "in", "lmp", "data", "cell", "gen"];
 
 /// A builder's reference crystal: loaded from a file (Load Reference) or
 /// taken from the structure in the view.

@@ -147,7 +147,7 @@ impl StepState {
             if input.has_unit_cell && ui.button("Use Cell Entering The Step").clicked() {
                 self.cell = input.cell_vectors;
             }
-            ui.checkbox(&mut self.scale_atoms, "Scale atoms with the cell (keep fractional coordinates)");
+            crate::dialog_widgets::checkbox(ui, &mut self.scale_atoms, "Scale atoms with the cell (keep fractional coordinates)");
             if self.scale_atoms && !input.has_unit_cell {
                 ui.colored_label(warn, "Scaling atoms needs a structure with a unit cell.");
             }
@@ -173,7 +173,7 @@ impl StepState {
             if self.fractional && !input.has_unit_cell {
                 ui.colored_label(warn, "A fractional position needs a structure with a unit cell.");
             }
-            ui.checkbox(&mut self.select, "Select the new atom");
+            crate::dialog_widgets::checkbox(ui, &mut self.select, "Select the new atom");
         }
     }
 }
@@ -366,7 +366,7 @@ impl EditStructureDialog {
                         ui.allocate_ui_with_layout(egui::vec2(fixed_w, h), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                             for (k, axis) in ["x", "y", "z"].iter().enumerate() {
                                 let mut fixed = (atom.fixed >> k) & 1 != 0;
-                                if ui.checkbox(&mut fixed, *axis).on_hover_text("Held fixed in a relaxation (POSCAR selective dynamics)").changed() {
+                                if crate::dialog_widgets::checkbox(ui, &mut fixed, *axis).on_hover_text("Held fixed in a relaxation (POSCAR selective dynamics)").changed() {
                                     atom.fixed = if fixed { atom.fixed | (1 << k) } else { atom.fixed & !(1 << k) };
                                     changed = true;
                                 }

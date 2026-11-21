@@ -13,7 +13,7 @@ pub struct SroDialog {
     pub open: bool,
     pub shells: i32,
     pub tolerance: f64,
-    tab: usize,
+    pub tab: usize,
     running: Option<Receiver<SroAnalysisResult>>,
     pub result: Option<SroAnalysisResult>,
 }

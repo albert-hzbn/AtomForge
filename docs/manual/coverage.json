@@ -543,7 +543,7 @@
     },
     {
       "source": "rust/crates/af-algorithms/src/interstitial_voids.rs",
-      "sha256": "61eeef8f537cf9d7aa95ea4b3bec98a83108181f094bfdd9bda08b5b75c588a9",
+      "sha256": "bd247189a637bf3764ea5ae994d82f045a2eb321a2936c4b1143384f5e267f33",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -713,6 +713,14 @@
           "declaration_label": "Display"
         },
         {
+          "line": 189,
+          "declaration_label": "Peak markers"
+        },
+        {
+          "line": 190,
+          "declaration_label": "Raw counts"
+        },
+        {
           "line": 199,
           "declaration_label": "All"
         },
@@ -724,7 +732,7 @@
     },
     {
       "source": "rust/crates/af-app/src/amorphous_dialog.rs",
-      "sha256": "40bfb5d454e11fa0552a8387ecda5fdb392050668803a4737b497a735db94cad",
+      "sha256": "08ad33afcce2499036fc703528231f0e85c662219ad7c433ddd3be950992b6da",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -767,7 +775,7 @@
     },
     {
       "source": "rust/crates/af-app/src/app.rs",
-      "sha256": "9eb6590d41ae63854f96c558a3091523ace1b3d0c8e9a8038b8877e8009d04e1",
+      "sha256": "018e792ee0f94f7aca9d3e7118b2ab8061e3159609683a3ad129f24edcd2105d",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -776,295 +784,295 @@
       ],
       "literal_controls": [
         {
-          "line": 1683,
+          "line": 1686,
           "declaration_label": "Theme"
         },
         {
-          "line": 1812,
+          "line": 1815,
           "declaration_label": "File"
         },
         {
-          "line": 1813,
+          "line": 1816,
           "declaration_label": "Open"
         },
         {
-          "line": 1818,
+          "line": 1821,
           "declaration_label": "Open Recent"
         },
         {
-          "line": 1829,
+          "line": 1832,
           "declaration_label": "Close"
         },
         {
-          "line": 1833,
+          "line": 1836,
           "declaration_label": "Save"
         },
         {
-          "line": 1837,
+          "line": 1840,
           "declaration_label": "Save As"
         },
         {
-          "line": 1841,
+          "line": 1844,
           "declaration_label": "Export Image"
         },
         {
-          "line": 1847,
+          "line": 1850,
           "declaration_label": "Open Project"
         },
         {
-          "line": 1851,
+          "line": 1854,
           "declaration_label": "Save Project As"
         },
         {
-          "line": 1855,
+          "line": 1858,
           "declaration_label": "Autosave project every minute"
         },
         {
-          "line": 1857,
+          "line": 1860,
           "declaration_label": "Recover Last Autosave"
         },
         {
-          "line": 1864,
+          "line": 1867,
           "declaration_label": "Quit"
         },
         {
-          "line": 1870,
+          "line": 1873,
           "declaration_label": "Edit"
         },
         {
-          "line": 1891,
+          "line": 1894,
           "declaration_label": "History"
         },
         {
-          "line": 1911,
+          "line": 1914,
           "declaration_label": "Structure Pipeline"
         },
         {
-          "line": 1916,
+          "line": 1919,
           "declaration_label": "Box Select Mode"
         },
         {
-          "line": 1920,
+          "line": 1923,
           "declaration_label": "Lasso Select Mode"
         },
         {
-          "line": 1929,
+          "line": 1932,
           "declaration_label": "Delete Selected Atoms"
         },
         {
-          "line": 1937,
+          "line": 1940,
           "declaration_label": "Build"
         },
         {
-          "line": 1945,
+          "line": 1948,
           "declaration_label": "View"
         },
         {
-          "line": 1947,
+          "line": 1950,
           "declaration_label": "Colour Atoms By"
         },
         {
-          "line": 1965,
+          "line": 1968,
           "declaration_label": "Atom Style"
         },
         {
-          "line": 1976,
+          "line": 1979,
           "declaration_label": "Show"
         },
         {
-          "line": 1977,
+          "line": 1980,
           "declaration_label": "Atoms"
         },
         {
-          "line": 1978,
+          "line": 1981,
           "declaration_label": "Bonds"
         },
         {
-          "line": 1980,
+          "line": 1983,
           "declaration_label": "Atom Labels"
         },
         {
-          "line": 1981,
+          "line": 1984,
           "declaration_label": "Label Atoms With"
         },
         {
-          "line": 1991,
+          "line": 1994,
           "declaration_label": "Element Legend"
         },
         {
-          "line": 1993,
+          "line": 1996,
           "declaration_label": "Bounding Box"
         },
         {
-          "line": 1995,
+          "line": 1998,
           "declaration_label": "Lattice Planes"
         },
         {
-          "line": 1996,
+          "line": 1999,
           "declaration_label": "Miller Directions"
         },
         {
-          "line": 1997,
+          "line": 2000,
           "declaration_label": "Voronoi Volumes"
         },
         {
-          "line": 1998,
+          "line": 2001,
           "declaration_label": "Dislocation Lines"
         },
         {
-          "line": 2000,
+          "line": 2003,
           "declaration_label": "Projection"
         },
         {
-          "line": 2001,
+          "line": 2004,
           "declaration_label": "Perspective"
         },
         {
-          "line": 2005,
+          "line": 2008,
           "declaration_label": "Orthographic"
         },
         {
-          "line": 2010,
+          "line": 2013,
           "declaration_label": "Reset View"
         },
         {
-          "line": 2018,
+          "line": 2021,
           "declaration_label": "Lattice Planes Settings"
         },
         {
-          "line": 2022,
+          "line": 2025,
           "declaration_label": "Miller Directions Settings"
         },
         {
-          "line": 2026,
+          "line": 2029,
           "declaration_label": "Polyhedral Viewer"
         },
         {
-          "line": 2028,
+          "line": 2031,
           "declaration_label": "Structure Info"
         },
         {
-          "line": 2032,
+          "line": 2035,
           "declaration_label": "Atom Info"
         },
         {
-          "line": 2046,
+          "line": 2049,
           "declaration_label": "Dock Structure Pipeline at the Right"
         },
         {
-          "line": 2051,
+          "line": 2054,
           "declaration_label": "Reset Window Layout"
         },
         {
-          "line": 2057,
+          "line": 2060,
           "declaration_label": "Analysis"
         },
         {
-          "line": 2075,
+          "line": 2078,
           "declaration_label": "Common Neighbour Analysis"
         },
         {
-          "line": 2079,
+          "line": 2082,
           "declaration_label": "Radial Distribution Function"
         },
         {
-          "line": 2083,
+          "line": 2086,
           "declaration_label": "Angular Distribution Function"
         },
         {
-          "line": 2087,
+          "line": 2090,
           "declaration_label": "Short-Range Order (SRO)"
         },
         {
-          "line": 2091,
+          "line": 2094,
           "declaration_label": "Dislocation Post-Processing"
         },
         {
-          "line": 2113,
+          "line": 2116,
           "declaration_label": "Trajectory Playback"
         },
         {
-          "line": 2135,
+          "line": 2138,
           "declaration_label": "Settings"
         },
         {
-          "line": 2136,
+          "line": 2139,
           "declaration_label": "Interface Size"
         },
         {
-          "line": 2147,
+          "line": 2150,
           "declaration_label": "Atomic Sizes"
         },
         {
-          "line": 2151,
+          "line": 2154,
           "declaration_label": "Display Settings"
         },
         {
-          "line": 2155,
+          "line": 2158,
           "declaration_label": "Polyhedral Settings"
         },
         {
-          "line": 2161,
+          "line": 2164,
           "declaration_label": "Renderer"
         },
         {
-          "line": 2181,
+          "line": 2184,
           "declaration_label": "Help"
         },
         {
-          "line": 2182,
+          "line": 2185,
           "declaration_label": "Manual"
         },
         {
-          "line": 2186,
+          "line": 2189,
           "declaration_label": "Find a Command"
         },
         {
-          "line": 2190,
+          "line": 2193,
           "declaration_label": "Keyboard Shortcuts"
         },
         {
-          "line": 2194,
+          "line": 2197,
           "declaration_label": "About AtomForge"
         },
         {
-          "line": 2808,
+          "line": 2811,
           "declaration_label": "Creator"
         },
         {
-          "line": 2810,
+          "line": 2813,
           "declaration_label": "Core Libraries"
         },
         {
-          "line": 2815,
+          "line": 2818,
           "declaration_label": "Chemistry Libraries"
         },
         {
-          "line": 2818,
+          "line": 2821,
           "declaration_label": "Data & References"
         },
         {
-          "line": 2822,
+          "line": 2825,
           "declaration_label": "Algorithm References"
         },
         {
-          "line": 2826,
+          "line": 2829,
           "declaration_label": "Features"
         },
         {
-          "line": 2849,
+          "line": 2852,
           "declaration_label": "Close"
         },
         {
-          "line": 2852,
+          "line": 2855,
           "declaration_label": "Manual"
         },
         {
-          "line": 2907,
+          "line": 2910,
           "declaration_label": "Save"
         },
         {
-          "line": 2910,
+          "line": 2913,
           "declaration_label": "Cancel"
         }
       ]
@@ -1081,25 +1089,25 @@
     },
     {
       "source": "rust/crates/af-app/src/builder_preview.rs",
-      "sha256": "08504e018e560ece68fef3c40cb5d26d5ba3568361b8d0e9a44000e14a45aba1",
+      "sha256": "29e8b744684a564633ca6fa2cb7ca33f82ea2b327b9a682efcf09ce779e45928",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
       ],
       "literal_controls": [
         {
-          "line": 251,
+          "line": 201,
           "declaration_label": "Load Reference"
         },
         {
-          "line": 254,
+          "line": 204,
           "declaration_label": "Use Structure in View"
         }
       ]
     },
     {
       "source": "rust/crates/af-app/src/bulk_dialog.rs",
-      "sha256": "46e5f5c736ecfc1e75e6b0cc9416a82cc7ef19cdc414b18bba9ff61e97dc20d9",
+      "sha256": "b3945090b5b6f39f5f023b31df9e0bc88432c153a538afd86b2ac5bccc7d28db",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -1150,7 +1158,7 @@
     },
     {
       "source": "rust/crates/af-app/src/csl_dialog.rs",
-      "sha256": "0ab34e71ddcbbfde85dcc5519c2849cfc13dd8b55a05a2583a81dcaafd478ab6",
+      "sha256": "b4a8807220cd0b5c2c48f8f539ade3f0880a65c7301dbaadc71a95bfbcc75721",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -1188,54 +1196,54 @@
     },
     {
       "source": "rust/crates/af-app/src/custom_dialog.rs",
-      "sha256": "8d2cb10407df322e87295e8ecf9b1d70c7f216276a0e579debabadb91784fc06",
+      "sha256": "05ffb261b0afc61b54354b699eccc389fa787099f7ed6013a7f228fe52b32db5",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
       ],
       "literal_controls": [
         {
-          "line": 234,
+          "line": 237,
           "declaration_label": "Load Structure or Model"
         },
         {
-          "line": 255,
+          "line": 258,
           "declaration_label": "Clear"
-        },
-        {
-          "line": 264,
-          "declaration_label": "Use Step Input"
         },
         {
           "line": 267,
+          "declaration_label": "Use Step Input"
+        },
+        {
+          "line": 270,
           "declaration_label": "Use Current Scene"
         },
         {
-          "line": 283,
+          "line": 301,
           "declaration_label": "Clear"
         },
         {
-          "line": 305,
+          "line": 323,
           "declaration_label": "Auto-center from reference atoms"
         },
         {
-          "line": 316,
+          "line": 334,
           "declaration_label": "Apply crystal orientation"
         },
         {
-          "line": 320,
+          "line": 338,
           "declaration_label": "1"
         },
         {
-          "line": 321,
+          "line": 339,
           "declaration_label": "2"
         },
         {
-          "line": 342,
+          "line": 360,
           "declaration_label": "Auto-replicate reference cell"
         },
         {
-          "line": 353,
+          "line": 371,
           "declaration_label": "Set rectangular output cell"
         }
       ]
@@ -1311,20 +1319,44 @@
           "declaration_label": "Nye tensor"
         },
         {
+          "line": 351,
+          "declaration_label": "Ignore periodicity"
+        },
+        {
           "line": 362,
           "declaration_label": "Vitek differential-displacement map"
+        },
+        {
+          "line": 367,
+          "declaration_label": "Ignore periodicity "
         },
         {
           "line": 378,
           "declaration_label": "Pattern matching"
         },
         {
+          "line": 382,
+          "declaration_label": "Ignore periodicity  "
+        },
+        {
           "line": 401,
           "declaration_label": "Prepare drag (migration barrier)"
         },
         {
+          "line": 404,
+          "declaration_label": "Clip displacement to minimum image"
+        },
+        {
+          "line": 405,
+          "declaration_label": "Ignore periodicity   "
+        },
+        {
           "line": 419,
           "declaration_label": "Fit dislocation (position/Burgers vector)"
+        },
+        {
+          "line": 424,
+          "declaration_label": "Ignore periodicity    "
         },
         {
           "line": 468,
@@ -1362,7 +1394,7 @@
     },
     {
       "source": "rust/crates/af-app/src/dislocation_dialog.rs",
-      "sha256": "8e4df992aef86958abdff04df197677a80ff839904eaafffe6081fb0740c7a1d",
+      "sha256": "d6f7e23c9ff1ac182372d04a40881b9f429e72dad441f851858518f739f6e8ae",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -1370,46 +1402,54 @@
       ],
       "literal_controls": [
         {
-          "line": 384,
+          "line": 410,
+          "declaration_label": "Close"
+        },
+        {
+          "line": 439,
           "declaration_label": "Detect Lattice"
         },
         {
-          "line": 416,
+          "line": 471,
           "declaration_label": "Auto lattice vectors"
         },
         {
-          "line": 422,
+          "line": 477,
           "declaration_label": "Line point in fractional coordinates"
         },
         {
-          "line": 441,
+          "line": 496,
           "declaration_label": "Use anisotropic elasticity"
         },
         {
-          "line": 445,
+          "line": 500,
           "declaration_label": "Cubic"
         },
         {
-          "line": 446,
+          "line": 501,
           "declaration_label": "Hexagonal"
         },
         {
-          "line": 473,
+          "line": 528,
           "declaration_label": "Insert as dipole (adds an opposite-Burgers-vector partner)"
         },
         {
-          "line": 491,
+          "line": 546,
           "declaration_label": "Add Point"
         },
         {
-          "line": 495,
+          "line": 550,
           "declaration_label": "Remove Last"
+        },
+        {
+          "line": 572,
+          "declaration_label": "Generate Dislocation"
         }
       ]
     },
     {
       "source": "rust/crates/af-app/src/display_settings.rs",
-      "sha256": "26b3daa74e0bbd1fb5e9667713560ccefd46583434d08b6d585f1a2f8f27efa3",
+      "sha256": "fcd4079ca7acfc0c0f0a51ef9b5dd2b9f31060147cb5b1862ce742adc9a4c16a",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -1547,7 +1587,7 @@
     },
     {
       "source": "rust/crates/af-app/src/edit_structure_dialog.rs",
-      "sha256": "ba7fb391057d7ab788129255485902bb7bf8b140576772b3f21353ce85e1f21a",
+      "sha256": "1dddfcf0110b55e05e51d39e0d4cebc1e0856378aabded82650f26603c05dc68",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -1602,7 +1642,7 @@
     },
     {
       "source": "rust/crates/af-app/src/electronic_dialog.rs",
-      "sha256": "322cc1bbf176b1c7af737d2458c1f00b35043f4096f92ff0677ecf204b410656",
+      "sha256": "9c1db3230cc53b5dcc787118ae0b244e004d6df7ca44f9d34013828b06710060",
       "documentation": [
         "05-electronic.tex",
         "06-charge.tex",
@@ -1612,95 +1652,135 @@
       ],
       "literal_controls": [
         {
-          "line": 1589,
+          "line": 1598,
           "declaration_label": "Open Workspace"
         },
         {
-          "line": 1593,
+          "line": 1602,
           "declaration_label": "Save Workspace"
         },
         {
-          "line": 1599,
+          "line": 1608,
           "declaration_label": "Undo Calculation"
         },
         {
-          "line": 1604,
+          "line": 1613,
           "declaration_label": "Redo"
         },
         {
-          "line": 1611,
+          "line": 1620,
           "declaration_label": "Operation history"
         },
         {
-          "line": 1660,
+          "line": 1627,
+          "declaration_label": "Charge transfer"
+        },
+        {
+          "line": 1631,
+          "declaration_label": "General analysis"
+        },
+        {
+          "line": 1635,
+          "declaration_label": "Bonding & topology"
+        },
+        {
+          "line": 1669,
           "declaration_label": "Open Volume"
         },
         {
-          "line": 1665,
+          "line": 1674,
           "declaration_label": "Reference"
         },
         {
-          "line": 1672,
+          "line": 1681,
           "declaration_label": "Reload Volume"
         },
         {
-          "line": 1676,
+          "line": 1685,
           "declaration_label": "Clear"
         },
         {
-          "line": 1688,
+          "line": 1695,
+          "declaration_label": "Drop files as reference"
+        },
+        {
+          "line": 1697,
           "declaration_label": "Import options"
         },
         {
-          "line": 1699,
+          "line": 1708,
           "declaration_label": "Cancel Calculation"
         },
         {
-          "line": 1709,
+          "line": 1718,
           "declaration_label": "Appearance"
         },
         {
-          "line": 1726,
+          "line": 1727,
+          "declaration_label": "Automatic range"
+        },
+        {
+          "line": 1735,
           "declaration_label": "Lighting"
         },
         {
-          "line": 1862,
+          "line": 1748,
+          "declaration_label": "Use loaded/result field as reference"
+        },
+        {
+          "line": 1818,
+          "declaration_label": "Color from reference"
+        },
+        {
+          "line": 1819,
+          "declaration_label": "Append surface level"
+        },
+        {
+          "line": 1871,
           "declaration_label": "Export"
         },
         {
-          "line": 1867,
+          "line": 1876,
           "declaration_label": "Save As"
         },
         {
-          "line": 1883,
+          "line": 1892,
           "declaration_label": "Results table"
         },
         {
-          "line": 1952,
+          "line": 1961,
           "declaration_label": "Volume (interior density)"
         },
         {
-          "line": 1953,
+          "line": 1962,
           "declaration_label": "Isosurface (boundary)"
         },
         {
-          "line": 1959,
+          "line": 1968,
           "declaration_label": "Estimate Level"
         },
         {
-          "line": 1969,
+          "line": 1978,
           "declaration_label": "Update Surface"
         },
         {
-          "line": 1979,
+          "line": 1987,
+          "declaration_label": "Show slice plane"
+        },
+        {
+          "line": 1988,
           "declaration_label": "Fit View"
         },
         {
-          "line": 2126,
+          "line": 2134,
+          "declaration_label": "Show contour line"
+        },
+        {
+          "line": 2137,
           "declaration_label": "Estimate 2D level"
         },
         {
-          "line": 2133,
+          "line": 2144,
           "declaration_label": "Reset 2D"
         }
       ]
@@ -1762,7 +1842,7 @@
     },
     {
       "source": "rust/crates/af-app/src/interface_dialog.rs",
-      "sha256": "325c38b69ca4290493bd02abb865cff4b9bd94b34957c0beb75794150307a960",
+      "sha256": "1f4be08e0f7f369a5d448c26f535b6185eb4525c3c8ee224eed050611acb2ae7",
       "documentation": [
         "11-coverage.tex"
       ],
@@ -1795,7 +1875,7 @@
     },
     {
       "source": "rust/crates/af-app/src/interstitial_dialog.rs",
-      "sha256": "9d2ca8f950716b49a07f8db1915976b6076287004d7bdb896557dc684f531b03",
+      "sha256": "032a538463c218b7e85507428476c2c430d28fde536b5a682144243a1269e241",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -1803,70 +1883,70 @@
       ],
       "literal_controls": [
         {
-          "line": 615,
+          "line": 632,
           "declaration_label": "Use Current Scene"
         },
         {
-          "line": 622,
+          "line": 639,
           "declaration_label": "Load"
         },
         {
-          "line": 662,
+          "line": 679,
           "declaration_label": "Detect Voids"
         },
         {
-          "line": 697,
+          "line": 714,
           "declaration_label": "Select All Types"
         },
         {
-          "line": 700,
+          "line": 717,
           "declaration_label": "Clear All Types"
         },
         {
-          "line": 712,
+          "line": 729,
           "declaration_label": "Show Void Polyhedra in Scene"
         },
         {
-          "line": 714,
+          "line": 731,
           "declaration_label": "Select Element"
         },
         {
-          "line": 732,
+          "line": 749,
           "declaration_label": "By percentage"
         },
         {
-          "line": 733,
+          "line": 750,
           "declaration_label": "By atom count"
         },
         {
-          "line": 762,
+          "line": 779,
           "declaration_label": "Load Mesh"
         },
         {
-          "line": 789,
+          "line": 806,
           "declaration_label": "Reset Transform"
         },
         {
-          "line": 799,
+          "line": 816,
           "declaration_label": "Show Void Polyhedra in Scene"
         },
         {
-          "line": 801,
+          "line": 818,
           "declaration_label": "Select Element"
         },
         {
-          "line": 815,
+          "line": 832,
           "declaration_label": "Largest voids first"
         },
         {
-          "line": 816,
+          "line": 833,
           "declaration_label": "Random"
         }
       ]
     },
     {
       "source": "rust/crates/af-app/src/large_data.rs",
-      "sha256": "89b43d27631850981060d304df17e087e13c1073436bf14bde1a4b4377de4a49",
+      "sha256": "1098904146d39a53e699f1b3e9173cbdea7903e98256b08e1d8f06fdcdac7f0a",
       "documentation": [
         "04-analysis.tex",
         "08-python.tex",
@@ -1938,7 +2018,7 @@
     },
     {
       "source": "rust/crates/af-app/src/main.rs",
-      "sha256": "1e6281c0ef407a10bab40815776eb84bc56d34cad9f2809781802fd774679a4f",
+      "sha256": "c3844ebeb139a570782cc363ea87b57e98812c7defc4b8ca25b3d125a8c36d55",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2007,7 +2087,7 @@
     },
     {
       "source": "rust/crates/af-app/src/nano_dialog.rs",
-      "sha256": "dc21f9738013703697dec63221256d18ac5d708e8e8d5aa82ab162872ac9d462",
+      "sha256": "a4d4e02ed6cc40ebc51afc988eadfd578e322137362ac283649a24cfcf55141a",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -2041,7 +2121,7 @@
     },
     {
       "source": "rust/crates/af-app/src/operation.rs",
-      "sha256": "6936efb98e254a28bf1be53846120d325ff52ebf7516c940d0ffa27f224d43e2",
+      "sha256": "e2ca98fe2bc2e45f77de171ad9ca2a163e5896b71855207df3236c99b2a252f2",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -2118,7 +2198,7 @@
     },
     {
       "source": "rust/crates/af-app/src/params_form.rs",
-      "sha256": "550b3a44bb3ad786a0ce0f75e6e1a9ba3fb815fead0c3c825313b699556a044d",
+      "sha256": "00ca12a0c74c722c65cbf1c9dceb9ea447a3317a03f310f6d48c8ce6b8ac0ff9",
       "documentation": [
         "03-editing.tex",
         "12-api-signatures.tex"
@@ -2308,6 +2388,17 @@
       ]
     },
     {
+      "source": "rust/crates/af-app/src/preview3d.rs",
+      "sha256": "0c385a26d1099148d92bc1501bfa050fa3defa9d3b3919e6be95f25b285e98f3",
+      "documentation": [
+        "01-start.tex",
+        "04-analysis.tex",
+        "04-display-controls.tex",
+        "09-installation.tex"
+      ],
+      "literal_controls": []
+    },
+    {
       "source": "rust/crates/af-app/src/project_io.rs",
       "sha256": "dbccbd61b9ade4aaae480b7ffdcdce9f8d42b670493d990e53563e9ecc68baa5",
       "documentation": [
@@ -2320,7 +2411,7 @@
     },
     {
       "source": "rust/crates/af-app/src/property_ui.rs",
-      "sha256": "59e23d0e9560b44826f609f713baeb6dcc221532de3c9600bbc4dcc85b4c2647",
+      "sha256": "c7b82365a65ad375a3864d60abc85f79d49f6ab92457a69f3b3326345fba6033",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2391,7 +2482,7 @@
     },
     {
       "source": "rust/crates/af-app/src/sculptor_dialog.rs",
-      "sha256": "075db24c13b6b11fef7a7d8b732517a39629aaa0c204fa0a5e0966dffacefe20",
+      "sha256": "856aa0857bbd5daecd33559bbf22ab23c02fe58561f79371e306349f647b8250",
       "documentation": [
         "03-editing.tex",
         "03-edit-controls.tex",
@@ -2399,38 +2490,38 @@
       ],
       "literal_controls": [
         {
-          "line": 426,
+          "line": 427,
           "declaration_label": "Remove"
         },
         {
-          "line": 441,
+          "line": 442,
           "declaration_label": "Periodic"
         },
         {
-          "line": 495,
+          "line": 496,
           "declaration_label": "+ Add Slab"
         },
         {
-          "line": 579,
+          "line": 580,
           "declaration_label": "Use Step Input"
         },
         {
-          "line": 588,
+          "line": 589,
           "declaration_label": "Use Scene"
         },
         {
-          "line": 592,
+          "line": 593,
           "declaration_label": "Clear"
         },
         {
-          "line": 615,
+          "line": 616,
           "declaration_label": "Load"
         }
       ]
     },
     {
       "source": "rust/crates/af-app/src/shape_dialog.rs",
-      "sha256": "aec67a350702eb206df9e24c85dbfcb052e2aa858b425862c2e4fac7f53ff82f",
+      "sha256": "3eded34dfcaf89609e726fb20d29af638a81f2a91c655d5b1df5971f9185bd72",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -2488,7 +2579,7 @@
     },
     {
       "source": "rust/crates/af-app/src/sro_dialog.rs",
-      "sha256": "0be14b198dc49b8db7b3825c9cf135dbe6a31c88790426c3620e38b22420068c",
+      "sha256": "a47ac579249c5c4f373194c340d1ebabdd914ad9c2fd723524e8d28b1dfed162",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -2504,7 +2595,7 @@
     },
     {
       "source": "rust/crates/af-app/src/sss_dialog.rs",
-      "sha256": "204e8bd7f67c96f4c9d356b19b63a851d433d9ef6b88d9ef6443d03a385e8d53",
+      "sha256": "5db67b6e41600d575d8a59d5db7297a86c27bd3f14efbcdecebd0bd70187e6be",
       "documentation": [
         "02-builders.tex",
         "02-builder-controls.tex"
@@ -2529,6 +2620,14 @@
         {
           "line": 339,
           "declaration_label": "+ Add Element"
+        },
+        {
+          "line": 369,
+          "declaration_label": "Build Solid Solution"
+        },
+        {
+          "line": 492,
+          "declaration_label": "Close"
         }
       ]
     },

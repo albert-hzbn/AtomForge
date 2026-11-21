@@ -4,6 +4,7 @@
 //! through the CPU). Paths on the command line open at start.
 
 mod adf_dialog;
+mod preview3d;
 mod analysis_panels;
 mod dislocation_analysis_dialog;
 mod electronic_dialog;

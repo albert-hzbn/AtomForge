@@ -219,9 +219,9 @@ impl OperationDialog {
             if !editing && acts_on_atoms(&self.step) {
                 dl::section(ui, "Apply to");
                 ui.horizontal(|ui| {
-                    ui.radio_value(&mut self.target, Target::AllAtoms, "All atoms");
-                    ui.radio_value(&mut self.target, Target::ViewSelection, format!("Selected in the view ({})", view_selection.len()));
-                    ui.radio_value(&mut self.target, Target::Condition, "Atoms where");
+                    crate::dialog_widgets::radio_value(ui, &mut self.target, Target::AllAtoms, "All atoms");
+                    crate::dialog_widgets::radio_value(ui, &mut self.target, Target::ViewSelection, format!("Selected in the view ({})", view_selection.len()));
+                    crate::dialog_widgets::radio_value(ui, &mut self.target, Target::Condition, "Atoms where");
                 });
                 if self.target == Target::Condition {
                     dl::text_field(ui, &mut self.condition, ui.available_width(), "e.g. fz > 0.5 && element == O");

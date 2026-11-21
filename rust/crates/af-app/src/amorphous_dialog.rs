@@ -282,9 +282,9 @@ impl AmorphousDialog {
         ui.add_space(6.0);
         ui.strong("Simulation Box");
         ui.horizontal(|ui| {
-            ui.radio_value(&mut self.box_mode, 1, "Auto from target density")
+            crate::dialog_widgets::radio_value(ui, &mut self.box_mode, 1, "Auto from target density")
                 .on_hover_text("Enter mass density in g cm^-3. The builder estimates a cubic box using the total atomic mass. The displayed side length includes the Cell scale factor.");
-            ui.radio_value(&mut self.box_mode, 0, "Manual dimensions").on_hover_text("Enter a,b,c in Å to set box lengths explicitly. This mode replaces density-derived sizing.");
+            crate::dialog_widgets::radio_value(ui, &mut self.box_mode, 0, "Manual dimensions").on_hover_text("Enter a,b,c in Å to set box lengths explicitly. This mode replaces density-derived sizing.");
         });
         if self.box_mode == 1 {
             ui.horizontal(|ui| {
@@ -308,7 +308,7 @@ impl AmorphousDialog {
         })
         .response
         .on_hover_text("Multiplies box lengths before packing. Scaling lengths by s multiplies volume by s^3, so a density-derived box has effective density /s^3. For example, s=1.1 yields approximately 0.751.\nValues > 1 expand the box before packing (lower effective density). This mirrors the 1.1x cell-expansion trick used in MD melt-quench workflows to help the crystal disorder before quenching.");
-        ui.checkbox(&mut self.periodic, "Periodic boundary conditions (attach unit cell)")
+        crate::dialog_widgets::checkbox(ui, &mut self.periodic, "Periodic boundary conditions (attach unit cell)")
             .on_hover_text("Controls whether the output carries the unit cell. The current packing implementation checks minimum-image separations across the box even when this output-cell option is off.");
 
         ui.add_space(6.0);
@@ -344,7 +344,7 @@ impl AmorphousDialog {
                     ui.weak("Override (Å)");
                     ui.end_row();
                     for (p, d) in self.pair_rows.iter_mut().zip(defaults) {
-                        ui.checkbox(&mut p.enabled, format!("{}–{}", elements::symbol(p.z1), elements::symbol(p.z2)));
+                        crate::dialog_widgets::checkbox(ui, &mut p.enabled, format!("{}–{}", elements::symbol(p.z1), elements::symbol(p.z2)));
                         ui.weak(format!("{d:.3}"));
                         if p.enabled {
                             ui.add(egui::DragValue::new(&mut p.min_dist).speed(0.01).range(0.1..=10.0).fixed_decimals(3).suffix(" Å"));
