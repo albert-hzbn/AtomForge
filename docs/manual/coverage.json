@@ -775,7 +775,7 @@
     },
     {
       "source": "rust/crates/af-app/src/app.rs",
-      "sha256": "ad3684b8fc372499dd41c666dc7a0b27986eadda31e11ec64c9f569f2ac08321",
+      "sha256": "8df2429bb13bf4919c8eafa5640cff82d5e58644c06deb36bc9767a489a7631b",
       "documentation": [
         "01-start.tex",
         "04-analysis.tex",
@@ -1036,43 +1036,43 @@
           "declaration_label": "About AtomForge"
         },
         {
-          "line": 2812,
+          "line": 2815,
           "declaration_label": "Creator"
         },
         {
-          "line": 2814,
+          "line": 2817,
           "declaration_label": "Core Libraries"
         },
         {
-          "line": 2819,
+          "line": 2822,
           "declaration_label": "Chemistry Libraries"
         },
         {
-          "line": 2822,
+          "line": 2825,
           "declaration_label": "Data & References"
         },
         {
-          "line": 2826,
+          "line": 2829,
           "declaration_label": "Algorithm References"
         },
         {
-          "line": 2830,
+          "line": 2833,
           "declaration_label": "Features"
         },
         {
-          "line": 2853,
+          "line": 2856,
           "declaration_label": "Close"
         },
         {
-          "line": 2856,
+          "line": 2859,
           "declaration_label": "Manual"
         },
         {
-          "line": 2914,
+          "line": 2917,
           "declaration_label": "Save"
         },
         {
-          "line": 2917,
+          "line": 2920,
           "declaration_label": "Cancel"
         }
       ]

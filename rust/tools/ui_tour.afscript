@@ -275,8 +275,11 @@ command Keyboard Shortcuts
 wait 12
 screenshot tmp/rust-tour/65-shortcuts.png
 close-windows
+notify Saved cu_host.cif (500 atoms).
+wait 2
 notify Error: failed to save (format may not support this structure).
-wait 12
+# Past the 0.15 s fade-in (frames run fast in scripts).
+wait 120
 screenshot tmp/rust-tour/66-notifications.png
 close-windows
 notify
@@ -306,8 +309,11 @@ tool powder-xrd
 wait 12
 screenshot tmp/rust-tour/72-dark-science-plot.png
 close-windows
+notify Saved cu_host.cif (500 atoms).
+wait 2
 notify Error: failed to save (format may not support this structure).
-wait 12
+# Past the 0.15 s fade-in (frames run fast in scripts).
+wait 120
 screenshot tmp/rust-tour/73-dark-notifications.png
 close-windows
 notify

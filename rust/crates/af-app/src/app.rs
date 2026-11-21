@@ -2753,8 +2753,11 @@ impl AtomForgeApp {
         } else {
             self.info.open = false;
         }
-        let view_right = if self.viewport_size.0 > 0 { self.viewport_origin.x + self.viewport_size.0 as f32 / ctx.pixels_per_point() } else { f32::INFINITY };
-        self.measure.show(ctx, view_right);
+        // As in the C++ docking: a panel docked at the right covers the
+        // result cards (they come back when it is undocked or closed).
+        if !(self.pipeline.open && self.pipeline.docked && !self.tabs.is_empty()) {
+            self.measure.show(ctx, f32::INFINITY);
+        }
         let colours = self.doc().map(|d| d.element_colours.clone()).unwrap_or_else(|| self.look.colours.clone());
         if let Some((pick, z)) = self.picker.show(ctx, &colours) {
             self.apply_pick(pick, z);
