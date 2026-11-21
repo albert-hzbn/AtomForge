@@ -1,0 +1,17 @@
+# Analysis > Trajectories and Transport > Trajectory Playback: a 61-frame
+# copper MD run read on demand, frame stepping, per-frame structure-type
+# colouring, unwrapped trajectory lines and GIF export of the view.
+trajectory open docs/manual/examples/cu_md.extxyz
+expect-tabs 1
+expect-frames 61
+expect-atoms 32
+trajectory frame 61
+expect-atoms 32
+trajectory analyse on
+trajectory frame 30
+expect-property 1 32
+trajectory lines on
+trajectory gif rust/target/ui/trajectory.gif
+expect-status Saved 61 frames
+screenshot rust/target/ui/trajectory.png
+quit

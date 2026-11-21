@@ -1,0 +1,21 @@
+data_mag
+_cell_length_a 4.0
+_cell_length_b 4.0
+_cell_length_c 4.0
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+loop_
+_space_group_symop_magn_operation.xyz
+x,y,z,+1
+-x,-y,-z,+1
+loop_
+_space_group_symop_magn_centering.xyz
+x,y,z,+1
+x+1/2,y+1/2,z+1/2,-1
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+Mn1 0.1 0.1 0.1

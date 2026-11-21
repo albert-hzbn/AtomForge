@@ -1,29 +1,54 @@
 # AtomForge – Installation and Build Guide
 
+AtomForge is written in Rust. One program, `AtomForge`, is both the desktop
+application and, when given a mode such as `--build`, `--pipe` or `--science`,
+the command line. The Python package (`python/atomforge`) uses two native
+libraries built from the same sources: `atomforge_science_native` and
+`atomforge_electronic`.
+
+Prebuilt packages for Windows and Linux are on the
+[releases page](https://github.com/albert-hzbn/AtomForge/releases/latest); this
+guide is for building from source.
+
 ## Requirements
 
 | Dependency | Version | Notes |
 | --- | --- | --- |
-| CMake | ≥ 3.16 | Build system |
-| C++ compiler | C++17 | GCC / Clang / MinGW-w64 |
-| Vulkan headers + glslangValidator | Vulkan 1.1 | **Optional at build time** – the default renderer; without them the build draws with OpenGL only |
-| OpenGL | 3.x | Fallback renderer (and the headless `--render` CLI) |
-| GLFW3 | any current | Window and input |
-| GLEW | any current | OpenGL extension loader |
-| GLM | any current | Math library |
-| Eigen3 | ≥ 3.3 | Header-only; general eigensolver for Wannier bands/Berry curvature |
-| Open Babel | 3.x | Structure file I/O |
-| spglib / symspg | any current | **Optional** – symmetry features |
+| Rust toolchain | stable, 1.85 or later | Install with [rustup](https://rustup.rs/) |
+| C/C++ linker | MSVC Build Tools (Windows) / GCC or Clang (Linux) | Rust links through the platform's toolchain |
+| spglib | 2.x | Symmetry. Windows (MSVC): bundled in `rust/crates/af-spglib/vendor`. Linux: the system's `libsymspg` |
+| GPU driver | Vulkan, Direct3D 12, Metal or OpenGL ES 3 | The desktop draws through [wgpu](https://wgpu.rs/) |
+| Python | 3.8 or later | Only to run the packaging script and the Python package |
+
+Every other dependency (egui/eframe, wgpu, glam, the file formats) is a Rust
+crate that Cargo downloads on the first build. Structure files are read and
+written by AtomForge's own readers and writers; Open Babel is no longer used.
 
 ---
 
-## Build resource protection
+## Windows
 
-Normal builds automatically serialize C++ compilation and linking on the supported Ninja and Makefile generators. This prevents heavyweight compiler processes from exhausting memory when an IDE or build command requests many jobs. Release optimization and application features are unchanged; no special laptop configuration is required.
+1. Install the [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+   with the "Desktop development with C++" workload (MSVC and the Windows SDK).
+2. Install Rust with `rustup-init.exe` (the default `x86_64-pc-windows-msvc` toolchain).
+3. Build from a terminal in the repository:
 
-Ninja uses a one-job pool, and both Ninja and Makefiles use a shared compiler/linker lock in the build directory. The lock also coordinates separate build commands targeting that same directory. Keep the explicit `--parallel 1` in the commands below to avoid launching unnecessary waiting build processes. Avoid running builds in multiple different directories simultaneously, since each directory has its own lock.
+```bash
+cd rust
+cargo build --release -p af-app -p af-ffi-science -p af-ffi-electronic
+```
 
-Update the source and reconfigure your existing build directory to activate the protection. A single compilation still needs memory. If the whole computer continues freezing with serial compilation, check system logs, available memory/page-file or swap space, and cooling after restarting. Downloading a prebuilt release avoids compilation entirely.
+The program is `rust/target/release/AtomForge.exe`; `symspg.dll` is copied next to it.
+The Windows SDK's `rc.exe` embeds the icon, manifest and version information
+(set `RC` to its path if it is not found under `C:\Program Files (x86)\Windows Kits\10\bin`).
+
+### Run
+
+```bash
+rust/target/release/AtomForge.exe
+rust/target/release/AtomForge.exe structure.cif
+rust/target/release/AtomForge.exe --build bulk --help
+```
 
 ---
 
@@ -32,226 +57,98 @@ Update the source and reconfigure your existing build directory to activate the 
 ### Install dependencies
 
 ```bash
+# Debian / Ubuntu
 sudo apt update
-sudo apt install build-essential cmake pkg-config \
-                 libglfw3-dev libglew-dev libglm-dev libeigen3-dev \
-                 libopenbabel-dev
-
-# Vulkan renderer (the default; OpenGL remains the fallback)
-sudo apt install libvulkan-dev glslang-tools
-
-# optional: symmetry support
-sudo apt install libsymspg-dev
+sudo apt install build-essential pkg-config curl libsymspg-dev \
+                 libx11-dev libxkbcommon-dev libwayland-dev libvulkan1 mesa-vulkan-drivers
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
 ### Build
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-    -DATOMFORGE_ENABLE_SSS_BUILDER=ON \
-    -DATOMFORGE_ENABLE_SFE_BUILDER=ON \
-    -DATOMFORGE_LINUX_STATIC_LINK=OFF
-cmake --build build --parallel 1
+cd rust
+cargo build --release -p af-app -p af-ffi-science -p af-ffi-electronic
 ```
 
 ### Run
 
 ```bash
-./build/AtomForge
-./build/AtomForge structure.cif
+rust/target/release/AtomForge
+rust/target/release/AtomForge structure.cif
 ```
-
-### CMake options
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `CMAKE_BUILD_TYPE` | `Release` | `Debug` or `Release` |
-| `ATOMFORGE_ENABLE_SPGLIB` | auto-detected | Enable spglib symmetry features |
-| `ATOMFORGE_ENABLE_SSS_BUILDER` | `ON` | Enable Substitutional Solid Solution builder UI |
-| `ATOMFORGE_ENABLE_SFE_BUILDER` | `ON` | Enable Stacking Fault (SFE) builder UI |
-| `ATOMFORGE_ENABLE_VULKAN` | `ON` | Build the Vulkan renderer (needs the Vulkan headers and glslangValidator; skipped with a message when they are missing) |
-| `ATOMFORGE_LINUX_STATIC_LINK` | `OFF` (Linux) | Statically link Linux build dependencies (opt-in) |
-| `BUILD_PORTABLE` | `OFF` | Bundle runtime libraries for redistribution |
 
 ---
 
-## Windows (MSYS2 UCRT64)
-
-> **Important:** Build and run from the MSYS2 UCRT64 shell.  
-> PowerShell often misses required toolchain and DLL paths.
-
-### Install MSYS2
-
-Download and install from <https://www.msys2.org/>, then open the **UCRT64** shell.
-
-### Update and install packages
+## Tests
 
 ```bash
-pacman -Syu
-# Close and reopen the UCRT64 shell, then run:
-pacman -Su
-
-pacman -S --needed \
-    mingw-w64-ucrt-x86_64-toolchain \
-    mingw-w64-ucrt-x86_64-cmake \
-    mingw-w64-ucrt-x86_64-glfw \
-    mingw-w64-ucrt-x86_64-glew \
-    mingw-w64-ucrt-x86_64-glm \
-    mingw-w64-ucrt-x86_64-eigen3 \
-    mingw-w64-ucrt-x86_64-openbabel \
-    mingw-w64-ucrt-x86_64-pkgconf \
-    mingw-w64-ucrt-x86_64-vulkan-headers \
-    mingw-w64-ucrt-x86_64-glslang
-
-# optional: symmetry support
-pacman -S --needed mingw-w64-ucrt-x86_64-spglib
+cd rust
+cargo test --workspace --release          # unit and golden tests
+cd ..
+python rust/tools/run_ui_tests.py         # scripted desktop sessions (rust/tests/ui)
+sh rust/tools/run_python_suite.sh         # the Python package against the native libraries
 ```
 
-### Build
+The UI scripts open real windows and drive the desktop through
+`ATOMFORGE_UI_SCRIPT`; each writes screenshots to `rust/target/ui/`.
+
+---
+
+## Portable packages
 
 ```bash
-cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel 1
+python rust/tools/package.py
 ```
 
-### Run
+builds in release mode and writes, in `rust/target/package/`:
 
-```bash
-./build/AtomForge.exe
-./build/AtomForge.exe structure.cif
-```
+- Windows: `AtomForge-<version>-win64.zip` with `AtomForge/AtomForge.exe` and its libraries,
+- Linux: `AtomForge-<version>-linux-x86_64.tar.gz` with `AtomForge/bin/AtomForge` and its
+  libraries (spglib included; the program finds them beside it),
+
+and in both the Python package (`AtomForge/python`), `README.md`, the manual
+and the example structures. Extract the archive and run `AtomForge` directly.
+`--no-build` packages the existing release build.
 
 ---
 
 ## Cleaning the build
 
-Remove compiled objects while keeping the CMake configuration:
-
 ```bash
-cmake --build build --target clean
+cd rust
+cargo clean
 ```
-
-Remove the entire build directory:
-
-```bash
-# Linux / MSYS2
-rm -rf build
-```
-
----
-
-## Portable builds
-
-Portable packaging bundles runtime libraries and Open Babel plugins into a redistributable archive.
-
-### Windows portable ZIP
-
-```bash
-# In the MSYS2 UCRT64 shell:
-cmake -S . -B build-mingw -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_PORTABLE=ON
-cmake --build build-mingw -- -j1
-
-# Create the package:
-cpack --config build-mingw/CPackConfig.cmake -B build-mingw/package
-```
-
-Output: `build-mingw/package/AtomForge-0.4.0-win64.zip`
-
-Contents:
-- `AtomForge.exe`
-- Required runtime DLLs
-- Open Babel plugins under `openbabel/<version>/`
-- `README.md`
-
-Extract and run `AtomForge.exe` directly.
-
-> Do not reuse a build folder configured with a different generator (e.g., NMake).  
-> Use a dedicated folder such as `build-mingw`.
-
-### Linux portable tarball
-
-```bash
-cmake -S . -B build-portable -DCMAKE_BUILD_TYPE=Release -DBUILD_PORTABLE=ON \
-    -DATOMFORGE_LINUX_STATIC_LINK=OFF
-cmake --build build-portable --parallel 1
-cpack --config build-portable/CPackConfig.cmake -B build-portable/package
-```
-
-Output: `build-portable/package/AtomForge-*.tar.gz`
-
-Contents:
-- `AtomForge/bin/AtomForge`
-- Required `.so` libraries copied next to the executable
-- Open Babel plugins under `AtomForge/bin/openbabel/`
-- `AtomForge/README.md`
-
-Run:
-
-```bash
-tar xzf build-portable/package/AtomForge-*.tar.gz
-cd AtomForge/bin
-./AtomForge
-```
-
-### System installation (Linux)
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel 1
-sudo cmake --install build
-```
-
-Installs to `/usr/local/bin` by default.
 
 ---
 
 ## Troubleshooting
 
-### Open Babel plugin path missing
-
-If AtomForge reports missing Open Babel plugins, set `BABEL_LIBDIR` before launch:
-
-```bash
-# MSYS2 UCRT64
-export BABEL_LIBDIR=/ucrt64/lib/openbabel/3.1.1/
-
-# Linux (Debian/Ubuntu)
-export BABEL_LIBDIR=/usr/lib/x86_64-linux-gnu/openbabel/3.1.1/
-
-# Linux (from source)
-export BABEL_LIBDIR=/usr/local/lib/openbabel/3.1.1/
-```
-
-Verify the path:
-
-```bash
-echo $BABEL_LIBDIR
-ls "$BABEL_LIBDIR"
-```
-
 ### Choosing the renderer
 
-The desktop draws with Vulkan by default and falls back to OpenGL when Vulkan cannot start (no Vulkan driver, or a remote session without one); a notification then says why. The Vulkan loader is opened at run time, so no Vulkan library has to be shipped. To choose explicitly, in order of precedence:
+The desktop draws through wgpu, which picks the best available backend
+(Direct3D 12 or Vulkan on Windows, Vulkan or OpenGL on Linux, Metal on macOS).
+To choose explicitly, in order of precedence:
 
-- `--renderer vulkan` or `--renderer opengl` on the command line,
-- the environment variable `ATOMFORGE_RENDERER=vulkan|opengl`,
+- `--renderer vulkan|opengl|dx12|metal` on the command line,
+- the environment variable `ATOMFORGE_RENDERER=vulkan|opengl|dx12|metal`,
 - **Settings > Renderer** (saved as `renderer=` in `~/.atomforge_preferences.txt`, applied at the next start).
 
-`ATOMFORGE_VULKAN_VALIDATION=1` enables the Khronos validation layer when it is installed (for development).
+On remote sessions or virtual machines without a GPU driver, `--renderer opengl`
+(with Mesa's software rasteriser on Linux) usually works.
 
-### Missing DLLs at startup (Windows)
+### spglib is not found (Linux)
 
-Run from the UCRT64 shell, or ensure `C:/msys64/ucrt64/bin` is on your `PATH`.
-
-### CMake cannot find dependencies
-
-Verify that `pkgconf` and all required MSYS2 packages are installed in the same UCRT64 environment used for building and running.
-
-### Linux static link build fails
-
-`ATOMFORGE_LINUX_STATIC_LINK=ON` requires static archives for required dependencies (notably GLFW and Open Babel).
-If your distribution does not provide `libglfw.a` / `libopenbabel.a`, configure with shared libraries instead:
+Install the development package (`libsymspg-dev` on Debian/Ubuntu,
+`spglib-devel` on Fedora), or point the linker at a local build:
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DATOMFORGE_LINUX_STATIC_LINK=OFF
+RUSTFLAGS="-L /path/to/spglib/lib" cargo build --release -p af-app
 ```
+
+### The Python package cannot find the native libraries
+
+Set `ATOMFORGE_SCIENCE_LIBRARY` and `ATOMFORGE_ELECTRONIC_LIBRARY` to the
+libraries' full paths, or keep the `python` folder next to the program as in
+the portable package. `ATOMFORGE_PATH` names the `AtomForge` program for the
+functions that run it.

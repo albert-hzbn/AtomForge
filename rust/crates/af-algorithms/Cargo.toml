@@ -1,0 +1,16 @@
+[package]
+name = "af-algorithms"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+af-electronic = { path = "../af-electronic" }
+af-core.workspace = true
+af-io = { path = "../af-io" }
+af-science = { path = "../af-science" }
+glam.workspace = true
+nalgebra = "0.35"
+num-complex = "0.4"
+
+[dev-dependencies]

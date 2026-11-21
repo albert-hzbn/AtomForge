@@ -1,0 +1,43 @@
+# Analysis > Electronic Structure > LOBSTER Bonding Analysis and Wannier
+# Analysis: the golden fixtures (values from the C++ electronic tests).
+dialog lobster open
+dialog lobster cohpcar rust/tests/fixtures/electronic/COHPCAR.lobster
+dialog lobster expect-bonds 2
+dialog lobster expect-fermi 5.4321
+dialog lobster expect-icohp 0
+dialog lobster bond 1
+dialog lobster icohplist rust/tests/fixtures/electronic/ICOHPLIST.lobster
+dialog lobster expect-entries 2
+dialog lobster cohpcar rust/tests/fixtures/electronic/COHPCAR.badheader
+dialog lobster expect-error Invalid COHPCAR bond header
+dialog lobster expect-bonds 0
+dialog lobster cohpcar rust/tests/fixtures/electronic/COHPCAR.spin
+dialog lobster spin down
+dialog lobster expect-bonds 2
+wait 2
+screenshot rust/target/ui/lobster.png
+dialog wannier open
+dialog wannier load rust/tests/fixtures/electronic/haldane_hr.dat
+dialog wannier expect-wann 2
+dialog wannier kpath 0 0 0; 0.5 0 0
+dialog wannier samples 1
+dialog wannier bands
+dialog wannier expect-bands 2 2
+dialog wannier expect-band-range 0 -3.006659 -1.019804
+dialog wannier curvature 0.21 0.37 0 kx-ky
+dialog wannier expect-curvature 0 1.93830806871409
+dialog wannier chern 0 kx-ky 12 0
+dialog wannier expect-chern 1
+dialog wannier chern 1 kx-ky 12 0
+dialog wannier expect-chern -1
+dialog wannier kpath 0 0 0; 0.5 0 0; 0.333333 0.333333 0; 0 0 0
+dialog wannier samples 40
+dialog wannier bands
+dialog wannier expect-bands 2 121
+dialog wannier load rust/tests/fixtures/electronic/missing_hr.dat
+dialog wannier expect-error Cannot open
+dialog wannier load rust/tests/fixtures/electronic/haldane_hr.dat
+dialog wannier bands
+wait 2
+screenshot rust/target/ui/wannier.png
+quit

@@ -1,0 +1,14 @@
+[package]
+name = "af-pipeline"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+af-core.workspace = true
+af-algorithms = { path = "../af-algorithms" }
+af-io = { path = "../af-io" }
+af-science = { path = "../af-science" }
+glam.workspace = true
+
+[dev-dependencies]

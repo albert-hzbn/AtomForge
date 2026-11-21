@@ -1,0 +1,41 @@
+# Edit in Dialog on build-sss, build-shape and build-custom pipeline steps:
+# each dialog opens on the step's options (or parameters) and the structure
+# entering it, and Update Step writes the changes back to the step. Atom
+# counts match atomforge --pipe with the same steps.
+open docs/manual/examples/cu_host.cif
+pipeline open
+pipeline text build-sss --frac Cu=0.5,Ni=0.5 --seed 42 | build-shape script="sphere(r = 6);" mode=delete
+expect-stage 1 500 0
+expect-stage 2 408 0
+pipeline edit-dialog 1
+dialog build-sss expect-counts Cu=250 Ni=250
+dialog build-sss expect-options --frac Cu=0.5,Ni=0.5 --seed 42
+dialog build-sss percent 1 70
+dialog build-sss seed 7
+dialog build-sss update-step
+pipeline edit-dialog 1
+dialog build-sss expect-options --frac Cu=0.7,Ni=0.3 --seed 7
+pipeline edit-dialog 2
+dialog build-shape expect-script sphere(r = 6);
+dialog build-shape expect-status 1 primitive; 12.0 x 12.0 x 12.0 A
+dialog build-shape script sphere(r = 8);
+dialog build-shape update-step
+expect-stage 1 500 0
+expect-stage 2 312 0
+save rust/target/ui/composition_steps.xyz
+pipeline edit-dialog 2
+dialog build-shape expect-script sphere(r = 8);
+open docs/manual/examples/cu_fcc.cif
+pipeline open
+pipeline text build-custom --mesh docs/manual/examples/octahedron.obj --scale 12
+expect-stage 1 224 0
+pipeline edit-dialog 1
+dialog build-custom expect-options --mesh docs/manual/examples/octahedron.obj --scale 12 --vacuum 5
+dialog build-custom scale 10
+dialog build-custom update-step
+expect-stage 1 140 0
+pipeline edit-dialog 1
+dialog build-custom expect-options --mesh docs/manual/examples/octahedron.obj --scale 10 --vacuum 5
+reset-view
+screenshot rust/target/ui/composition_steps.png
+quit

@@ -1,0 +1,27 @@
+# two structures and a text field
+data_first
+_publ_section_comment
+;
+A text field with _fake_tag and loop_ inside.
+;
+_cell_length_a 3
+_cell_length_b 3
+_cell_length_c 3
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_calc_flag
+Na1 0 0 0 .
+Cg1 0.5 0.5 0.5 dum
+data_second
+_cell_length_a 4
+_cell_length_b 4
+_cell_length_c 4
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+K1 0 0 0

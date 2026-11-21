@@ -1,0 +1,49 @@
+# View menu and Display Settings: atom styles (bonds drawn only in the
+# bonded styles or with Show > Bonds), colour modes (element, grain
+# boundaries, crystal orientation from the IPF sidecar), labels, the legend,
+# projection, display settings (looks, atom size, colour schemes) and undo
+# keeping the colours of the mode.
+open docs/manual/examples/sio2_pack.xyz
+expect-bonds 0
+view style ball-and-stick
+expect-bonds 52
+view style balls
+expect-bonds 0
+view show bonds
+expect-bonds 52
+view hide bonds
+view style space-filling
+expect-bonds 0
+view style ball-and-stick
+view show labels
+view labels atom index
+view projection perspective
+settings preset Matte
+settings atom-size 0.6
+settings tab atoms
+reset-view
+screenshot rust/target/ui/view_sio2.png
+settings close
+settings scheme Greyscale
+expect-colour 0 0.32 0.32 0.32
+settings scheme AtomForge
+open docs/manual/examples/cu_polycrystal.cif
+expect-tabs 2
+view hide labels
+view colour grain-boundaries
+expect-colour 0 0.2 0.72 0.98
+expect-coloured 1 0.45 0.12 278
+view colour crystal-orientation
+view colour element
+expect-colour 0 0.78 0.5 0.2
+step replicate
+set counts 2 1 1
+view colour grain-boundaries
+apply
+undo
+redo
+expect-coloured 1 0.45 0.12 682
+settings tab colors
+reset-view
+screenshot rust/target/ui/view_polycrystal.png
+quit

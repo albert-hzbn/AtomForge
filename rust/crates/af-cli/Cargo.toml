@@ -1,0 +1,25 @@
+[package]
+name = "af-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "The AtomForge command line"
+
+[lib]
+name = "af_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "atomforge"
+path = "src/main.rs"
+
+[dependencies]
+af-core.workspace = true
+af-algorithms = { path = "../af-algorithms" }
+af-cloud = { path = "../af-cloud" }
+af-io = { path = "../af-io" }
+af-pipeline = { path = "../af-pipeline" }
+af-science = { path = "../af-science" }
+glam.workspace = true
+af-render = { path = "../af-render" }
+png = "0.18"

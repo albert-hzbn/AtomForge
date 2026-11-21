@@ -1,0 +1,10 @@
+[package]
+name = "af-electronic"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+af-core.workspace = true
+glam.workspace = true
+nalgebra = "0.35"

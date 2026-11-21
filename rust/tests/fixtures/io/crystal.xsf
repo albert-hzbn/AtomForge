@@ -1,0 +1,10 @@
+# comment
+CRYSTAL
+PRIMVEC
+ 3.0 0.0 0.0
+ 0.0 3.0 0.0
+ 0.0 0.0 3.0
+PRIMCOORD
+ 2 1
+26 0.0 0.0 0.0
+Fe 1.5 1.5 1.5

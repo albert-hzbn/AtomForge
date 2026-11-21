@@ -1,0 +1,26 @@
+# Analysis tools: result plots (several per result, overlays of earlier
+# runs), per-atom values coloured onto the atoms, report and JSON.
+open docs/manual/examples/cu_fcc.cif
+step replicate
+set counts 3 3 3
+apply
+step build-vacancy
+set options --count 3 --seed 4
+apply
+expect-atoms 105
+tool cna
+run
+expect-plots 1 CNA structures (0 other, 1 fcc, 2 hcp, 3 bcc, 4 ico)
+colour-by-tool 1
+expect-property 1 75
+expect-property 0 30
+tool centrosymmetry
+run
+expect-plots 1 Centrosymmetry distribution
+run
+tool bond-distributions
+toolwin use-active-structure positions
+run
+expect-plots 2 Bond angles
+screenshot rust/target/ui/tools.png
+quit

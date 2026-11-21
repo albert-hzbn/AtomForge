@@ -1,0 +1,51 @@
+# The scientific tool windows as in the C++: the atom layout fed by the
+# active structure, the result summary, the surface mesh drawn over the view
+# (34704 triangles and the area as `atomforge --science surface-mesh` on the
+# same file), kept runs, saving results and structures, a project round trip
+# of the tool state, the simulation layout with Open Final Structure, and
+# Edit in Dialog on a relax pipeline step (Update Step writes the inputs back).
+open docs/manual/examples/cu_sphere.xyz
+expect-atoms 336
+tool surface-mesh
+run
+toolwin expect-summary Triangles = 34704
+toolwin expect-summary Surface area (A^2) = 1013.37
+toolwin expect-summary Surface atoms = 160
+toolwin surface on
+toolwin expect-mesh 34704
+toolwin keep
+toolwin expect-kept 1
+toolwin save-results rust/target/ui/tools_parity_result.json
+toolwin restore-snapshot
+toolwin expect-summary Triangles = 34704
+reset-view
+screenshot rust/target/ui/tools_parity_atoms.png
+toolwin surface off
+toolwin expect-mesh 0
+# A simulation: relax the Cu cell with EMT, save and open the final structure.
+open docs/manual/examples/cu_fcc.cif
+expect-tabs 2
+tool relax
+toolset steps 20
+run
+toolwin save-structures rust/target/ui/tools_parity_frames.extxyz
+toolwin open-final
+expect-tabs 3
+expect-atoms 4
+screenshot rust/target/ui/tools_parity_simulation.png
+# Edit in Dialog on a relax step.
+pipeline open
+pipeline text relax
+pipeline edit-dialog 1
+toolwin expect-step yes
+toolwin expect-field steps 500
+toolset steps 25
+toolset fmax 0.02
+toolwin update-step
+toolwin expect-step no
+expect-stage 1 4 0
+pipeline edit-dialog 1
+toolwin expect-field steps 25
+toolwin expect-field fmax 0.02
+screenshot rust/target/ui/tools_parity_step.png
+quit

@@ -1,0 +1,24 @@
+[package]
+name = "af-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "AtomForge"
+path = "src/main.rs"
+
+[dependencies]
+af-algorithms = { path = "../af-algorithms" }
+af-cli = { path = "../af-cli" }
+af-cloud = { path = "../af-cloud" }
+af-core.workspace = true
+af-io = { path = "../af-io" }
+af-pipeline = { path = "../af-pipeline" }
+af-render = { path = "../af-render" }
+af-electronic = { path = "../af-electronic" }
+af-science = { path = "../af-science" }
+eframe.workspace = true
+glam = "0.30"
+png = "0.18"
+image = { version = "0.25.10", default-features = false, features = ["jpeg"] }

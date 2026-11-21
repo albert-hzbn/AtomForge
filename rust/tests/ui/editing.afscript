@@ -1,0 +1,72 @@
+# The desktop's editing loop: open, operations from the menus (replicate,
+# select by element, assign an element, a Build step), undo and redo,
+# picking, deleting, a scientific tool, saving, and a second tab.
+# Run with rust/tools/run_ui_tests.py (paths are relative to the repository).
+open docs/manual/examples/cu_fcc.cif
+expect-tabs 1
+expect-atoms 4
+step replicate
+set counts 3 3 3
+apply
+expect-atoms 108
+undo
+expect-atoms 4
+redo
+expect-atoms 108
+step select-element
+set elements Cu
+apply
+expect-selected 108
+clear-selection
+expect-selected 0
+pick 700 425
+expect-selected 1
+delete
+expect-atoms 107
+undo
+expect-atoms 108
+pick-atom 0
+pick-atom 1 shift
+substitute Au
+expect-selected 2
+step select-element
+set elements Au
+apply
+expect-selected 2
+pick-atom 0
+pick-atom 1 shift
+insert O
+expect-atoms 109
+undo
+undo
+expect-atoms 108
+step select-element
+set elements Au
+apply
+expect-selected 0
+target where fz > 0.5
+step assign-element
+set element Ni
+target where fz > 0.5
+apply
+step select-element
+set elements Ni
+apply
+expect-selected 36
+clear-selection
+step build-vacancy
+set options --count 5 --seed 2
+apply
+expect-atoms 103
+tool symmetry
+run
+reset-view
+orbit 40 -20
+screenshot rust/target/ui/editing.png
+save rust/target/ui/edited.cif
+open rust/target/ui/edited.cif
+expect-tabs 2
+expect-atoms 103
+tab 1
+expect-atoms 103
+quit

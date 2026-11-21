@@ -1,0 +1,9 @@
+k-path
+ 5
+Line-mode
+Reciprocal
+0 0 0 ! \Gamma
+0.5 0 0.5 ! X
+
+0.5 0 0.5 ! X
+0.5 0.25 0.75 ! W

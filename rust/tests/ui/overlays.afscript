@@ -1,0 +1,33 @@
+# View > Lattice Planes and Miller Directions: (111) planes and [110]/[001]
+# arrows over a copper cell, edited in their settings windows; TiO6
+# octahedra of SrTiO3 in the polyhedral style.
+open docs/manual/examples/cu_fcc.cif
+voronoi on
+expect-voronoi 14 145.058
+voronoi off
+plane 1 1 1 1
+plane 1 1 1 1.5
+direction 1 1 0 6
+direction 0 0 1 4
+command lattice planes settings
+command miller directions settings
+reset-view
+screenshot rust/target/ui/overlays.png
+bulk set system cubic
+bulk set spacegroup 221
+bulk set a 3.905
+bulk set sites Sr 0 0 0; Ti 0.5 0.5 0.5; O 0.5 0.5 0
+bulk build
+expect-atoms 5
+view style polyhedral
+polyhedra-centres Ti
+expect-polyhedra 1 8
+command polyhedral settings
+step replicate
+set counts 2 2 2
+apply
+expect-polyhedra 8 8
+reset-view
+orbit 20 10
+screenshot rust/target/ui/polyhedra.png
+quit

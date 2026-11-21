@@ -1,0 +1,86 @@
+# Build > CSL Grain Boundary, Interface Builder and Stacking Fault: each
+# dialog's construction from the structure in the view (atom counts match
+# the CLI's --build gb / interface / stacking-fault), the result replacing
+# the open structure as one undo step.
+open docs/manual/examples/cu_fcc.cif
+expect-atoms 4
+# CSL: Σ5 [001], first plane: 20 atoms (atomforge --build gb --axis "0 0 1" --sigma 5).
+dialog build-gb open
+dialog build-gb use-view
+dialog build-gb axis 0 0 1
+dialog build-gb sigma-max 50
+dialog build-gb find
+dialog build-gb sigma 5
+dialog build-gb plane 0
+dialog build-gb build
+dialog build-gb expect-result 5 Tilt 0
+expect-atoms 20
+undo
+expect-atoms 4
+# Conventional cell, two cells per grain, overlap removal: 80 atoms.
+dialog build-gb conventional on
+dialog build-gb uca 2
+dialog build-gb ucb 2
+dialog build-gb overlap 0.5
+dialog build-gb build
+expect-atoms 80
+undo
+# Σ7 about [111], the third plane: a 42-atom twist boundary.
+dialog build-gb conventional off
+dialog build-gb uca 1
+dialog build-gb ucb 1
+dialog build-gb overlap 0
+dialog build-gb axis 1 1 1
+dialog build-gb find
+dialog build-gb sigma 7
+dialog build-gb plane 2
+dialog build-gb build
+dialog build-gb expect-result 7 Twist 0
+expect-atoms 42
+undo
+expect-atoms 4
+# Interface: fcc Cu(111) on Ni(111): 40 matches, the suggested one has 8
+# atoms; match 1 repeated 2 x 2 has 400 (atomforge --build interface).
+dialog build-interface open
+dialog build-interface example
+dialog build-interface find
+dialog build-interface expect-matches 40
+dialog build-interface expect-selected 8
+dialog build-interface pick 1
+dialog build-interface repeat 2 2
+dialog build-interface expect-selected 400
+dialog build-interface build
+expect-atoms 400
+undo
+expect-atoms 4
+# Cu(100) on Ni(111): the suggested match has 44 atoms.
+dialog build-interface example cube
+dialog build-interface repeat 1 1
+dialog build-interface find
+dialog build-interface expect-selected 44
+dialog build-interface open
+# Stacking fault: FCC-like, 21 frames shifting 39 atoms; frame 5 has 72 atoms.
+dialog build-stacking-fault open
+dialog build-stacking-fault use-view
+dialog build-stacking-fault expect-family FCC-like
+dialog build-stacking-fault generate
+dialog build-stacking-fault expect-sequence 21 39
+dialog build-stacking-fault frame 5
+dialog build-stacking-fault use
+expect-atoms 72
+undo
+expect-atoms 4
+# Export All Structures: 21 files sf_000_... to sf_020_... in the subfolder.
+dialog build-stacking-fault export rust/target/ui 0
+reset-view
+dialog build-stacking-fault open
+dialog build-gb close
+dialog build-interface close
+screenshot rust/target/ui/grain_builders_sf.png
+dialog build-stacking-fault close
+dialog build-interface open
+screenshot rust/target/ui/grain_builders_interface.png
+dialog build-interface close
+dialog build-gb open
+screenshot rust/target/ui/grain_builders_csl.png
+quit

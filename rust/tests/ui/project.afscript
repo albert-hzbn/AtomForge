@@ -1,0 +1,33 @@
+# File > Save Project As and Open Project: tabs, structures, cameras, the
+# view settings and the look come back; a project written by the C++
+# desktop (format 7, tests/golden) opens with its titles and atoms.
+open docs/manual/examples/cu_fcc.cif
+step replicate
+set counts 2 2 2
+apply
+expect-atoms 32
+open docs/manual/examples/sio2_pack.xyz
+view style ball-and-stick
+view show labels
+command look along y
+save-project rust/target/ui/test.afproject
+close-all
+expect-tabs 0
+open-project rust/target/ui/test.afproject
+expect-tabs 2
+expect-atoms 32
+expect-camera 45 35.26439
+tab 2
+expect-atoms 120
+expect-camera 0 90
+expect-bonds 52
+undo
+expect-atoms 120
+open-project rust/tests/golden/project_v7.afproject
+expect-tabs 4
+expect-atoms 5
+expect-status (2 tabs)
+tab 4
+expect-atoms 2
+screenshot rust/target/ui/project.png
+quit

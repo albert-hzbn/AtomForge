@@ -1,10 +1,11 @@
 build/
 build-*/
 
-src/**/*.o
-src/**/*.d
-imgui/*.o
-imgui/*.d
+# Rust build output, local work files and Python packaging output.
+rust/target/
+tmp/
+python/*.egg-info/
+python/dist/
 
 # LaTeX editor output; the published manual is docs/manual/AtomForge-manual.pdf.
 docs/manual/*.aux

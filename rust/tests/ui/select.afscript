@@ -1,0 +1,27 @@
+# Edit > Box Select Mode and Lasso Select Mode (right drags in the viewport,
+# Ctrl adds), Ctrl+A and Ctrl+D through Find a Command, and the History menu.
+open docs/manual/examples/sio2_pack.xyz
+reset-view
+wait 2
+box 0 0 4000 4000
+expect-selected 120
+box 0 0 2 2
+expect-selected 120
+box 0 0 10 10
+expect-selected 0
+box 0 0 960 4000
+expect-status atoms selected
+lasso 0 0 4000 0 4000 4000 0 4000
+expect-selected 120
+lasso 0 0 10 0 0 10
+expect-selected 0
+lasso 0 0 960 0 960 4000 0 4000
+box 960 0 4000 4000 add
+expect-selected 120
+command clear selection
+expect-selected 0
+command box select mode
+command box select mode
+command lasso select mode
+screenshot rust/target/ui/select.png
+quit

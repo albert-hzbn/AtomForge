@@ -1,0 +1,16 @@
+build-gb		--axis "0 0 1" --sigma 5 --sigmamax 100 --plane 0 --uca 1 --ucb 1 --vacuum 0 --gap 0 --overlap 0
+build-gb	--axis "0 0 1" --sigma 5	--axis "0 0 1" --sigma 5 --sigmamax 100 --plane 0 --uca 1 --ucb 1 --vacuum 0 --gap 0 --overlap 0
+build-gb	--axis 1,1,1 --sigma 7 --sigmamax 50 --plane 2 --uca 2 --ucb 3 --vacuum 1.5 --gap 0.25 --overlap 0.5 --conventional	--axis "1 1 1" --sigma 7 --sigmamax 50 --plane 2 --uca 2 --ucb 3 --vacuum 1.5 --gap 0.25 --overlap 0.5 --conventional
+build-gb	--axis "1 1 0" --sigma 9 --sigmamax 2 --plane 5 --uca 0 --ucb -1 --vacuum 0.1 --gap 0.3333333 --overlap 1e-3	--axis "1 1 0" --sigma 3 --sigmamax 3 --plane 2 --uca 1 --ucb 1 --vacuum 0.1000000015 --gap 0.3333333135 --overlap 0.001000000047
+build-gb	--axis "0 0 1" --sigma 999	--axis "0 0 1" --sigma 5 --sigmamax 100 --plane 0 --uca 1 --ucb 1 --vacuum 0 --gap 0 --overlap 0
+build-gb	--input missing.cif --axis "1 0 0" --sigma 13 --plane 1	--input missing.cif --axis "1 0 0" --sigma 13 --sigmamax 100 --plane 1 --uca 1 --ucb 1 --vacuum 0 --gap 0 --overlap 0
+build-gb	--axis "0 0" --sigma 5	--axis "0 0 1" --sigma 5 --sigmamax 100 --plane 0 --uca 1 --ucb 1 --vacuum 0 --gap 0 --overlap 0
+build-interface		--layersA 4 --layersB 4 --max-strain 0.03 --max-area 150 --repeats 6 --min-angle 20 --angle-min 0 --angle-max 180 --angle-step 1 --strain-on B --gap 2 --vacuum 0 --repx 1 --repy 1
+build-interface	--hklA "1 1 1" --hklB "1 1 1"	--hklA "1 1 1" --hklB "1 1 1" --layersA 4 --layersB 4 --max-strain 0.03 --max-area 150 --repeats 6 --min-angle 20 --angle-min 0 --angle-max 180 --angle-step 1 --strain-on B --gap 2 --vacuum 0 --repx 1 --repy 1
+build-interface	--layerA a.cif --layerB "b c.cif" --hklA 1,0,0 --hklB "1 1 1" --layersA 3 --layersB 0 --max-strain 0.05 --max-area 200 --repeats 40 --min-angle 95 --angle-min -10 --angle-max 90 --angle-step 0.001 --strain-on both --gap -1 --vacuum 10 --shift "0.25 0.5" --repx 2 --repy 0 --pick 4	--layerA a.cif --layerB "b c.cif" --hklA "1 0 0" --hklB "1 1 1" --layersA 3 --layersB 1 --max-strain 0.05 --max-area 200 --repeats 30 --min-angle 89 --angle-min -10 --angle-max 90 --angle-step 0.01 --strain-on both --gap 0 --vacuum 10 --shift "0.25 0.5" --repx 2 --repy 1 --pick 4
+build-interface	--nmax 9 --strain-on a --max-strain 0 --max-area 0.5 --shift "0 0" --pick -1	--layersA 4 --layersB 4 --max-strain 1e-05 --max-area 1 --repeats 9 --min-angle 20 --angle-min 0 --angle-max 180 --angle-step 1 --strain-on A --gap 2 --vacuum 0 --repx 1 --repy 1
+build-interface	--repeats 3 --nmax 9 --strain-on A --shift 0.1	--layersA 4 --layersB 4 --max-strain 0.03 --max-area 150 --repeats 3 --min-angle 20 --angle-min 0 --angle-max 180 --angle-step 1 --strain-on A --gap 2 --vacuum 0 --repx 1 --repy 1
+build-stacking-fault		--plane 0 --layers 9 --interval 0.1000000015 --maximum 2 --frame 0
+build-stacking-fault	--plane 3 --layers 12 --interval 0.25 --maximum 1.5 --frame 3 --orthogonal --sequence out/sf	--plane 3 --layers 12 --interval 0.25 --maximum 1.5 --frame 3 --orthogonal --sequence out/sf
+build-stacking-fault	--input crystal.cif --plane 9 --layers 1 --interval 0.333 --maximum 4.5 --frame -2	--input crystal.cif --plane 6 --layers 1 --interval 0.3330000043 --maximum 4.5 --frame 0
+build-stacking-fault	--plane -1 --interval 0.1	--plane 0 --layers 9 --interval 0.1000000015 --maximum 2 --frame 0

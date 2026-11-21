@@ -1,0 +1,79 @@
+# Builder and edit dialogs for comparison with the C++ tour (tmp/cpp-tour, tmp/cpp-tour-all).
+theme light
+open rust/tests/fixtures/tour/CuNi-L12.cif
+reset-view
+notify
+wait 6
+dialog build-interface open
+dialog build-interface example
+try dialog build-interface find
+wait 40
+screenshot tmp/rust-tour-f5/13-builder-interface-matches.png
+close-windows
+dialog build-shape open
+dialog build-shape script // A core-shell particle with a cylindrical channel.\nR = 14;\ndifference() {\n    sphere(r = R);\n    rotate([90, 0, 0]) cylinder(r = 3, h = 2 * R + 2);\n}\nregion("Au") sphere(r = 0.6 * R);\n
+wait 12
+screenshot tmp/rust-tour-f5/17-builder-shape.png
+close-windows
+dialog build-shape open
+dialog build-shape script difference() {\n    box(size = [40, 40, 40]);\n    sphere(r = 10;\n}\n
+wait 12
+screenshot tmp/rust-tour-f5/18-builder-shape-error.png
+close-windows
+dialog build-interface open
+wait 12
+screenshot tmp/rust-tour-f5/builder-interface.png
+close-windows
+dialog build-stacking-fault open
+wait 12
+screenshot tmp/rust-tour-f5/builder-stacking-fault.png
+close-windows
+dialog merge open
+wait 12
+screenshot tmp/rust-tour-f5/builder-merge.png
+close-windows
+dialog build-gb open
+wait 12
+screenshot tmp/rust-tour-f5/builder-gb.png
+close-windows
+dialog build-nano open
+wait 12
+screenshot tmp/rust-tour-f5/builder-nano.png
+close-windows
+dialog build-poly open
+wait 12
+screenshot tmp/rust-tour-f5/builder-poly.png
+close-windows
+dialog build-amorphous open
+wait 12
+screenshot tmp/rust-tour-f5/builder-amorphous.png
+close-windows
+dialog build-sss open
+wait 12
+screenshot tmp/rust-tour-f5/builder-sss.png
+close-windows
+dialog build-custom open
+wait 12
+screenshot tmp/rust-tour-f5/builder-custom.png
+close-windows
+dialog insert-interstitials open
+wait 12
+screenshot tmp/rust-tour-f5/builder-interstitials.png
+close-windows
+dialog build-sculpt open
+wait 12
+screenshot tmp/rust-tour-f5/builder-sculpt.png
+close-windows
+dislocation open
+wait 12
+screenshot tmp/rust-tour-f5/builder-dislocation.png
+close-windows
+theme dark
+dialog build-interface open
+dialog build-interface example cube
+try dialog build-interface find
+wait 40
+screenshot tmp/rust-tour-f5/74-dark-builder-interface.png
+close-windows
+theme light
+quit

@@ -1,0 +1,34 @@
+# The app's side of the dedicated dialogs: dropped files go to an open
+# dialog that takes them (else open in a tab), and the Shape Modeller's
+# select mode selects atoms in the view; projects keep the electronic workspace.
+open docs/manual/examples/cu_fcc.cif
+expect-tabs 1
+dialog build-gb open
+drop docs/manual/examples/fe_bcc.cif
+expect-tabs 1
+dialog build-gb close
+drop docs/manual/examples/fe_bcc.cif
+expect-tabs 2
+tab 1
+step replicate
+set counts 4 4 4
+apply
+expect-atoms 256
+dialog build-shape open
+dialog build-shape script sphere(r = 5);
+dialog build-shape set mode select
+dialog build-shape apply
+expect-atoms 256
+expect-selected 43
+# Add to Pipeline: the step goes to the tab's pipeline, which starts from the structure.
+dialog build-shape add-to-pipeline
+expect-stage 1 256 43
+# The electronic workspace is saved with the active tab and restored.
+dialog electronic load rust/tests/fixtures/electronic/CHGCAR
+dialog electronic expect-fields 2
+save-project rust/target/ui/hooks.afproject
+dialog electronic clear
+dialog electronic expect-fields 0
+open-project rust/target/ui/hooks.afproject
+dialog electronic expect-fields 2
+quit

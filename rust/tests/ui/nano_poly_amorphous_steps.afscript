@@ -1,0 +1,36 @@
+# Edit in Dialog for build-nano, build-poly and build-amorphous steps: the
+# dialogs read the step's options (and its input as the reference), Update
+# Step writes them back. Atom counts match atomforge --build with the options.
+open docs/manual/examples/cu_fcc.cif
+pipeline open
+pipeline text build-nano options='--shape sphere --radius 10'
+expect-atoms 336
+pipeline edit-dialog 1
+dialog build-nano expect-options --shape sphere --radius 10 --vacuum 5
+dialog build-nano size 8
+dialog build-nano expect-options --shape sphere --radius 8 --vacuum 5
+dialog build-nano update-step
+expect-stage 1 180 0
+expect-atoms 180
+pipeline edit-dialog 1
+dialog build-nano expect-options --shape sphere --radius 8 --vacuum 5
+dialog build-nano close
+pipeline text build-poly options='--sizex 30 --sizey 30 --sizez 30 --grains 4 --seed 7'
+expect-atoms 2289
+pipeline edit-dialog 1
+dialog build-poly expect-options --sizex 30 --sizey 30 --sizez 30 --grains 4 --seed 7
+dialog build-poly grains 3
+dialog build-poly update-step
+expect-stage 1 2299 0
+pipeline text build-amorphous options='--element "Si 64" --element "O 128" --density 2.2'
+expect-atoms 192
+pipeline edit-dialog 1
+dialog build-amorphous expect-options --element "Si 64" --element "O 128" --density 2.200000048 --scale 1 --covtol 0.75 --seed 42 --attempts 1000
+dialog build-amorphous elements Si 32; O 64
+dialog build-amorphous mindist O Si 1.5
+dialog build-amorphous update-step
+expect-stage 1 96 0
+pipeline edit-dialog 1
+dialog build-amorphous expect-options --element "Si 32" --element "O 64" --density 2.200000048 --scale 1 --covtol 0.75 --seed 42 --attempts 1000 --mindist "O Si 1.5"
+screenshot rust/target/ui/amorphous_step.png
+quit

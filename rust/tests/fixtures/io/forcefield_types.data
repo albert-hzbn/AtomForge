@@ -1,0 +1,17 @@
+CA is calcium only if its mass is right
+
+2 atoms
+2 atom types
+0 10 xlo xhi
+0 10 ylo yhi
+0 10 zlo zhi
+
+Masses
+
+1 12.011 # CA
+2 1.008 # HO
+
+Atoms # atomic
+
+1 1 1 1 1
+2 2 2 2 2

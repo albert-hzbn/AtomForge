@@ -1,0 +1,24 @@
+# Edit > Insert Dislocation: lattice detection, an edge dislocation in a
+# replicated Cu crystal, Replace Main Scene as one undo step, and its loop
+# drawn by View > Show > Dislocation Lines.
+open docs/manual/examples/cu_fcc.cif
+step replicate
+set counts 6 6 6
+apply
+expect-atoms 864
+dislocation open
+dislocation detect
+dislocation set character edge
+dislocation set shape half-plane
+dislocation generate
+expect-shifted 100
+dislocation replace
+expect-loop 3
+dislocation set character screw
+dislocation generate
+expect-shifted 100
+undo
+expect-atoms 864
+reset-view
+screenshot rust/target/ui/dislocation.png
+quit

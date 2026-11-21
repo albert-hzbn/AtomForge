@@ -1,0 +1,18 @@
+# File > Export Image (the C++ app/ImageExport): PNG, JPEG and SVG at twice
+# the view's size, with and without the background and the orientation gizmo.
+open docs/manual/examples/cu_fcc.cif
+reset-view
+wait 2
+export-options 2 background on gizmo on
+export-image rust/target/ui/export.png
+expect-file rust/target/ui/export.png view 2
+export-image rust/target/ui/export.jpg
+expect-file rust/target/ui/export.jpg view 2
+export-image rust/target/ui/export.svg
+expect-file rust/target/ui/export.svg view 2
+export-options 1 background off gizmo off
+export-image rust/target/ui/export-transparent.png
+expect-file rust/target/ui/export-transparent.png view 1
+export-image rust/target/ui/export-white.jpg
+expect-file rust/target/ui/export-white.jpg view 1
+quit

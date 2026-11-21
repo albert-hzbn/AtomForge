@@ -1,0 +1,34 @@
+//! Port of the C++ science tools.
+
+pub mod gif;
+pub mod batch;
+pub mod analysis;
+pub mod atom_properties;
+pub mod bonds_regions;
+pub mod catalog;
+pub mod clusters;
+mod catalog_table;
+pub mod core;
+pub mod data;
+pub mod hpkot_data;
+pub mod diffraction;
+pub mod dislocation_lines;
+pub mod lammps_export;
+pub mod local_environment;
+pub mod phonons;
+pub mod plots;
+pub mod potentials;
+pub mod property_analysis;
+pub mod reciprocal_path;
+pub mod scattering_factors;
+pub mod simulation;
+pub mod spg;
+pub mod surface_mesh;
+pub mod symmetry;
+pub mod template_matching;
+pub mod tools;
+pub mod trajectory_structure;
+pub mod trajectory_tools;
+pub mod vasp_electronic;
+pub mod voronoi;
+pub mod workflows;

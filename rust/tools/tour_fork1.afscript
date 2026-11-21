@@ -1,0 +1,44 @@
+# Fork 1 subset of the UI tour: builders and edit dialogs.
+theme light
+open rust/tests/fixtures/tour/CuNi-L12.cif
+reset-view
+notify
+wait 6
+step replicate
+wait 12
+screenshot tmp/rust-tour-f1/14-operation-replicate.png
+close-windows
+step select-expression
+wait 12
+screenshot tmp/rust-tour-f1/15-operation-select.png
+close-windows
+bulk open
+wait 12
+screenshot tmp/rust-tour-f1/16-builder-bulk.png
+close-windows
+command Display Settings
+wait 12
+screenshot tmp/rust-tour-f1/21-display-settings.png
+close-windows
+command Atomic Sizes
+wait 12
+screenshot tmp/rust-tour-f1/22-atomic-sizes.png
+close-windows
+dialog add-atom open
+wait 12
+screenshot tmp/rust-tour-f1/23-edit-structure.png
+close-windows
+structure-info
+wait 12
+screenshot tmp/rust-tour-f1/24-structure-info.png
+close-windows
+theme dark
+bulk open
+wait 12
+screenshot tmp/rust-tour-f1/70-dark-builder-bulk.png
+close-windows
+step replicate
+wait 12
+screenshot tmp/rust-tour-f1/71-dark-operation-replicate.png
+close-windows
+quit

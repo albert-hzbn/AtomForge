@@ -1,0 +1,69 @@
+# Edit > Add Interstitial Atoms: the 12 voids of fcc Cu (4 octahedral, 8
+# tetrahedral, two volume groups, as `--analyze interstitial`), filled by
+# percentage, by count of one volume group, and by hand; each placement one
+# undo step. Edit > Cell Sculptor: periodic slabs cut a 2x2x1 conventional
+# block and a (111)/(1-10)/(11-2) cell from supercells (atom counts as
+# `--analyze sculpt`), and Generate replaces the structure.
+open docs/manual/examples/cu_fcc.cif
+expect-atoms 4
+dialog insert-interstitials open
+dialog insert-interstitials use-scene
+dialog insert-interstitials detect
+dialog insert-interstitials expect-voids 12
+dialog insert-interstitials expect-groups 2
+dialog insert-interstitials set element H
+dialog insert-interstitials set percent 100
+dialog insert-interstitials expect-pool 12
+dialog insert-interstitials apply
+expect-atoms 16
+undo
+expect-atoms 4
+dialog insert-interstitials use-scene
+dialog insert-interstitials detect
+dialog insert-interstitials types 2
+dialog insert-interstitials expect-pool 4
+dialog insert-interstitials set count 3
+dialog insert-interstitials apply
+expect-atoms 7
+undo
+dialog insert-interstitials use-scene
+dialog insert-interstitials detect
+dialog insert-interstitials set mode manual
+dialog insert-interstitials select 1 5 6
+dialog insert-interstitials expect-pool 3
+dialog insert-interstitials apply
+expect-atoms 7
+screenshot rust/target/ui/interstitial.png
+undo
+expect-atoms 4
+dialog build-sculpt open
+dialog build-sculpt use-scene
+dialog build-sculpt supercell 3 3 3
+dialog build-sculpt expect-bounded no
+dialog build-sculpt add 1 0 0
+dialog build-sculpt slab 1 n 2
+dialog build-sculpt add 0 1 0
+dialog build-sculpt slab 2 n 2
+dialog build-sculpt add 0 0 1
+dialog build-sculpt expect-bounded yes
+dialog build-sculpt expect-result 16
+dialog build-sculpt clear
+dialog build-sculpt use-scene
+dialog build-sculpt supercell 4 4 4
+dialog build-sculpt slab 1 hkl 1 1 1
+dialog build-sculpt slab 1 n 1
+dialog build-sculpt slab 2 hkl 1 -1 0
+dialog build-sculpt slab 3 hkl 1 1 -2
+# Drawn without a source (after Clear) the slabs turned non-periodic, as in the C++ dialog.
+dialog build-sculpt expect-bounded yes
+dialog build-sculpt slab 1 periodic on
+dialog build-sculpt slab 2 periodic on
+dialog build-sculpt slab 3 periodic on
+dialog build-sculpt expect-result 12
+screenshot rust/target/ui/sculptor.png
+dialog build-sculpt generate
+expect-atoms 12
+structure-info
+undo
+expect-atoms 4
+quit

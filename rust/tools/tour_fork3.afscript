@@ -1,0 +1,70 @@
+# UI parity: the scientific-tool window and the structure analysis dialogs
+# (steps of rust/tools/ui_tour.afscript), screenshots in tmp/rust-tour-f3.
+theme light
+open rust/tests/fixtures/tour/CuNi-L12.cif
+reset-view
+notify
+tool structure-type
+wait 12
+screenshot tmp/rust-tour-f3/25-science-atoms.png
+close-windows
+tool structure-type
+try toolwin run-background
+wait 60
+screenshot tmp/rust-tour-f3/26-science-atoms-result.png
+close-windows
+tool powder-xrd
+try toolwin run-background
+wait 60
+screenshot tmp/rust-tour-f3/27-science-plot-result.png
+close-windows
+tool band-gap
+try toolwin run-background
+wait 60
+screenshot tmp/rust-tour-f3/28-science-error-result.png
+close-windows
+tool powder-xrd
+wait 12
+screenshot tmp/rust-tour-f3/29-science-plot.png
+close-windows
+tool relax
+wait 12
+screenshot tmp/rust-tour-f3/30-science-simulation.png
+close-windows
+cna open
+try cna run
+wait 60
+screenshot tmp/rust-tour-f3/31-analysis-cna-result.png
+close-windows
+cna open
+wait 12
+screenshot tmp/rust-tour-f3/32-analysis-cna.png
+close-windows
+rdf open
+wait 12
+screenshot tmp/rust-tour-f3/33-analysis-rdf.png
+close-windows
+adf open
+try adf run
+wait 60
+screenshot tmp/rust-tour-f3/34-analysis-adf-result.png
+close-windows
+adf open
+wait 12
+screenshot tmp/rust-tour-f3/35-analysis-adf.png
+close-windows
+sro open
+try sro run
+wait 60
+screenshot tmp/rust-tour-f3/36-analysis-sro-result.png
+close-windows
+sro open
+wait 12
+screenshot tmp/rust-tour-f3/37-analysis-sro.png
+close-windows
+theme dark
+tool powder-xrd
+wait 12
+screenshot tmp/rust-tour-f3/72-dark-science-plot.png
+close-windows
+quit

@@ -1,0 +1,8 @@
+2
+Lattice="4 0 0 0 4 0 0 0 4" Properties=species:S:1:pos:R:3:momenta:R:3 time_fs=0 pbc="T T F"
+Cu 0 0 0 0.1 0.2 0.3
+Au 1 1.5 2 -0.4 0 0.25
+2
+Lattice="4 0 0 0 4 0 0 0 4" Properties=species:S:1:pos:R:3:momenta:R:3 time_fs=2.5 pbc="T T F"
+Cu 0.1 0 0 0.1 0.2 0.3
+Au 1 1.6 2 -0.4 0 0.25

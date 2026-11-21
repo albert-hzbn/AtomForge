@@ -1,0 +1,27 @@
+# step<TAB>options: inputs of golden_step_builders.cpp
+build-nano	
+build-nano	--shape sphere --radius 10
+build-nano	--shape sphere --radius 10.3 --vacuum 2.2
+build-nano	--shape wulff --radius 20 --facet "1 0 0 1.0" --facet "1 1 1 1.2"
+build-nano	--shape wulff
+build-nano	--shape ellipsoid --rx 15 --ry 12.5 --rz 10 --center "1 2 3.3" --repa 4 --repb 5 --repc 6 --no-cell
+build-nano	--shape box --hx 7 --hy 8 --hz 9
+build-nano	--shape cylinder --cylradius 12 --cylheight 30 --cylaxis 5
+build-nano	--shape octahedron --radius 15
+build-nano	--shape truncated-octahedron
+build-nano	--shape TRUNCATED-octahedron --radius 20 --trunc 13.7
+build-nano	--shape cuboctahedron --radius 15 --vacuum 0
+build-nano	--input cu.cif --repb 3
+build-nano	--shape nonsense --center "1 2"
+build-poly	
+build-poly	--sizex 30 --sizey 30 --sizez 30 --grains 4 --seed 7
+build-poly	--sizex 40 --sizey 35.5 --sizez 30.1 --grains 2 --seed 3 --euler "0 0 0" --euler "45 30 10.5"
+build-poly	--grains 3 --euler "0 0 0" --euler "45 30 10"
+build-poly	--grain-euler "3 10 20 30" --grain-euler "1 0 45 0" --grain-euler "0 1 1 1"
+build-poly	--euler "1 2 3"
+build-poly	--input cu.cif --grains 600
+build-amorphous	
+build-amorphous	--element "Si 64" --element "O 128" --density 2.2 --seed 42
+build-amorphous	--element "Cu 50" --boxa 12 --boxb 13.5 --boxc 14 --scale 1.1 --covtol 0.8 --seed 7 --attempts 500 --mindist "Cu Cu 2.1" --no-periodic
+build-amorphous	--element "Si 10" --element "Xx 5" --element "C 0" --boxb 9 --seed -4 --attempts 0
+build-amorphous	--element "Si 64" --element "O 128" --mindist "O Si 1.55" --mindist "O O 2.3"

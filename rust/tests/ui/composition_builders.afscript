@@ -1,0 +1,65 @@
+# Build > Substitutional Solid Solution, Custom Structure and Shape Modeller
+# (the dedicated dialogs): the composition table (percent edits with the last
+# element taking up the rest, largest-remainder counts), a crystal filling an
+# OBJ model, and a scripted shape carved or cut from the crystal. The atom
+# counts match the command line (atomforge --build sss|custom, --pipe build-shape).
+open docs/manual/examples/cu_host.cif
+expect-atoms 500
+dialog build-sss open
+dialog build-sss use-scene
+dialog build-sss expect-counts Cu=500
+dialog build-sss add
+dialog build-sss element 2 Ni
+dialog build-sss percent 1 70
+dialog build-sss expect-counts Cu=350 Ni=150
+dialog build-sss percent 1 120
+dialog build-sss expect-counts Cu=500 Ni=0
+dialog build-sss percent 1 70.25
+dialog build-sss expect-counts Cu=351 Ni=149
+dialog build-sss percent 1 70
+dialog build-sss seed 42
+dialog build-sss build
+expect-atoms 500
+save rust/target/ui/sss_dialog.xyz
+screenshot rust/target/ui/composition_sss.png
+undo
+expect-atoms 500
+dialog build-sss add
+dialog build-sss expect-counts Cu=315 Ni=135
+dialog build-sss remove 3
+dialog build-sss expect-counts Cu=350 Ni=150
+open docs/manual/examples/cu_fcc.cif
+dialog build-custom open
+dialog build-custom use-scene
+dialog build-custom load docs/manual/examples/octahedron.obj
+dialog build-custom expect-status Model loaded: octahedron.obj
+dialog build-custom scale 12
+dialog build-custom cell 5
+dialog build-custom build
+expect-atoms 224
+screenshot rust/target/ui/composition_custom.png
+undo
+expect-atoms 4
+dialog build-shape open
+dialog build-shape script sphere(r = 10);
+dialog build-shape expect-status 1 primitive; 20.0 x 20.0 x 20.0 A
+dialog build-shape apply
+expect-atoms 369
+undo
+dialog build-shape script sphere(r = ;
+dialog build-shape expect-status line 1
+dialog build-shape template Core-shell particle
+dialog build-shape expect-volume 32000 35000
+step replicate
+set counts 4 4 4
+apply
+expect-atoms 256
+dialog build-shape script sphere(r = 5);
+dialog build-shape set mode delete
+dialog build-shape apply
+expect-atoms 213
+dialog build-shape template Sphere
+dialog build-shape set mode carve
+reset-view
+screenshot rust/target/ui/composition_builders.png
+quit

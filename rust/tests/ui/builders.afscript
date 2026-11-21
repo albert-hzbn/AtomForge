@@ -1,0 +1,41 @@
+# Build > Bulk Crystal: crystal system, space group (both origins where
+# there are two), lattice parameters and the asymmetric unit; the crystal
+# replaces the open structure as one undo step.
+bulk open
+bulk set system cubic
+bulk set spacegroup 225
+bulk set a 5.64
+bulk set sites Na 0 0 0; Cl 0.5 0.5 0.5
+bulk build
+expect-tabs 1
+expect-atoms 8
+structure-info
+expect-info Space group = Fm-3m (No. 225)
+bulk set spacegroup 227
+bulk set a 5.431
+bulk set sites Si 0 0 0
+bulk build
+expect-atoms 8
+structure-info
+expect-info Space group = Fd-3m (No. 227)
+bulk set origin 2
+bulk set sites Si 0.125 0.125 0.125
+bulk build
+expect-atoms 8
+structure-info
+expect-info Space group = Fd-3m (No. 227)
+bulk set system hexagonal
+bulk set spacegroup 194
+bulk set a 3.21
+bulk set c 5.21
+bulk set sites Mg 0.333333 0.666667 0.25
+bulk build
+expect-atoms 2
+structure-info
+expect-info Cell angles = γ = 120.00°
+undo
+expect-atoms 8
+command bulk crystal
+reset-view
+screenshot rust/target/ui/builders.png
+quit

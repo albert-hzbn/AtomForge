@@ -1,0 +1,110 @@
+# Analysis > Electronic Structure > Electronic Post-Processing on the golden
+# CHGCAR (total and magnetization, 8 x 8 x 6): each tool group's
+# calculations (values from the C++ electronic golden tests), an isosurface,
+# the 2D section's contours, every export format, workspaces and undo.
+dialog electronic open
+dialog electronic try load rust/tests/fixtures/electronic/missing.cube
+dialog electronic expect-error Cannot open volumetric file
+dialog electronic load rust/tests/fixtures/electronic/CHGCAR
+dialog electronic expect-fields 2
+dialog electronic expect-field-name total
+# General analysis.
+dialog electronic tool Total integral
+dialog electronic calculate
+dialog electronic expect-heading integral (field unit * A^3)
+dialog electronic expect-table 0 0 7.950156025574981
+dialog electronic tool Planar average
+dialog electronic set axis 2
+dialog electronic calculate
+dialog electronic expect-table 0 1 0.04734661122731993
+dialog electronic expect-table 1 0 0.5833333333333333
+dialog electronic tool Peak search
+dialog electronic calculate
+dialog electronic expect-rows 2
+dialog electronic expect-table 0 3 2.641580223721805
+dialog electronic expect-table 1 3 1.2554429696109024
+dialog electronic tool Structure factors
+dialog electronic set reflections 0 0 0; 1 0 0
+dialog electronic calculate
+dialog electronic expect-table 0 3 7.950156025574978
+dialog electronic expect-table 1 3 2.500391111496908
+dialog electronic expect-table 1 4 1.8165399895192365
+dialog electronic tool Laplacian
+dialog electronic calculate
+dialog electronic expect-fields 3
+dialog electronic expect-field-name Laplacian
+# Charge transfer: field 1 is the magnetization (a signed density).
+dialog electronic field 1
+dialog electronic tool Charge summary
+dialog electronic calculate
+dialog electronic expect-table 0 0 3.445232117995002
+dialog electronic expect-table 0 2 0.13926699107888185
+dialog electronic field 0
+dialog electronic tool Cumulative profile
+dialog electronic calculate
+dialog electronic expect-heading distance_A,cumulative_e
+dialog electronic expect-table 1 1 0.4198066195489034
+dialog electronic tool Threshold mask
+dialog electronic set mask-low 0.5
+dialog electronic set mask-high 3
+dialog electronic calculate
+dialog electronic expect-fields 4
+dialog electronic expect-field-name threshold_mask
+dialog electronic tool Total integral
+dialog electronic calculate
+dialog electronic expect-history 10
+dialog electronic undo
+dialog electronic expect-history 9
+dialog electronic redo
+dialog electronic expect-history 10
+# Bonding and topology.
+dialog electronic field 0
+dialog electronic tool Bader partition
+dialog electronic calculate
+dialog electronic expect-fields 5
+dialog electronic expect-rows 2
+dialog electronic expect-table 0 1 6.263067180975238
+dialog electronic expect-table 1 2 17.31770833333333
+dialog electronic field 1
+dialog electronic tool Bader partition
+dialog electronic try calculate
+dialog electronic expect-error requires nonnegative density
+# An isosurface of the total density and the 2D section.
+dialog electronic field 0
+dialog electronic expect-range 0.010045085 2.641580223721805
+dialog electronic surface 0.5
+dialog electronic expect-triangles 50
+dialog electronic contour on 0.5
+dialog electronic expect-contours 4
+dialog electronic slice-arbitrary 0.5 0.5 0.5 1 1 1
+dialog electronic contour on 0.5
+dialog electronic expect-contours 4
+# Exports.
+dialog electronic export rust/target/ui/electronic.xsf
+dialog electronic export rust/target/ui/electronic.cube
+dialog electronic export rust/target/ui/electronic.vasp
+dialog electronic export rust/target/ui/electronic.obj
+dialog electronic export rust/target/ui/electronic.ply
+dialog electronic export rust/target/ui/electronic_section.svg
+dialog electronic set render volume
+dialog electronic export rust/target/ui/electronic_volume.png
+dialog electronic set render surface
+dialog electronic export rust/target/ui/electronic_surface.png
+dialog electronic tool Planar average
+dialog electronic calculate
+dialog electronic export rust/target/ui/electronic_planar.csv
+dialog electronic save-workspace rust/target/ui/electronic.afproject
+dialog electronic clear
+dialog electronic expect-fields 0
+dialog electronic open-workspace rust/target/ui/electronic.afproject
+dialog electronic expect-fields 5
+dialog electronic expect-rows 6
+dialog electronic expect-triangles 50
+dialog electronic slice 2 0.5
+dialog electronic set render volume
+wait 3
+screenshot rust/target/ui/electronic.png
+dialog electronic set render surface
+wait 3
+screenshot rust/target/ui/electronic_surface_view.png
+quit

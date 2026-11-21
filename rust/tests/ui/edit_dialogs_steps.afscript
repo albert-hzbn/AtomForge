@@ -1,0 +1,45 @@
+# Edit in Dialog on pipeline steps: Transform Structure on a supercell step,
+# Edit Structure on add-atom and set-cell steps, and Merge Structures on a
+# merge step; Update Step writes the dialog back into the step.
+open docs/manual/examples/cu_fcc.cif
+pipeline open
+pipeline text supercell matrix="2 0 0 0 1 0 0 0 1" | add-atom element=O | set-cell scale_atoms=false | merge file=docs/manual/examples/cover-tio6.xyz
+expect-stage 1 8 0
+expect-atoms 16
+# Transform Structure: the matrix comes from the step.
+pipeline edit-dialog 1
+dialog supercell expect-det 2
+dialog supercell matrix 2 0 0 0 2 0 0 0 1
+dialog supercell update-step
+expect-stage 1 16 0
+expect-atoms 24
+# Edit Structure (add atom): element and a direct position.
+pipeline edit-dialog 2
+dialog add-atom expect-step element "O"
+dialog add-atom element N
+dialog add-atom mode direct
+dialog add-atom position 0.5 0.5 0.5
+dialog add-atom select off
+dialog add-atom update-step
+expect-stage 2 17 0
+expect-position 16 3.61 3.61 1.805
+# Edit Structure (set cell): default vectors show the cell entering the step.
+pipeline edit-dialog 3
+dialog set-cell expect-step scale_atoms false
+dialog set-cell cell c 0 0 5
+dialog set-cell update-step
+structure-info
+expect-info Cell lengths = a = 7.2200 Å    b = 7.2200 Å    c = 5.0000 Å
+expect-position 16 3.61 3.61 1.805
+# Merge Structures: the step input stays, the file moves by the offset.
+pipeline edit-dialog 4
+dialog merge expect-entries 2
+dialog merge move 1 10 0 0
+screenshot rust/target/ui/edit_dialogs_steps.png
+dialog merge update-step
+expect-atoms 24
+expect-position 17 10 0 0
+# From the menu, the dialog is back to its own arrangement.
+dialog merge open
+dialog merge expect-entries 0
+quit

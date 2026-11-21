@@ -1,0 +1,45 @@
+# View > Structure Info, Atom Info and the measurements (distance, angle,
+# dihedral in pick order), with the result cards and their lines.
+open docs/manual/examples/cu_fcc.cif
+structure-info
+expect-info Atoms = 4
+expect-info Formula = Cu
+expect-info Cell lengths = a = 3.6100 Å
+expect-info Cell angles = α = 90.00°
+expect-info Volume = 47.046 Å³
+expect-info Density = 8.9717
+expect-info Space group = Fm-3m (No. 225)
+expect-info Point group = m-3m
+pick-atom 0
+pick-atom 1 shift
+measure distance
+expect-measure distance 2.5527 Å
+expect-measure distance Cu #0  to  Cu #1
+pick-atom 2 shift
+measure angle
+expect-measure angle 60.00°
+measure distance
+expect-measure distance Select exactly 2 atoms
+pick-atom 0
+measure atom-info
+expect-measure atom-info Element:  Copper (Cu)
+expect-measure atom-info Direct:  (0.00000, 0.00000, 0.00000)
+open docs/manual/examples/sio2_pack.xyz
+structure-info
+expect-info Cell = none
+expect-info Space group = unavailable (No unit cell available.)
+pick-atom 0
+pick-atom 1 shift
+pick-atom 2 shift
+pick-atom 3 shift
+measure dihedral
+expect-measure dihedral °
+measure distance
+expect-measure distance Select exactly 2 atoms
+tab 1
+pick-atom 0
+pick-atom 3 shift
+measure distance
+reset-view
+screenshot rust/target/ui/measure.png
+quit

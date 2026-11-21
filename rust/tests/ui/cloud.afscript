@@ -1,0 +1,35 @@
+# Large datasets: an .afcloud opens as a view-only atom cloud (streamed,
+# level of detail, the Large Dataset panel), in perspective and orthographic
+# views; a LAMMPS dump is converted to a cloud first.
+cloud-generate rust/target/ui/cloud/cu.afcloud fcc 3.615 40 40 40 Cu
+open rust/target/ui/cloud/cu.afcloud
+expect-tabs 1
+expect-cloud 256000
+expect-atoms 0
+view projection perspective
+wait 2
+wait-cloud 60
+expect-cloud-drawn 1000
+screenshot rust/target/ui/cloud_perspective.png
+view projection orthographic
+wait 2
+wait-cloud 60
+expect-cloud-drawn 1000
+screenshot rust/target/ui/cloud_orthographic.png
+cloud-setting colour z
+cloud-setting lod off
+cloud-setting occlusion off
+wait 2
+wait-cloud 60
+expect-cloud-drawn 256000 256000
+screenshot rust/target/ui/cloud_height.png
+# Conversion of a LAMMPS dump (2500 atoms, Zr and Cu).
+remove rust/target/ui/cloud/elements.dump.afcloud
+copy rust/tests/fixtures/cloud/elements.dump rust/target/ui/cloud/elements.dump
+open rust/target/ui/cloud/elements.dump
+expect-tabs 2
+expect-cloud 2500
+wait-cloud 60
+expect-cloud-drawn 2500 2500
+screenshot rust/target/ui/cloud_dump.png
+quit

@@ -1,0 +1,54 @@
+# Edit > Structure Pipeline: steps from the text syntax, per-step results,
+# bypassing, reordering, replacing, the selection as colours, projects that
+# keep a running pipeline, pipeline files, Discard and Bake (one undo step).
+open docs/manual/examples/cu_fcc.cif
+pipeline open
+pipeline text replicate 2 2 2 | select-expression fx < 0.25 | delete-selected
+expect-stage 1 32 0
+expect-stage 2 32 8
+expect-stage 3 24 0
+expect-atoms 24
+pipeline disable 3
+expect-atoms 32
+pipeline enable 3
+expect-atoms 24
+pipeline move 3 1
+expect-stage 1 4 0
+expect-atoms 32
+pipeline move 1 3
+expect-atoms 24
+pipeline set 2 expression fx < 0.6
+expect-stage 2 32 24
+expect-atoms 8
+pipeline replace 2 select-element
+pipeline set 2 elements Cu
+expect-atoms 0
+pipeline replace 2 select-expression
+pipeline set 2 expression fx < 0.25
+expect-atoms 24
+pipeline colour on
+pipeline update
+pipeline colour off
+pipeline update
+pipeline save rust/target/ui/pipeline.json
+save-project rust/target/ui/pipeline.afproject
+pipeline discard
+expect-atoms 4
+open-project rust/target/ui/pipeline.afproject
+expect-tabs 2
+expect-atoms 24
+pipeline update
+expect-stage 3 24 0
+pipeline remove 3
+pipeline remove 2
+expect-atoms 32
+pipeline load rust/target/ui/pipeline.json
+expect-atoms 24
+screenshot rust/target/ui/pipeline.png
+pipeline remove 3
+expect-atoms 32
+pipeline bake
+expect-atoms 32
+undo
+expect-atoms 24
+quit

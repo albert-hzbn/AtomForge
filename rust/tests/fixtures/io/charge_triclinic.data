@@ -1,0 +1,24 @@
+tilted box
+
+3 atoms
+2 atom types
+0 5 xlo xhi
+0 4.33 ylo yhi
+0 6 zlo zhi
+2.5 0.5 0.25 xy xz yz
+
+Masses
+
+1 22.99
+2 35.45
+
+Atoms # charge
+
+1 1 1.0 0.0 0.0 0.0
+2 2 -1.0 2.5 2.165 3.0
+3 1 0.5 1.0 1.0 1.0
+
+Velocities
+
+1 1.0 2.0 3.0
+3 -1.0 0.0 0.0

@@ -1,0 +1,11 @@
+ITEM: TIMESTEP
+5
+ITEM: NUMBER OF ATOMS
+2
+ITEM: BOX BOUNDS xy xz yz pp pp pp
+-0.5 5.5 1.0
+0.0 4.33 0.5
+0.0 6.0 0.25
+ITEM: ATOMS id type xs ys zs
+2 2 0.5 0.5 0.5
+1 1 0.0 0.0 0.0

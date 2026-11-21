@@ -1,0 +1,23 @@
+# Edit in Dialog for build-bulk and build-dislocation steps: the dialogs
+# read the step's options (and input), Update Step writes them back.
+open docs/manual/examples/cu_fcc.cif
+pipeline open
+pipeline text build-bulk options='--system cubic --spacegroup 225 --a 5.64 --atom "Na 0 0 0" --atom "Cl 0.5 0.5 0.5"'
+expect-atoms 8
+pipeline edit-dialog 1
+bulk set sites Cu 0 0 0
+bulk set a 3.61
+bulk update-step
+expect-stage 1 4 0
+expect-atoms 4
+pipeline text replicate 6 6 6 | build-dislocation options='--character edge --shape halfplane'
+expect-atoms 864
+pipeline edit-dialog 2
+dislocation expect-options --character edge --shape halfplane
+dislocation set character screw
+dislocation expect-options --character screw --shape halfplane
+dislocation update-step
+expect-stage 2 864 0
+pipeline edit-dialog 2
+dislocation expect-options --character screw
+quit

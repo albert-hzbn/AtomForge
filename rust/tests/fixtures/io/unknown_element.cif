@@ -1,0 +1,10 @@
+data_bad
+_cell_length_a 3
+_cell_length_b 3
+_cell_length_c 3
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+1Xx 0 0 0

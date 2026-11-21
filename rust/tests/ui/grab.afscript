@@ -1,0 +1,34 @@
+# G (grab mode): the selected atoms follow the mouse in the view plane,
+# X/Y/Z lock an axis, a click or Enter confirms (one undoable step), Esc or
+# a right click cancels; periodic atoms wrap into the cell.
+open docs/manual/examples/sio2_pack.xyz
+command look along z
+pick-atom 0
+expect-position 0 2.83853 6.68774 6.80038
+grab start
+grab move 80 -40
+grab cancel
+expect-position 0 2.83853 6.68774 6.80038
+grab start
+grab axis x
+grab move 80 -40
+grab confirm
+expect-position 0 * 6.68774 6.80038
+expect-moved 0 2.83853 * *
+undo
+expect-position 0 2.83853 6.68774 6.80038
+pick-atom 0
+grab start
+grab axis z
+grab move 80 -40
+grab confirm
+expect-position 0 2.83853 6.68774 6.80038
+open docs/manual/examples/cu_fcc.cif
+command look along z
+pick-atom 1
+grab start
+grab move 4000 0
+screenshot rust/target/ui/grab.png
+grab confirm
+expect-atoms 4
+quit

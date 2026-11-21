@@ -1,63 +1,31 @@
 \chapter{Installation, builds, and troubleshooting}\label{ch:install}
 \section{Running a packaged desktop build}
-Extract a complete package into a writable folder and run the executable. Keep the bundled runtime libraries, Open Babel plugins and Open Babel data (\code{openbabel-data}, which supplies the space-group tables) in their supplied locations. Copying only \code{AtomForge.exe} to another machine can leave required DLLs or format plugins behind. To open a structure at launch, pass its path as the executable's argument.
+Extract a complete package into a writable folder and run \code{AtomForge} (\code{AtomForge.exe} on Windows, \code{AtomForge/bin/AtomForge} on Linux). Keep the native libraries beside it: \code{atomforge\_science\_native}, \code{atomforge\_electronic} and spglib (\code{symspg}), which the Python package in \code{AtomForge/python} also uses. Structure files are read and written by AtomForge itself; no Open Babel installation is needed. To open structures at launch, pass their paths (wildcards such as \code{*.cif} are expanded). The same program is the command line: given a mode such as \code{--build}, \code{--pipe} or \code{--science} it runs without a window (Chapter~\ref{ch:python}).
 
-The desktop draws with Vulkan by default and falls back to OpenGL when Vulkan cannot start, for example without a Vulkan driver or in a remote session; a notification then names the reason. Either renderer shows the same scene, previews and exports. If the window fails to render, check the graphics driver and whether a remote/virtual session supplies Vulkan or OpenGL support. A successful compiler run and a working graphics runtime are separate checks.
+The desktop draws through wgpu, which uses Direct3D~12 or Vulkan on Windows, Vulkan or OpenGL on Linux and Metal on macOS, whichever the graphics driver offers. If the window fails to render, check the graphics driver and whether a remote or virtual session supplies one of these; \code{--renderer opengl} (with Mesa's software rasteriser on Linux) usually works there.
 
 \section{Choosing the renderer}\label{sec:renderer}
-\ui{Settings > Renderer} chooses Vulkan or OpenGL; the choice is saved and applies at the next start, and the menu shows the renderer in use. For one run, start AtomForge with \code{--renderer vulkan} or \code{--renderer opengl}, or set the environment variable \code{ATOMFORGE_RENDERER}; the command line takes precedence over the environment, which takes precedence over the saved choice. Developers can set \code{ATOMFORGE_VULKAN_VALIDATION=1} to enable the Khronos validation layer when it is installed.
+\ui{Settings > Renderer} chooses the graphics interface (Automatic, Vulkan, Direct3D~12, Metal or OpenGL, as the platform offers); the choice is saved as \code{renderer=} in \code{\textasciitilde/.atomforge\_preferences.txt} and applies at the next start, and the menu shows the interface in use. For one run, start AtomForge with \code{--renderer vulkan}, \code{opengl}, \code{dx12} or \code{metal}, or set the environment variable \code{ATOMFORGE\_RENDERER}; the command line takes precedence over the environment, which takes precedence over the saved choice. Every interface shows the same scene, previews and exports.
 
-With Vulkan, the graphics card decides each frame what to draw, so structures of millions of atoms stay interactive: atoms and bonds outside the view or hidden behind other atoms are not drawn, distant atoms are drawn with ever simpler shapes (down to a single point for an atom a few pixels wide), bonds thinner than a pixel are left out, and the shadow map is kept until the structure or the lighting changes. The picture is the same as when everything is drawn. \code{ATOMFORGE_GPU_CULLING=0} turns this off, for comparison; \code{ATOMFORGE_SCENE_BENCHMARK=report.json} opens the structure given on the command line, measures the frame time from several views and writes the results.
+Structures of up to five million atoms open for editing; larger files open as atom clouds (Section~\ref{sec:large-datasets}), which stream from disk and draw a level-of-detail subsample within point and memory budgets.
 
 \section{Build requirements}
-The source uses C++17 and CMake 3.16 or newer. Desktop dependencies include GLFW, GLEW, GLM, Eigen3, Open Babel 3, and an OpenGL implementation; the Vulkan renderer also needs the Vulkan headers and glslangValidator at build time (without them the build draws with OpenGL only). The Vulkan loader is opened at run time, so a build with Vulkan still starts where Vulkan is missing. spglib enables symmetry-related capabilities. Use a consistent compiler/runtime family for all linked libraries. See the repository's \code{INSTALL.md} and actual CMake configuration for platform-specific dependency discovery.
+AtomForge is written in Rust and builds with Cargo (Rust 1.85 or newer, installed with rustup) and the platform's linker: the MSVC Build Tools with the Windows SDK on Windows, GCC or Clang on Linux. Every library is a Rust crate that Cargo fetches on the first build, except spglib: the Windows build uses the copy in \code{rust/crates/af-spglib/vendor}, Linux links the system's \code{libsymspg} (\code{libsymspg-dev}). On Linux the window also needs the X11 or Wayland and xkbcommon development packages. See the repository's \code{INSTALL.md}.
 
-\begin{longtable}{p{.49\linewidth}p{.42\linewidth}}
-\toprule CMake setting & Purpose \\ \midrule\endhead
-\code{CMAKE_BUILD_TYPE=Release} & Optimised application/library build. \\
-\code{ATOMFORGE_BUILD_APP=OFF} & Build core/library functionality without the desktop app. \\
-\code{BUILD_TESTING=ON} & Configure available automated tests. \\
-\code{ATOMFORGE_ENABLE_SSS_BUILDER=ON} & Enable the substitutional-alloy desktop builder (default on). \\
-\code{ATOMFORGE_ENABLE_SFE_BUILDER=ON} & Enable the optional stacking-fault desktop builder (default on). \\
-\code{ATOMFORGE_ENABLE_VULKAN=ON} & Build the Vulkan renderer (default on; skipped when its headers or shader compiler are missing). \\
-\code{BUILD_PORTABLE=ON} & Enable runtime packaging support. \\
-\code{Python3_EXECUTABLE} & Select the Python interpreter used by configured tests. \\
-\bottomrule
-\end{longtable}
-
-\section{Automatic build resource protection}
-Normal Ninja and Makefile builds automatically serialize C++ compilation and linking to prevent many memory-heavy compiler processes from running together. Release optimization and all application features remain unchanged. No machine-specific preset or configuration is required: update the source and reconfigure your existing build directory.
-
-Ninja uses a one-job pool; both generators also use a shared compiler/linker lock in the build directory. Use \code{--parallel 1} as shown below to avoid unnecessary waiting processes. Separate build directories have separate locks, so avoid running multiple builds in different directories simultaneously.
-
-A single compiler process still needs memory. If a full-system freeze persists with serial compilation, inspect system logs, available memory, swap/page-file space and cooling after restarting. A freeze alone does not identify its cause. Packaged releases avoid compilation entirely.
-
-\section{Linux build}
-Install a C++ toolchain, CMake, pkg-config, and development packages for GLFW, GLEW, GLM, Eigen3, Open Babel, Vulkan (headers and glslang tools), and optionally spglib using your distribution's package manager. Configure a fresh build directory:
+\section{Building}
 \begin{lstlisting}
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
-cmake --build build --parallel 1
-ctest --test-dir build --output-on-failure
-./build/AtomForge
+cd rust
+cargo build --release -p af-app -p af-ffi-science -p af-ffi-electronic
+cargo test --workspace --release
+cd ..
+python rust/tools/run_ui_tests.py
 \end{lstlisting}
-Run from a graphics-capable session for desktop use. For a headless server, use the native builder CLI or electronic library/API instead. A core-only build does not create a desktop executable.
-
-\section{Windows build with MSYS2 UCRT64}
-Use the MSYS2 UCRT64 toolchain and its matching dependency packages. Typical packages include the UCRT64 toolchain, CMake, GLFW, GLEW, GLM, Eigen3, Open Babel, pkgconf, the Vulkan headers and glslang, spglib, and Python when running the Python tests. Avoid mixing MINGW64, UCRT64, and unrelated compiler libraries in one build directory.
-
-\begin{lstlisting}
-cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DPython3_EXECUTABLE=C:/msys64/ucrt64/bin/python.exe
-cmake --build build --parallel 1
-ctest --test-dir build --output-on-failure
-\end{lstlisting}
-These commands assume the compiler and matching libraries are discoverable, normally from the UCRT64 shell. If using PowerShell, supply the correct toolchain paths and runtime DLLs. Select a Python interpreter compatible with the native library's runtime requirements for tests; discovering an unrelated system Python can make a correct library build appear to fail during loading.
-
-Use a new build folder when changing generators or compiler families. Close a running AtomForge instance before replacing its executable, because Windows may lock the file. After rebuilding, launch the executable from the expected folder and check that the interface matches the new version; an older shortcut can launch a stale copy.
+The program is \code{rust/target/release/AtomForge} (\code{AtomForge.exe}). The tests compare the scientific results with reference outputs of the earlier C++ implementation, most of them bit for bit; \code{run\_ui\_tests.py} drives the desktop through scripted sessions (\code{rust/tests/ui}) and writes screenshots to \code{rust/target/ui}, and \code{rust/tools/run\_python\_suite.sh} runs the Python package's tests against the native libraries. Close a running AtomForge before rebuilding, because Windows locks the executable.
 
 \section{Portable packaging and CI}
-Configure with \code{BUILD_PORTABLE=ON}, build, then use CPack with that build directory's \code{CPackConfig.cmake}. Validate the extracted package in a clean runtime environment and test an actual structure import, not only process startup. Open Babel plugins are needed for format support.
+\code{python rust/tools/package.py} builds in release mode and writes \code{AtomForge-<version>-win64.zip} or \code{AtomForge-<version>-linux-x86\_64.tar.gz} to \code{rust/target/package}, with the program, its libraries, the Python package, the manual and the examples. Validate the extracted package in a clean environment and test an actual structure import, not only process startup.
 
-When a GitHub compilation job fails, inspect the first failing step and its log: configure/dependency discovery, compilation, linking, tests, or packaging. The last generic failure line is usually less useful than the original diagnostic. Record the commit and platform. Documentation changes do not resolve an unrelated toolchain problem, and a locally successful Windows run does not alone prove every CI platform passes.
+When a CI job fails, inspect the first failing step and its log: dependency download, compilation, linking, tests, or packaging. The last generic failure line is usually less informative than the first error.
 
 \begin{samepage}
 \section{Reporting a reproducible problem}
@@ -87,7 +55,7 @@ Builder menu disabled & Load a suitable source with a cell; inspect compile-time
 Mesh fill missing atoms & Check closed geometry, units/scale, replication coverage, and feature thickness relative to the lattice. \\
 Amorphous placement fails & Density, pair cutoffs, and counts may be incompatible. Test a looser geometry and inspect diagnostics. \\
 Saved structure loses cell/metadata & Choose a format supporting the needed fields and verify the reopened result. Python and desktop format coverage differ. \\
-Vulkan notice at start-up & AtomForge is drawing with OpenGL because Vulkan could not start; the notice names the reason. Update the graphics driver, or choose OpenGL in \ui{Settings > Renderer} to keep it. \\
+Window does not open & The graphics interface could not start. Update the graphics driver, or start with \code{--renderer opengl} and keep it with \ui{Settings > Renderer}. \\
 \bottomrule
 \end{longtable}
 \endgroup

@@ -1,0 +1,17 @@
+# Edit in Dialog on pipeline steps: the step's Build or Edit dialog opens on
+# its parameters and the structure entering it; Update Step writes them back.
+open docs/manual/examples/cu_fcc.cif
+pipeline open
+pipeline text replicate 2 2 2 | select-expression fx < 0.25 | delete-selected
+expect-atoms 24
+# A step without a dedicated dialog: the operation dialog in step mode.
+pipeline edit-dialog 1
+set counts 3 3 3
+update-step
+expect-stage 1 108 0
+pipeline edit-dialog 2
+set expression fx < 0.4
+update-step
+expect-stage 2 108 54
+expect-atoms 54
+quit

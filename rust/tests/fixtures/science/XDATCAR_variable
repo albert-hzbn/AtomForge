@@ -1,0 +1,20 @@
+Ar
+1.0
+5 0 0
+0 5 0
+0 0 5
+Ar
+2
+Direct configuration=     1
+ 0 0 0
+ 0.5 0.5 0.5
+Ar
+1.0
+5.5 0 0
+0 5 0
+0 0 5
+Ar
+2
+Cartesian configuration=     2
+ 0.1 0 0
+ 2.5 3.0 2.5

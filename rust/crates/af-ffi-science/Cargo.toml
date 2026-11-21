@@ -1,0 +1,15 @@
+[package]
+name = "af-ffi-science"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "C ABI of the native science tools for the Python package (atomforge.native)"
+
+[lib]
+name = "atomforge_science_native"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+af-core.workspace = true
+af-science = { path = "../af-science" }
+af-pipeline = { path = "../af-pipeline" }

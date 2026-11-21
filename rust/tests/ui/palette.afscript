@@ -1,0 +1,32 @@
+# Help > Find a Command: commands by name, ranked as in the C++ palette
+# (label start, word start, anywhere, then the menu path), run from the
+# best enabled match; the view keys' camera angles and the interface size.
+open docs/manual/examples/cu_fcc.cif
+command surface slab
+expect-status Ran Build > Surface Slab
+command look along y
+expect-camera 0 90
+command lattice vector a
+expect-camera 90 0
+command look along z
+expect-camera 0 0
+rotate z 90
+expect-camera 0 0 -90
+rotate x 45
+expect-camera 0 45
+command select all
+expect-selected 4
+command clear selection
+expect-selected 0
+command ball and stick
+command bonds
+command structure info
+command larger
+expect-status Ran Settings > Interface Size: Larger (125%)
+command light theme
+command shortcuts
+screenshot rust/target/ui/palette.png
+command automatic
+command dark theme
+command undo
+quit

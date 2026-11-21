@@ -1,0 +1,4 @@
+{"symbols": ["Fe", "Fe"], "positions": [[0,0,0],[1.435,1.435,1.435]],
+ "cell": [[2.87,0,0],[0,2.87,0],[0,0,2.87]], "pbc": [true, true, false],
+ "magmoms": [2.2, -2.2], "fixed": [[true,false,true],[false,false,false]],
+ "velocities": [[0.01,0,0],[0,0,-0.01]], "charges": [0.1, -0.1]}

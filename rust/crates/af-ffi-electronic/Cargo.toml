@@ -1,0 +1,15 @@
+[package]
+name = "af-ffi-electronic"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "C ABI of the electronic-structure post-processing for the Python package (atomforge.electronic)"
+
+[lib]
+name = "atomforge_electronic"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+af-core.workspace = true
+af-electronic = { path = "../af-electronic" }
+glam.workspace = true

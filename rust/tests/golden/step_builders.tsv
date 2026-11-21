@@ -1,0 +1,26 @@
+build-nano		--shape sphere --radius 15 --vacuum 5
+build-nano	--shape sphere --radius 10	--shape sphere --radius 10 --vacuum 5
+build-nano	--shape sphere --radius 10.3 --vacuum 2.2	--shape sphere --radius 10.30000019 --vacuum 2.200000048
+build-nano	--shape wulff --radius 20 --facet "1 0 0 1.0" --facet "1 1 1 1.2"	--shape wulff --radius 20 --facet "1 0 0 1" --facet "1 1 1 1.200000048" --vacuum 5
+build-nano	--shape wulff	--shape wulff --radius 20 --vacuum 5
+build-nano	--shape ellipsoid --rx 15 --ry 12.5 --rz 10 --center "1 2 3.3" --repa 4 --repb 5 --repc 6 --no-cell	--shape ellipsoid --rx 15 --ry 12.5 --rz 10 --center "1 2 3.299999952" --repa 4 --repb 5 --repc 6 --no-cell
+build-nano	--shape box --hx 7 --hy 8 --hz 9	--shape box --hx 7 --hy 8 --hz 9 --vacuum 5
+build-nano	--shape cylinder --cylradius 12 --cylheight 30 --cylaxis 5	--shape cylinder --cylradius 12 --cylheight 30 --cylaxis 2 --vacuum 5
+build-nano	--shape octahedron --radius 15	--shape octahedron --radius 15 --vacuum 5
+build-nano	--shape truncated-octahedron	--shape truncated-octahedron --radius 18 --trunc 12 --vacuum 5
+build-nano	--shape TRUNCATED-octahedron --radius 20 --trunc 13.7	--shape truncated-octahedron --radius 20 --trunc 13.69999981 --vacuum 5
+build-nano	--shape cuboctahedron --radius 15 --vacuum 0	--shape cuboctahedron --radius 15 --vacuum 0
+build-nano	--input cu.cif --repb 3	--input cu.cif --shape sphere --radius 15 --repa 5 --repb 3 --repc 5 --vacuum 5
+build-nano	--shape nonsense --center "1 2"	--shape sphere --radius 15 --vacuum 5
+build-poly		--sizex 50 --sizey 50 --sizez 50 --grains 8 --seed 42
+build-poly	--sizex 30 --sizey 30 --sizez 30 --grains 4 --seed 7	--sizex 30 --sizey 30 --sizez 30 --grains 4 --seed 7
+build-poly	--sizex 40 --sizey 35.5 --sizez 30.1 --grains 2 --seed 3 --euler "0 0 0" --euler "45 30 10.5"	--sizex 40 --sizey 35.5 --sizez 30.10000038 --grains 2 --seed 3 --euler "0 0 0" --euler "45 30 10.5"
+build-poly	--grains 3 --euler "0 0 0" --euler "45 30 10"	--sizex 50 --sizey 50 --sizez 50 --grains 3 --seed 42 --grain-euler "1 0 0 0" --grain-euler "2 45 30 10"
+build-poly	--grain-euler "3 10 20 30" --grain-euler "1 0 45 0" --grain-euler "0 1 1 1"	--sizex 50 --sizey 50 --sizez 50 --grains 8 --seed 42 --grain-euler "3 10 20 30" --grain-euler "1 0 45 0"
+build-poly	--euler "1 2 3"	--sizex 50 --sizey 50 --sizez 50 --grains 8 --seed 42 --grain-euler "1 1 2 3"
+build-poly	--input cu.cif --grains 600	--input cu.cif --sizex 50 --sizey 50 --sizez 50 --grains 600 --seed 42
+build-amorphous		--element "Si 100" --density 2 --scale 1 --covtol 0.75 --seed 42 --attempts 1000
+build-amorphous	--element "Si 64" --element "O 128" --density 2.2 --seed 42	--element "Si 64" --element "O 128" --density 2.200000048 --scale 1 --covtol 0.75 --seed 42 --attempts 1000
+build-amorphous	--element "Cu 50" --boxa 12 --boxb 13.5 --boxc 14 --scale 1.1 --covtol 0.8 --seed 7 --attempts 500 --mindist "Cu Cu 2.1" --no-periodic	--element "Cu 50" --boxa 12 --boxb 13.5 --boxc 14 --scale 1.100000024 --covtol 0.8000000119 --seed 7 --attempts 500 --mindist "Cu Cu 2.099999905" --no-periodic
+build-amorphous	--element "Si 10" --element "Xx 5" --element "C 0" --boxb 9 --seed -4 --attempts 0	--element "Si 10" --boxa 20 --boxb 9 --boxc 20 --scale 1 --covtol 0.75 --seed 0 --attempts 1
+build-amorphous	--element "Si 64" --element "O 128" --mindist "O Si 1.55" --mindist "O O 2.3"	--element "Si 64" --element "O 128" --density 2 --scale 1 --covtol 0.75 --seed 42 --attempts 1000 --mindist "O Si 1.549999952" --mindist "O O 2.299999952"

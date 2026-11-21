@@ -1,0 +1,49 @@
+# UI tour subset: the trajectory, electronic, Wannier, LOBSTER, dislocation
+# analysis, lattice plane, Miller direction and polyhedral windows, to compare
+# with tmp/cpp-tour (same names). Run from the repository root.
+theme light
+open rust/tests/fixtures/tour/CuNi-L12.cif
+reset-view
+notify
+dialog dislocation-analysis open
+wait 12
+screenshot tmp/rust-tour-f4/38-analysis-dislocations.png
+close-windows
+trajectory open rust/tests/fixtures/tour/trajectory.xyz
+notify
+wait 12
+screenshot tmp/rust-tour-f4/39-trajectory-loaded.png
+close-windows
+command Trajectory Playback
+notify
+wait 12
+screenshot tmp/rust-tour-f4/40-trajectory.png
+close-windows
+dialog electronic open
+wait 12
+screenshot tmp/rust-tour-f4/41-electronic.png
+close-windows
+dialog wannier open
+wait 12
+screenshot tmp/rust-tour-f4/42-wannier.png
+close-windows
+dialog lobster open
+wait 12
+screenshot tmp/rust-tour-f4/43-lobster.png
+close-windows
+command Lattice Planes Settings
+notify
+wait 12
+screenshot tmp/rust-tour-f4/44-lattice-planes.png
+close-windows
+command Miller Directions Settings
+notify
+wait 12
+screenshot tmp/rust-tour-f4/45-miller-directions.png
+close-windows
+command Polyhedral Settings
+notify
+wait 12
+screenshot tmp/rust-tour-f4/46-polyhedral-settings.png
+close-windows
+quit

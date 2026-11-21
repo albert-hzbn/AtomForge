@@ -1,0 +1,64 @@
+# Edit > Edit Structure, Transform Structure and Merge Structures: cell
+# vectors, atom rows (add, substitute, Cartesian and direct positions,
+# selective dynamics, delete), an integer supercell matrix, and merging a
+# file with the structure in the view; each edit is one undo step.
+open docs/manual/examples/cu_fcc.cif
+expect-atoms 4
+dialog add-atom open
+dialog add-atom add-atom
+expect-atoms 5
+expect-position 4 0 0 0
+dialog add-atom element 4 O
+dialog add-atom fractional 4 0.5 0.5 0.5
+expect-position 4 1.805 1.805 1.805
+dialog add-atom position 4 1 2 3
+expect-position 4 1 2 3
+dialog add-atom fixed 4 1 0 1
+dialog add-atom expect-fixed 4 5
+wait 2
+screenshot rust/target/ui/edit_structure.png
+dialog add-atom delete 4
+expect-atoms 4
+undo
+expect-atoms 5
+expect-position 4 1 2 3
+# Selective-dynamics flags alone are not an undo step (as in the C++ history).
+undo
+expect-position 4 1.805 1.805 1.805
+dialog set-cell cell a 4 0 0
+structure-info
+expect-info Cell lengths = a = 4.0000 Å
+undo
+undo
+undo
+undo
+expect-atoms 4
+dialog supercell open
+dialog supercell matrix 2 0 0 0 2 0 0 0 2
+dialog supercell expect-det 8
+dialog supercell apply
+expect-atoms 32
+structure-info
+expect-info Cell lengths = a = 7.2200 Å
+undo
+dialog supercell matrix 0 1 1 1 0 1 1 1 0
+dialog supercell expect-det 2
+dialog supercell apply
+expect-atoms 8
+undo
+expect-atoms 4
+dialog merge open
+dialog merge add-scene
+dialog merge add docs/manual/examples/fe_bcc.cif
+dialog merge expect-entries 2
+dialog merge move 1 10 0 0
+dialog merge rotate 1 0 0 90
+dialog merge merge
+expect-atoms 6
+structure-info
+expect-info Cell = none
+undo
+expect-atoms 4
+dialog merge open
+screenshot rust/target/ui/edit_dialogs.png
+quit

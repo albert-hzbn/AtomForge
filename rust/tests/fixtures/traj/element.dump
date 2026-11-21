@@ -1,0 +1,24 @@
+ITEM: TIMESTEP
+0
+ITEM: NUMBER OF ATOMS
+3
+ITEM: BOX BOUNDS pp pp pp
+0.0 4.0
+0.0 4.0
+0.0 4.0
+ITEM: ATOMS id element x y z
+3 Cu 2.0 2.0 0.0
+1 cu 0.0 0.0 0.0
+2 Ni 2.0 0.0 2.0
+ITEM: TIMESTEP
+100
+ITEM: NUMBER OF ATOMS
+3
+ITEM: BOX BOUNDS pp pp pp
+0.0 4.1
+0.0 4.1
+0.0 4.1
+ITEM: ATOMS id element xu yu zu
+1 Cu 0.05 0.0 0.0
+2 Ni 2.05 0.0 2.0
+3 Cu 2.05 2.0 0.0

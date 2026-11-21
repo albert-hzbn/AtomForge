@@ -1,0 +1,8 @@
+[package]
+name = "af-cloud"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+af-core.workspace = true

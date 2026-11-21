@@ -1,0 +1,18 @@
+%BLOCK LATTICE_CART
+ANG
+4.0 0.0 0.0
+0.0 4.0 0.0
+0.0 0.0 4.0
+%ENDBLOCK LATTICE_CART
+
+%block positions_abs
+Fe 0.0 0.0 0.0 SPIN=2.5
+Fe 2.0 2.0 2.0 spin = -2.5
+O 2.0 0.0 0.0 SPIN : 0.1
+%endblock positions_abs
+
+%BLOCK IONIC_CONSTRAINTS
+1 Fe 1 1 0 0
+2 Fe 2 0 0 1
+3 O 1 0.5 0.5 0
+%ENDBLOCK IONIC_CONSTRAINTS

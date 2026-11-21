@@ -1,0 +1,10 @@
+[package]
+name = "af-spglib"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Bindings to spglib 2.7.0 (vendored MSVC build, BSD-3-Clause), the same library the C++ AtomForge links."
+build = "build.rs"
+links = "symspg"
+
+[dependencies]

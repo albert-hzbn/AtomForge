@@ -1,0 +1,39 @@
+# Analysis > Structure and Defects > Dislocation Post-Processing: a perfect
+# Cu crystal and the same crystal with an edge dislocation (Edit > Insert
+# Dislocation), compared by the Nye tensor, the Vitek map, pattern matching,
+# drag preparation and the dislocation fit; results exported as CSV. The
+# expected numbers are the command line's (atomforge --analyze nye, vitek,
+# pattern-init/pattern-detect, drag, fit-dislocation) on the same files.
+open docs/manual/examples/cu_fcc.cif
+step replicate
+set counts 6 6 6
+apply
+save rust/target/ui/disl_reference.cif
+dislocation set character edge
+dislocation generate
+dislocation replace
+save rust/target/ui/disl_deformed.cif
+dialog dislocation-analysis open
+dialog dislocation-analysis reference rust/target/ui/no_such_file.cif
+dialog dislocation-analysis expect-error no_such_file
+dialog dislocation-analysis reference rust/target/ui/disl_reference.cif
+dialog dislocation-analysis deformed rust/target/ui/disl_deformed.cif
+dialog dislocation-analysis nye 3.0
+dialog dislocation-analysis expect-nye-max 3.1660609793459904
+dialog dislocation-analysis expect-nye-top 21
+dialog dislocation-analysis export nye rust/target/ui/disl_nye.csv
+dialog dislocation-analysis vitek 0 0 1 2.55
+dialog dislocation-analysis expect-vitek-pairs 10368 10368
+dialog dislocation-analysis export vitek rust/target/ui/disl_vitek.csv
+dialog dislocation-analysis pattern 3.2 10
+dialog dislocation-analysis expect-unmatched 417 417
+dialog dislocation-analysis export pattern rust/target/ui/disl_pattern.csv
+dialog dislocation-analysis drag 0.5
+dialog dislocation-analysis expect-drag-atoms 864
+dialog dislocation-analysis export drag rust/target/ui/disl_drag.cif
+dialog dislocation-analysis fit 0 0 1 3 1
+dialog dislocation-analysis expect-fit-position 8.4944112498720408 8.8860766037922279 8.8726477108439603
+dialog dislocation-analysis expect-fit-burgers 0 0.000001
+wait 2
+screenshot rust/target/ui/dislocation_analysis.png
+quit

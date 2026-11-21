@@ -1,0 +1,12 @@
+[package]
+name = "af-io"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+af-core.workspace = true
+glam.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

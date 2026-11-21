@@ -1,0 +1,46 @@
+# Build > Nanocrystal (shape cut and Wulff construction), Build > Polycrystal
+# and Build > Amorphous Structure. Atom counts match the CLI builders
+# (atomforge --build nano|poly|amorphous with the same options).
+open docs/manual/examples/cu_fcc.cif
+dialog build-nano open
+dialog build-nano reference docs/manual/examples/cu_fcc.cif
+dialog build-nano mode shape
+dialog build-nano shape sphere
+dialog build-nano size 10
+dialog build-nano build
+expect-atoms 336
+dialog build-nano expect-output 336 336
+undo
+expect-atoms 4
+dialog build-nano mode wulff
+dialog build-nano wulff-radius 20
+dialog build-nano facets 1 0 0 1.0; 1 1 1 1.0
+dialog build-nano expect-faces 14
+dialog build-nano build
+expect-atoms 3552
+screenshot rust/target/ui/nano.png
+dialog build-nano close
+close-all
+open docs/manual/examples/cu_fcc.cif
+dialog build-poly open
+dialog build-poly reference view
+dialog build-poly size 30 30 30
+dialog build-poly grains 4
+dialog build-poly seed 7
+dialog build-poly build
+dialog build-poly expect-grains 4
+expect-atoms 2289
+undo
+expect-atoms 4
+screenshot rust/target/ui/poly.png
+dialog build-poly close
+dialog build-amorphous open
+dialog build-amorphous elements Si 64; O 128
+dialog build-amorphous density 2.2
+dialog build-amorphous seed 42
+dialog build-amorphous build
+dialog build-amorphous expect-placed 192
+dialog build-amorphous expect-density 2.19 2.21
+expect-atoms 192
+screenshot rust/target/ui/amorphous.png
+quit

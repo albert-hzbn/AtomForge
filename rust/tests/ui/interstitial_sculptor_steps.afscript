@@ -1,0 +1,44 @@
+# Edit in Dialog on the insert-interstitials and build-sculpt pipeline
+# steps: each dialog opens on the step's parameters and the structure entering
+# it, and Update Step writes them back (counts as `--analyze interstitial` and
+# `--analyze sculpt` give for fcc Cu).
+open docs/manual/examples/cu_fcc.cif
+pipeline open
+pipeline text insert-interstitials element=H kind=octahedral count=0
+expect-stage 1 8 4
+pipeline edit-dialog 1
+dialog insert-interstitials detect
+dialog insert-interstitials expect-voids 12
+dialog insert-interstitials set kind tetrahedral
+dialog insert-interstitials set count 5
+dialog insert-interstitials update-step
+expect-stage 1 9 5
+pipeline edit-dialog 1
+dialog insert-interstitials set count 0
+dialog insert-interstitials set order random
+dialog insert-interstitials update-step
+expect-stage 1 12 8
+expect-atoms 12
+pipeline text build-sculpt options=--slabs "1 0 0 0 1 1;0 1 0 0 1 1;0 0 1 0 1 1"
+expect-stage 1 4 0
+pipeline edit-dialog 1
+dialog build-sculpt expect-result 4
+dialog build-sculpt supercell 3 3 3
+dialog build-sculpt slab 1 n 2
+dialog build-sculpt slab 2 n 2
+dialog build-sculpt expect-result 16
+screenshot rust/target/ui/sculptor_step.png
+dialog build-sculpt update-step
+expect-stage 1 16 0
+pipeline edit-dialog 1
+dialog build-sculpt supercell 4 4 4
+dialog build-sculpt slab 1 hkl 1 1 1
+dialog build-sculpt slab 1 n 1
+dialog build-sculpt slab 3 hkl 1 1 -2
+dialog build-sculpt slab 3 n 1
+dialog build-sculpt slab 2 hkl 1 -1 0
+dialog build-sculpt expect-result 12
+dialog build-sculpt update-step
+expect-stage 1 12 0
+expect-atoms 12
+quit

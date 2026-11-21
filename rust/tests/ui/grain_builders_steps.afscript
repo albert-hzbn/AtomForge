@@ -1,0 +1,47 @@
+# Edit in Dialog on the CSL Grain Boundary, Interface Builder and Stacking
+# Fault pipeline steps: each dialog opens on the step's options and the
+# structure entering it, and Update Step writes the new options back (atom
+# counts from atomforge --build gb / interface / stacking-fault).
+open docs/manual/examples/cu_fcc.cif
+pipeline open
+pipeline text build-gb options=--axis "0 0 1" --sigma 5
+expect-stage 1 20 0
+pipeline edit-dialog 1
+dialog build-gb expect-options --axis "0 0 1" --sigma 5 --sigmamax 100 --plane 0 --uca 1 --ucb 1 --vacuum 0 --gap 0 --overlap 0
+dialog build-gb conventional on
+dialog build-gb uca 2
+dialog build-gb ucb 2
+dialog build-gb update-step
+expect-stage 1 80 0
+expect-atoms 80
+# Reopened, the dialog shows what Update Step wrote; Close ends the edit.
+pipeline edit-dialog 1
+dialog build-gb expect-options --axis "0 0 1" --sigma 5 --sigmamax 100 --plane 0 --uca 2 --ucb 2 --vacuum 0 --gap 0 --overlap 0 --conventional
+dialog build-gb close
+# Interface: crystal A is the step input, B a file; the step's match is searched again.
+pipeline text build-interface options=--layerB docs/manual/examples/fe_bcc.cif --hklA "1 1 1" --hklB "1 1 0"
+expect-stage 1 48 0
+pipeline edit-dialog 1
+dialog build-interface expect-matches 84
+dialog build-interface expect-selected 48
+dialog build-interface pick 2
+dialog build-interface repeat 2 1
+dialog build-interface update-step
+expect-stage 1 184 0
+pipeline edit-dialog 1
+dialog build-interface expect-selected 184
+dialog build-interface expect-options --layerB docs/manual/examples/fe_bcc.cif --hklA "1 1 1" --hklB "1 1 0" --layersA 4 --layersB 4 --max-strain 0.03 --max-area 150 --repeats 6 --min-angle 20 --angle-min 0 --angle-max 180 --angle-step 1 --strain-on B --gap 2 --vacuum 0 --repx 2 --repy 1 --pick 2
+dialog build-interface close
+# Stacking fault: the step's sequence at its frame; Update Step keeps the selected frame.
+pipeline text build-stacking-fault options=--frame 5
+expect-stage 1 72 0
+pipeline edit-dialog 1
+dialog build-stacking-fault expect-sequence 21 39
+dialog build-stacking-fault frame 12
+dialog build-stacking-fault cell orthogonal
+dialog build-stacking-fault update-step
+expect-stage 1 72 0
+pipeline edit-dialog 1
+dialog build-stacking-fault expect-options --plane 0 --layers 9 --interval 0.1000000015 --maximum 2 --frame 12 --orthogonal
+screenshot rust/target/ui/grain_builders_steps.png
+quit

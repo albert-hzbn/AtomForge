@@ -6,47 +6,35 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# The Rust workspace (rust/): the AtomForge program (desktop and command line)
+# and the native libraries of the Python package. The UI scripts
+# (rust/tools/run_ui_tests.py) need a GPU and a display and run locally.
 jobs:
   # --------------------------------------------------------------------------
-  # Linux – GCC, system packages via apt
+  # Linux
   # --------------------------------------------------------------------------
   build-linux:
-    name: Linux (GCC)
+    name: Linux
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install required dependencies
+      - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            cmake \
-            ninja-build \
-            pkg-config \
-            libglfw3-dev \
-            libglew-dev \
-            libglm-dev \
-            libeigen3-dev \
-            libopenbabel-dev \
-            libvulkan-dev \
-            glslang-tools
+          sudo apt-get install -y build-essential pkg-config libsymspg-dev \
+            libx11-dev libxkbcommon-dev libwayland-dev
 
-      - name: Install optional dependencies (spglib)
-        # spglib is optional – build proceeds without it if the package is absent
-        run: sudo apt-get install -y libsymspg-dev || true
-
-      - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Build
-        # Exercise the global pool with an aggressive outer job request.
-        # Compilation and linking must still share a single slot.
-        run: cmake --build build --parallel 8
+        working-directory: rust
+        run: cargo build --release -p af-app -p af-ffi-science -p af-ffi-electronic
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        working-directory: rust
+        run: cargo test --workspace --release
 
       - uses: actions/setup-python@v5
         with:
@@ -55,60 +43,45 @@ jobs:
       - name: Install scientific Python integrations
         run: python -m pip install './python[science]'
 
-      - name: Test scientific integrations
+      - name: Test the Python package against the native libraries
         env:
-          ATOMFORGE_PATH: ${{ github.workspace }}/build/AtomForge
-          ATOMFORGE_ELECTRONIC_LIBRARY: ${{ github.workspace }}/build/atomforge_electronic.so
-        run: |
-          python python/tests/test_science.py
-          python python/tests/test_condensed_matter.py
-          python python/tests/test_science_workflows.py
-          python python/tests/test_science_online.py
+          ATOMFORGE_PATH: ${{ github.workspace }}/rust/target/release/AtomForge
+          ATOMFORGE_SCIENCE_LIBRARY: ${{ github.workspace }}/rust/target/release/libatomforge_science_native.so
+          ATOMFORGE_ELECTRONIC_LIBRARY: ${{ github.workspace }}/rust/target/release/libatomforge_electronic.so
+        working-directory: python
+        run: python -m unittest discover -s tests
+
+      - name: Command-line smoke test
+        run: python tests/cli_smoke.py rust/target/release/AtomForge
 
   # --------------------------------------------------------------------------
-  # Windows – MinGW-w64 (MSYS2 UCRT64), mirrors the documented quick-start
+  # Windows (MSVC)
   # --------------------------------------------------------------------------
   build-windows:
-    name: Windows (MSYS2 UCRT64 / MinGW-w64)
+    name: Windows (MSVC)
     runs-on: windows-latest
-
-    defaults:
-      run:
-        shell: msys2 {0}
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: msys2/setup-msys2@v2
-        with:
-          msystem: UCRT64
-          update: true
-          install: >-
-            mingw-w64-ucrt-x86_64-toolchain
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-glfw
-            mingw-w64-ucrt-x86_64-glew
-            mingw-w64-ucrt-x86_64-glm
-            mingw-w64-ucrt-x86_64-eigen3
-            mingw-w64-ucrt-x86_64-openbabel
-            mingw-w64-ucrt-x86_64-pkgconf
-            mingw-w64-ucrt-x86_64-spglib
-            mingw-w64-ucrt-x86_64-python
-            mingw-w64-ucrt-x86_64-vulkan-headers
-            mingw-w64-ucrt-x86_64-glslang
-
-      - name: Configure
-        # FindPython can prefer the runner's registered CPython over MSYS2's
-        # interpreter. Use UCRT64 Python so ctypes can load the MinGW runtime DLLs.
-        run: |
-          python_executable="$(cygpath -m /ucrt64/bin/python.exe)"
-          "$python_executable" -c "import sys; print('Test interpreter:', sys.executable)"
-          cmake -S . -B build -G "MinGW Makefiles" \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DPython3_EXECUTABLE="$python_executable"
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Build
-        run: cmake --build build --parallel 8
+        working-directory: rust
+        run: cargo build --release -p af-app -p af-ffi-science -p af-ffi-electronic
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        working-directory: rust
+        run: cargo test --workspace --release
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Portable package
+        run: python rust/tools/package.py --no-build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AtomForge-win64
+          path: rust/target/package/*.zip

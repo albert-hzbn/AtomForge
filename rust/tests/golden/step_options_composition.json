@@ -1,0 +1,21 @@
+{"sss": [
+  {"options": "", "total": 0, "out": "--seed 12345"},
+  {"options": "", "total": 500, "out": "--frac Cu=1 --seed 12345"},
+  {"options": "--frac Cu=0.7,Ni=0.3 --seed 42", "total": 500, "out": "--frac Cu=0.7,Ni=0.3 --seed 42"},
+  {"options": "--frac Cu=0.7,Ni=0.3 --seed 42", "total": 0, "out": "--frac Cu=0.7,Ni=0.3000000191 --seed 42"},
+  {"options": "--frac \"Cu = 0.333, Ni=0.333,Fe=0.334\" --seed -5", "total": 7, "out": "--frac Cu=0.2857142857,Ni=0.2857142857,Fe=0.4285714286 --seed 0"},
+  {"options": "--frac Cu=0.1x,Zn=abc,Xx=0.5,Ni=0.25", "total": 13, "out": "--frac Cu=0.3076923077,Ni=0.6923076923 --seed 12345"},
+  {"options": "--frac Cu=1e-1,Ni=2.5e-1", "total": 3, "out": "--frac Cu=0.3333333333,Ni=0.6666666667 --seed 12345"},
+  {"options": "--seed 7", "total": 4, "out": "--frac Cu=1 --seed 7"}
+], "custom": [
+  {"options": "", "out": "--scale 1 --vacuum 5"},
+  {"options": "--scale 12 --vacuum 5", "out": "--scale 12 --vacuum 5"},
+  {"options": "--scale 0.1 --no-cell", "out": "--scale 0.1000000015 --no-cell"},
+  {"options": "--center 1.5,-2 3.25 --repa 3", "out": "--scale 1 --vacuum 5 --repa 3 --repb 5 --repc 5"},
+  {"options": "--repb 2 --repc 4", "out": "--scale 1 --vacuum 5 --repa 5 --repb 2 --repc 4"},
+  {"options": "--rotx 10.5 --rotz -30", "out": "--scale 1 --vacuum 5 --rotx 10.5 --roty 0 --rotz -30"},
+  {"options": "--miller \"1 1 0\" --rotx 45", "out": "--scale 1 --vacuum 5 --miller \"1 1 0\""},
+  {"options": "--miller 2", "out": "--scale 1 --vacuum 5 --miller \"2 0 0\""},
+  {"options": "--scale 1.2345678901 --vacuum 0.3", "out": "--scale 1.234567881 --vacuum 0.3000000119"},
+  {"options": "--mesh ../../../docs/manual/examples/octahedron.obj --scale 12", "out": "--mesh ../../../docs/manual/examples/octahedron.obj --scale 12 --vacuum 5"}
+]}

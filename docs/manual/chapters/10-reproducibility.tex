@@ -57,15 +57,15 @@ The examples test executable generation and numerical consistency. They do not c
 \section{Source map for maintainers}
 \begin{longtable}{p{.43\linewidth}p{.48\linewidth}}
 \toprule Source area & Documentation to review when it changes \\ \midrule\endhead
-\code{src/ui/FileBrowser.cpp} & Menu availability, file workflows, shortcuts, help and settings placement. \\
-\code{src/ui/*BuilderDialog.cpp} & Builder controls, defaults, validation, preview/commit steps. \\
-\code{src/algorithms/} & Builder geometry and structural-analysis assumptions. \\
-\code{src/ui/ElectronicPostProcessing.cpp} & Tool labels, operand routing, imports/exports, calculation parameters. \\
-\code{src/ui/ElectronicSliceViewport.cpp} & 2D controls, arbitrary-plane behaviour, preview limits. \\
-\code{src/electronic/} & Units, endpoint conventions, numerical operations, Fourier and electrostatics. \\
-\code{src/graphics/ElectronicViewport*} & Rendering, opacity, lighting, volume preview behaviour. \\
+\code{rust/crates/af-app/src/app.rs} & Menu availability, file workflows, shortcuts, help and settings placement. \\
+\code{rust/crates/af-app/src/*\_dialog.rs} & Builder controls, defaults, validation, preview/commit steps. \\
+\code{rust/crates/af-algorithms/} & Builder geometry and structural-analysis assumptions. \\
+\code{rust/crates/af-app/src/electronic\_dialog.rs} & Tool labels, operand routing, imports/exports, calculation parameters. \\
+\code{rust/crates/af-app/src/electronic\_slice.rs} & 2D controls, arbitrary-plane behaviour, preview limits. \\
+\code{rust/crates/af-electronic/} & Units, endpoint conventions, numerical operations, Fourier and electrostatics. \\
+\code{rust/crates/af-render/} & Rendering, opacity, lighting, selection and overlays. \\
 \code{python/atomforge/} & Python signatures, supported formats, library discovery, CLI choices. \\
-\code{CMakeLists.txt}, CI workflows & Feature flags, dependencies, tests, packaging and interpreter selection. \\
+\code{rust/Cargo.toml}, \code{rust/tools/package.py}, CI workflows & Dependencies, tests, packaging and interpreter selection. \\
 \bottomrule
 \end{longtable}
 Update the version and edition date when revising the manual. Re-run examples after algorithm or format changes, compare the generated metadata, and recapture affected UI figures. Avoid describing a feature as available solely because a corresponding source file exists.

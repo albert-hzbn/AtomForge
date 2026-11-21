@@ -16,19 +16,20 @@ MANUAL = Path(__file__).resolve().parents[1]
 ROOT = MANUAL.parents[1]
 SNAPSHOT = MANUAL / "coverage.json"
 REFERENCE = MANUAL / "chapters/12-api-signatures.tex"
+# Literal labels of the desktop's controls (egui calls in the Rust app).
 WIDGET = re.compile(
-    r'(?:ImGui::(?:Button|Checkbox|RadioButton|Combo|BeginCombo|MenuItem|'
-    r'Input\w*|Drag\w*|Slider\w*|ColorEdit\w*|CollapsingHeader|BeginTabItem)|'
-    r'dialogLayout::primaryButton|responsive::button|inputFloat|inputInt|inputVector|combo|slider|'
-    r'lightRow|matRow|inputField)\s*\(\s*"((?:\\.|[^"\\])*)"'
+    r'(?:Button::new|Checkbox::new|RadioButton::new|SelectableLabel::new|CollapsingHeader::new|'
+    r'\bui\.(?:button|small_button|checkbox|radio|radio_value|selectable_label|selectable_value|menu_button|collapsing)|'
+    r'primary_button|secondary_button|menu_toggle|menu_radio|section|separator_text|labelled_check)'
+    r'\(\s*(?:ui,\s*)?(?:(?:&mut\s+)?[A-Za-z_][\w.\[\]()]*\s*,\s*)?(?:[^,"()]*,\s*)?"((?:\\.|[^"\\])*)"'
 )
 HELP_NAMES = {
-    "bulk": "Bulk", "gb": "GB", "poly": "Poly", "nano": "Nano",
-    "amorphous": "Amorphous", "sss": "SSS", "dislocation": "Dislocation",
-    "custom": "Custom",
-    "interface": "Interface", "stacking-fault": "StackingFault",
-    "vacancy": "Vacancy", "strain": "Strain", "primitive": "Primitive", "surface": "Surface",
-    "sqs": "SQS", "nanowire": "Nanowire", "core-shell": "CoreShell",
+    "bulk": "BULK", "gb": "GB", "poly": "POLY", "nano": "NANO",
+    "amorphous": "AMORPHOUS", "sss": "SSS", "dislocation": "DISLOCATION",
+    "custom": "CUSTOM",
+    "interface": "INTERFACE", "stacking-fault": "STACKINGFAULT",
+    "vacancy": "VACANCY", "strain": "STRAIN", "primitive": "PRIMITIVE", "surface": "SURFACE",
+    "sqs": "SQS", "nanowire": "NANOWIRE", "core-shell": "CORESHELL",
 }
 PUBLIC_FILES = {
     "python/atomforge/_structure.py": "Atom and Structure",
@@ -104,37 +105,36 @@ def tex(value):
 
 
 def source_files():
-    paths = set((ROOT / "src/ui").glob("*.*"))
-    paths.update((ROOT / "src/algorithms").glob("*.h"))
-    paths.update((ROOT / "src/science").glob("*.h"))
-    paths.update((ROOT / "src/cli").glob("*.*"))
-    paths.update((ROOT / "src/pipeline").glob("*.*"))
-    paths.update((ROOT / "src/cloud").glob("*.*"))
-    paths.update(ROOT / p for p in ("src/graphics/CloudRenderer.cpp", "src/graphics/CloudRenderer.h", "src/app/LargeData.cpp", "src/app/LargeData.h"))
+    crates = ROOT / "rust" / "crates"
+    paths = set((crates / "af-app" / "src").glob("*.rs"))
+    for crate in ("af-algorithms", "af-science", "af-cli", "af-pipeline", "af-cloud"):
+        paths.update((crates / crate / "src").rglob("*.rs"))
+    paths.add(crates / "af-render" / "src" / "cloud.rs")
     paths.update((ROOT / "python/atomforge").rglob("*.py"))
-    paths.update(ROOT / p for p in ("src/app/EditorApplication.cpp", "src/app/EditorOps.cpp", "CMakeLists.txt"))
-    return sorted(p for p in paths if p.is_file() and p.suffix in {".cpp", ".h", ".py", ".txt"})
+    paths.add(ROOT / "rust" / "Cargo.toml")
+    return sorted(p for p in paths if p.is_file() and p.suffix in {".rs", ".py", ".toml"})
 
 
 def documentation_for(path):
     name = path.name
-    if "cloud" in path.parts or name.startswith(("CloudRenderer", "CloudCLI", "LargeData")) or name == "cloud.py":
+    stem = path.stem
+    if "af-cloud" in path.parts or stem in {"cloud", "large_data"} or name == "cloud.py":
         return ["04-analysis.tex", "08-python.tex", "12-api-signatures.tex"]
-    if "pipeline" in path.parts or name.startswith(("PipelineDialog", "PipelineCLI")):
+    if "af-pipeline" in path.parts or stem in {"pipeline_ui", "pipe", "params_form", "operation"}:
         return ["03-editing.tex", "12-api-signatures.tex"]
-    if "science" in path.parts or name.startswith(("Scientific", "ScienceCatalog")) or name in {"Workspace.cpp","Workspace.h","TrajectoryDialog.cpp","TrajectoryDialog.h","pipeline.py","analysis.py"}:
+    if "af-science" in path.parts or stem in {"tools", "plot_widget", "trajectory_dialog", "analysis_panels"} or name in {"pipeline.py", "analysis.py"}:
         return ["14-workflows.tex", "12-api-signatures.tex"]
-    if "electronic" in path.parts or name.startswith("Electronic"):
+    if "electronic" in path.parts or stem.startswith("electronic") or stem in {"lobster_dialog", "wannier_dialog"}:
         return ["05-electronic.tex", "06-charge.tex", "07-reference.tex", "08-python.tex", "04-display-controls.tex"]
     if "python" in path.parts:
         return ["08-python.tex", "12-api-signatures.tex"]
-    if "cli" in path.parts:
+    if "af-cli" in path.parts:
         return ["08-python.tex", "12-api-signatures.tex"]
-    if any(word in name for word in ("InterfaceBuilder", "CommonNeighbour", "AngularDistribution")):
+    if stem in {"interface_dialog", "cna_dialog", "adf_dialog"}:
         return ["11-coverage.tex"]
-    if any(word in name for word in ("DislocationBuilder", "Interstitial", "CellSculptor", "MergeStructures", "TransformAtoms", "AtomContext", "EditMenu")):
+    if stem in {"dislocation_dialog", "interstitial_dialog", "sculptor_dialog", "merge_dialog", "transform_dialog", "atom_menu", "edit_structure_dialog", "display_settings"}:
         return ["03-editing.tex", "03-edit-controls.tex", "04-display-controls.tex"]
-    if any(word in name for word in ("Bulk", "CSL", "Nano", "Custom", "Mesh", "PolyCrystal", "Amorphous", "Stacking", "Substitutional")):
+    if stem in {"bulk_dialog", "csl_dialog", "nano_dialog", "custom_dialog", "shape_dialog", "poly_dialog", "amorphous_dialog", "stacking_fault_dialog", "sss_dialog", "builder_preview"} or "af-algorithms" in path.parts:
         return ["02-builders.tex", "02-builder-controls.tex"]
     return ["01-start.tex", "04-analysis.tex", "04-display-controls.tex", "09-installation.tex"]
 
@@ -154,11 +154,11 @@ def snapshot():
 
 
 def cli_help():
-    # Builder help pages live in the CLI mode files (src/cli/Build*CLI.cpp).
-    source = "\n".join(path.read_text(encoding="utf-8-sig") for path in sorted((ROOT / "src/cli").glob("*.cpp")))
+    # Builder help pages are constants of the command line (rust/crates/af-cli/src/help.rs).
+    source = (ROOT / "rust" / "crates" / "af-cli" / "src" / "help.rs").read_text(encoding="utf-8")
     result = {}
     for mode, name in HELP_NAMES.items():
-        match = re.search(r"^(?:static )?void printHelp" + name + r"\(\)\s*\{(.*?)\n\}", source, re.S | re.M)
+        match = re.search(r"^pub const " + name + r": &str = concat!\((.*?)\n\);", source, re.S | re.M)
         if not match:
             raise ValueError(f"Missing CLI help for {mode}")
         literals = re.findall(r'"(?:\\.|[^"\\])*"', match[1])

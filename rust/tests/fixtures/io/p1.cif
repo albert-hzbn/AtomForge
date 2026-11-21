@@ -1,0 +1,15 @@
+data_p1
+_cell_length_a 4.0
+_cell_length_b 5.0
+_cell_length_c 6.0
+_cell_angle_alpha 90
+_cell_angle_beta 100.5(3)
+_cell_angle_gamma 90
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+Fe1 Fe3+ 0.1 0.2 0.3
+O1 O2- 0.6 0.7 1.05

@@ -1,0 +1,329 @@
+# The UI tour (the C++ ATOMFORGE_UI_TOUR, ui/UiTour.cpp): the main window,
+# every menu and the main dialogs in both themes, as numbered screenshots in
+# tmp/rust-tour, with the same names as the C++ tour's, to compare the two
+# interfaces side by side. Run from the repository root:
+#   ATOMFORGE_UI_SCRIPT=rust/tools/ui_tour.afscript rust/target/release/AtomForge
+theme light
+wait 12
+screenshot tmp/rust-tour/01-welcome.png
+open rust/tests/fixtures/tour/CuNi-L12.cif
+step wrap
+apply
+close-windows
+reset-view
+notify
+wait 12
+screenshot tmp/rust-tour/02-main-window.png
+menu File
+wait 12
+screenshot tmp/rust-tour/03-menu-File.png
+close-windows
+menu Edit
+wait 12
+screenshot tmp/rust-tour/04-menu-Edit.png
+close-windows
+menu Build
+wait 12
+screenshot tmp/rust-tour/05-menu-Build.png
+close-windows
+menu View
+wait 12
+screenshot tmp/rust-tour/06-menu-View.png
+close-windows
+menu Analysis
+wait 12
+screenshot tmp/rust-tour/07-menu-Analysis.png
+close-windows
+menu Settings
+wait 12
+screenshot tmp/rust-tour/08-menu-Settings.png
+close-windows
+menu Help
+wait 12
+screenshot tmp/rust-tour/09-menu-Help.png
+close-windows
+pipeline open
+pipeline text replicate 2 1 1 | select-expression fz > 0.5 | assign-element Al | wrap
+pipeline disable 4
+wait 12
+screenshot tmp/rust-tour/10-pipeline-panel.png
+pipeline dock
+wait 12
+screenshot tmp/rust-tour/11-pipeline-docked.png
+pipeline undock
+wait 12
+screenshot tmp/rust-tour/12-pipeline-undocked.png
+close-windows
+pipeline discard
+dialog build-interface example
+try dialog build-interface find
+wait 60
+screenshot tmp/rust-tour/13-builder-interface-matches.png
+close-windows
+step replicate
+wait 12
+screenshot tmp/rust-tour/14-operation-replicate.png
+close-windows
+step select-expression
+wait 12
+screenshot tmp/rust-tour/15-operation-select.png
+close-windows
+bulk open
+wait 12
+screenshot tmp/rust-tour/16-builder-bulk.png
+close-windows
+dialog build-shape open
+dialog build-shape script // A core-shell particle with a cylindrical channel.\nR = 14;\ndifference() {\n    sphere(r = R);\n    rotate([90, 0, 0]) cylinder(r = 3, h = 2 * R + 2);\n}\nregion("Au") sphere(r = 0.6 * R);\n
+wait 12
+screenshot tmp/rust-tour/17-builder-shape.png
+close-windows
+dialog build-shape open
+dialog build-shape script difference() {\n    box(size = [40, 40, 40]);\n    sphere(r = 10;\n}\n
+wait 12
+screenshot tmp/rust-tour/18-builder-shape-error.png
+close-windows
+command file open
+wait 12
+screenshot tmp/rust-tour/19-open-file.png
+close-windows
+command Export Image
+wait 12
+screenshot tmp/rust-tour/20-export-image.png
+close-windows
+command Display Settings
+wait 12
+screenshot tmp/rust-tour/21-display-settings.png
+close-windows
+command Atomic Sizes
+wait 12
+screenshot tmp/rust-tour/22-atomic-sizes.png
+close-windows
+dialog add-atom open
+wait 12
+screenshot tmp/rust-tour/23-edit-structure.png
+close-windows
+structure-info
+wait 12
+screenshot tmp/rust-tour/24-structure-info.png
+close-windows
+tool structure-type
+wait 12
+screenshot tmp/rust-tour/25-science-atoms.png
+close-windows
+tool structure-type
+try toolwin run-background
+wait 60
+screenshot tmp/rust-tour/26-science-atoms-result.png
+close-windows
+tool powder-xrd
+try toolwin run-background
+wait 60
+screenshot tmp/rust-tour/27-science-plot-result.png
+close-windows
+tool band-gap
+try toolwin run-background
+wait 60
+screenshot tmp/rust-tour/28-science-error-result.png
+close-windows
+tool powder-xrd
+wait 12
+screenshot tmp/rust-tour/29-science-plot.png
+close-windows
+tool relax
+wait 12
+screenshot tmp/rust-tour/30-science-simulation.png
+close-windows
+cna open
+try cna run
+wait 60
+screenshot tmp/rust-tour/31-analysis-cna-result.png
+close-windows
+cna open
+wait 12
+screenshot tmp/rust-tour/32-analysis-cna.png
+close-windows
+rdf open
+wait 12
+screenshot tmp/rust-tour/33-analysis-rdf.png
+close-windows
+adf open
+try adf run
+wait 60
+screenshot tmp/rust-tour/34-analysis-adf-result.png
+close-windows
+adf open
+wait 12
+screenshot tmp/rust-tour/35-analysis-adf.png
+close-windows
+sro open
+try sro run
+wait 60
+screenshot tmp/rust-tour/36-analysis-sro-result.png
+close-windows
+sro open
+wait 12
+screenshot tmp/rust-tour/37-analysis-sro.png
+close-windows
+dialog dislocation-analysis open
+wait 12
+screenshot tmp/rust-tour/38-analysis-dislocations.png
+close-windows
+trajectory open rust/tests/fixtures/tour/trajectory.xyz
+wait 12
+screenshot tmp/rust-tour/39-trajectory-loaded.png
+close-windows
+command Trajectory Playback
+wait 12
+screenshot tmp/rust-tour/40-trajectory.png
+close-windows
+dialog electronic open
+wait 12
+screenshot tmp/rust-tour/41-electronic.png
+close-windows
+dialog wannier open
+wait 12
+screenshot tmp/rust-tour/42-wannier.png
+close-windows
+dialog lobster open
+wait 12
+screenshot tmp/rust-tour/43-lobster.png
+close-windows
+command Lattice Planes Settings
+wait 12
+screenshot tmp/rust-tour/44-lattice-planes.png
+close-windows
+command Miller Directions Settings
+wait 12
+screenshot tmp/rust-tour/45-miller-directions.png
+close-windows
+command Polyhedral Settings
+wait 12
+screenshot tmp/rust-tour/46-polyhedral-settings.png
+close-windows
+command About
+wait 12
+screenshot tmp/rust-tour/47-about.png
+close-windows
+command file close
+wait 12
+screenshot tmp/rust-tour/48-unsaved-close.png
+close-windows
+command quit
+wait 12
+screenshot tmp/rust-tour/49-unsaved-quit.png
+close-windows
+select-atoms 0
+wait 12
+screenshot tmp/rust-tour/50-selection-one.png
+select-atoms 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+wait 12
+screenshot tmp/rust-tour/51-selection-many.png
+select-atoms 0 1
+measure distance
+wait 12
+screenshot tmp/rust-tour/52-measure-distance.png
+select-atoms 0 1 2
+measure angle
+wait 12
+screenshot tmp/rust-tour/53-measure-angle.png
+select-atoms 0 1 2 3
+measure dihedral
+wait 12
+screenshot tmp/rust-tour/54-measure-dihedral.png
+close-windows
+menu Edit > History
+wait 12
+screenshot tmp/rust-tour/55-menu-history.png
+close-windows
+menu File > Open Recent
+wait 12
+screenshot tmp/rust-tour/56-menu-open-recent.png
+close-windows
+command Polyhedral Viewer
+wait 12
+screenshot tmp/rust-tour/57-overlay-polyhedra.png
+command Polyhedral Viewer
+voronoi on
+wait 12
+screenshot tmp/rust-tour/58-overlay-voronoi.png
+voronoi off
+wait 12
+screenshot tmp/rust-tour/59-overlay-off.png
+hover 0.5 0.5
+wait 60
+screenshot tmp/rust-tour/60-hover-atom.png
+close-windows
+structure-info
+wait 12
+screenshot tmp/rust-tour/61-structure-info-small.png
+close-windows
+select-atoms 100
+element-picker open substitute
+element-picker type cu
+wait 12
+screenshot tmp/rust-tour/62-periodic-table.png
+close-windows
+clear-selection
+palette
+wait 12
+screenshot tmp/rust-tour/63-command-palette.png
+close-windows
+palette lattice
+wait 12
+screenshot tmp/rust-tour/64-command-palette-search.png
+close-windows
+command Keyboard Shortcuts
+wait 12
+screenshot tmp/rust-tour/65-shortcuts.png
+close-windows
+notify Error: failed to save (format may not support this structure).
+wait 12
+screenshot tmp/rust-tour/66-notifications.png
+close-windows
+notify
+theme dark
+wait 12
+screenshot tmp/rust-tour/67-dark-main-window.png
+menu View
+wait 12
+screenshot tmp/rust-tour/68-dark-menu-View.png
+close-windows
+pipeline open
+pipeline text replicate 2 1 1 | select-expression fz > 0.5 | assign-element Al | wrap
+pipeline disable 4
+wait 12
+screenshot tmp/rust-tour/69-dark-pipeline-panel.png
+close-windows
+pipeline discard
+bulk open
+wait 12
+screenshot tmp/rust-tour/70-dark-builder-bulk.png
+close-windows
+step replicate
+wait 12
+screenshot tmp/rust-tour/71-dark-operation-replicate.png
+close-windows
+tool powder-xrd
+wait 12
+screenshot tmp/rust-tour/72-dark-science-plot.png
+close-windows
+notify Error: failed to save (format may not support this structure).
+wait 12
+screenshot tmp/rust-tour/73-dark-notifications.png
+close-windows
+notify
+dialog build-interface example cube
+try dialog build-interface find
+wait 60
+screenshot tmp/rust-tour/74-dark-builder-interface.png
+close-windows
+close-all
+wait 12
+screenshot tmp/rust-tour/75-dark-welcome.png
+theme light
+dialog build-interface example cube
+try dialog build-interface find
+try dialog build-interface build
+wait 30
+screenshot tmp/rust-tour/76-builder-interface-built.png
+quit

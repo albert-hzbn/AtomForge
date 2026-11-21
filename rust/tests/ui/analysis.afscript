@@ -1,0 +1,36 @@
+# Analysis dialogs. Radial distribution function: the first peak of fcc Cu
+# (a = 3.61) at a/sqrt(2) = 2.553 A with 12 neighbours in the first shell;
+# angular distribution of the first shell: peaks at 60, 90 and 120 degrees
+# (180 lies in the last bin, which the peak finder does not report).
+open docs/manual/examples/cu_fcc.cif
+step replicate
+set counts 3 3 3
+apply
+rdf open
+rdf rmax 6
+rdf bins 600
+rdf distortion on
+rdf run
+expect-rdf peak 2.555
+expect-rdf coordination 12
+rdf pair Cu Cu
+rdf run
+expect-rdf peak 2.555
+adf open
+adf cutoff 3.0
+adf run
+expect-adf-peak 60
+expect-adf-peak 90
+expect-adf-peak 120
+cna open
+cna cutoff 3.0
+cna run
+expect-cna FCC-like 108
+open docs/manual/examples/cu_ni_alloy.cif
+sro open
+sro shells 2
+sro run
+expect-sro 1 Cu Ni -0.0286
+expect-sro 2 Cu Ni 0.0286
+screenshot rust/target/ui/analysis.png
+quit

@@ -1,0 +1,8 @@
+HEADER    HAND WRITTEN
+CRYST1   10.000   11.000   12.000  90.00  95.00  90.00 P 1           1
+ATOM      1  N   ALA A   1       1.000   2.000   3.000  1.00  0.00           N
+ATOM      2  CA  ALA A   1       2.400   2.000   3.000  1.00  0.00           C
+HETATM    3 FE   HEM A   2       5.000   5.000   5.000  1.00  0.00          FE
+HETATM    4  O   HOH A   3       7.000   7.000   7.000  1.00  0.00
+ATOM      5 CL   UNK A   4       8.000   1.000   1.000  1.00  0.00
+END

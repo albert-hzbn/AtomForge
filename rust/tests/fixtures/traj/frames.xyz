@@ -1,0 +1,9 @@
+2
+frame 1
+Cu 0 0 0
+cu 1.8 0 0
+
+2
+Lattice="4 0 0 0 4 0 0 0 4" Properties=species:S:1:pos:R:3
+CU 0.1 0 0
+Cu 1.9 0 0

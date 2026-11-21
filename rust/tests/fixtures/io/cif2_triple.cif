@@ -1,0 +1,15 @@
+#\#CIF_2.0
+data_c2
+_cell.length_a 2.5
+_cell.length_b 2.5
+_cell.length_c 4.0
+_cell.angle_gamma 120
+_note """a triple-quoted
+value over two lines"""
+loop_
+_atom_site.label
+_atom_site.fract_x
+_atom_site.fract_y
+_atom_site.fract_z
+C1 0 0 0
+C2 0.3333333 0.6666667 0
