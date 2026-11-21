@@ -934,7 +934,8 @@ impl StructureDialog for InterstitialDialog {
                 ui.colored_label(egui::Color32::from_rgb(110, 170, 240), format!("Editing pipeline step {}: {}", edit.index + 1, edit.step));
                 ui.weak("The step fills voids of the structure entering it; mesh regions, manual picks and volume groups are not part of the step.");
             }
-            let height = (ui.available_height() - 48.0).max(300.0);
+            let fit = crate::dialog_layout::fit_height(ui, "interstitials", 48.0, 300.0);
+            let height = fit.height;
             ui.horizontal_top(|ui| {
                 let width = (ui.available_width() * 0.5).clamp(260.0, 520.0);
                 self.draw_preview(ui, egui::vec2(width, height));
@@ -956,6 +957,7 @@ impl StructureDialog for InterstitialDialog {
                     _ => {}
                 }
             }
+            fit.finish(ui);
         });
         if !(open && !close) && self.open {
             // Closed (Close, X): the menu path inserts normally again.

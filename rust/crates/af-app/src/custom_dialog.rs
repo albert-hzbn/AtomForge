@@ -252,7 +252,7 @@ impl CustomDialog {
                 }
             }
             ui.horizontal(|ui| {
-                if !self.reference.atoms.is_empty() && ui.small_button("Clear").clicked() {
+                if !self.reference.atoms.is_empty() && ui.button("Clear").clicked() {
                     self.reference = Structure::default();
                     self.reference_name.clear();
                     self.reference_path.clear();
@@ -261,10 +261,10 @@ impl CustomDialog {
                 }
                 if self.step.is_some() {
                     // The step's reference is the structure entering it, not the scene.
-                    if ui.small_button("Use Step Input").clicked() {
+                    if ui.button("Use Step Input").clicked() {
                         self.use_step_input();
                     }
-                } else if ui.small_button("Use Current Scene").clicked() {
+                } else if ui.button("Use Current Scene").clicked() {
                     self.use_scene(input.source);
                 }
             });
@@ -280,7 +280,7 @@ impl CustomDialog {
                 ui.weak(format!("{} triangles", self.indices.len() / 3));
                 ui.weak(format!("Model size: {:.1} × {:.1} × {:.1} (model units)", 2.0 * h.x, 2.0 * h.y, 2.0 * h.z));
                 ui.colored_label(INFO, format!("= {:.1} × {:.1} × {:.1} Å", 2.0 * h.x * s, 2.0 * h.y * s, 2.0 * h.z * s));
-                if ui.small_button("Clear").clicked() {
+                if ui.button("Clear").clicked() {
                     self.vertices.clear();
                     self.indices.clear();
                     self.model_name.clear();

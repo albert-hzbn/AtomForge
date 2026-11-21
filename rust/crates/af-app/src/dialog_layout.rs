@@ -634,10 +634,10 @@ pub fn tab_bar(ui: &mut egui::Ui, selected: &mut usize, names: &[&str]) -> bool 
     changed
 }
 
-/// ImGui::SmallButton: a button without vertical padding.
+/// ImGui::SmallButton: a compact button (still padded, so its label does not touch the frame).
 pub fn small_button(ui: &mut egui::Ui, text: &str, enabled: bool) -> egui::Response {
     ui.scope(|ui| {
-        ui.spacing_mut().button_padding = egui::vec2(4.0, 0.0);
+        ui.spacing_mut().button_padding = egui::vec2(8.0, 3.0);
         ui.add_enabled(enabled, egui::Button::new(text))
     })
     .inner
@@ -688,4 +688,28 @@ pub fn colour_edit3(ui: &mut egui::Ui, id_salt: impl std::hash::Hash + std::fmt:
         });
     });
     changed
+}
+
+/// The height of a dialog body that fills a resizable window: the room left
+/// minus what the dialog drew below the body last frame (measured by
+/// `FitHeight::finish`), so the window keeps its size instead of growing
+/// frame by frame when a guessed footer height is too small.
+pub struct FitHeight {
+    id: egui::Id,
+    top: f32,
+    pub height: f32,
+}
+
+pub fn fit_height(ui: &egui::Ui, salt: &str, guess: f32, min: f32) -> FitHeight {
+    let id = ui.scope_id().with(("fit height", salt));
+    let below = ui.ctx().data(|d| d.get_temp::<f32>(id)).unwrap_or(guess);
+    FitHeight { id, top: ui.cursor().top(), height: (ui.available_height() - below).max(min) }
+}
+
+impl FitHeight {
+    /// Call after the last widget of the window.
+    pub fn finish(&self, ui: &egui::Ui) {
+        let below = (ui.min_rect().bottom() - self.top - self.height).max(0.0);
+        ui.ctx().data_mut(|d| d.insert_temp(self.id, below));
+    }
 }

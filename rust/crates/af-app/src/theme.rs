@@ -218,7 +218,7 @@ fn style_for(dark: bool, style: &mut egui::Style) {
     // Geometry shared by both themes: compact, evenly spaced, softly rounded.
     let s = &mut style.spacing;
     s.item_spacing = egui::vec2(8.0, 8.0);
-    s.button_padding = egui::vec2(10.0, 6.0);
+    s.button_padding = egui::vec2(12.0, 6.0);
     s.window_margin = Margin::symmetric(16, 14);
     s.menu_margin = Margin::symmetric(8, 6);
     s.indent = 18.0;
@@ -337,7 +337,8 @@ pub fn menu_style(style: &mut egui::Style) {
 /// A menu item that toggles a setting, with a check mark at the right when
 /// on (ImGui::MenuItem with `selected`).
 pub fn menu_toggle(ui: &mut egui::Ui, enabled: bool, value: &mut bool, label: &str) -> egui::Response {
-    let mut response = ui.add_enabled(enabled, egui::Button::new(label).shortcut_text(if *value { "✔" } else { "" }));
+    let mut response = ui.add_enabled(enabled, egui::Button::new(label).shortcut_text("    "));
+    check_mark(ui, &response, *value);
     if response.clicked() {
         *value = !*value;
         response.mark_changed();
@@ -347,7 +348,24 @@ pub fn menu_toggle(ui: &mut egui::Ui, enabled: bool, value: &mut bool, label: &s
 
 /// A menu item for one of several choices, checked when it is the current one.
 pub fn menu_radio(ui: &mut egui::Ui, enabled: bool, selected: bool, label: impl Into<egui::WidgetText>) -> egui::Response {
-    ui.add_enabled(enabled, egui::Button::new(label).shortcut_text(if selected { "✔" } else { "" }))
+    let response = ui.add_enabled(enabled, egui::Button::new(label).shortcut_text("    "));
+    check_mark(ui, &response, selected);
+    response
+}
+
+/// ImGui::RenderCheckMark at the right of a menu item (the text fonts have
+/// no check mark glyph).
+fn check_mark(ui: &egui::Ui, response: &egui::Response, on: bool) {
+    if !on {
+        return;
+    }
+    let size = ui.text_style_height(&egui::TextStyle::Body) * 0.62;
+    let r = response.rect;
+    let x = r.right() - ui.spacing().button_padding.x - size;
+    let y = r.center().y - size * 0.5;
+    let colour = ui.style().interact(response).text_color();
+    let points = vec![egui::pos2(x, y + size * 0.55), egui::pos2(x + size * 0.36, y + size * 0.9), egui::pos2(x + size, y + size * 0.1)];
+    ui.painter().add(egui::Shape::line(points, egui::Stroke::new((size * 0.16).max(1.5), colour)));
 }
 
 thread_local! {

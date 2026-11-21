@@ -1,6 +1,6 @@
 {
-  "capture_date": "2026-10-28",
-  "application_source_baseline": "a5675aa",
+  "capture_date": "2026-11-21",
+  "application_source_baseline": "36a61b1",
   "notes": "Real AtomForge screenshots and native shape examples. Captions distinguish input previews and completed results; paired scientific 3D/projection plots have been removed.",
   "required_tutorials": [
     "build-menu",
@@ -79,10 +79,10 @@
             {
               "file": "tutorials/build-menu.jpg",
               "bounds": [
-                41,
+                32,
                 0,
-                375,
-                481
+                333,
+                519
               ],
               "caption": "The Build menu: the crystal, defect, interface and particle builders first, then the tools that derive a new cell from the current structure."
             }
@@ -103,10 +103,10 @@
             {
               "file": "tutorials/bulk-controls.jpg",
               "bounds": [
-                594,
-                253,
-                1326,
-                785
+                626,
+                300,
+                1294,
+                830
               ],
               "caption": "Bulk Crystal at initial settings; change H and the lattice parameter for this exercise."
             }
@@ -127,10 +127,10 @@
             {
               "file": "tutorials/bulk-systems.jpg",
               "bounds": [
-                594,
-                253,
-                1326,
-                785
+                626,
+                300,
+                1294,
+                830
               ],
               "caption": "The crystal-system selector exposes all seven supported systems."
             }
@@ -151,10 +151,10 @@
             {
               "file": "tutorials/element-picker.jpg",
               "bounds": [
-                490,
-                247,
-                1430,
-                762
+                477,
+                310,
+                1442,
+                820
               ],
               "caption": "The shared periodic-table element selector, captured from the alloy workflow."
             }
@@ -175,10 +175,10 @@
             {
               "file": "tutorials/alloy-controls.jpg",
               "bounds": [
-                454,
-                183,
-                1466,
-                855
+                674,
+                285,
+                1246,
+                845
               ],
               "caption": "The 500-site copper source loaded, with the target composition starting as pure Cu. Add Ni and set the rows to 70 / 30 for this tutorial."
             }
@@ -200,10 +200,10 @@
               "file": "tutorials/csl-loaded.jpg",
               "caption": "Loaded four-atom copper reference and selected $\\Sigma5$ [001] candidate before Build. This capture still has one repeat per grain and zero overlap distance; apply the exercise values below before generating its 60-atom result.",
               "bounds": [
-                424,
-                163,
-                1496,
-                875
+                404,
+                152,
+                1516,
+                978
               ]
             }
           ],
@@ -223,10 +223,10 @@
             {
               "file": "tutorials/csl-options.jpg",
               "bounds": [
-                424,
-                163,
-                1496,
-                875
+                404,
+                152,
+                1516,
+                978
               ],
               "caption": "The lower portion of the CSL settings after scrolling; Conventional cell and Build are now visible."
             }
@@ -252,10 +252,10 @@
             {
               "file": "tutorials/nano-controls.jpg",
               "bounds": [
-                374,
-                63,
-                1546,
-                975
+                404,
+                105,
+                1516,
+                1025
               ],
               "caption": "Nanocrystal controls before a periodic reference is loaded. Wulff Construction is selected; Shape Cut is the alternative mode with its own geometry controls."
             }
@@ -272,10 +272,10 @@
               "file": "tutorials/wulff-loaded.jpg",
               "caption": "A populated Nanocrystal dialog in Wulff mode. The left preview displays the source crystal; the right preview displays the facet construction. Shape Cut uses its own geometry controls.",
               "bounds": [
-                374,
-                63,
-                1546,
-                975
+                404,
+                105,
+                1516,
+                1025
               ]
             }
           ]
@@ -415,10 +415,10 @@
               "file": "tutorials/wulff-loaded.jpg",
               "caption": "Before Build: loaded copper, radius 20 \\angstrom, and (100)/(111) families with both energies set to 1. The dialog shows the reference and facet geometry, not the final atomic particle.",
               "bounds": [
-                374,
-                63,
-                1546,
-                975
+                404,
+                105,
+                1516,
+                1025
               ]
             }
           ],
@@ -434,20 +434,20 @@
               "file": "tutorials/wulff-built.jpg",
               "caption": "After Build with the captured equal-energy settings: the status reports 3,552 atoms and 14 faces. The finished particle opens in the main workspace.",
               "bounds": [
-                374,
-                63,
-                1546,
-                975
+                404,
+                37,
+                1516,
+                1093
               ]
             },
             {
               "file": "tutorials/wulff-result.jpg",
               "caption": "The generated equal-energy Wulff particle in the actual AtomForge viewport. Orbit the main view to inspect its facets.",
               "bounds": [
-                496,
-                98,
-                1423,
-                981
+                445,
+                113,
+                1475,
+                1094
               ]
             }
           ]
@@ -461,10 +461,10 @@
               "file": "tutorials/custom-loaded.jpg",
               "caption": "Immediately before Build Fill: copper reference and octahedron mesh previews, automatic repetition, scale 12 \\angstrom/model unit, orientation disabled, and a rectangular output cell with 5 \\angstrom\\ vacuum. Scroll upward for the source picker.",
               "bounds": [
-                414,
-                133,
-                1506,
-                905
+                594,
+                239,
+                1326,
+                891
               ]
             }
           ],
@@ -480,10 +480,10 @@
               "file": "tutorials/custom-result.jpg",
               "caption": "The 224-atom filled octahedron in the AtomForge main viewport after Build Fill.",
               "bounds": [
-                496,
-                98,
-                1423,
-                981
+                445,
+                113,
+                1475,
+                1094
               ]
             }
           ]
@@ -496,10 +496,10 @@
             {
               "file": "tutorials/custom-euler.jpg",
               "bounds": [
-                414,
-                133,
-                1506,
-                905
+                594,
+                239,
+                1326,
+                891
               ],
               "caption": "The orientation portion of Custom Structure with Type 1 (rotations about X, Y and Z) enabled, above Build Fill."
             }
@@ -516,10 +516,10 @@
               "file": "tutorials/custom-loaded.jpg",
               "caption": "Loaded source and model previews before enabling the orientation controls illustrated on the preceding page. The reference preview is not a regenerated, oriented atomic fill.",
               "bounds": [
-                414,
-                133,
-                1506,
-                905
+                594,
+                239,
+                1326,
+                891
               ]
             }
           ]
@@ -532,10 +532,10 @@
             {
               "file": "tutorials/custom-miller.jpg",
               "bounds": [
-                414,
-                133,
-                1506,
-                905
+                594,
+                239,
+                1326,
+                891
               ],
               "caption": "Type 2 exposes the crystallographic direction triplet instead of Euler-angle inputs."
             }
@@ -552,10 +552,10 @@
               "file": "tutorials/custom-loaded.jpg",
               "caption": "Loaded source and model previews before enabling the orientation controls illustrated on the preceding page. The reference preview is not a regenerated, oriented atomic fill.",
               "bounds": [
-                414,
-                133,
-                1506,
-                905
+                594,
+                239,
+                1326,
+                891
               ]
             }
           ]
@@ -574,9 +574,9 @@
               "file": "tutorials/polycrystal-controls.jpg",
               "bounds": [
                 544,
-                163,
+                194,
                 1376,
-                875
+                936
               ],
               "caption": "Polycrystal controls at their initial values, before loading a reference. The exercise uses a smaller box and four grains."
             }
@@ -594,9 +594,9 @@
               "caption": "Loaded copper reference in the narrow, vertically stacked layout. Scroll the outer dialog to reach Builder Options and Build; orbit or zoom inside this reference preview.",
               "bounds": [
                 544,
-                163,
+                194,
                 1376,
-                875
+                936
               ]
             }
           ]
@@ -610,9 +610,9 @@
               "file": "tutorials/polycrystal-modes.jpg",
               "bounds": [
                 544,
-                163,
+                194,
                 1376,
-                965
+                936
               ],
               "caption": "All Random, All Specified, and Partial are separate grain-orientation modes."
             }
@@ -634,9 +634,9 @@
               "file": "tutorials/amorphous-controls.jpg",
               "bounds": [
                 614,
-                214,
+                259,
                 1306,
-                795
+                871
               ],
               "caption": "Initial composition and density controls; replace the single Si row with the tutorial composition."
             }
@@ -658,9 +658,9 @@
               "file": "tutorials/amorphous-advanced.jpg",
               "bounds": [
                 614,
-                145,
+                259,
                 1306,
-                1007
+                871
               ],
               "caption": "Expanded advanced controls, captured with the initial single-species composition. Each enabled pair row can override its default distance."
             }
@@ -682,9 +682,9 @@
               "file": "tutorials/amorphous-manual.jpg",
               "bounds": [
                 614,
-                73,
+                259,
                 1306,
-                909
+                871
               ],
               "caption": "Manual dimensions replace the density-derived box. Advanced constraints remain available below."
             }
@@ -710,10 +710,10 @@
             {
               "file": "tutorials/edit-menu.jpg",
               "bounds": [
-                2,
                 0,
-                304,
-                474
+                0,
+                272,
+                539
               ],
               "caption": "The Edit menu groups history, selection, direct editing, and specialised construction tools."
             }
@@ -734,10 +734,10 @@
             {
               "file": "tutorials/atom-context.jpg",
               "bounds": [
-                1050,
-                619,
-                1267,
-                833
+                954,
+                549,
+                1204,
+                767
               ],
               "caption": "Context menu for one selected atom. Midpoint, distance, and angle require larger selections and are disabled here."
             }
@@ -759,9 +759,9 @@
               "file": "tutorials/atom-info.jpg",
               "bounds": [
                 774,
-                375,
+                421,
                 1146,
-                664
+                709
               ],
               "caption": "Atom Info on the ideal copper host: coordination 12 and nearest-neighbour length about 2.5527 Angstrom."
             }
@@ -782,10 +782,10 @@
             {
               "file": "tutorials/edit-structure.jpg",
               "bounds": [
-                464,
-                193,
-                1456,
-                845
+                463,
+                240,
+                1457,
+                890
               ],
               "caption": "Edit Structure shows Cartesian lattice vectors and per-atom rows for the 500-site host."
             }
@@ -806,10 +806,10 @@
             {
               "file": "tutorials/transform-controls.jpg",
               "bounds": [
-                772,
-                349,
-                1147,
-                690
+                784,
+                393,
+                1136,
+                737
               ],
               "caption": "Transform Structure starts with the identity matrix. Enter all nine coefficients deliberately."
             }
@@ -830,10 +830,10 @@
             {
               "file": "tutorials/merge-controls.jpg",
               "bounds": [
-                54,
-                35,
-                1666,
-                1007
+                172,
+                118,
+                1748,
+                1012
               ],
               "caption": "Merge Structures before components are dropped. Selecting a loaded component reveals its position and rotation controls below the preview."
             }
@@ -854,10 +854,10 @@
             {
               "file": "tutorials/sculptor-periodic.jpg",
               "bounds": [
-                354,
-                93,
-                1566,
-                945
+                404,
+                161,
+                1516,
+                969
               ],
               "caption": "A loaded 500-site host with one periodic (100) slab. Generate is disabled because one normal does not enclose a 3D cell."
             }
@@ -878,10 +878,10 @@
             {
               "file": "tutorials/sculptor-manual.jpg",
               "bounds": [
-                354,
-                93,
-                1566,
-                945
+                404,
+                161,
+                1516,
+                969
               ],
               "caption": "Disabling Periodic exposes distance limits. The shown single (100) interval retains a 300-atom preview but is still unbounded mathematically."
             }
@@ -907,10 +907,10 @@
             {
               "file": "tutorials/dislocation-controls.jpg",
               "bounds": [
-                334,
-                123,
-                1586,
-                915
+                674,
+                199,
+                1246,
+                931
               ],
               "caption": "The copper host has been copied and detected as FCC-like. Upper settings define character, line position, and elastic inputs."
             }
@@ -931,10 +931,10 @@
             {
               "file": "tutorials/dislocation-preview.jpg",
               "bounds": [
-                334,
-                123,
-                1586,
-                915
+                674,
+                177,
+                1246,
+                953
               ],
               "caption": "Generated half-plane preview. The status line reports the validation (family preserved, coordinates finite, minimum distance); a warning there must not be ignored."
             }
@@ -955,10 +955,10 @@
             {
               "file": "tutorials/dislocation-summary.jpg",
               "bounds": [
-                334,
-                123,
-                1586,
-                915
+                674,
+                177,
+                1246,
+                953
               ],
               "caption": "Validation and Replace Main Scene are below Generate in the settings panel."
             }
@@ -979,10 +979,10 @@
             {
               "file": "tutorials/interstitial-detection.jpg",
               "bounds": [
-                404,
-                153,
-                1516,
-                885
+                454,
+                217,
+                1466,
+                913
               ],
               "caption": "Void-detection controls with the 500-atom host loaded."
             }
@@ -1003,10 +1003,10 @@
             {
               "file": "tutorials/interstitial-voids.jpg",
               "bounds": [
-                404,
-                153,
-                1516,
-                885
+                454,
+                217,
+                1466,
+                913
               ],
               "caption": "Detected void markers and type counts. Selected-void details appear further down the panel."
             }
@@ -1027,10 +1027,10 @@
             {
               "file": "tutorials/interstitial-placement.jpg",
               "bounds": [
-                404,
-                153,
-                1516,
-                885
+                454,
+                217,
+                1466,
+                913
               ],
               "caption": "Placement controls after detection, including type filters, element selection, and percentage target."
             }
@@ -1051,10 +1051,10 @@
             {
               "file": "tutorials/interstitial-modes.jpg",
               "bounds": [
-                404,
-                153,
-                1516,
-                885
+                454,
+                217,
+                1466,
+                913
               ],
               "caption": "The placement menu offers Random, Inside OBJ/STL, and Manual modes."
             }
@@ -1075,10 +1075,10 @@
             {
               "file": "tutorials/interstitial-mesh.jpg",
               "bounds": [
-                404,
-                153,
-                1516,
-                885
+                454,
+                217,
+                1466,
+                913
               ],
               "caption": "Mesh-region controls before a mesh is dropped; Apply is disabled until the required region is available."
             }
@@ -1105,9 +1105,9 @@
               "file": "tutorials/file-browser.jpg",
               "bounds": [
                 594,
-                258,
+                244,
                 1326,
-                780
+                886
               ],
               "caption": "The real structure browser with a generated example selected. The filename can be selected from the listing."
             }
@@ -1128,10 +1128,10 @@
             {
               "file": "tutorials/view-menu.jpg",
               "bounds": [
-                87,
+                74,
                 0,
-                430,
-                473
+                367,
+                465
               ],
               "caption": "View menu: projection, overlays, information, measurements, and Reset View are separate commands."
             }
@@ -1152,10 +1152,10 @@
             {
               "file": "tutorials/structure-colouring.jpg",
               "bounds": [
-                87,
+                74,
                 0,
-                596,
-                473
+                540,
+                465
               ],
               "caption": "View > Colour Atoms By exposes element and metadata-based presentations."
             }
@@ -1176,10 +1176,10 @@
             {
               "file": "tutorials/atom-representation.jpg",
               "bounds": [
-                87,
+                74,
                 0,
-                564,
-                473
+                507,
+                465
               ],
               "caption": "View > Atom Style: Balls, Ball and Stick, Space Filling, and Polyhedral."
             }
@@ -1200,10 +1200,10 @@
             {
               "file": "tutorials/lattice-planes.jpg",
               "bounds": [
-                564,
-                291,
-                1356,
-                950
+                563,
+                309,
+                1357,
+                823
               ],
               "caption": "New-plane controls and an editable saved (100) row. Global and row visibility are both enabled."
             }
@@ -1224,10 +1224,10 @@
             {
               "file": "tutorials/miller-directions.jpg",
               "bounds": [
-                614,
-                310,
-                1306,
-                911
+                613,
+                327,
+                1307,
+                803
               ],
               "caption": "Miller Directions with a saved [100] vector of length 5 Angstrom."
             }
@@ -1248,10 +1248,10 @@
             {
               "file": "tutorials/polyhedral-settings.jpg",
               "bounds": [
-                644,
-                232,
-                1276,
-                807
+                643,
+                293,
+                1277,
+                837
               ],
               "caption": "Polyhedral Settings separates candidate counts, centre selection, element filters, and face/edge visibility."
             }
@@ -1272,10 +1272,10 @@
             {
               "file": "tutorials/atomic-sizes.jpg",
               "bounds": [
-                462,
-                197,
-                1457,
-                842
+                460,
+                249,
+                1459,
+                881
               ],
               "caption": "Atomic Sizes: select a species first, then edit or restore its radius."
             }
@@ -1296,10 +1296,10 @@
             {
               "file": "tutorials/display-style.jpg",
               "bounds": [
-                602,
-                55,
-                1318,
-                983
+                601,
+                135,
+                1319,
+                995
               ],
               "caption": "Style tab: seven ready-made looks, then the background and cell outline colours."
             },
@@ -1307,9 +1307,9 @@
               "file": "tutorials/display-publication.jpg",
               "bounds": [
                 0,
-                98,
+                113,
                 1920,
-                981
+                1094
               ],
               "caption": "The Publication look: white background, black cell and soft light."
             }
@@ -1330,10 +1330,10 @@
             {
               "file": "tutorials/display-lighting.jpg",
               "bounds": [
-                602,
-                55,
-                1318,
-                845
+                601,
+                191,
+                1319,
+                939
               ],
               "caption": "Lighting tab at its default values; each setting has its own Reset button."
             }
@@ -1354,10 +1354,10 @@
             {
               "file": "tutorials/display-atoms.jpg",
               "bounds": [
-                602,
-                55,
-                1186,
-                841
+                601,
+                208,
+                1319,
+                922
               ],
               "caption": "Atoms and Bonds tab: global atom and bond sizes, bond colouring and the element radii."
             }
@@ -1378,10 +1378,10 @@
             {
               "file": "tutorials/display-colors.jpg",
               "bounds": [
-                602,
-                52,
-                1597,
-                1007
+                460,
+                106,
+                1459,
+                1024
               ],
               "caption": "Colours tab with a selected element, its RGB controls and the reset actions."
             }
@@ -1402,10 +1402,10 @@
             {
               "file": "tutorials/theme-options.jpg",
               "bounds": [
-                87,
+                74,
                 0,
-                590,
-                473
+                518,
+                465
               ],
               "caption": "Theme selection under View. Light is selected in these captures."
             }
@@ -1425,10 +1425,10 @@
             {
               "file": "tutorials/structure-info.jpg",
               "bounds": [
-                574,
-                32,
-                1346,
-                1007
+                573,
+                85,
+                1347,
+                1045
               ],
               "caption": "Structure Info for the supplied 70:30 Cu--Ni alloy, showing 500 atoms and a cubic 18.05 Angstrom cell."
             }
@@ -1449,10 +1449,10 @@
             {
               "file": "tutorials/export-image.jpg",
               "bounds": [
-                574,
-                173,
-                1346,
-                865
+                594,
+                229,
+                1326,
+                901
               ],
               "caption": "Export Image: the folder browser, then the file name, format, background, orientation gizmo and resolution. Export writes the image."
             }
@@ -1478,10 +1478,10 @@
             {
               "file": "tutorials/view-menu.jpg",
               "bounds": [
-                87,
+                74,
                 0,
-                430,
-                473
+                367,
+                465
               ],
               "caption": "View menu: projection, overlays, information, measurements, and Reset View are separate commands."
             }
@@ -1500,10 +1500,10 @@
             {
               "file": "tutorials/interface-size.jpg",
               "bounds": [
-                196,
+                174,
                 0,
-                638,
-                204
+                591,
+                215
               ],
               "caption": "Current Settings > Interface Size menu, with Automatic selected and all five scale choices visible."
             }
@@ -1523,9 +1523,9 @@
               "file": "tutorials/rdf-analysis.jpg",
               "bounds": [
                 364,
-                103,
+                152,
                 1556,
-                935
+                979
               ],
               "caption": "Actual RDF of the ideal-position Cu--Ni alloy, all species, PBC, 0--8 Angstrom, 200 bins, no smoothing."
             }
@@ -1547,9 +1547,9 @@
               "file": "tutorials/sro-warren.jpg",
               "bounds": [
                 494,
-                173,
+                220,
                 1426,
-                865
+                910
               ],
               "caption": "SRO on the supplied alloy. This capture demonstrates controls and an observed diagnostic discrepancy; its numerical results are not validated."
             }
@@ -1571,9 +1571,9 @@
               "file": "tutorials/sro-rao.jpg",
               "bounds": [
                 494,
-                173,
+                220,
                 1426,
-                865
+                910
               ],
               "caption": "Rao--Curtin tab from the same diagnostic run. Validate shells before using either convention."
             }

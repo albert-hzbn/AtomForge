@@ -350,7 +350,7 @@ impl NanoDialog {
             ui.horizontal(|ui| {
                 ui.color_edit_button_rgb(&mut self.family_colours[i]);
                 ui.label(format!("Family {}", i + 1));
-                if ui.small_button("Remove").clicked() && !single {
+                if ui.button("Remove").clicked() && !single {
                     remove = Some(i);
                 }
             });

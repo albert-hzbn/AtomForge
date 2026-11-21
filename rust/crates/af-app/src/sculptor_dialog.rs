@@ -566,7 +566,8 @@ impl StructureDialog for SculptorDialog {
             if let Some(edit) = &self.step {
                 ui.colored_label(egui::Color32::from_rgb(110, 170, 240), format!("Editing pipeline step {}: {}", edit.index + 1, edit.step));
             }
-            let height = (ui.available_height() - 8.0).max(420.0);
+            let fit = crate::dialog_layout::fit_height(ui, "sculptor", 8.0, 420.0);
+            let height = fit.height;
             ui.horizontal_top(|ui| {
                 let width = (ui.available_width() * 0.5).clamp(280.0, 580.0);
                 ui.vertical(|ui| {
@@ -636,6 +637,7 @@ impl StructureDialog for SculptorDialog {
                     }
                 });
             });
+            fit.finish(ui);
         });
         if !(open && !close) && self.open {
             // Closed (Close, X): the menu path builds normally again.

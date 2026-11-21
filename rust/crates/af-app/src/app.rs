@@ -100,6 +100,10 @@ pub struct AtomForgeApp {
     about: bool,
     /// UI tour: menus held open for a screenshot (menu, then submenu).
     tour_menus: Vec<String>,
+    /// The selection's context menu held open at this point (manual screenshots).
+    tour_context_menu: Option<egui::Pos2>,
+    /// Manual screenshots: the folder and each image's crop bounds.
+    capture: Capture,
     /// Save in the close prompt: close this tab once it is saved.
     close_after_save: Option<u64>,
     /// What the docked pipeline panel asked for this frame.
@@ -199,6 +203,8 @@ impl AtomForgeApp {
             pending: Pending::None,
             about: false,
             tour_menus: Vec::new(),
+            tour_context_menu: None,
+            capture: Capture::default(),
             close_after_save: None,
             docked_requests: None,
             renderer_choice: crate::renderer_pref::saved(),
@@ -1300,13 +1306,63 @@ impl AtomForgeApp {
         }
     }
 
+    /// The rectangle a manual screenshot shows (TutorialCapture's targets):
+    /// the open dialogs, the menus with the menu bar, the topmost popup, the
+    /// tool windows, the 3D view, or the whole window.
+    fn capture_rect(&self, ctx: &egui::Context, target: &str) -> egui::Rect {
+        let screen = ctx.content_rect();
+        if target == "viewport" {
+            let k = ctx.pixels_per_point();
+            return egui::Rect::from_min_size(self.viewport_origin, egui::vec2(self.viewport_size.0 as f32 / k, self.viewport_size.1 as f32 / k));
+        }
+        if target == "full" {
+            return screen;
+        }
+        let skip = [egui::Id::unique("modal backdrop"), egui::Id::unique("minimised dialogs"), egui::Id::unique("welcome panel"), egui::Id::unique("atom hover")];
+        let layers: Vec<(egui::LayerId, egui::Rect)> = ctx.memory(|m| {
+            m.layer_ids()
+                .filter(|l| m.areas().visible_last_frame(l) || m.areas().is_visible(l))
+                .filter(|l| !skip.contains(&l.id))
+                .filter_map(|l| m.area_rect(l.id).map(|r| (l, r)))
+                .filter(|(_, r)| r.width() > 40.0 && r.height() > 30.0 && r.intersects(screen))
+                .collect()
+        });
+        let union = |orders: &[egui::Order]| {
+            layers.iter().filter(|(l, _)| orders.contains(&l.order)).fold(egui::Rect::NOTHING, |a, (_, r)| a.union(*r))
+        };
+        let r = match target {
+            "menus" => {
+                let r = union(&[egui::Order::Foreground]);
+                if r.is_positive() {
+                    egui::Rect::from_min_max(egui::pos2((r.min.x - 40.0).max(0.0), 0.0), r.max)
+                } else {
+                    r
+                }
+            }
+            "top" => layers.iter().rev().find(|(l, _)| l.order == egui::Order::Foreground).map(|(_, r)| *r).unwrap_or(egui::Rect::NOTHING),
+            "tools" => union(&[egui::Order::Middle]),
+            _ => union(&[egui::Order::Foreground, egui::Order::Middle]),
+        };
+        if r.is_positive() { r } else { screen }
+    }
+
     /// Opens a menu for a UI tour screenshot (FileBrowser::forceTourMenu).
     fn force_tour_menu(&mut self, ui: &egui::Ui, name: &str, response: &egui::Response) {
-        if self.tour_menus.iter().any(|m| m == name) {
-            let id = egui::Popup::default_response_id(response);
-            if !egui::Popup::is_id_open(ui.ctx(), id) {
-                egui::Popup::open_id(ui.ctx(), id);
-            }
+        if !self.tour_menus.iter().any(|m| m == name) {
+            return;
+        }
+        if egui::containers::menu::is_in_menu(ui) {
+            // A submenu: the open item of its parent menu, shown last frame.
+            use egui::containers::menu::{MenuState, SubMenu};
+            let sub = SubMenu::id_from_widget_id(response.id);
+            MenuState::mark_shown(ui.ctx(), sub);
+            MenuState::from_ui(ui, |state, _| state.open_item = Some(sub));
+            ui.ctx().request_repaint();
+            return;
+        }
+        let id = egui::Popup::default_response_id(response);
+        if !egui::Popup::is_id_open(ui.ctx(), id) {
+            egui::Popup::open_id(ui.ctx(), id);
         }
     }
 
@@ -1624,7 +1680,7 @@ impl AtomForgeApp {
     }
 
     fn theme_menu(&mut self, ui: &mut egui::Ui) {
-        ui.menu_button("Theme", |ui| {
+        let tour_submenu_0 = ui.menu_button("Theme", |ui| {
             let current = ui.ctx().options(|o| o.theme_preference);
             for (label, preference) in [("Light", egui::ThemePreference::Light), ("Dark", egui::ThemePreference::Dark), ("Match the system", egui::ThemePreference::System)] {
                 if ui.radio(current == preference, label).clicked() {
@@ -1633,6 +1689,7 @@ impl AtomForgeApp {
                 }
             }
         });
+        self.force_tour_menu(ui, "Theme", &tour_submenu_0.response);
     }
 
     /// The Display Settings and Atomic Sizes windows edit the display and the
@@ -1887,7 +1944,7 @@ impl AtomForgeApp {
             self.force_tour_menu(ui, "Build", &tour_menu_66712.response);
             let tour_menu_2801 = ui.menu_button("View", |ui| {
                 let property = self.doc().is_some_and(|d| has_property(&d.structure));
-                ui.menu_button("Colour Atoms By", |ui| {
+                let tour_submenu_1 = ui.menu_button("Colour Atoms By", |ui| {
                     for mode in [ColourMode::Element, ColourMode::CrystalOrientation, ColourMode::GrainBoundary, ColourMode::AtomProperty] {
                         let enabled = mode != ColourMode::AtomProperty || property;
                         let label = match mode {
@@ -1904,7 +1961,8 @@ impl AtomForgeApp {
                         }
                     }
                 });
-                ui.menu_button("Atom Style", |ui| {
+                self.force_tour_menu(ui, "Colour Atoms By", &tour_submenu_1.response);
+                let tour_submenu_2 = ui.menu_button("Atom Style", |ui| {
                     for style in AtomStyle::ALL {
                         let enabled = style != AtomStyle::Polyhedral || has;
                         let response = crate::theme::menu_radio(ui, enabled, self.view.style == style, style.label()).on_hover_text(style.hint());
@@ -1914,6 +1972,7 @@ impl AtomForgeApp {
                         }
                     }
                 });
+                self.force_tour_menu(ui, "Atom Style", &tour_submenu_2.response);
                 ui.menu_button("Show", |ui| {
                     crate::theme::menu_toggle(ui, has, &mut self.view.show_atoms, "Atoms");
                     ui.add_enabled(!matches!(self.view.style, AtomStyle::BallAndStick | AtomStyle::Polyhedral), egui::Checkbox::new(&mut self.view.show_bonds, "Bonds"))
@@ -2074,7 +2133,7 @@ impl AtomForgeApp {
             });
             self.force_tour_menu(ui, "Analysis", &tour_menu_2421.response);
             let tour_menu_16330 = ui.menu_button("Settings", |ui| {
-                ui.menu_button("Interface Size", |ui| {
+                let tour_submenu_3 = ui.menu_button("Interface Size", |ui| {
                     for (label, scale) in INTERFACE_SIZES {
                         if crate::theme::menu_radio(ui, true, self.interface_scale == scale, label).clicked() {
                             self.interface_scale = scale;
@@ -2083,6 +2142,7 @@ impl AtomForgeApp {
                         }
                     }
                 });
+                self.force_tour_menu(ui, "Interface Size", &tour_submenu_3.response);
                 ui.separator();
                 if ui.button("Atomic Sizes").clicked() {
                     self.settings.sizes_open = true;
@@ -2513,6 +2573,16 @@ impl AtomForgeApp {
         let selected = self.doc().map(|d| d.selection.len()).unwrap_or(0);
         if selected > 0 && self.select_mode == SelectMode::Off {
             let mut action = None;
+            if let Some(pos) = self.tour_context_menu {
+                // Scripts have no pointer to open the menu at: the same menu, held open.
+                egui::Area::new(egui::Id::unique("tour context menu")).order(egui::Order::Foreground).fixed_pos(pos).show(&ctx, |ui| {
+                    egui::Frame::menu(ui.style()).show(ui, |ui| {
+                        crate::theme::menu_style(ui.style_mut());
+                        ui.set_min_width(220.0);
+                        crate::atom_menu::menu(ui, selected);
+                    });
+                });
+            }
             response.context_menu(|ui| action = crate::atom_menu::menu(ui, selected));
             if let Some(a) = action {
                 self.atom_action(a);
@@ -3329,6 +3399,40 @@ impl AtomForgeApp {
                     return Err(format!("expected {want} tabs, {} are open", self.tabs.len()));
                 }
             }
+            "capture-folder" => {
+                // capture-folder DIR: where `capture` writes images and the bounds file.
+                self.capture.folder = rest.trim().to_string();
+                self.capture.bounds.clear();
+            }
+            "capture" => {
+                // capture FILE popups|menus|top|viewport|tools|full: a manual screenshot
+                // and the rectangle of what it shows (the C++ TutorialCapture).
+                let (file, target) = split(rest);
+                let r = self.capture_rect(ctx, target.trim());
+                let k = ctx.pixels_per_point();
+                let screen = ctx.content_rect();
+                let pad = 6.0;
+                let r = egui::Rect::from_min_max(
+                    egui::pos2((r.min.x - pad).max(0.0), (r.min.y - pad).max(0.0)),
+                    egui::pos2((r.max.x + pad).min(screen.max.x), (r.max.y + pad).min(screen.max.y)),
+                );
+                self.capture.bounds.push((file.to_string(), [(r.min.x * k) as i32, (r.min.y * k) as i32, (r.max.x * k) as i32, (r.max.y * k) as i32]));
+                let path = std::path::Path::new(&self.capture.folder).join(file).to_string_lossy().into_owned();
+                save_screenshot(ctx, path, false);
+                if let Some(s) = self.script.as_mut() {
+                    s.wait_frames = 4;
+                }
+            }
+            "capture-done" => {
+                // capture-done NAME: writes FOLDER/bounds-NAME.json.
+                let mut text = String::from("{");
+                for (i, (file, b)) in self.capture.bounds.iter().enumerate() {
+                    text += &format!("{}\n  \"{}\": [{}, {}, {}, {}]", if i > 0 { "," } else { "" }, file, b[0], b[1], b[2], b[3]);
+                }
+                text += "\n}\n";
+                let path = std::path::Path::new(&self.capture.folder).join(format!("bounds-{}.json", rest.trim()));
+                std::fs::write(path, text).map_err(|e| e.to_string())?;
+            }
             "screenshot" => {
                 save_screenshot(ctx, rest.to_string(), false);
                 if let Some(s) = self.script.as_mut() {
@@ -3811,10 +3915,18 @@ impl AtomForgeApp {
                 d.selection = d.scene.instances.atom_indices.iter().enumerate().filter(|(_, &a)| a >= 0 && wanted.contains(&(a as usize))).map(|(i, _)| i).collect();
                 d.scene_dirty = true;
             }
+            "context-menu" => {
+                // context-menu: the selected atoms' right-click menu (at the view's centre).
+                let k = ctx.pixels_per_point();
+                let s = self.viewport_size;
+                self.tour_context_menu = Some(self.viewport_origin + egui::vec2(s.0 as f32 / k * 0.5, s.1 as f32 / k * 0.45));
+            }
             "close-windows" => {
                 // Closes what a tour step opened.
                 self.tour_menus.clear();
                 egui::Popup::close_all(ctx);
+                self.measure.atom_info = None;
+                self.tour_context_menu = None;
                 self.operation.open = false;
                 self.tools.open = false;
                 self.pipeline.open = false;
@@ -3975,7 +4087,9 @@ impl AtomForgeApp {
                     "analyse" => self.trajectory.analyse = value.trim() == "on",
                     "analysis" => self.trajectory.analysis = value.trim().parse::<usize>().map_err(|e| e.to_string())?.saturating_sub(1).min(3),
                     "lines" => {
-                        self.trajectory.lines.visible = value.trim() == "on";
+                        // lines on|off|whole (whole: every frame's path, not up to the shown one).
+                        self.trajectory.lines.visible = matches!(value.trim(), "on" | "whole");
+                        self.trajectory.lines.whole_path = value.trim() == "whole";
                         if self.trajectory.lines.visible {
                             self.trajectory.trace_lines();
                         }
@@ -3993,7 +4107,11 @@ impl AtomForgeApp {
                 }
             }
             "plane" => {
-                // plane H K L [OFFSET]: adds a lattice plane.
+                // plane H K L [OFFSET]: adds a lattice plane; plane clear removes them.
+                if rest.trim() == "clear" {
+                    self.overlays.planes.clear();
+                    return Ok(());
+                }
                 let v: Vec<f64> = words.iter().filter_map(|w| w.parse().ok()).collect();
                 if v.len() < 3 {
                     return Err("plane H K L [OFFSET]".into());
@@ -4002,7 +4120,11 @@ impl AtomForgeApp {
                 self.overlays.add_plane(p)?;
             }
             "direction" => {
-                // direction U V W [LENGTH]: adds a Miller direction arrow.
+                // direction U V W [LENGTH]: adds a Miller direction arrow; direction clear removes them.
+                if rest.trim() == "clear" {
+                    self.overlays.directions.clear();
+                    return Ok(());
+                }
                 let v: Vec<f64> = words.iter().filter_map(|w| w.parse().ok()).collect();
                 if v.len() < 3 {
                     return Err("direction U V W [LENGTH]".into());
@@ -4089,6 +4211,23 @@ fn save_screenshot(ctx: &egui::Context, path: String, close: bool) {
     ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::ScreenshotCallback::new(move |image| {
         let [w, h] = image.size;
         let bytes: Vec<u8> = image.pixels.iter().flat_map(|c| c.to_array()).collect();
+        if let Some(parent) = std::path::Path::new(&path).parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let lower = path.to_ascii_lowercase();
+        if lower.ends_with(".jpg") || lower.ends_with(".jpeg") {
+            // JPEG at quality 92, as the C++ tutorial capture wrote them.
+            let rgb: Vec<u8> = bytes.chunks_exact(4).flat_map(|p| [p[0], p[1], p[2]]).collect();
+            if let Ok(file) = std::fs::File::create(&path) {
+                let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(std::io::BufWriter::new(file), 92);
+                let _ = encoder.encode(&rgb, w as u32, h as u32, image::ExtendedColorType::Rgb8);
+            }
+            if close {
+                ctx2.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+            ctx2.request_repaint();
+            return;
+        }
         if let Ok(file) = std::fs::File::create(&path) {
             let mut encoder = png::Encoder::new(std::io::BufWriter::new(file), w as u32, h as u32);
             encoder.set_color(png::ColorType::Rgba);
@@ -4104,6 +4243,13 @@ fn save_screenshot(ctx: &egui::Context, path: String, close: bool) {
     })));
 }
 
+
+/// Manual screenshots (`capture-folder`, `capture`, `capture-done`).
+#[derive(Default)]
+struct Capture {
+    folder: String,
+    bounds: Vec<(String, [i32; 4])>,
+}
 
 /// The first letter in upper case (the History menu's labels).
 fn capitalised(text: &str) -> String {

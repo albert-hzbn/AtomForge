@@ -68,7 +68,9 @@ fn interstitial_voids_match_cpp() {
             first_neighbor_shell_factor: n(4) as f32,
             max_neighbor_count: n(5) as i32,
         };
-        let result = voids_json(&detect_interstitial_voids(&inputs[index].1, &params));
+        // The golden output was recorded on a machine with 24 hardware threads,
+        // on which the order of the candidate voids depends.
+        let result = voids_json(&detect_interstitial_voids_with_threads(&inputs[index].1, &params, Some(24)));
         let label = format!("{} {}", item.at("case").unwrap().string().unwrap(), inputs[index].0);
         json_diff(&label, &result, item.at("result").unwrap(), &mut differences);
     }

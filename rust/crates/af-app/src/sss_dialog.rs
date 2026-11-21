@@ -263,16 +263,16 @@ impl SssDialog {
             ui.strong("Host Structure");
             if let Some(input) = self.step.as_ref().map(|e| e.input.clone()) {
                 // The step's host is the structure entering it, not the scene.
-                if ui.small_button("Use Step Input").clicked() {
+                if ui.button("Use Step Input").clicked() {
                     self.load_scene(&input);
                     if self.loaded && self.source_path.is_empty() {
                         self.label = "pipeline step input".into();
                     }
                 }
-            } else if ui.small_button("Use Current Scene").clicked() {
+            } else if ui.button("Use Current Scene").clicked() {
                 self.load_scene(scene);
             }
-            if ui.small_button("Load File...").clicked() {
+            if ui.button("Load File...").clicked() {
                 self.browser.show_for(Purpose::Open, "Load a host structure", "", &[]);
             }
         });
@@ -324,7 +324,7 @@ impl SssDialog {
                     changed = Some((i, pct));
                 }
                 ui.label(format!("{} atoms", e.count));
-                if many && ui.small_button("X").clicked() {
+                if many && ui.button("X").clicked() {
                     remove = Some(i);
                 }
                 ui.end_row();

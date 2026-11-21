@@ -353,14 +353,14 @@ impl StackingFaultDialog {
         ui.horizontal(|ui| {
             ui.label("Input Structure");
             if let Some(edit) = &self.step {
-                if ui.small_button("Use Step Input").clicked() {
+                if ui.button("Use Step Input").clicked() {
                     let structure = edit.input.clone();
                     self.load_scene(&structure);
                     if self.source_loaded && self.source_path.is_empty() {
                         self.source_label = "step input".into();
                     }
                 }
-            } else if ui.small_button("Use Current Scene").clicked() {
+            } else if ui.button("Use Current Scene").clicked() {
                 self.load_scene(input.source);
             }
         });
@@ -471,7 +471,7 @@ impl StackingFaultDialog {
                 ui.add(egui::TextEdit::singleline(&mut self.export_folder).desired_width(field));
                 ui.label("Subfolder");
             });
-            if self.source_loaded && !self.source_path.is_empty() && ui.small_button("Use Source Folder").clicked() {
+            if self.source_loaded && !self.source_path.is_empty() && ui.button("Use Source Folder").clicked() {
                 self.export_dir = parent(&self.source_path);
             }
             egui::ComboBox::from_label("Format").selected_text(EXPORT_FORMATS[self.export_format].0).show_ui(ui, |ui| {

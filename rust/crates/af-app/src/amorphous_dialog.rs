@@ -261,7 +261,7 @@ impl AmorphousDialog {
                 ui.add(egui::DragValue::new(&mut e.count).range(0..=100_000).suffix(" atoms"));
                 let pct = if total > 0 { 100.0 * e.count as f32 / total as f32 } else { 0.0 };
                 ui.label(format!("{pct:.1}"));
-                if ui.small_button("X").clicked() {
+                if ui.button("X").clicked() {
                     remove = Some(i);
                 }
                 ui.end_row();

@@ -21,14 +21,14 @@ Download the package for your platform from the [releases page](https://github.c
 
 | Platform | What you need |
 | --- | --- |
-| **Windows x64** | Open AtomForge.exe in the extracted AtomForge folder. Runtime libraries are included; no compiler or MSYS2 installation is needed. |
-| **Linux x86_64** | Open AtomForge in the extracted AtomForge/bin folder. The current build targets Ubuntu 24.04 or compatible systems with glibc 2.39 or later, X11/XWayland and working Vulkan or OpenGL drivers. |
+| **Windows x64** | Open AtomForge.exe in the extracted AtomForge folder. The libraries it needs are included; nothing else has to be installed. |
+| **Linux x86_64** | Open AtomForge in the extracted AtomForge/bin folder. The current build targets Ubuntu 24.04 or compatible systems with glibc 2.39 or later, X11 or Wayland and working Vulkan or OpenGL drivers. |
 
-AtomForge draws with Vulkan by default and switches to OpenGL automatically where Vulkan is unavailable; **Settings > Renderer** chooses one explicitly.
+AtomForge draws through [wgpu](https://wgpu.rs/) and picks the best graphics interface automatically (Vulkan or Direct3D 12 on Windows, Vulkan or OpenGL on Linux). **Settings > Renderer** chooses one explicitly, applied at the next start; `AtomForge --renderer opengl` does the same for one session.
 
 Each package includes the illustrated manual. Open it through **Help > Manual** or **Help > About > Manual**, using your default PDF viewer. You can also [read it here](docs/manual/AtomForge-manual.pdf).
 
-For a first session, open an existing structure through **File > Open**, or choose a builder from **Build**. Rotate and zoom the view to inspect the result, then save your structure or export an image. The manual includes 62 short tutorials with examples to try.
+For a first session, open an existing structure through **File > Open**, or choose a builder from **Build**. Rotate and zoom the view to inspect the result, then save your structure or export an image. The manual includes 63 short tutorials with examples to try.
 
 ## Build the structure you need
 
@@ -113,9 +113,9 @@ The current Python release is **0.2.0**. Basic structure operations do not requi
 - **Report a problem or suggest a feature:** use [GitHub Issues](https://github.com/albert-hzbn/AtomForge/issues). Include the application version, operating system and steps to reproduce the issue; attach a shareable example when possible.
 - **Build or extend AtomForge:** see the [installation guide](INSTALL.md) and [architecture guide](ARCHITECTURE.md).
 
-Normal source builds automatically limit concurrent compilation and linking to reduce memory pressure, while retaining full Release optimization. See the installation guide for build instructions.
+AtomForge is written in Rust: `cargo build --release` in the `rust` folder builds the desktop application, the command line and the native libraries of the Python package on Windows and Linux. The installation guide lists the requirements and the packaging script.
 
-The current source includes common-neighbour and angular-distribution analysis, interface matching and stacking-fault generation. It also adds saved projects, autosave recovery, trajectory playback, electronic history and image export. Rebuild from source to use these additions; existing release downloads are unchanged.
+The current source includes common-neighbour and angular-distribution analysis, interface matching and stacking-fault generation. It also adds saved projects, autosave recovery, trajectory playback, electronic history and image export. Build from source to use these additions until the next release.
 
 The **Analysis** menu groups tools by scientific task, with tools for
 diffusion and trajectory statistics, local strain and defects, band edges and

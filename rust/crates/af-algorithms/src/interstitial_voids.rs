@@ -394,8 +394,10 @@ struct Candidate {
 }
 
 /// The C++ worker count: std::thread::hardware_concurrency (8 when unknown).
-fn worker_count(atoms: usize) -> usize {
-    let hw = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(8);
+/// The result depends on it (the per-worker candidates are concatenated in
+/// worker order), so `threads` overrides it for reproducible output.
+fn worker_count(atoms: usize, threads: Option<usize>) -> usize {
+    let hw = threads.unwrap_or_else(|| std::thread::available_parallelism().map(|n| n.get()).unwrap_or(8));
     hw.min(atoms).max(1)
 }
 
@@ -423,6 +425,12 @@ fn interleaved<T: Send>(count: usize, workers: usize, work: impl Fn(usize, &mut 
 }
 
 pub fn detect_interstitial_voids(structure: &Structure, params: &VoidParams) -> VoidResult {
+    detect_interstitial_voids_with_threads(structure, params, None)
+}
+
+/// `detect_interstitial_voids` as on a machine with `threads` hardware
+/// threads (None: this machine's), for output independent of the machine.
+pub fn detect_interstitial_voids_with_threads(structure: &Structure, params: &VoidParams, threads: Option<usize>) -> VoidResult {
     let mut result = VoidResult::default();
     if structure.atoms.is_empty() {
         result.message = "Source structure has no atoms.".into();
@@ -466,7 +474,7 @@ pub fn detect_interstitial_voids(structure: &Structure, params: &VoidParams) -> 
     let g = g;
 
     let atom_count = atoms.len();
-    let workers = worker_count(atom_count);
+    let workers = worker_count(atom_count, threads);
     let per_worker = interleaved(atom_count, workers, |ai, local: &mut Vec<Candidate>| {
         #[derive(Clone, Copy)]
         struct Near {

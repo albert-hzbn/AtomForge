@@ -24,15 +24,17 @@ pub fn two_panels<S>(ui: &mut egui::Ui, id: &str, state: &mut S, controls: impl 
         return;
     }
     let sidebar = (width * 0.42).clamp(420.0, 540.0);
-    let height = ui.available_height().max(300.0);
+    let fit = crate::dialog_layout::fit_height(ui, id, 0.0, 300.0);
+    let height = fit.height;
     let top_down = egui::Layout::top_down(egui::Align::Min);
     ui.horizontal_top(|ui| {
         let p = crate::theme::palette(ui.visuals().dark_mode);
         ui.allocate_ui_with_layout(egui::vec2(sidebar, height), top_down, |ui| {
             // ImGui child windows: the surface colour, rounded, the controls bordered.
             egui::Frame::new().fill(p.surface).stroke(egui::Stroke::new(1.0, p.border)).corner_radius(8).inner_margin(egui::Margin::same(7)).show(ui, |ui| {
-                ui.set_width(sidebar - 14.0);
-                ui.set_height(height - 14.0);
+                // The 1-pixel border adds to the inner margin.
+                ui.set_width(sidebar - 16.0);
+                ui.set_height(height - 16.0);
                 egui::ScrollArea::vertical().id_salt((id, "controls")).auto_shrink([false, false]).show(ui, |ui| {
                     ui.set_width(sidebar - 30.0);
                     controls(state, ui);
@@ -50,6 +52,7 @@ pub fn two_panels<S>(ui: &mut egui::Ui, id: &str, state: &mut S, controls: impl 
             });
         });
     });
+    fit.finish(ui);
 }
 
 /// dialogLayout::section: a semibold heading over a thin rule.

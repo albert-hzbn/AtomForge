@@ -441,8 +441,8 @@ impl StructureDialog for ShapeDialog {
             if let Some(e) = &step {
                 crate::structure_dialog::step_banner(ui, &e.step);
             }
-            let footer = 52.0;
-            let height = (ui.available_height() - footer).max(200.0);
+            let fit = crate::dialog_layout::fit_height(ui, "shape", 52.0, 200.0);
+            let height = fit.height;
             ui.horizontal_top(|ui| {
                 let left = (ui.available_width() * 0.56).floor();
                 let down = egui::Layout::top_down(egui::Align::LEFT);
@@ -469,6 +469,7 @@ impl StructureDialog for ShapeDialog {
                     2 => self.open = false,
                     _ => {}
                 }
+                fit.finish(ui);
                 return;
             }
             let mode = self.mode();
@@ -483,6 +484,7 @@ impl StructureDialog for ShapeDialog {
                 2 => out = self.add_to_pipeline(),
                 _ => {}
             }
+            fit.finish(ui);
         });
         if let Some(path) = self.mesh_browser.show(ctx) {
             self.mesh_path = path.to_string_lossy().into_owned();

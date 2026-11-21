@@ -325,7 +325,8 @@ impl MergeDialog {
 
     fn preview(&mut self, ui: &mut egui::Ui, colours: &[[f32; 3]]) {
         let combined = combined(&self.entries);
-        let size = egui::vec2(ui.available_width(), (ui.available_height() - 90.0).clamp(240.0, 600.0));
+        // A fixed height: the panel around it grows with what it holds.
+        let size = egui::vec2(ui.available_width(), 510.0);
         let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click_and_drag());
         let painter = ui.painter_at(rect);
         painter.rect_filled(rect, 4.0, ui.visuals().extreme_bg_color);
@@ -623,11 +624,11 @@ impl StructureDialog for MergeDialog {
                                 .response
                                 .on_hover_text("Three rotation values orient the selected component. The preview reflects its component transform; orbiting the camera changes the view of all components together.");
                                 ui.horizontal(|ui| {
-                                    if ui.small_button("Reset").clicked() {
+                                    if ui.button("Reset").clicked() {
                                         e.translation = Vec3::ZERO;
                                         e.rotation_deg = Vec3::ZERO;
                                     }
-                                    if ui.small_button("Remove").clicked() {
+                                    if ui.button("Remove").clicked() {
                                         remove = Some(i);
                                     }
                                 });
